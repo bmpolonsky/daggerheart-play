@@ -1,0 +1,296 @@
+.tool-viewport--combat {
+  --combat-ink: #07090d;
+  --combat-panel: rgba(18, 20, 29, 0.92);
+  --combat-panel-strong: rgba(10, 12, 18, 0.96);
+  --combat-paper: #f4ead7;
+  --combat-muted: rgba(219, 211, 194, 0.66);
+  --combat-gold: #d8ad53;
+  --combat-blue: #6f95d8;
+  --combat-line: rgba(216, 173, 83, 0.18);
+  background:
+    radial-gradient(circle at 18% 8%, rgba(216, 173, 83, 0.14), transparent 28rem),
+    radial-gradient(circle at 78% 0%, rgba(91, 159, 218, 0.1), transparent 30rem),
+    linear-gradient(135deg, #090b11 0%, #111318 46%, #08090d 100%);
+  color: var(--combat-paper);
+  font-family: "DH Overpass", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.tool-viewport--combat .font-display {
+  font-family: "DH Eveleth", "DH Overpass", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+.tool-viewport--combat h1.font-display {
+  line-height: 1;
+}
+
+.tool-viewport--combat article h3.font-display {
+  font-family: "DH Overpass", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.superapp-shell--combat .superapp-content {
+  width: 100%;
+  max-width: 100vw;
+  overflow: hidden;
+}
+
+.tool-viewport--combat .combat-builder-app {
+  min-width: 0;
+  max-width: 100%;
+  background: transparent !important;
+}
+
+.tool-viewport--combat header {
+  border-color: var(--combat-line) !important;
+  background:
+    linear-gradient(180deg, rgba(20, 22, 32, 0.96), rgba(9, 11, 17, 0.94)) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+}
+
+.tool-viewport--combat header h1 {
+  color: var(--combat-gold) !important;
+  text-shadow: 0 2px 18px rgba(216, 173, 83, 0.18);
+}
+
+.tool-viewport--combat header input,
+.tool-viewport--combat header select {
+  border-color: rgba(216, 173, 83, 0.2) !important;
+  background-color: rgba(7, 9, 13, 0.82) !important;
+  color: var(--combat-paper) !important;
+}
+
+.tool-viewport--combat header input:focus,
+.tool-viewport--combat header select:focus {
+  border-color: rgba(216, 173, 83, 0.78) !important;
+  box-shadow: 0 0 0 1px rgba(216, 173, 83, 0.35);
+}
+
+.tool-viewport--combat main > div.flex-1 {
+  background:
+    linear-gradient(180deg, rgba(16, 18, 27, 0.54), rgba(6, 8, 12, 0.64)),
+    transparent !important;
+}
+
+.tool-viewport--combat article {
+  border-color: rgba(216, 173, 83, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(24, 27, 38, 0.94), rgba(12, 14, 21, 0.96)) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+}
+
+.tool-viewport--combat article:hover {
+  border-color: rgba(216, 173, 83, 0.52) !important;
+}
+
+.tool-viewport--combat article > div > div:last-child {
+  background:
+    linear-gradient(180deg, rgba(18, 20, 29, 0.94), rgba(9, 11, 16, 0.98)) !important;
+}
+
+.tool-viewport--combat .combat-encounter-sheet {
+  border-color: var(--combat-line) !important;
+  background:
+    linear-gradient(180deg, rgba(18, 20, 29, 0.97), rgba(8, 10, 15, 0.98)) !important;
+  box-shadow: -22px 0 58px rgba(0, 0, 0, 0.42);
+}
+
+.tool-viewport--combat .combat-encounter-panel {
+  min-height: 0;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+.tool-viewport--combat .combat-encounter-panel > div {
+  border-color: rgba(216, 173, 83, 0.14) !important;
+}
+
+.tool-viewport--combat .combat-encounter-panel > div:first-child,
+.tool-viewport--combat .combat-encounter-panel > div:last-child {
+  background:
+    linear-gradient(180deg, rgba(13, 15, 22, 0.96), rgba(8, 10, 15, 0.96)) !important;
+}
+
+.tool-viewport--combat .combat-encounter-panel > div:nth-child(2) {
+  background: rgba(20, 23, 33, 0.72) !important;
+}
+
+.tool-viewport--combat .combat-encounter-panel .custom-scrollbar > div {
+  border-color: rgba(216, 173, 83, 0.13) !important;
+  background: rgba(18, 20, 29, 0.78) !important;
+}
+
+@layer base {
+  .tool-viewport--combat *,
+  .tool-viewport--combat *::before,
+  .tool-viewport--combat *::after {
+    box-sizing: border-box;
+    border-width: 0;
+    border-style: solid;
+    border-color: #e5e7eb;
+  }
+
+  .tool-viewport--combat :where(h1, h2, h3, h4, h5, h6, p, blockquote, dl, dd, figure) {
+    margin: 0;
+  }
+
+  .tool-viewport--combat :where(button, input, optgroup, select, textarea) {
+    margin: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+  }
+
+  .tool-viewport--combat :where(button, select) {
+    text-transform: none;
+  }
+
+  .tool-viewport--combat :where(button, [type='button'], [type='reset'], [type='submit']) {
+    appearance: button;
+    background-color: transparent;
+    background-image: none;
+  }
+
+  .tool-viewport--combat :where(button, [role='button']) {
+    cursor: pointer;
+  }
+
+  .tool-viewport--combat :where(button:disabled) {
+    cursor: default;
+  }
+
+  .tool-viewport--combat :where(ol, ul, menu) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tool-viewport--combat :where(img, svg) {
+    display: block;
+    vertical-align: middle;
+  }
+
+  .tool-viewport--combat :where(img) {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+.tool-viewport--combat ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tool-viewport--combat ::-webkit-scrollbar-track {
+  background: #1a1d26;
+}
+
+.tool-viewport--combat ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.tool-viewport--combat ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.tool-viewport--combat .combat-encounter-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tool-viewport--combat .combat-missing-art {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.45rem;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(216, 173, 83, 0.24), transparent 32%),
+    linear-gradient(135deg, rgba(216, 173, 83, 0.2), rgba(91, 159, 218, 0.11)),
+    #111827;
+  color: rgba(255, 247, 231, 0.88);
+}
+
+.tool-viewport--combat .combat-missing-art::before,
+.tool-viewport--combat .combat-missing-art::after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(216, 173, 83, 0.22);
+  transform: rotate(45deg);
+}
+
+.tool-viewport--combat .combat-missing-art::before {
+  width: 5.8rem;
+  height: 5.8rem;
+}
+
+.tool-viewport--combat .combat-missing-art::after {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.tool-viewport--combat .combat-missing-art span,
+.tool-viewport--combat .combat-missing-art small {
+  position: relative;
+  z-index: 1;
+}
+
+.tool-viewport--combat .combat-missing-art span {
+  max-width: 5ch;
+  overflow: hidden;
+  font-family: "DH Eveleth", "DH Overpass", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.tool-viewport--combat .combat-missing-art small {
+  max-width: 72%;
+  overflow: hidden;
+  color: rgba(216, 173, 83, 0.76);
+  font-size: 0.65rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .tool-viewport--combat {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  .tool-viewport--combat .combat-builder-app,
+  .tool-viewport--combat .combat-builder-app > div,
+  .tool-viewport--combat main,
+  .tool-viewport--combat header,
+  .tool-viewport--combat article {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .tool-viewport--combat header {
+    overflow: hidden;
+  }
+
+  .tool-viewport--combat article {
+    width: 100%;
+  }
+}

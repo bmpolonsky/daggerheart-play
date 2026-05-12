@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<path fill="#bfbfdd" stroke="#383848" stroke-linejoin="round" stroke-width="10" d="m50 95.72-26.07-9.19L6.07 64.27V35.24L23.93 12.5 50 4.28l26.07 8.22 17.86 22.74v29.03L76.07 86.53Z" paint-order="stroke fill"/>
+<path fill="none" stroke="#8d8bac" stroke-width="4" d="M50 4.28v24.75m43.93 6.21-23.01 8.47m5.15 42.82-13.52-18.5m-38.62 18.5 13.52-18.5M6.07 35.25l23.01 8.47M50 29.03 70.92 43.7M50 29.03 29.08 43.7m41.84 0-8.37 24.33m0 0h-25.1m0 0L29.08 43.7" style="mix-blend-mode:darken"/>
+</svg>

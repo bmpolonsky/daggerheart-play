@@ -1,0 +1,134 @@
+.tool-viewport--cards,
+.tool-viewport--cards :where(*) {
+  font-family: "DH Overpass", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  word-wrap: break-word;
+  scroll-margin: 70px;
+  text-decoration-skip-ink: none;
+}
+
+.tool-viewport--cards .card-preview-scope,
+.tool-viewport--cards .card-preview-scope :where(*) {
+  font-family: Roboto, sans-serif;
+}
+
+.tool-viewport--cards :where(p) {
+  margin: 6px 0;
+}
+
+.tool-viewport--cards :where(p + p) {
+  margin-top: 10px;
+}
+
+.tool-viewport--cards :where(h1) {
+  margin: 16px 0 10px;
+  font-size: 26px;
+}
+
+.tool-viewport--cards :where(h2) {
+  margin: 20px 0 12px;
+  border-bottom: 2px var(--divider-color) solid;
+  font-size: 20px;
+}
+
+.tool-viewport--cards :where(h3) {
+  margin: 20px 0 12px;
+  font-size: 20px;
+}
+
+.tool-viewport--cards :where(h4) {
+  margin: 12px 0 10px;
+  font-size: 20px;
+}
+
+.tool-viewport--cards :where(h5) {
+  margin: 8px 0;
+  font-size: 20px;
+}
+
+.tool-viewport--cards :where(h6) {
+  margin: 8px 0 5px;
+  font-size: 18px;
+}
+
+.tool-viewport--cards :where(h1, h2) {
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.tool-viewport--cards :where(h3, h4, h5, h6) {
+  font-weight: 800;
+}
+
+.tool-viewport--cards :where(div > h1:first-child:not(.class-stat)),
+.tool-viewport--cards :where(div > h2:first-child:not(.class-stat)),
+.tool-viewport--cards :where(div > h3:first-child:not(.class-stat)),
+.tool-viewport--cards :where(div > h4:first-child:not(.class-stat)),
+.tool-viewport--cards :where(div > h5:first-child:not(.class-stat)),
+.tool-viewport--cards :where(div > h6:first-child:not(.class-stat)) {
+  margin-top: 0;
+}
+
+.tool-viewport--cards :where(ul) {
+  margin: 8px 0 8px 20px;
+  list-style-type: disc;
+}
+
+.tool-viewport--cards :where(ul li) {
+  margin: 6px 0;
+}
+
+.tool-viewport--cards .card-preview-scope .card :where(ul, ol) {
+  padding: 0;
+}
+
+.tool-viewport--cards :where(img) {
+  max-width: clamp(100%, 0px, 850px);
+  height: auto;
+  border-radius: 4px;
+}
+
+.tool-viewport--cards :where(a) {
+  position: relative;
+  display: inline;
+}
+
+.tool-viewport--cards input:not([type=file]):not([type=checkbox]):not(.clear),
+.tool-viewport--cards button,
+.tool-viewport--cards textarea,
+.tool-viewport--cards select {
+  display: block;
+  margin: 3px;
+  padding: 0 5px;
+  border-width: 2px;
+  border-style: solid;
+  border-color: var(--light-divider-color);
+  border-radius: 4px;
+  background-color: var(--input-color);
+  color: #fff;
+}
+
+.tool-viewport--cards select {
+  padding: 5px;
+}
+
+.tool-viewport--cards button,
+.tool-viewport--cards input[type=submit] {
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.tool-viewport--cards .card-preview-scope .card a[href],
+.tool-viewport--cards .card-preview-scope .card roll {
+  cursor: pointer;
+  color: #000;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 0, 0, 0.5333333333);
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+}
+
+.tool-viewport--cards .card-preview-scope .card a:hover[href],
+.tool-viewport--cards .card-preview-scope .card roll:hover {
+  color: #4bb4ff;
+  transition: color 100ms;
+}

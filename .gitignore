@@ -1,5 +1,17 @@
 node_modules/
 dist/
+public/image/
+public/data/
+docs/
+public/icon/**
+!public/icon/dice/**
+public/cards.css
+public/styles.css
+.idea/
+.npmrc
 .env
+.env.local
 .DS_Store
 *.tsbuildinfo
+test-results/
+playwright-report/

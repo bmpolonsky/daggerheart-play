@@ -1,0 +1,73 @@
+<svg width="68" height="117" viewBox="0 0 68 117" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M7 -2V115.953C7 115.953 34.0952 117.906 32 96C31.8665 94.6043 34 93 34 93C34 93 36.1381 94.4877 36 96C34 117.906 61 115.953 61 115.953L61 -2H7Z" fill="#28292B" stroke="url(#paint0_linear_1135_9167)" stroke-width="2"/>
+<rect x="8" y="16" width="52" height="86" fill="url(#paint1_linear_1135_9167)"/>
+<path d="M59 -2L59 52.9901L55 57.9893V73.9869L65 62.9886L65 -2H59Z" fill="#EB4789"/>
+<path d="M55 -2H13C13 -2 13.0464 25.362 13 57.9893V73.9869C13.002 90.7615 12.8366 101.975 13 101.983C24 102.483 34 91.9842 34 91.9842C34 91.9842 44 102.483 55 101.983C55.1632 101.975 55.0697 90.7341 55 73.9869V57.9893C54.8137 25.3321 55 -2 55 -2Z" fill="#EB4789"/>
+<path d="M9 52.9901L9 -2H3V62.9886L13 73.9869V57.9893L9 52.9901Z" fill="#EB4789"/>
+<g mask="url(#bannerCenterMask)">
+  <rect x="8" y="16" width="52" height="86" fill="url(#paint4_linear_1135_9167)"/>
+</g>
+<path d="M13 73.9869C13.002 90.7615 12.8366 101.975 13 101.983C24 102.483 34 91.9842 34 91.9842C34 91.9842 44 102.483 55 101.983C55.1632 101.975 55.0697 90.7341 55 73.9869M13 73.9869L3 62.9886V-2H9L9 52.9901L13 57.9893M13 73.9869V57.9893M55 73.9869L65 62.9886L65 -2H59L59 52.9901L55 57.9893M55 73.9869V57.9893M55 57.9893C54.8137 25.3321 55 -2 55 -2H13C13 -2 13.0464 25.362 13 57.9893" stroke="url(#paint2_linear_1135_9167)" stroke-width="2"/>
+<rect x="1" width="66" height="44" fill="url(#paint3_linear_1135_9167)"/>
+<g mask="url(#bannerGrainMask)" opacity="0.3">
+  <rect x="0" y="-2" width="68" height="119" filter="url(#bannerGrain)"/>
+</g>
+
+
+<defs>
+
+
+<linearGradient id="paint0_linear_1135_9167" x1="34" y1="-12" x2="34" y2="116" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FCEC9C"/>
+<stop offset="1" stop-color="#EDC659"/>
+</linearGradient>
+<linearGradient id="paint1_linear_1135_9167" x1="34" y1="16" x2="34" y2="102" gradientUnits="userSpaceOnUse">
+<stop stop-opacity="0"/>
+<stop offset="0.02" stop-opacity="0"/>
+<stop offset="0.1" stop-opacity="0.04"/>
+<stop offset="0.16" stop-opacity="0.08"/>
+<stop offset="0.22" stop-opacity="0.16"/>
+<stop offset="0.3" stop-opacity="0.32"/>
+<stop offset="0.38" stop-opacity="0.48"/>
+<stop offset="0.46" stop-opacity="0.56"/>
+<stop offset="0.54" stop-opacity="0.48"/>
+<stop offset="0.62" stop-opacity="0.4"/>
+<stop offset="0.7" stop-opacity="0.32"/>
+<stop offset="0.78" stop-opacity="0.24"/>
+<stop offset="0.86" stop-opacity="0.16"/>
+<stop offset="0.92" stop-opacity="0.08"/>
+<stop offset="1" stop-opacity="0"/>
+</linearGradient>
+<linearGradient id="paint2_linear_1135_9167" x1="34.125" y1="-12.1967" x2="34.125" y2="104.515" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FCEC9C"/>
+<stop offset="1" stop-color="#EDC659"/>
+</linearGradient>
+<linearGradient id="paint3_linear_1135_9167" x1="34" y1="0" x2="34" y2="44" gradientUnits="userSpaceOnUse">
+<stop stop-color="white" stop-opacity="0.32"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</linearGradient>
+<linearGradient id="paint4_linear_1135_9167" x1="34" y1="16" x2="34" y2="102" gradientUnits="userSpaceOnUse">
+<stop stop-color="#000000" stop-opacity="0"/>
+<stop offset="1" stop-color="#000000" stop-opacity="0.14"/>
+</linearGradient>
+<mask id="bannerGrainMask" maskUnits="userSpaceOnUse">
+  <path d="M7 -2V115.953C7 115.953 34.0952 117.906 32 96C31.8665 94.6043 34 93 34 93C34 93 36.1381 94.4877 36 96C34 117.906 61 115.953 61 115.953L61 -2H7Z" fill="white"/>
+  <path d="M59 -2L59 52.9901L55 57.9893V73.9869L65 62.9886L65 -2H59Z" fill="white"/>
+  <path d="M9 52.9901L9 -2H3V62.9886L13 73.9869V57.9893L9 52.9901Z" fill="white"/>
+  <rect x="3" width="62" height="44" fill="white"/>
+</mask>
+<mask id="bannerCenterMask" maskUnits="userSpaceOnUse">
+  <path d="M55 -2H13C13 -2 13.0464 25.362 13 57.9893V73.9869C13.002 90.7615 12.8366 101.975 13 101.983C24 102.483 34 91.9842 34 91.9842C34 91.9842 44 102.483 55 101.983C55.1632 101.975 55.0697 90.7341 55 73.9869V57.9893C54.8137 25.3321 55 -2 55 -2Z" fill="white"/>
+</mask>
+<filter id="bannerGrain" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+  <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="1" seed="2" />
+  <feColorMatrix
+    type="matrix"
+    values="0 0 0 0 0
+            0 0 0 0 0
+            0 0 0 0 0
+            0 0 0 0.5 0"
+  />
+</filter>
+</defs>
+</svg>

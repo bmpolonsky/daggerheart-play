@@ -1,0 +1,80 @@
+.tool-viewport--cards {
+  --background: 222 15% 13%;
+  --foreground: 240 5% 78%;
+  --card: 222 15% 13%;
+  --card-foreground: 240 5% 78%;
+  --popover: 225 16% 16%;
+  --popover-foreground: 240 5% 78%;
+  --primary: 217 42% 64%;
+  --primary-foreground: 222 15% 13%;
+  --secondary: 225 16% 20%;
+  --secondary-foreground: 240 5% 78%;
+  --muted: 225 16% 20%;
+  --muted-foreground: 240 5% 64%;
+  --accent: 217 42% 64%;
+  --accent-foreground: 222 15% 13%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 225 16% 25%;
+  --input: 225 16% 20%;
+  --ring: 217 42% 64%;
+  --radius: 0.5rem;
+  --font-sans: "DH Overpass", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.tool-viewport--cards,
+.tool-viewport--cards *,
+.tool-viewport--cards *::before,
+.tool-viewport--cards *::after {
+  box-sizing: border-box;
+}
+
+.tool-viewport--cards {
+  height: 100%;
+}
+
+.tool-viewport--cards {
+  margin: 0;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tool-viewport--cards a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+
+.tool-viewport--cards a:hover {
+  text-decoration: underline;
+}
+
+.tool-viewport--cards button,
+.tool-viewport--cards input,
+.tool-viewport--cards textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.tool-viewport--cards button {
+  cursor: pointer;
+}
+
+.tool-viewport--cards img {
+  display: block;
+  max-width: 100%;
+}
+
+.tool-viewport--cards .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

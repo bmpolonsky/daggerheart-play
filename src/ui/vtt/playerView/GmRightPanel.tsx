@@ -1,0 +1,97 @@
+/** @jsxImportSource preact */
+import { useState } from "preact/hooks";
+import { useStore } from "../../../core/hooks/useStore";
+import type { LibraryBeastform } from "../../../domain/content/types";
+import type { PlayerViewAdversarySummary, PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
+import type { SceneTableState } from "../../../domain/rules/types";
+import { gameService, tabletopService } from "../../../services/serviceRegistry";
+import { PlayerRoster } from "./PlayerRoster";
+import type { PlayerRosterActor, PlayerViewedActor } from "./types";
+import { AdversarySheet } from "./AdversarySheet";
+import { CharacterSheet } from "./CharacterSheet";
+import type { PlayerViewDomainCard } from "./domainCards/types";
+import { RosterGmDock } from "./gmPanel/RosterGmDock";
+import { SceneMusicControls } from "./gmPanel/SceneMusicControls";
+import { SectionTitle } from "./gmPanel/SectionTitle";
+import type { GmDockTab } from "./gmPanel/types";
+
+export function GmRightPanel({
+  activeAdversaryId,
+  activeCharacterId,
+  adversary,
+  actors,
+  beastforms,
+  character,
+  sceneId,
+  sceneTable,
+  onClearActivationRequest,
+  onClearActor,
+  onDomainCardPreview,
+  onForceMutePlayer,
+  onOpenActor
+}: {
+  activeAdversaryId: string | null;
+  activeCharacterId: string | null;
+  adversary: PlayerViewAdversarySummary | null;
+  actors: PlayerRosterActor[];
+  beastforms?: LibraryBeastform[];
+  character: PlayerViewCharacterSummary | null;
+  sceneId: string;
+  sceneTable: SceneTableState;
+  onClearActivationRequest?: (request: NonNullable<PlayerRosterActor['activationRequest']>) => void;
+  onClearActor: () => void;
+  onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
+  onForceMutePlayer?: (actor: PlayerRosterActor) => void;
+  onOpenActor: (actor: PlayerViewedActor) => void;
+}) {
+  const { handouts } = useStore(gameService.gameStore);
+  const [activeGmPanelTab, setActiveGmPanelTab] = useState<GmDockTab>('scenes');
+  const [activeRosterTab, setActiveRosterTab] = useState<'players' | 'npc'>('players');
+  if (adversary) {
+    return <AdversarySheet adversary={adversary} onBack={onClearActor} />;
+  }
+  if (character) {
+    return <CharacterSheet character={character} beastforms={beastforms} role="gm" showBackButton onBack={onClearActor} onDomainCardPreview={onDomainCardPreview} />;
+  }
+
+  const playerActors = actors.filter((actor) => actor.kind === 'character');
+  const npcActors = actors.filter((actor) => actor.kind === 'adversary');
+  const visibleRosterActors = activeRosterTab === 'players' ? playerActors : npcActors;
+  return (
+    <aside className="player-character-panel player-character-panel--gm-overview" aria-label="Инструменты сцены">
+      <section className="player-gm-overview__actors" aria-label="Персонажи">
+        <SectionTitle>Персонажи</SectionTitle>
+        <nav className="player-roster-tabs" aria-label="Типы участников">
+          <button className={activeRosterTab === 'players' ? 'dh-is-active' : ''} type="button" onClick={() => setActiveRosterTab('players')}>
+            Игроки
+          </button>
+          <button className={activeRosterTab === 'npc' ? 'dh-is-active' : ''} type="button" onClick={() => setActiveRosterTab('npc')}>
+            NPC
+          </button>
+        </nav>
+        {visibleRosterActors.length > 0 ? (
+          <PlayerRoster
+            actors={visibleRosterActors}
+            activeAdversaryId={activeAdversaryId}
+            activeCharacterId={activeCharacterId}
+            role="gm"
+            sceneId={sceneId}
+            onAddActorToScene={(actor, targetSceneId) => tabletopService.placeActorOnScene({ kind: actor.kind, id: actor.actorId }, targetSceneId)}
+            onClearActivationRequest={onClearActivationRequest}
+            onForceMutePlayer={onForceMutePlayer}
+            onOpenActor={onOpenActor}
+          />
+        ) : (
+          <p className="player-roster-empty">{activeRosterTab === 'players' ? 'Игроки еще не созданы.' : 'NPC еще не добавлены.'}</p>
+        )}
+      </section>
+      <RosterGmDock
+        activeTab={activeGmPanelTab}
+        handouts={handouts}
+        sceneTable={sceneTable}
+        onTabChange={setActiveGmPanelTab}
+      />
+      <SceneMusicControls sceneTable={sceneTable} />
+    </aside>
+  );
+}

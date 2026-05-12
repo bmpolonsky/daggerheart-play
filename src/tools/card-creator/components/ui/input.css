@@ -1,0 +1,32 @@
+.tool-viewport--cards .input {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(216, 173, 83, 0.2);
+  background-color: rgba(7, 9, 13, 0.78);
+  color: var(--cards-paper, hsl(var(--foreground)));
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tool-viewport--cards .input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.tool-viewport--cards .input:focus {
+  outline: none;
+  border-color: rgba(216, 173, 83, 0.7);
+  box-shadow: 0 0 0 2px rgba(216, 173, 83, 0.18);
+}
+
+.tool-viewport--cards .input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tool-viewport--cards .input--search {
+  padding-left: 2rem !important;
+  background-color: rgba(7, 9, 13, 0.82);
+  border-color: rgba(216, 173, 83, 0.2);
+}

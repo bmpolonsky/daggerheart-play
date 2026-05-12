@@ -1,0 +1,601 @@
+/* Cinematic overlay refinements that still target the player VTT composition. */
+.player-roll-dock {
+  left: 50%;
+  bottom: 18px;
+  width: min(520px, calc(100vw - 600px));
+  transform: translateX(-50%);
+}
+
+.player-roll-card {
+  position: relative;
+  min-height: 88px;
+  display: grid;
+  gap: 4px;
+  padding: 13px 74px 13px 16px;
+  overflow: hidden;
+}
+
+.player-roll-card span {
+  color: var(--dh-gold-400);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.player-roll-card strong {
+  overflow-wrap: anywhere;
+  font-size: 1.08rem;
+}
+
+.player-roll-card p {
+  margin: 0;
+  color: var(--dh-paper-muted);
+  font-size: 0.82rem;
+}
+
+.player-roll-card b {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(240, 201, 106, 0.48);
+  border-radius: 50%;
+  background: rgba(7, 9, 12, 0.62);
+  color: var(--dh-paper-100);
+  font-size: 1.25rem;
+  transform: translateY(-50%);
+}
+
+.player-roll-card--fear b {
+  border-color: rgba(214, 91, 91, 0.66);
+}
+
+.player-roll-card--damage b {
+  border-color: rgba(240, 201, 106, 0.66);
+}
+
+.cinematic-vtt {
+  --dh-topbar-height: 126px;
+  --dh-dock-height: 118px;
+  --dh-rail-width: 268px;
+  --dh-sidecar-width: 356px;
+}
+
+.cinematic-stage {
+  padding: 0;
+}
+
+.cinematic-token-canvas.dh-is-scene {
+  width: 100%;
+  height: 100%;
+}
+
+.cinematic-tracker {
+  top: 18px;
+  left: 20px;
+  right: 20px;
+  width: auto;
+  height: 116px;
+  transform: none;
+  display: block;
+  grid-template-columns: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.cinematic-tracker .dh-icon-button,
+.cinematic-tracker .dh-button,
+.cinematic-tracker .dh-pill {
+  background: rgba(7, 9, 12, 0.52);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.cinematic-tracker-scene {
+  position: absolute;
+  top: 54px;
+  left: 0;
+  width: auto;
+  max-width: 206px;
+  min-height: 36px;
+  padding: 4px 9px 4px 5px;
+  border: 1px solid rgba(243, 234, 216, 0.12);
+  border-radius: 999px;
+  background: rgba(7, 9, 12, 0.44);
+  backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.cinematic-tracker-scene .cinematic-title-block {
+  min-width: 0;
+  max-width: 100%;
+  padding-left: 0;
+}
+
+.cinematic-tracker-scene .cinematic-title-block::before {
+  display: none;
+}
+
+.cinematic-tracker-scene .cinematic-title {
+  display: block;
+  max-width: 142px;
+  color: var(--dh-paper-100);
+  font-family: "DH Overpass", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-transform: none;
+}
+
+.cinematic-brand-track {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.cinematic-brand-title {
+  color: #fff7e7;
+  font-family: "DH Eveleth", Georgia, "Times New Roman", serif;
+  font-size: clamp(2.05rem, 3.7vw, 3.25rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-shadow: 0 4px 22px rgba(0, 0, 0, 0.76);
+}
+
+.cinematic-duality-track {
+  position: relative;
+  min-width: min(500px, 42vw);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 18px;
+  border: 1px solid rgba(240, 201, 106, 0.62);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(7, 9, 12, 0.76), rgba(7, 9, 12, 0.66) 52%, rgba(82, 30, 50, 0.5)),
+    rgba(7, 9, 12, 0.66);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.44),
+    inset 0 0 0 1px rgba(255, 247, 220, 0.06);
+  backdrop-filter: blur(14px);
+}
+
+.cinematic-duality-track::before,
+.cinematic-duality-track::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 34px;
+  height: 10px;
+  border-top: 1px solid rgba(240, 201, 106, 0.72);
+  border-bottom: 1px solid rgba(240, 201, 106, 0.72);
+  transform: translateY(-50%);
+}
+
+.cinematic-duality-track::before {
+  left: -25px;
+  border-left: 1px solid rgba(240, 201, 106, 0.72);
+  clip-path: polygon(0 50%, 18% 0, 100% 0, 100% 100%, 18% 100%);
+}
+
+.cinematic-duality-track::after {
+  right: -25px;
+  border-right: 1px solid rgba(240, 201, 106, 0.72);
+  clip-path: polygon(0 0, 82% 0, 100% 50%, 82% 100%, 0 100%);
+}
+
+.cinematic-duality-track .dh-pip-control {
+  min-width: 0;
+}
+
+.cinematic-duality-track .dh-pips {
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.cinematic-duality-track .dh-pips button {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+
+.cinematic-duality-track .dh-tone-hope .dh-pips button.dh-is-filled {
+  border-color: rgba(117, 226, 206, 0.86);
+  background: #57bca7;
+  box-shadow: 0 0 12px rgba(87, 188, 167, 0.42);
+}
+
+.cinematic-duality-track .dh-tone-fear .dh-pips button.dh-is-filled {
+  border-color: rgba(240, 201, 106, 0.76);
+  background: var(--dh-danger-500);
+  box-shadow: 0 0 12px rgba(214, 91, 91, 0.38);
+}
+
+.cinematic-duality-end {
+  display: grid;
+  gap: 1px;
+  color: var(--dh-gold-400);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.cinematic-duality-end strong {
+  color: #fff7e7;
+  font-size: 0.78rem;
+}
+
+.cinematic-duality-end.dh-is-hope {
+  color: #85dfd0;
+  text-align: left;
+}
+
+.cinematic-duality-end.dh-is-fear {
+  color: #f07474;
+  text-align: right;
+}
+
+.cinematic-duality-medallion {
+  min-width: 74px;
+  padding: 6px 14px 7px;
+  border: 1px solid rgba(240, 201, 106, 0.66);
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, rgba(51, 30, 80, 0.96), rgba(41, 20, 52, 0.96));
+  color: #fff7e7;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.36);
+}
+
+.cinematic-tracker-tools {
+  position: absolute;
+  top: 66px;
+  right: 0;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.cinematic-tracker-tools .dh-button {
+  min-height: 32px;
+  padding-inline: 9px;
+  font-size: 0.72rem;
+}
+
+.cinematic-tracker-tools .dh-icon-button {
+  width: 34px;
+  height: 34px;
+}
+
+.cinematic-left-tabs {
+  position: absolute;
+  top: 142px;
+  left: 18px;
+  z-index: var(--dh-z-region);
+  display: flex;
+  gap: 7px;
+  padding: 6px;
+  border: 1px solid rgba(240, 201, 106, 0.18);
+  border-radius: 999px;
+  background: rgba(7, 9, 12, 0.42);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(243, 234, 216, 0.08);
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+.cinematic-left-tabs button,
+.cinematic-utility-rail button {
+  width: 36px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(243, 234, 216, 0.14);
+  border-radius: 50%;
+  background: rgba(7, 9, 12, 0.58);
+  color: rgba(243, 234, 216, 0.72);
+  box-shadow: inset 0 1px 0 rgba(243, 234, 216, 0.08);
+}
+
+.cinematic-left-tabs button:hover,
+.cinematic-left-tabs button.dh-is-active,
+.cinematic-utility-rail button:hover,
+.cinematic-utility-rail button.dh-is-active {
+  border-color: rgba(240, 201, 106, 0.56);
+  color: #fff7e7;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(240, 201, 106, 0.3), rgba(7, 9, 12, 0.7)),
+    rgba(7, 9, 12, 0.7);
+}
+
+.cinematic-table-feed {
+  position: absolute;
+  top: 196px;
+  left: 18px;
+  z-index: var(--dh-z-region);
+  width: var(--dh-rail-width);
+  max-height: calc(100dvh - var(--dh-topbar-height) - var(--dh-dock-height) - 60px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid rgba(240, 201, 106, 0.16);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(13, 11, 18, 0.34), rgba(7, 9, 12, 0.12)),
+    radial-gradient(110% 76% at 50% 0, rgba(240, 201, 106, 0.12), transparent 58%);
+  box-shadow: inset 0 1px 0 rgba(243, 234, 216, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.cinematic-table-feed-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.cinematic-table-feed.dh-is-empty .cinematic-table-feed-panel {
+  min-height: 0;
+}
+
+.cinematic-table-feed.dh-is-empty:not(.dh-mobile-open) {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.cinematic-table-feed.dh-is-empty:not(.dh-mobile-open) .cinematic-feed-peek {
+  min-width: 142px;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid rgba(240, 201, 106, 0.28);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(16, 21, 29, 0.78), rgba(7, 9, 12, 0.76)),
+    rgba(7, 9, 12, 0.72);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(243, 234, 216, 0.08);
+  color: #fff7e7;
+  backdrop-filter: blur(16px) saturate(1.08);
+}
+
+.cinematic-table-feed.dh-is-empty:not(.dh-mobile-open) .cinematic-feed-peek span {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+
+.cinematic-table-feed.dh-is-empty:not(.dh-mobile-open) .cinematic-feed-peek strong,
+.cinematic-table-feed.dh-is-empty:not(.dh-mobile-open) .cinematic-feed-peek small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cinematic-table-feed.dh-is-empty:not(.dh-mobile-open) .cinematic-feed-peek strong {
+  font-size: 0.72rem;
+  line-height: 1.1;
+}
+
+.cinematic-table-feed.dh-is-empty:not(.dh-mobile-open) .cinematic-feed-peek small {
+  color: rgba(243, 234, 216, 0.58);
+  font-size: 0.58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cinematic-table-feed.dh-is-empty:not(.dh-mobile-open) .cinematic-table-feed-panel {
+  display: none;
+}
+
+.cinematic-feed-peek,
+.cinematic-feed-close {
+  display: none;
+}
+
+.cinematic-journal-panel {
+  top: 196px !important;
+  width: var(--dh-rail-width) !important;
+  max-height: calc(100dvh - 332px) !important;
+}
+
+.cinematic-utility-rail {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--dh-sidecar-width) + 30px);
+  z-index: var(--dh-z-region);
+  display: grid;
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid rgba(243, 234, 216, 0.12);
+  border-radius: 999px;
+  background: rgba(7, 9, 12, 0.34);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(243, 234, 216, 0.07);
+  backdrop-filter: blur(14px) saturate(1.08);
+  transform: translateY(-50%);
+}
+
+.cinematic-gm-roster {
+  position: absolute;
+  top: 196px;
+  right: 18px;
+  bottom: calc(var(--dh-dock-height) + 18px);
+  z-index: var(--dh-z-region);
+  width: var(--dh-sidecar-width);
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(243, 234, 216, 0.13);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(13, 11, 18, 0.72), rgba(7, 9, 12, 0.58)),
+    radial-gradient(110% 70% at 50% 0, rgba(240, 201, 106, 0.12), transparent 58%);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(243, 234, 216, 0.06);
+  backdrop-filter: blur(16px) saturate(1.08);
+}
+
+.cinematic-gm-roster-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cinematic-gm-roster-header div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.cinematic-gm-roster-header span,
+.cinematic-gm-roster-group header {
+  color: var(--dh-gold-400);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cinematic-gm-roster-header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff7e7;
+  font-size: 1rem;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cinematic-gm-roster-list,
+.cinematic-gm-roster-detail {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+}
+
+.cinematic-gm-roster-group {
+  display: grid;
+  gap: 8px;
+}
+
+.cinematic-gm-roster-group header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.cinematic-gm-roster .cinematic-party-row {
+  width: 100%;
+}
+
+.cinematic-gm-roster-detail .cinematic-sidecar-section {
+  margin: 0;
+}
+
+.cinematic-gm-roster-detail .cinematic-portrait-header {
+  min-height: 118px;
+}
+
+.cinematic-gm-tool-dock {
+  position: absolute;
+  right: calc(var(--dh-sidecar-width) + 30px);
+  bottom: 18px;
+  z-index: calc(var(--dh-z-region) + 2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - var(--dh-rail-width) - var(--dh-sidecar-width) - 96px);
+  padding: 8px;
+  border: 1px solid rgba(243, 234, 216, 0.12);
+  border-radius: 999px;
+  background: rgba(7, 9, 12, 0.48);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(243, 234, 216, 0.07);
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+.cinematic-gm-tool-dock button,
+.cinematic-gm-tool-countdown {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(243, 234, 216, 0.12);
+  border-radius: 999px;
+  background: rgba(7, 9, 12, 0.58);
+  color: rgba(243, 234, 216, 0.76);
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cinematic-gm-tool-dock button:hover {
+  border-color: rgba(240, 201, 106, 0.48);
+  color: #fff7e7;
+}
+
+.cinematic-gm-tool-dock strong,
+.cinematic-gm-tool-countdown strong {
+  color: var(--dh-gold-400);
+}
+
+.cinematic-gm-tool-countdown {
+  padding: 0 4px;
+}
+
+.cinematic-gm-tool-countdown button {
+  min-width: 28px;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dh-gold-400);
+  font-size: 0.9rem;
+}
+
+.cinematic-vtt.dh-has-drawer .cinematic-sidecar,
+.cinematic-vtt.dh-has-drawer .cinematic-utility-rail,
+.cinematic-vtt.dh-has-drawer .cinematic-gm-roster,
+.cinematic-vtt.dh-has-drawer .cinematic-gm-tool-dock,
+.cinematic-vtt.dh-has-drawer .mini-dice-launcher {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(12px);
+}

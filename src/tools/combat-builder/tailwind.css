@@ -1,0 +1,8 @@
+@config "../../../tailwind.config.cjs";
+@source "../CombatBuilderTool.tsx";
+@source "./**/*.{ts,tsx}";
+
+@layer theme, base, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);

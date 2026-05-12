@@ -1,0 +1,100 @@
+.tool-viewport--cards .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  background-color: var(--cards-gold, hsl(var(--primary)));
+  color: #11131b;
+  transition: background-color 0.2s ease, color 0.2s ease,
+    box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.tool-viewport--cards .btn svg {
+  width: 1rem;
+  height: 1rem;
+  pointer-events: none;
+}
+
+.tool-viewport--cards .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tool-viewport--cards .btn--primary:hover:not(:disabled) {
+  background-color: #edcf78;
+}
+
+.tool-viewport--cards .btn--secondary {
+  border-color: rgba(216, 173, 83, 0.16);
+  background-color: rgba(216, 173, 83, 0.08);
+  color: var(--cards-paper, hsl(var(--secondary-foreground)));
+}
+
+.tool-viewport--cards .btn--secondary:hover:not(:disabled) {
+  border-color: rgba(216, 173, 83, 0.32);
+  background-color: rgba(216, 173, 83, 0.14);
+}
+
+.tool-viewport--cards .btn--ghost {
+  background-color: transparent;
+  color: var(--cards-paper, hsl(var(--foreground)));
+}
+
+.tool-viewport--cards .btn--ghost:hover:not(:disabled) {
+  background-color: rgba(216, 173, 83, 0.08);
+}
+
+.tool-viewport--cards .btn--outline {
+  background-color: transparent;
+  color: var(--cards-paper, hsl(var(--foreground)));
+  border: 1px solid rgba(216, 173, 83, 0.2);
+}
+
+.tool-viewport--cards .btn--outline:hover:not(:disabled) {
+  background-color: rgba(216, 173, 83, 0.08);
+}
+
+.tool-viewport--cards .btn--destructive {
+  background-color: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.tool-viewport--cards .btn--destructive:hover:not(:disabled) {
+  background-color: hsla(var(--destructive), 0.85);
+}
+
+.tool-viewport--cards .btn--link {
+  background: none;
+  color: hsl(var(--primary));
+  padding: 0;
+}
+
+.tool-viewport--cards .btn--link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.tool-viewport--cards .btn--sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.tool-viewport--cards .btn--lg {
+  padding: 0.625rem 1.5rem;
+  font-size: 0.9375rem;
+}
+
+.tool-viewport--cards .btn--icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+}
+
+.tool-viewport--cards .btn--icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<path fill="#bfbfdd" stroke="#383848" stroke-linejoin="round" stroke-width="10" d="M11.08 69.89v-40.2L50 3.9l38.92 25.8v40.2L50 96.12z" paint-order="stroke fill"/>
+<path fill="none" stroke="#8d8bac" stroke-width="4" d="M50 3.88v24.97m0 0 38.92.84-14.8 36.39m14.8 3.8-14.8-3.8m-48.24 0L50 96.12l24.12-30.04m-63.04 3.8 14.8-3.8M50 28.85l-38.92.84 14.8 36.39M50 28.85 25.88 66.08M50 28.85l24.12 37.23m-48.24 0h48.24" style="mix-blend-mode:darken"/>
+</svg>
