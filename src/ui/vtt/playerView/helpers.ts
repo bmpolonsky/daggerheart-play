@@ -134,6 +134,9 @@ export function cssImageUrl(input: string): string {
   if (typeof window === 'undefined') return input;
   const basePath = inferBasePathFromWorkspacePath(window.location.pathname).replace(/\/+$/, '');
   const baseHref = `${window.location.origin}${basePath}/`;
+  if (basePath && input.startsWith(`${basePath}/`)) {
+    return new URL(input, window.location.origin).href;
+  }
   const relativePath = input.startsWith('/') ? input.slice(1) : input.replace(/^\.\//, '');
   return new URL(relativePath, baseHref).href;
 }
