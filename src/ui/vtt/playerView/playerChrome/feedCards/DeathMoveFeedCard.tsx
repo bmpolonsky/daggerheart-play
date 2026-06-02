@@ -1,8 +1,8 @@
 /** @jsxImportSource preact */
 import { Flame, HeartPulse, Skull } from 'lucide-react';
-import { rollHopeDie, rollRiskItAll } from '../../../../../domain/rules/deathMoves';
+import { riskItAllOutcome } from '../../../../../domain/rules/deathMoves';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
-import { characterService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
+import { characterService, diceService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
 
@@ -53,7 +53,18 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
 
   const resolveAvoidDeath = () => {
     if (!deathMove.actor.actorId) return;
-    const result = characterService.chooseAvoidDeath(deathMove.actor.actorId, rollHopeDie());
+    const diceRoll = diceService.rollManualDice({
+      actorId: deathMove.actor.actorId,
+      actorName: deathMove.actor.actorName,
+      formula: '1d12',
+      label: 'Избежать смерти',
+      diceTones: ['hope'],
+      publication: item.publication,
+      notes: 'Предсмертный ход'
+    });
+    const hopeDie = diceResultAt(diceRoll.terms, 0);
+    if (!hopeDie) return;
+    const result = characterService.chooseAvoidDeath(deathMove.actor.actorId, hopeDie);
     if (!result) return;
     feedService.updateDeathMove(item.id, {
       status: 'resolved',
@@ -64,7 +75,24 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
 
   const startRiskItAll = () => {
     if (!deathMove.actor.actorId) return;
-    const result = characterService.chooseRiskItAll(deathMove.actor.actorId, rollRiskItAll());
+    const diceRoll = diceService.rollManualDice({
+      actorId: deathMove.actor.actorId,
+      actorName: deathMove.actor.actorName,
+      formula: '2d12',
+      label: 'Рискнуть всем',
+      diceTones: ['hope', 'fear'],
+      publication: item.publication,
+      notes: 'Предсмертный ход'
+    });
+    const hopeDie = diceResultAt(diceRoll.terms, 0);
+    const fearDie = diceResultAt(diceRoll.terms, 1);
+    if (!hopeDie || !fearDie) return;
+    const result = characterService.chooseRiskItAll(deathMove.actor.actorId, {
+      kind: 'riskItAll',
+      hopeDie,
+      fearDie,
+      outcome: riskItAllOutcome(hopeDie, fearDie)
+    });
     if (!result) return;
     feedService.updateDeathMove(item.id, {
       status: 'resolved',
@@ -144,4 +172,9 @@ function deathMoveSummary(deathMove: NonNullable<TableFeedItem['deathMove']>): s
   if (deathMove.roll.outcome === 'critical') return 'Рискнуть всем: критическая Надежда.';
   if (deathMove.roll.outcome === 'fear') return `Рискнуть всем: Страх ${deathMove.roll.fearDie}, персонаж пересекает завесу смерти.`;
   return `Рискнуть всем: Надежда ${deathMove.roll.hopeDie}, Страх ${deathMove.roll.fearDie}.`;
+}
+
+function diceResultAt(terms: ReturnType<typeof diceService.rollManualDice>['terms'], index: number): number | null {
+  const rolls = terms.flatMap((term) => ('rolls' in term ? term.rolls : []));
+  return rolls[index] ?? null;
 }
