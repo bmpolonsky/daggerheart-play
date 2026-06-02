@@ -4,7 +4,7 @@ import { buildEffectiveCharacterStats } from '../rules/effects';
 import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
-import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterRetirementState, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId } from '../rules/types';
+import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId } from '../rules/types';
 import { RANGE_LABELS, TRAIT_LABELS, classLabel, domainLabel } from '../rules/constants';
 import { normalizeStatusTag } from '../rules/statuses';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
@@ -55,9 +55,7 @@ export interface PlayerViewCharacterSummary {
   features: Array<{ id: string; name: string; subtitle: string; text: string }>;
   inventory: CharacterInventoryItem[];
   conditions: Array<{ id: string; name: string; notes: string }>;
-  deathMove: Character['deathMove'];
   scars: CharacterScar[];
-  retirement: CharacterRetirementState | null;
 }
 
 export interface PlayerViewAdversarySummary {
@@ -385,7 +383,6 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
     activeBeastform: character.activeBeastform ? { ...character.activeBeastform } : null,
     rangerMark: character.rangerMark ? { ...character.rangerMark } : null,
     companion: character.companion ? { ...character.companion, stress: { ...character.companion.stress }, experiences: character.companion.experiences.map((experience) => ({ ...experience })) } : null,
-    deathMove: character.deathMove ? { ...character.deathMove } : null,
     traits: Object.entries(effective.traits).map(([id, value]) => ({
       id: id as TraitId,
       label: TRAIT_LABELS[id as TraitId],
@@ -443,8 +440,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       name: condition.name,
       notes: condition.notes ?? ''
     })),
-    scars: (character.scars ?? []).map((scar) => ({ ...scar })),
-    retirement: character.retirement ? { ...character.retirement } : null
+    scars: (character.scars ?? []).map((scar) => ({ ...scar }))
   };
 }
 

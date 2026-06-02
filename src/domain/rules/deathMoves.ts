@@ -2,7 +2,7 @@ import { clamp } from '../../core/utils/clamp';
 import { nowIso } from '../../core/utils/date';
 import { createId } from '../../core/utils/id';
 import { DEFAULT_MAX_HOPE } from './constants';
-import type { Character, CharacterRetirementState, CharacterScar, DeathMoveRollResult, RiskItAllOutcome } from './types';
+import type { Character, CharacterScar, DeathMoveRollResult, RiskItAllOutcome } from './types';
 
 export function activeScars(character: { scars?: CharacterScar[] | null }): CharacterScar[] {
   return Array.isArray(character.scars) ? character.scars : [];
@@ -27,22 +27,6 @@ export function createCharacterScar(description = 'Шрам'): CharacterScar {
   return {
     id: createId('scar'),
     description: description.trim() || 'Шрам',
-    createdAt: nowIso()
-  };
-}
-
-export function retirementForLastHopeScar(notes = 'Шрам занял последний слот Надежды.'): CharacterRetirementState {
-  return {
-    reason: 'lastHopeScar',
-    notes,
-    createdAt: nowIso()
-  };
-}
-
-export function retirementForDeathMove(notes = 'Предсмертный ход завершился гибелью.'): CharacterRetirementState {
-  return {
-    reason: 'deathMove',
-    notes,
     createdAt: nowIso()
   };
 }

@@ -1220,8 +1220,7 @@
   gap: 6px;
 }
 
-.player-character-panel__scars span,
-.player-character-panel__retirement {
+.player-character-panel__scars span {
   margin: 0;
   color: rgba(255, 247, 231, 0.76);
   font-size: 0.72rem;

@@ -1,5 +1,5 @@
-import type { Adversary, Countdown, EncounterEnvironment, GameState, CharacterBeastformState, CharacterCompanionState, CharacterRetirementState, CharacterScar, CharactersState, EncounterState, PersistedState, SceneTableState } from '../domain/rules/types';
-import { createAdversary, createCountdown, createGameState, createDomainCard, createEncounterEnvironment, createEncounterState, createSceneTableState, sanitizeInventory } from '../domain/rules/factories';
+import type { Adversary, Countdown, EncounterEnvironment, GameState, CharacterBeastformState, CharacterCompanionState, CharacterScar, CharactersState, EncounterState, PersistedState, SceneTableState } from '../domain/rules/types';
+import { createAdversary, createCountdown, createGameState, createCharacter, createDomainCard, createEncounterEnvironment, createEncounterState, createSceneTableState, sanitizeInventory } from '../domain/rules/factories';
 import { normalizeRangerCompanion } from '../domain/rules/rangerCompanion';
 import { syncedGameStores } from './gameStores';
 
@@ -42,19 +42,21 @@ export function normalizePersistedState(state: PersistedState): PersistedState {
 function normalizeCharactersState(characters: CharactersState): CharactersState {
   return {
     ...characters,
-    entities: Object.fromEntries(Object.entries(characters.entities).map(([id, character]) => [
-      id,
-      {
-        ...character,
-        activeBeastform: normalizeCharacterBeastform(character.activeBeastform),
-        companion: normalizeCharacterCompanion(character.companion),
-        rangerMark: character.rangerMark ?? null,
-        scars: normalizeCharacterScars(character.scars),
-        retirement: normalizeCharacterRetirement(character.retirement),
-        domainCards: character.domainCards.map((card) => createDomainCard(card)),
-        inventory: sanitizeInventory(character.inventory)
-      }
-    ]))
+    entities: Object.fromEntries(Object.entries(characters.entities).map(([id, character]) => {
+      return [
+        id,
+        createCharacter({
+          ...character,
+          id: character.id || id,
+          activeBeastform: normalizeCharacterBeastform(character.activeBeastform),
+          companion: normalizeCharacterCompanion(character.companion),
+          rangerMark: character.rangerMark ?? null,
+          scars: normalizeCharacterScars(character.scars),
+          domainCards: character.domainCards.map((card) => createDomainCard(card)),
+          inventory: sanitizeInventory(character.inventory)
+        })
+      ];
+    }))
   };
 }
 
@@ -68,16 +70,6 @@ function normalizeCharacterScars(value: CharacterScar[] | null | undefined): Cha
       createdAt: typeof scar.createdAt === 'string' ? scar.createdAt : new Date(0).toISOString()
     };
   });
-}
-
-function normalizeCharacterRetirement(value: CharacterRetirementState | null | undefined): CharacterRetirementState | null {
-  if (!value || typeof value !== 'object') return null;
-  if (value.reason !== 'lastHopeScar' && value.reason !== 'deathMove') return null;
-  return {
-    reason: value.reason,
-    notes: typeof value.notes === 'string' ? value.notes : undefined,
-    createdAt: typeof value.createdAt === 'string' ? value.createdAt : new Date(0).toISOString()
-  };
 }
 
 function normalizeCharacterCompanion(value: CharacterCompanionState | null | undefined): CharacterCompanionState | null {

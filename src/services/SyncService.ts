@@ -114,7 +114,6 @@ export type PlayerDecision =
       kind: 'deathMove';
       deathMoveEntryId: string;
       choice: DeathMoveChoice;
-      allocation?: { hpCleared: number; stressCleared: number };
     }
   | {
       kind: 'teamworkRoll';
@@ -460,8 +459,7 @@ function isPlayerDecision(value: unknown): value is PlayerDecision {
   if (value.kind === 'deathMove') {
     return (
       typeof value.deathMoveEntryId === 'string' &&
-      (value.choice === 'blazeOfGlory' || value.choice === 'avoidDeath' || value.choice === 'riskItAll') &&
-      (value.allocation === undefined || isOptionalNumberRecord(value.allocation, ['hpCleared', 'stressCleared']))
+      (value.choice === 'blazeOfGlory' || value.choice === 'avoidDeath' || value.choice === 'riskItAll')
     );
   }
   if (value.kind === 'teamworkRoll') {

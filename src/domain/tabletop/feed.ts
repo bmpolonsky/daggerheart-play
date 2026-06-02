@@ -396,7 +396,7 @@ function buildDeathMoveFeedItem(entry: Extract<FeedEntry, { type: 'deathMove' }>
     title: 'Предсмертный ход',
     body: entry.body,
     tone: entry.deathMove.status === 'resolved'
-      ? (entry.deathMove.roll?.outcome === 'fear' || entry.deathMove.retirement ? 'danger' : 'hope')
+      ? (entry.deathMove.roll?.outcome === 'fear' ? 'danger' : 'hope')
       : 'neutral',
     deathMove: entry.deathMove,
     publication: feedEntryPublication(entry)
@@ -573,7 +573,6 @@ function teamworkStatusLabel(status: TeamworkRollRequest['status']): string {
 function deathMoveStatusLabel(status: DeathMoveFeedRequest['status']): string {
   if (status === 'resolved') return 'Предсмертный ход завершён';
   if (status === 'cancelled') return 'Предсмертный ход отменён';
-  if (status === 'allocating') return 'Распределение восстановления';
   return 'Предсмертный ход';
 }
 

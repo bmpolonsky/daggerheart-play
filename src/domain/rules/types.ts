@@ -219,9 +219,7 @@ export interface Character {
   activeBeastform?: CharacterBeastformState | null;
   rangerMark?: CharacterRangerMarkState | null;
   companion?: CharacterCompanionState | null;
-  deathMove?: CharacterDeathMoveState | null;
   scars: CharacterScar[];
-  retirement?: CharacterRetirementState | null;
   notes: string;
   description?: CharacterDescription;
   backgroundAnswers?: CharacterQuestionAnswer[];
@@ -230,22 +228,9 @@ export interface Character {
   updatedAt: string;
 }
 
-export interface CharacterDeathMoveState {
-  status: DeathMoveChoice | 'pending' | 'dead';
-  notes?: string;
-  roll?: DeathMoveRollResult;
-  updatedAt: string;
-}
-
 export interface CharacterScar {
   id: string;
   description: string;
-  createdAt: string;
-}
-
-export interface CharacterRetirementState {
-  reason: 'lastHopeScar' | 'deathMove';
-  notes?: string;
   createdAt: string;
 }
 
@@ -592,7 +577,7 @@ export interface TeamworkRollRequest {
 }
 
 export type DeathMoveChoice = 'blazeOfGlory' | 'avoidDeath' | 'riskItAll';
-export type DeathMoveFeedStatus = 'pending' | 'allocating' | 'resolved' | 'cancelled';
+export type DeathMoveFeedStatus = 'pending' | 'resolved' | 'cancelled';
 export type RiskItAllOutcome = 'hope' | 'fear' | 'critical';
 
 export interface DeathMoveRollResult {
@@ -601,8 +586,6 @@ export interface DeathMoveRollResult {
   fearDie?: number;
   outcome?: RiskItAllOutcome;
   scarGained?: boolean;
-  hpCleared?: number;
-  stressCleared?: number;
 }
 
 export interface DeathMoveFeedRequest {
@@ -612,11 +595,6 @@ export interface DeathMoveFeedRequest {
   actor: FeedActorReference;
   choice?: DeathMoveChoice;
   roll?: DeathMoveRollResult;
-  allocation?: {
-    hpCleared: number;
-    stressCleared: number;
-  };
-  retirement?: CharacterRetirementState | null;
   resolvedAt?: string;
 }
 

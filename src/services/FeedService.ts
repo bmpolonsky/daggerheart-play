@@ -1,7 +1,7 @@
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
 import { REST_RULES } from '../domain/rules/rest';
-import type { GameHandout, CharacterRetirementState, DeathMoveChoice, DeathMoveFeedEntry, DeathMoveFeedRequest, DeathMoveFeedStatus, DeathMoveRollResult, DomainCardRecord, FeedActorReference, FeedEntry, RestChoiceResult, RestChoiceStatus, RestFeedChoice, RestFeedEntry, RestFeedParticipant, RestFeedRequest, RestFeedStatus, RollLogEntry, RollPublication, TeamworkRollActorOption, TeamworkRollFeedEntry, TeamworkRollKind, TeamworkRollParticipant, TeamworkRollParticipantRequest, TeamworkRollParticipantRole, TeamworkRollRequest, TeamworkRollResult, TeamworkRollStatus, TraitId } from '../domain/rules/types';
+import type { GameHandout, DeathMoveChoice, DeathMoveFeedEntry, DeathMoveFeedRequest, DeathMoveFeedStatus, DeathMoveRollResult, DomainCardRecord, FeedActorReference, FeedEntry, RestChoiceResult, RestChoiceStatus, RestFeedChoice, RestFeedEntry, RestFeedParticipant, RestFeedRequest, RestFeedStatus, RollLogEntry, RollPublication, TeamworkRollActorOption, TeamworkRollFeedEntry, TeamworkRollKind, TeamworkRollParticipant, TeamworkRollParticipantRequest, TeamworkRollParticipantRole, TeamworkRollRequest, TeamworkRollResult, TeamworkRollStatus, TraitId } from '../domain/rules/types';
 import type { RestFearPlan } from '../domain/rules/rest';
 import type { TableVisibility } from '../domain/tabletop/types';
 import { createFeedEntryFromRollLogEntry } from '../domain/tabletop/feed';
@@ -63,8 +63,6 @@ interface UpdateDeathMoveInput {
   status?: DeathMoveFeedStatus;
   choice?: DeathMoveChoice;
   roll?: DeathMoveRollResult;
-  allocation?: DeathMoveFeedRequest['allocation'];
-  retirement?: CharacterRetirementState | null;
 }
 
 export class FeedService {
@@ -474,15 +472,9 @@ export class FeedService {
     feedStore.update((feed) => feed.map((entry) => {
       if (entry.type !== 'deathMove' || !matchesDeathMoveEntry(entry, deathMoveEntryId)) return entry;
       if (options.actorId && entry.deathMove.actor.actorId !== options.actorId) return entry;
-      const nextInput = { ...input };
-      if (input.allocation !== undefined) {
-        const allocation = normalizeDeathMoveAllocation(entry.deathMove, input.allocation);
-        if (!allocation) return entry;
-        nextInput.allocation = allocation;
-      }
       const deathMove: DeathMoveFeedRequest = {
         ...entry.deathMove,
-        ...nextInput,
+        ...input,
         resolvedAt: resolvedAt ?? entry.deathMove.resolvedAt
       };
       updatedEntry = { ...entry, deathMove };
@@ -598,14 +590,6 @@ function matchesTeamworkEntry(entry: TeamworkRollFeedEntry, teamworkEntryId: str
 
 function matchesDeathMoveEntry(entry: DeathMoveFeedEntry, deathMoveEntryId: string): boolean {
   return entry.id === deathMoveEntryId || entry.deathMove.id === deathMoveEntryId;
-}
-
-function normalizeDeathMoveAllocation(deathMove: DeathMoveFeedRequest, allocation: DeathMoveFeedRequest['allocation']): DeathMoveFeedRequest['allocation'] | null {
-  if (!allocation || deathMove.roll?.kind !== 'riskItAll' || deathMove.roll.outcome !== 'hope') return null;
-  const { hpCleared, stressCleared } = allocation;
-  if (!Number.isInteger(hpCleared) || !Number.isInteger(stressCleared) || hpCleared < 0 || stressCleared < 0) return null;
-  if (hpCleared + stressCleared !== deathMove.roll.hopeDie) return null;
-  return { hpCleared, stressCleared };
 }
 
 function updateRestChoices(rest: RestFeedRequest, participantIndex: number, choices: string[]): RestFeedRequest {

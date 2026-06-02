@@ -8,21 +8,18 @@ import { characterService, feedService } from "../../src/services/serviceRegistr
 import { ActorStatus } from "../../src/domain/rules/statuses";
 import { firstCharacter } from "./helpers";
 
-test('death move flow becomes pending on last HP and can record the chosen move', () => {
+test('defeated transition creates a feed death move and clearing HP cancels open cards', () => {
   resetAllStores();
   const character = firstCharacter();
   characterService.updateResourceMax(character.id, 'hp', 1);
   characterService.markSlots(character.id, 'hp', 1);
 
-  assert.equal(characterService.getCharacter(character.id)?.deathMove?.status, 'pending');
   assert.equal(characterService.getCharacter(character.id)?.conditions.some((condition) => condition.name === ActorStatus.Defeated), true);
-  characterService.markSlots(character.id, 'hp', -1);
-  assert.equal(characterService.getCharacter(character.id)?.deathMove, null);
-  assert.equal(characterService.getCharacter(character.id)?.conditions.some((condition) => condition.name === ActorStatus.Defeated), false);
+  assert.deepEqual(deathMoveCardsForActor(character.id).map((entry) => entry.deathMove.status), ['pending']);
 
-  characterService.markSlots(character.id, 'hp', 1);
-  assert.equal(characterService.chooseDeathMove(character.id, 'avoidDeath', 'Scar marked.'), true);
-  assert.equal(characterService.getCharacter(character.id)?.deathMove?.status, 'avoidDeath');
+  characterService.markSlots(character.id, 'hp', -1);
+  assert.equal(characterService.getCharacter(character.id)?.conditions.some((condition) => condition.name === ActorStatus.Defeated), false);
+  assert.deepEqual(deathMoveCardsForActor(character.id).map((entry) => entry.deathMove.status), ['cancelled']);
 });
 
 test('death move feed request is created for any service HP transition to last slot', () => {
@@ -31,7 +28,6 @@ test('death move feed request is created for any service HP transition to last s
   characterService.updateResourceMax(character.id, 'hp', 2);
   characterService.markSlots(character.id, 'hp', 2);
 
-  assert.equal(characterService.getCharacter(character.id)?.deathMove?.status, 'pending');
   assert.equal(feedStore.getSnapshot().filter((entry) => entry.type === 'deathMove' && entry.deathMove.actor.actorId === character.id).length, 1);
 
   characterService.markSlots(character.id, 'hp', 1);
@@ -42,7 +38,6 @@ test('death move feed request is created for any service HP transition to last s
   characterService.markSlots(maxReduced.id, 'hp', 2);
   characterService.updateResourceMax(maxReduced.id, 'hp', 2);
 
-  assert.equal(characterService.getCharacter(maxReduced.id)?.deathMove?.status, 'pending');
   assert.equal(feedStore.getSnapshot().filter((entry) => entry.type === 'deathMove' && entry.deathMove.actor.actorId === maxReduced.id).length, 1);
 });
 
@@ -72,7 +67,24 @@ test('defeated status transition creates a fresh death move card even when an ol
   assert.equal(characterService.getCharacter(character.id)?.conditions.some((condition) => condition.name === ActorStatus.Defeated), true);
 });
 
-test('avoid death scars reduce effective Hope and clearing HP removes Fallen', () => {
+test('manual defeated status transition creates and cancels death move cards', () => {
+  resetAllStores();
+  const character = firstCharacter();
+
+  characterService.addCondition(character.id, ActorStatus.Defeated);
+  assert.deepEqual(deathMoveCardsForActor(character.id).map((entry) => entry.deathMove.status), ['pending']);
+
+  const defeated = characterService.getCharacter(character.id)?.conditions.find((condition) => condition.name === ActorStatus.Defeated);
+  characterService.removeCondition(character.id, defeated!.id);
+  assert.deepEqual(deathMoveCardsForActor(character.id).map((entry) => entry.deathMove.status), ['cancelled']);
+
+  characterService.addCondition(character.id, ActorStatus.Defeated);
+  const cards = deathMoveCardsForActor(character.id);
+  assert.equal(cards.filter((entry) => entry.deathMove.status === 'cancelled').length, 1);
+  assert.equal(cards.filter((entry) => entry.deathMove.status === 'pending').length, 1);
+});
+
+test('avoid death scars reduce effective Hope and clearing HP removes defeated', () => {
   resetAllStores();
   const character = firstCharacter();
   characterService.setHope(character.id, 6);
@@ -88,12 +100,12 @@ test('avoid death scars reduce effective Hope and clearing HP removes Fallen', (
     characterService.addScar(character.id, `Scar ${index + 2}`);
   }
   characterService.adjustHope(character.id, 1);
-  const retired = characterService.getCharacter(character.id)!;
-  assert.equal(buildEffectiveCharacterStats(retired).hope.max, 0);
-  assert.equal(retired.hope.value, 0);
-  assert.equal(retired.retirement?.reason, 'lastHopeScar');
-  characterService.healScar(character.id, retired.scars[0]!.id);
-  assert.equal(characterService.getCharacter(character.id)?.retirement, null);
+  const fullyScarred = characterService.getCharacter(character.id)!;
+  assert.equal(buildEffectiveCharacterStats(fullyScarred).hope.max, 0);
+  assert.equal(fullyScarred.hope.value, 0);
+  characterService.healScar(character.id, fullyScarred.scars[0]!.id);
+  const healedScar = characterService.getCharacter(character.id)!;
+  assert.equal(buildEffectiveCharacterStats(healedScar).hope.max, 1);
 
   characterService.markSlots(character.id, 'hp', 1);
   characterService.addCondition(character.id, ActorStatus.Defeated);
@@ -101,7 +113,7 @@ test('avoid death scars reduce effective Hope and clearing HP removes Fallen', (
   assert.equal(characterService.getCharacter(character.id)?.conditions.some((condition) => condition.name === ActorStatus.Defeated), false);
 });
 
-test('risk it all critical clears tracks and fear result marks retirement', () => {
+test('risk it all records only the roll and does not mutate character resources', () => {
   resetAllStores();
   const character = firstCharacter();
   characterService.markSlots(character.id, 'hp', 2);
@@ -111,21 +123,21 @@ test('risk it all critical clears tracks and fear result marks retirement', () =
 
   characterService.chooseRiskItAll(character.id, { kind: 'riskItAll', hopeDie: 7, fearDie: 7, outcome: 'critical' });
   const critical = characterService.getCharacter(character.id);
-  assert.equal(critical?.hp.marked, 0);
-  assert.equal(critical?.stress.marked, 0);
-  assert.equal(critical?.conditions.some((condition) => condition.name === ActorStatus.Defeated), false);
+  assert.equal(critical?.hp.marked, 2);
+  assert.equal(critical?.stress.marked, 2);
+  assert.equal(critical?.conditions.some((condition) => condition.name === ActorStatus.Defeated), true);
 
-  characterService.markSlots(character.id, 'hp', critical?.hp.max ?? 6);
-  characterService.markStress(character.id, 1);
-  characterService.addCondition(character.id, ActorStatus.Defeated);
   characterService.chooseRiskItAll(character.id, { kind: 'riskItAll', hopeDie: 1, fearDie: 0, outcome: 'hope' });
-  characterService.resolveRiskItAllAllocation(character.id, 0, 1);
-  assert.equal(characterService.getCharacter(character.id)?.conditions.some((condition) => condition.name === ActorStatus.Defeated), true);
+  assert.equal(characterService.getCharacter(character.id)?.stress.marked, 2);
 
   characterService.chooseRiskItAll(character.id, { kind: 'riskItAll', hopeDie: 2, fearDie: 8, outcome: 'fear' });
   const dead = characterService.getCharacter(character.id);
-  assert.equal(dead?.deathMove?.status, 'dead');
-  assert.equal(dead?.retirement?.reason, 'deathMove');
+  assert.equal(dead?.conditions.some((condition) => condition.name === ActorStatus.Defeated), true);
+
+  characterService.clearHp(character.id, 1);
+  const restored = characterService.getCharacter(character.id);
+  assert.equal(restored?.conditions.some((condition) => condition.name === ActorStatus.Defeated), false);
+  assert.equal(restored ? restored.hp.marked < restored.hp.max : false, true);
 });
 
 test('death move feed cards are actor scoped and avoid duplicate open cards', () => {
@@ -144,18 +156,12 @@ test('death move feed cards are actor scoped and avoid duplicate open cards', ()
   assert.equal(afterWrongActor?.type === 'deathMove' ? afterWrongActor.deathMove.choice : undefined, undefined);
 
   const risk = feedService.updateDeathMove(first.id, {
-    status: 'allocating',
+    status: 'resolved',
     choice: 'riskItAll',
     roll: { kind: 'riskItAll', hopeDie: 3, fearDie: 1, outcome: 'hope' }
   }, { actorId: character.id });
-  assert.equal(risk?.deathMove.status, 'allocating');
-  assert.equal(feedService.updateDeathMove(first.id, { allocation: { hpCleared: 4, stressCleared: 0 } }, { actorId: character.id }), null);
-  const afterInvalidAllocation = feedStore.getSnapshot().find((entry) => entry.id === first.id);
-  assert.equal(afterInvalidAllocation?.type === 'deathMove' ? afterInvalidAllocation.deathMove.allocation : undefined, undefined);
-  assert.deepEqual(feedService.updateDeathMove(first.id, { allocation: { hpCleared: 2, stressCleared: 1 } }, { actorId: character.id })?.deathMove.allocation, {
-    hpCleared: 2,
-    stressCleared: 1
-  });
+  assert.equal(risk?.deathMove.status, 'resolved');
+  assert.equal(risk?.deathMove.roll?.kind, 'riskItAll');
 });
 
 function deathMoveCardsForActor(actorId: string): DeathMoveFeedEntry[] {

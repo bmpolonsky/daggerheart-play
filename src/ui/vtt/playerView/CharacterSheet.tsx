@@ -227,11 +227,6 @@ export function CharacterSheet({
               ))}
             </div>
           )}
-          {character.retirement && (
-            <p className="player-character-panel__retirement">
-              Персонаж готов к завершению: {character.retirement.reason === 'deathMove' ? 'предсмертный ход' : 'последний слот Надежды'}
-            </p>
-          )}
         </section>
         <section className="player-track-list">
           <TrackRow

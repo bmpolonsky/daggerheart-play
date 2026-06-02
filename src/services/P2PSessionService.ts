@@ -4,9 +4,9 @@ import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
 import { buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
 import { createCharacter } from '../domain/rules/factories';
-import { syncCharacterDeathMoveState } from '../domain/rules/characterDamage';
+import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
-import { normalizeStatusTag } from '../domain/rules/statuses';
+import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
 import type { SyncTargetPeer, TableParticipant } from '../domain/tabletop/types';
 import type { Character, CharacterCondition, FeedEntry } from '../domain/rules/types';
 import { gameStore, charactersStore, resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
@@ -899,7 +899,7 @@ export class P2PSessionService {
           })
         : character.domainCards;
       const effective = buildEffectiveCharacterStats(character);
-      const updated: Character = syncCharacterDeathMoveState({
+      const updated: Character = syncCharacterDefeatedCondition({
         ...character,
         hope: resources.hope
           ? { ...character.hope, value: clamp(toSafeInteger(resources.hope.value, character.hope.value), 0, effective.hope.max) }
@@ -931,7 +931,7 @@ export class P2PSessionService {
       if (!applied) {
         return state;
       }
-      if (updated.deathMove?.status === 'pending') {
+      if (!hasConditionTag(character.conditions, ActorStatus.Defeated) && hasConditionTag(updated.conditions, ActorStatus.Defeated)) {
         pendingDeathMoveActor.current = { id: updated.id, name: updated.name };
       }
       return {
@@ -1012,8 +1012,7 @@ export class P2PSessionService {
     }
     if (message.decision.kind === 'deathMove') {
       return Boolean(this.feedService.updateDeathMove(message.decision.deathMoveEntryId, {
-        choice: message.decision.choice,
-        allocation: message.decision.allocation
+        choice: message.decision.choice
       }, { actorId: message.actorId }));
     }
     if (message.decision.kind === 'teamworkRoll') {
@@ -1373,4 +1372,8 @@ function normalizePlayerConditionList(conditions: CharacterCondition[]): Charact
       notes: condition.notes?.trim() || undefined
     }];
   });
+}
+
+function hasConditionTag(conditions: CharacterCondition[], tag: ActorStatus): boolean {
+  return conditions.some((condition) => normalizeStatusTag(condition.name) === tag);
 }

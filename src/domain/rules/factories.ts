@@ -126,15 +126,13 @@ export function createCharacter(input?: CharacterInput): Character {
     activeBeastform: input?.activeBeastform ?? null,
     rangerMark: input?.rangerMark ?? null,
     companion: input?.companion ? normalizeRangerCompanion(input.companion) : null,
-    deathMove: input?.deathMove ?? null,
     scars: input?.scars ?? [],
-    retirement: input?.retirement ?? null,
     notes: input?.notes ?? '',
     description: input?.description,
     backgroundAnswers: input?.backgroundAnswers ?? [],
     connections: input?.connections ?? [],
     createdAt: input?.createdAt ?? now,
-    updatedAt: now
+    updatedAt: input?.updatedAt ?? now
   };
 
   return character;

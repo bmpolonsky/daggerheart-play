@@ -1480,24 +1480,20 @@
   color: var(--dh-paper-100);
 }
 
-.feed-death-move-card__summary,
-.feed-death-move-card__allocation p {
+.feed-death-move-card__summary {
   margin: 0;
   color: rgba(243, 234, 216, 0.72);
   font-size: 0.7rem;
   line-height: 1.32;
 }
 
-.feed-death-move-card__actions,
-.feed-death-move-card__allocation {
+.feed-death-move-card__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
 
-.feed-death-move-card__actions button,
-.feed-death-move-card__allocation button,
-.feed-death-move-card__allocation input {
+.feed-death-move-card__actions button {
   min-height: 28px;
   padding: 4px 8px;
   border: 1px solid rgba(240, 201, 106, 0.26);
@@ -1508,24 +1504,10 @@
   font-weight: 850;
 }
 
-.feed-death-move-card__actions button,
-.feed-death-move-card__allocation button {
+.feed-death-move-card__actions button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-}
-
-.feed-death-move-card__allocation label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: rgba(243, 234, 216, 0.72);
-  font-size: 0.68rem;
-  font-weight: 800;
-}
-
-.feed-death-move-card__allocation input {
-  width: 56px;
 }
 
 .player-chat-composer {

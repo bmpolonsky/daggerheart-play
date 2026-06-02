@@ -5,17 +5,14 @@ import { beastformToActiveState, beastformToSheetCard, beastformToWeapon } from 
 import { DEFAULT_ACTION_TOKENS, DEFAULT_MAX_HOPE, CLASS_DOMAINS, CLASS_STARTING_STATS } from '../domain/rules/constants';
 import {
   calculateThresholds,
-  createDeathMoveState,
   ensureCharacterCondition,
   removeCharacterConditionByName,
-  syncCharacterDeathMoveState
+  syncCharacterDefeatedCondition
 } from '../domain/rules/characterDamage';
 import {
   buildAvoidDeathRoll,
   clampHopeToEffectiveMax,
   createCharacterScar,
-  retirementForDeathMove,
-  retirementForLastHopeScar,
   rollHopeDie,
   rollRiskItAll
 } from '../domain/rules/deathMoves';
@@ -32,7 +29,6 @@ import type {
   ArmorState,
   Character,
   CharacterCompanionState,
-  CharacterDeathMoveState,
   CharacterInventoryItem,
   DeathMoveRollResult,
   CharacterSheetCard,
@@ -293,7 +289,7 @@ export class CharacterService {
         }
       };
       if (resource === 'hp') {
-        return syncCharacterDeathMoveState(nextCharacter);
+        return syncCharacterDefeatedCondition(nextCharacter);
       }
       const effective = buildEffectiveCharacterStats(nextCharacter);
       return {
@@ -325,7 +321,7 @@ export class CharacterService {
         activeBeastform: resource === 'hp' && marked >= effectiveMax ? null : character.activeBeastform ?? null,
         conditions: nextConditions
       };
-      return resource === 'hp' ? syncCharacterDeathMoveState(updated) : updated;
+      return resource === 'hp' ? syncCharacterDefeatedCondition(updated) : updated;
     });
     if (resource === 'hp') {
       this.requestDeathMoveOnDefeatedTransition(patch);
@@ -690,163 +686,60 @@ export class CharacterService {
   }
 
   addCondition(id: string, name: string = ActorStatus.Vulnerable): void {
-    this.patchCharacter(id, (character) => ({
+    const patch = this.patchCharacter(id, (character) => ({
       ...character,
       conditions: ensureCharacterCondition(character.conditions, name)
     }));
+    this.requestDeathMoveOnDefeatedTransition(patch);
   }
 
   removeCondition(id: string, conditionId: string): void {
-    this.patchCharacter(id, (character) => ({
+    const patch = this.patchCharacter(id, (character) => ({
       ...character,
       conditions: character.conditions.filter((condition) => condition.id !== conditionId)
     }));
+    this.requestDeathMoveOnDefeatedTransition(patch);
   }
 
-  chooseDeathMove(id: string, status: Exclude<CharacterDeathMoveState['status'], 'pending'>, notes = ''): boolean {
-    if (!this.getCharacter(id)) return false;
-    this.patchCharacter(id, (character) => ({
-      ...character,
-      deathMove: createDeathMoveState(status, notes),
-      conditions: character.conditions
-    }));
-    return true;
-  }
-
-  chooseBlazeOfGlory(id: string, notes = ''): boolean {
-    return this.chooseDeathMove(id, 'blazeOfGlory', notes);
-  }
-
-  chooseAvoidDeath(id: string, hopeDie = rollHopeDie(), notes = ''): DeathMoveRollResult | null {
+  chooseAvoidDeath(id: string, hopeDie = rollHopeDie()): DeathMoveRollResult | null {
     const character = this.getCharacter(id);
     if (!character) return null;
     const roll = buildAvoidDeathRoll(character, hopeDie);
     this.patchCharacter(id, (current) => {
       const scar = roll.scarGained ? createCharacterScar('Избежать смерти') : null;
       const nextScars = scar ? [...(current.scars ?? []), scar] : current.scars ?? [];
-      const withScar = clampHopeToEffectiveMax({
+      return clampHopeToEffectiveMax({
         ...current,
-        scars: nextScars,
-        deathMove: {
-          status: 'avoidDeath',
-          notes,
-          roll,
-          updatedAt: nowIso()
-        },
-        conditions: current.conditions
+        scars: nextScars
       });
-      return {
-        ...withScar,
-        retirement: withScar.retirement ?? (roll.scarGained && buildEffectiveCharacterStats(withScar).hope.max <= 0
-          ? retirementForLastHopeScar('Избежать смерти добавило шрам в последний слот Надежды.')
-          : current.retirement ?? null)
-      };
     });
     return roll;
   }
 
-  chooseRiskItAll(id: string, roll: DeathMoveRollResult = rollRiskItAll(), notes = ''): DeathMoveRollResult | null {
+  chooseRiskItAll(id: string, roll: DeathMoveRollResult = rollRiskItAll()): DeathMoveRollResult | null {
     const character = this.getCharacter(id);
     if (!character || roll.kind !== 'riskItAll') return null;
-    this.patchCharacter(id, (current) => {
-      const base = {
-        ...current,
-        deathMove: {
-          status: roll.outcome === 'fear' ? 'dead' as const : 'riskItAll' as const,
-          notes,
-          roll,
-          updatedAt: nowIso()
-        },
-        conditions: current.conditions
-      };
-      if (roll.outcome === 'critical') {
-        return {
-          ...base,
-          hp: { ...base.hp, marked: 0 },
-          stress: { ...base.stress, marked: 0 },
-          conditions: removeCharacterConditionByName(removeCharacterConditionByName(base.conditions, ActorStatus.Defeated), ActorStatus.Vulnerable)
-        };
-      }
-      if (roll.outcome === 'fear') {
-        return {
-          ...base,
-          retirement: base.retirement ?? retirementForDeathMove()
-        };
-      }
-      return base;
-    });
     return roll;
-  }
-
-  resolveRiskItAllAllocation(id: string, hpCleared: number, stressCleared: number): boolean {
-    const character = this.getCharacter(id);
-    const roll = character?.deathMove?.roll;
-    if (!character || character.deathMove?.status !== 'riskItAll' || roll?.kind !== 'riskItAll' || roll.outcome !== 'hope') {
-      return false;
-    }
-    const budget = Math.max(0, roll.hopeDie);
-    const safeHpCleared = clamp(toSafeInteger(hpCleared, 0), 0, budget);
-    const safeStressCleared = clamp(toSafeInteger(stressCleared, 0), 0, budget - safeHpCleared);
-    this.patchCharacter(id, (current) => {
-      const hpMarked = clamp(current.hp.marked - safeHpCleared, 0, current.hp.max);
-      const stressMarked = clamp(current.stress.marked - safeStressCleared, 0, current.stress.max);
-      const effective = buildEffectiveCharacterStats({ ...current, hp: { ...current.hp, marked: hpMarked }, stress: { ...current.stress, marked: stressMarked } });
-      let conditions = current.conditions;
-      if (hpMarked < effective.hp.max) {
-        conditions = removeCharacterConditionByName(conditions, ActorStatus.Defeated);
-      }
-      if (stressMarked < effective.stress.max) {
-        conditions = removeCharacterConditionByName(conditions, ActorStatus.Vulnerable);
-      }
-      return {
-        ...current,
-        hp: { ...current.hp, marked: hpMarked },
-        stress: { ...current.stress, marked: stressMarked },
-        deathMove: current.deathMove ? {
-          ...current.deathMove,
-          roll: {
-            ...roll,
-            hpCleared: safeHpCleared,
-            stressCleared: safeStressCleared
-          },
-          updatedAt: nowIso()
-        } : current.deathMove,
-        conditions
-      };
-    });
-    return true;
   }
 
   addScar(id: string, description = 'Шрам'): boolean {
     if (!this.getCharacter(id)) return false;
-    this.patchCharacter(id, (character) => {
-      const withScar = clampHopeToEffectiveMax({
+    this.patchCharacter(id, (character) => (
+      clampHopeToEffectiveMax({
         ...character,
         scars: [...(character.scars ?? []), createCharacterScar(description)]
-      });
-      return {
-        ...withScar,
-        retirement: withScar.retirement ?? (buildEffectiveCharacterStats(withScar).hope.max <= 0
-          ? retirementForLastHopeScar()
-          : character.retirement ?? null)
-      };
-    });
+      })
+    ));
     return true;
   }
 
   healScar(id: string, scarId: string): boolean {
     if (!this.getCharacter(id)) return false;
     this.patchCharacter(id, (character) => {
-      const next = {
+      return clampHopeToEffectiveMax({
         ...character,
         scars: (character.scars ?? []).filter((scar) => scar.id !== scarId)
-      };
-      return {
-        ...next,
-        retirement: next.retirement?.reason === 'lastHopeScar' && buildEffectiveCharacterStats(next).hope.max > 0
-          ? null
-          : next.retirement ?? null
-      };
+      });
     });
     return true;
   }
