@@ -467,7 +467,7 @@
 
 .player-scene-switcher button,
 .player-gm-actions__rest-row,
-.player-gm-handouts__actions button {
+.player-gm-handouts__row {
   border: 0;
   border-radius: 8px;
   background: var(--gm-dock-control-bg);
@@ -492,7 +492,7 @@
 
 .player-scene-switcher button:hover,
 .player-gm-actions__rest-row:hover,
-.player-gm-handouts__actions button:hover {
+.player-gm-handouts__row:hover {
   background: var(--gm-dock-control-hover);
   color: #fff4d6;
 }
@@ -765,13 +765,16 @@
 .player-gm-handouts__row {
   min-width: 0;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 42px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
   border: 0;
   border-radius: 8px;
   background: var(--gm-dock-control-bg);
+  color: var(--dh-paper-100);
+  font: inherit;
+  text-align: left;
 }
 
 .player-gm-handouts__preview {
@@ -817,22 +820,6 @@
   font-weight: 850;
 }
 
-.player-gm-handouts__actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.player-gm-handouts__actions button {
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 8px;
-  font-size: 0.68rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
 
 .player-rest-setup {
   position: fixed;

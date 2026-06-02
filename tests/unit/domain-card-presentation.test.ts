@@ -98,7 +98,7 @@ test('ephemeral feed items cover countdown composers and character features with
   assert.equal(composer.kind, 'countdownComposer');
   assert.equal(composer.kicker, 'Действие');
   assert.equal(composer.ephemeral, true);
-  assert.equal(composer.publication, 'gm');
+  assert.equal(composer.publication, 'private');
   assert.equal(composer.countdownComposer?.name, '');
   assert.equal(composer.countdownComposer?.max, 4);
   assert.equal(encounterService.encounterStore.getSnapshot().countdowns.length, 0);

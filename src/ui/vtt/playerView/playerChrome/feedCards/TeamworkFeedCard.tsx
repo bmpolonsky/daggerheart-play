@@ -9,7 +9,7 @@ import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
 
 const TEAMWORK_STATUS_LABELS: Record<string, string> = {
-  draft: 'Настройка',
+  draft: 'Действие',
   collecting: 'Активен',
   resolved: 'Завершён',
   cancelled: 'Отменён'

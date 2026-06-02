@@ -280,7 +280,7 @@ export function buildCountdownComposerFeedItem(input: {
       max,
       visibility: input.draft?.visibility ?? 'gm'
     },
-    publication: 'gm',
+    publication: 'private',
     ephemeral: true
   };
 }
@@ -567,7 +567,7 @@ function teamworkStatusLabel(status: TeamworkRollRequest['status']): string {
   if (status === 'resolved') return 'Завершён';
   if (status === 'cancelled') return 'Отменён';
   if (status === 'collecting') return 'Броски участников';
-  return 'Настройка';
+  return 'Действие';
 }
 
 function deathMoveStatusLabel(status: DeathMoveFeedRequest['status']): string {
