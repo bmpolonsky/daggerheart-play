@@ -4,6 +4,7 @@ import { Eye, EyeOff, MessageCircle, Minus, Plus, SendHorizontal, X } from 'luci
 import { useStore } from '../../../../core/hooks/useStore';
 import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
+import type { TableFeedItem } from '../../../../domain/tabletop/feed';
 import { gameService, diceService, encounterService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
 import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS } from '../constants';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
@@ -46,12 +47,12 @@ export function PlayerLeftRail({
   const mountedAtRef = useRef(Date.now());
   const activityRef = useRef<HTMLDivElement>(null);
   const activity = useMemo(() => {
-    if (!ephemeralFeedItem) return model.activity;
+    if (!ephemeralFeedItem || !canViewEphemeralFeedItem(ephemeralFeedItem, role, model.character?.id ?? null)) return model.activity;
     return [
       ephemeralFeedItem,
       ...model.activity.filter((event) => event.id !== 'feed-empty')
     ];
-  }, [ephemeralFeedItem, model.activity]);
+  }, [ephemeralFeedItem, model.activity, model.character?.id, role]);
   const visibleActivity = useMemo(() => activity.slice().reverse(), [activity]);
   const visibleCountdowns = useMemo(() => encounter.countdowns.filter((countdown) => role === 'gm' || countdown.visibility === 'public'), [encounter.countdowns, role]);
   const hasClearableActivity = activity.some((event) => event.id !== 'feed-empty');
@@ -236,6 +237,12 @@ export function PlayerLeftRail({
       </section>
     </aside>
   );
+}
+
+function canViewEphemeralFeedItem(item: TableFeedItem, role: TableViewRole, actorId: string | null): boolean {
+  if (role === 'gm' || item.publication === 'public') return true;
+  if (item.publication === 'gm') return false;
+  return Boolean(actorId && item.actor?.actorId === actorId);
 }
 
 function CountdownCard({ countdown, role }: { countdown: Countdown; role: TableViewRole }) {

@@ -1,7 +1,8 @@
 import { Store } from '../../../core/store/Store';
-import { buildCountdownComposerFeedItem, type TableFeedItem } from '../../../domain/tabletop/feed';
+import { buildCountdownComposerFeedItem, buildHandoutDraftFeedItem, type TableFeedItem } from '../../../domain/tabletop/feed';
 import { createId } from '../../../core/utils/id';
 import { nowIso } from '../../../core/utils/date';
+import type { GameHandout } from '../../../domain/rules/types';
 
 interface PlayerViewUiState {
   completedDiceRollIds: Set<string>;
@@ -38,6 +39,14 @@ export const playerViewUiActions = {
     playerViewUiActions.setEphemeralFeedItem(buildCountdownComposerFeedItem({
       id: createId('ephemeral-countdown'),
       createdAt: nowIso()
+    }));
+  },
+
+  openHandoutDraft(handout: Pick<GameHandout, 'id' | 'title' | 'body' | 'imageUrl'>): void {
+    playerViewUiActions.setEphemeralFeedItem(buildHandoutDraftFeedItem({
+      id: createId('ephemeral-handout'),
+      createdAt: nowIso(),
+      handout
     }));
   }
 };

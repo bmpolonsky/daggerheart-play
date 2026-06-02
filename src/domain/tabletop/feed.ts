@@ -192,6 +192,26 @@ export function buildHandoutFeedItem(handout: Pick<GameHandout, 'id' | 'title' |
   };
 }
 
+export function buildHandoutDraftFeedItem(input: {
+  id: string;
+  createdAt: string;
+  handout: Pick<GameHandout, 'id' | 'title' | 'body' | 'imageUrl'>;
+}): TableFeedItem {
+  return {
+    id: input.id,
+    kind: 'handout',
+    createdAt: input.createdAt,
+    authorName: 'Мастер',
+    kicker: 'Раздатка',
+    title: input.handout.title || 'Без названия',
+    body: input.handout.body?.trim() || 'Материал показан игрокам.',
+    tone: 'hope',
+    handout: input.handout,
+    publication: 'private',
+    ephemeral: true
+  };
+}
+
 export function buildDomainCardPreviewFeedItem(input: {
   id: string;
   createdAt: string;

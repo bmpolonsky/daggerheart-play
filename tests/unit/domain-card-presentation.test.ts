@@ -1,9 +1,9 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { parseDomainCardTextMacros } from "../../src/domain/rules/domainCards";
-import { createInventoryItem } from "../../src/domain/rules/factories";
+import { createGameHandout, createInventoryItem } from "../../src/domain/rules/factories";
 import { buildCharacterSidecarModel, sheetCardKindLabel } from "../../src/domain/rules/sidecar";
-import { buildCharacterFeaturePreviewFeedItem, buildCountdownComposerFeedItem, buildDomainCardPreviewFeedItem } from "../../src/domain/tabletop/feed";
+import { buildCharacterFeaturePreviewFeedItem, buildCountdownComposerFeedItem, buildDomainCardPreviewFeedItem, buildHandoutDraftFeedItem } from "../../src/domain/tabletop/feed";
 import { resetAllStores, feedStore } from "../../src/stores/gameStores";
 import { characterService, encounterService, feedService } from "../../src/services/serviceRegistry";
 import { playerViewUiActions, playerViewUiStore } from "../../src/ui/vtt/playerView/playerViewUiState";
@@ -134,6 +134,34 @@ test('ephemeral feed items cover countdown composers and character features with
   assert.equal(feature.actor?.actorId, character.id);
   assert.equal(feature.body, 'Потратьте Надежду. Бросок Действия (12).');
   assert.equal(feedService.feedStore.getSnapshot().length, 0);
+});
+
+test('handout drafts stay ephemeral until the GM publishes them', () => {
+  resetAllStores();
+  playerViewUiActions.reset();
+  const handout = createGameHandout({
+    id: 'handout-letter',
+    title: 'Письмо из руин',
+    body: 'Воск на печати еще теплый.',
+    imageUrl: '/handout.png'
+  });
+
+  const draft = buildHandoutDraftFeedItem({
+    id: 'ephemeral-handout',
+    createdAt: '2026-05-30T00:03:00.000Z',
+    handout
+  });
+  assert.equal(draft.kind, 'handout');
+  assert.equal(draft.ephemeral, true);
+  assert.equal(draft.publication, 'private');
+  assert.equal(draft.kicker, 'Раздатка');
+  assert.equal(draft.handout?.id, handout.id);
+
+  playerViewUiActions.openHandoutDraft(handout);
+  const active = playerViewUiStore.getSnapshot().ephemeralFeedItem;
+  assert.equal(active?.kind, 'handout');
+  assert.equal(active?.ephemeral, true);
+  assert.equal(feedStore.getSnapshot().length, 0);
 });
 
 test('character sidecar model separates loadout cards and feature sections outside UI', () => {

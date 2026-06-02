@@ -483,14 +483,13 @@ export function CharacterSheet({
                 onClick={() => onFeaturePreview?.(character, {
                   id: item.id,
                   name: item.name,
-                  subtitle: inventorySubtitle(item),
-                  text: item.text || inventorySubtitle(item),
+                  subtitle: inventoryQuantityLabel(item),
+                  text: item.text ?? '',
                   sourceLabel: 'Инвентарь'
                 })}
               >
                 <strong>{item.name}</strong>
                 {inventoryQuantityLabel(item) && <small>{inventoryQuantityLabel(item)}</small>}
-                {inventorySubtitle(item) && <span>{inventorySubtitle(item)}</span>}
               </button>
               <button
                 className="player-sheet-use-button"
@@ -512,14 +511,13 @@ export function CharacterSheet({
                 onClick={() => onFeaturePreview?.(character, {
                   id: item.id,
                   name: item.name,
-                  subtitle: inventorySubtitle(item),
-                  text: item.text || inventorySubtitle(item),
+                  subtitle: inventoryQuantityLabel(item),
+                  text: item.text ?? '',
                   sourceLabel: 'Инвентарь'
                 })}
               >
                 <strong>{item.name}</strong>
                 {inventoryQuantityLabel(item) && <small>{inventoryQuantityLabel(item)}</small>}
-                {inventorySubtitle(item) && <span>{inventorySubtitle(item)}</span>}
               </button>
             </article>
           );
@@ -551,12 +549,18 @@ function traitLabel(character: PlayerViewCharacterSummary, traitId: TraitId): st
   return character.traits.find((trait) => trait.id === traitId)?.label ?? traitId;
 }
 
-function inventorySubtitle(item: PlayerViewCharacterSummary['inventory'][number]): string {
-  return item.uses ? `Осталось ${item.uses.current}/${item.uses.max}` : '';
+function inventoryQuantityLabel(item: PlayerViewCharacterSummary['inventory'][number]): string {
+  const parts = [];
+  if (item.quantity > 1) parts.push(`x${item.quantity}`);
+  const usesLabel = inventoryUsesLabel(item);
+  if (usesLabel) parts.push(usesLabel);
+  return parts.join(' · ');
 }
 
-function inventoryQuantityLabel(item: PlayerViewCharacterSummary['inventory'][number]): string {
-  return item.quantity > 1 ? `x${item.quantity}` : '';
+function inventoryUsesLabel(item: PlayerViewCharacterSummary['inventory'][number]): string {
+  if (!item.uses) return '';
+  if (item.uses.max <= 1 && item.uses.current === item.uses.max) return '';
+  return `${item.uses.current}/${item.uses.max}`;
 }
 
 function canUseInventoryItem(item: PlayerViewCharacterSummary['inventory'][number]): boolean {

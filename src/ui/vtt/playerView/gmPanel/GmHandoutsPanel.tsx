@@ -1,8 +1,8 @@
 /** @jsxImportSource preact */
 import { Eye, Image } from "lucide-react";
 import type { GameHandout } from "../../../../domain/rules/types";
-import { feedService } from "../../../../services/serviceRegistry";
 import { cssImageUrl } from "../helpers";
+import { playerViewUiActions } from "../playerViewUiState";
 
 export function GmHandoutsPanel({
   handouts
@@ -21,9 +21,9 @@ export function GmHandoutsPanel({
             <small>{handout.body || 'Без текста'}</small>
           </div>
           <div className="player-gm-handouts__actions">
-            <button type="button" title="Показать игрокам в чате" onClick={() => feedService.addHandout('Мастер', handout, { title: 'Раздатка' })}>
+            <button type="button" title="Подготовить к показу в чате" onClick={() => playerViewUiActions.openHandoutDraft(handout)}>
               <Eye size={14} />
-              <span>Показать</span>
+              <span>В чат</span>
             </button>
           </div>
         </article>
