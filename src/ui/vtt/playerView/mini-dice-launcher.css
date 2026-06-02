@@ -3,7 +3,7 @@
 .mini-dice-launcher {
   position: absolute;
   right: calc(var(--dh-sidecar-width) + 30px);
-  bottom: 66px;
+  bottom: 12px;
   z-index: calc(var(--dh-z-floating, 220) + 80);
   display: grid;
   grid-template-columns: 34px auto minmax(34px, auto);
@@ -530,7 +530,7 @@
   .mini-dice-launcher {
     right: auto;
     left: 50%;
-    bottom: calc(82px + env(safe-area-inset-bottom));
+    bottom: calc(76px + env(safe-area-inset-bottom));
     z-index: calc(var(--dh-z-floating, 220) + 120);
     width: min(272px, calc(100vw - 20px));
     grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr);

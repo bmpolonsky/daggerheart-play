@@ -4,8 +4,9 @@
   --player-board-safe-bottom: 82px;
   --player-board-safe-inline: clamp(652px, 47vw, 675px);
   --player-board-center-offset: -14px;
+  --player-board-viewport-height: 100dvh;
   --player-board-size: min(1280px, calc(100vw - var(--player-board-safe-inline)), calc(100dvh - var(--player-board-safe-top) - var(--player-board-safe-bottom)));
-  --player-board-top: calc(var(--player-board-safe-top) + var(--player-board-size) / 2);
+  --player-board-top: calc(var(--player-board-safe-top) + (var(--player-board-viewport-height) - var(--player-board-safe-top) - var(--player-board-safe-bottom)) / 2);
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -176,6 +177,7 @@
   position: absolute;
   display: grid;
   place-items: center;
+  container-type: size;
   padding: 0;
   border: 2px solid rgba(240, 201, 106, 0.62);
   border-radius: 50%;
@@ -211,10 +213,12 @@
 }
 
 .player-token img {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
+  display: block;
+  width: min(100cqw, 100cqh);
+  height: min(100cqw, 100cqh);
+  border-radius: 50%;
   object-fit: cover;
+  object-position: center top;
 }
 
 .player-token > span {
@@ -267,8 +271,8 @@
   .player-scene-stage {
     --player-board-safe-top: 124px;
     --player-board-center-offset: 0px;
-    --player-board-size: min(calc(100vw - 28px), max(220px, calc(100svh - 398px)));
-    --player-board-top: calc(var(--player-board-safe-top) + var(--player-board-size) / 2);
+    --player-board-viewport-height: 100svh;
+    --player-board-size: min(calc(100vw - 16px), max(220px, calc(100svh - 180px)));
   }
 
   .player-scene-mode-toggle {

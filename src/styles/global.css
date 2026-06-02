@@ -39,6 +39,16 @@ body {
   color: var(--text);
 }
 
+.app-loading {
+  width: 100vw;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  color: rgba(243, 234, 216, 0.78);
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
 .vtt-app button,
 .vtt-app input,
 .vtt-app select,
