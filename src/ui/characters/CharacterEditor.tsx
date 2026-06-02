@@ -216,6 +216,7 @@ export function CharacterEditor({ character, content }: { character: Character; 
 
 function LevelUpPanel({ character, content, domains, onClose }: { character: Character; content?: ContentState; domains: DomainName[]; onClose: () => void }) {
   const nextLevel = Math.min(10, character.level + 1);
+  const targetLevel = nextLevel;
   const steps = [
     { id: 'overview', label: 'Итог' },
     { id: 'choices', label: 'Улучшения' },
@@ -226,7 +227,6 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
   ] as const;
   type LevelUpStep = typeof steps[number]['id'];
   const [step, setStep] = useState<LevelUpStep>('overview');
-  const [targetLevel, setTargetLevel] = useState(nextLevel);
   const [choiceOne, setChoiceOne] = useState<CharacterAdvancementChoiceId>('domainCard');
   const [choiceTwo, setChoiceTwo] = useState<CharacterAdvancementChoiceId>('manual');
   const [newExperienceName, setNewExperienceName] = useState('');
@@ -257,13 +257,12 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
       .slice(0, 120);
   }, [character.domainCards, content?.generic.domainCards, domains, plan.domainCardMaxLevel]);
   const selectedDomainCard = domainCardOptions.find((item) => item.id === selectedDomainCardId) ?? null;
-  const canApply = targetLevel > character.level && targetLevel <= 10;
+  const canApply = character.level < 10;
   const currentStepIndex = Math.max(0, steps.findIndex((item) => item.id === step));
   const progress = Math.round(((currentStepIndex + 1) / steps.length) * 100);
 
   useEffect(() => {
     const level = Math.min(10, character.level + 1);
-    setTargetLevel(level);
     setProficiency(character.proficiency + (level === 2 || level === 5 || level === 8 ? 1 : 0));
     setMajorThreshold(character.thresholds.major + Math.max(0, level - character.level));
     setSevereThreshold(character.thresholds.severe + Math.max(0, level - character.level));
@@ -354,7 +353,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
                 </header>
                 {plan.warnings.length > 0 && <p className="muted-text">{plan.warnings.join(' ')}</p>}
                 <div className="grid-4">
-                  <NumberField label="Новый уровень" min={2} max={10} value={targetLevel} onChange={(event) => setTargetLevel(Number(event.currentTarget.value))} />
+                  <NumberField label="Новый уровень" min={targetLevel} max={targetLevel} value={targetLevel} disabled />
                   <NumberField label="Мастерство" min={1} max={6} value={proficiency} onChange={(event) => setProficiency(Number(event.currentTarget.value))} />
                   <NumberField label="Порог Ощутимого" value={majorThreshold} onChange={(event) => setMajorThreshold(Number(event.currentTarget.value))} />
                   <NumberField label="Порог Тяжелого" value={severeThreshold} onChange={(event) => setSevereThreshold(Number(event.currentTarget.value))} />

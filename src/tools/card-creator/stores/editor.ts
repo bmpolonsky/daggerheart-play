@@ -5,7 +5,7 @@ import {
   type CardTypeId,
   createEmptyCardFields,
 } from "@cards/lib/cardTypes";
-import { Store } from "@cards/lib/store";
+import { Store } from "../../../core/store/Store";
 
 export interface EditorState {
   selectedCard: TemplateCard | null;

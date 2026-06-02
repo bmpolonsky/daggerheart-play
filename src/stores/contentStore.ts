@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 import type { ContentState } from '../domain/content/types';
 
 export function createContentState(): ContentState {
@@ -27,4 +27,4 @@ export function createContentState(): ContentState {
   };
 }
 
-export const contentStore = new ReactiveStore<ContentState>(createContentState());
+export const contentStore = new Store<ContentState>(createContentState());

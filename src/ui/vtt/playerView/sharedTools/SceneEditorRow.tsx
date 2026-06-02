@@ -17,7 +17,11 @@ export function SceneEditorRow({ scene, canDelete }: { scene: SceneTableState['s
     let objectUrl: string | null = null;
     void assetService.getObjectUrl(scene.backgroundAssetId).then((url) => {
       objectUrl = url;
-      if (!cancelled) setBackgroundObjectUrl(url);
+      if (cancelled) {
+        if (url) URL.revokeObjectURL(url);
+        return;
+      }
+      setBackgroundObjectUrl(url);
     });
     return () => {
       cancelled = true;

@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Download, FolderOpen, Plus, Trash2, Upload } from 'lucide-react';
+import { useStore } from '../../../core/hooks/useStore';
 import { formatDateTime } from '../../../core/utils/date';
 import type { StoredGameSummary } from '../../../core/persistence/gameDocumentStore';
 import {
@@ -9,24 +10,20 @@ import {
 } from '../../../services/serviceRegistry';
 
 export function SharedToolsGamesTab() {
-  const [games, setGames] = useState<StoredGameSummary[]>([]);
+  const games = useStore(persistenceService.storedGamesStore);
   const [message, setMessage] = useState('');
   const [busyGameId, setBusyGameId] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement | null>(null);
 
-  const refreshGames = async () => {
-    setGames(await persistenceService.listStoredGames());
-  };
-
   useEffect(() => {
-    void refreshGames();
+    void persistenceService.refreshStoredGames();
   }, []);
 
   const createGame = async () => {
     setBusyGameId('new');
     const id = await persistenceService.createStoredGame();
     setMessage(id ? 'Новая игра создана.' : 'Не удалось создать игру.');
-    await refreshGames();
+    await persistenceService.refreshStoredGames();
     setBusyGameId(null);
   };
 
@@ -34,7 +31,7 @@ export function SharedToolsGamesTab() {
     setBusyGameId(gameId);
     const ok = await persistenceService.switchStoredGame(gameId);
     setMessage(ok ? 'Игра открыта.' : 'Не удалось открыть игру.');
-    await refreshGames();
+    await persistenceService.refreshStoredGames();
     setBusyGameId(null);
   };
 
@@ -44,7 +41,7 @@ export function SharedToolsGamesTab() {
     setBusyGameId(storedGame.id);
     const ok = await persistenceService.removeStoredGame(storedGame.id);
     setMessage(ok ? 'Игра удалена.' : 'Не удалось удалить игру.');
-    await refreshGames();
+    await persistenceService.refreshStoredGames();
     setBusyGameId(null);
   };
 
@@ -55,7 +52,7 @@ export function SharedToolsGamesTab() {
     try {
       const result = await importExportService.importFile(file);
       setMessage(result.ok ? `Игра импортирована: ${file.name}` : result.message);
-      await refreshGames();
+      await persistenceService.refreshStoredGames();
     } catch {
       setMessage('Не удалось прочитать файл импорта.');
     } finally {

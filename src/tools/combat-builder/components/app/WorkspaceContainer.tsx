@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { EncounterPanel } from "@combat/components/encounter/EncounterPanel";
-import { useStore } from "@combat/lib/store";
+import { useStore } from "../../../../core/hooks/useStore";
 import { buildEncounterSummary } from "@combat/lib/mechanics";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";

@@ -1,5 +1,5 @@
 import type { CustomCardRecord } from "@cards/services/customCardsService";
-import { Store } from "@cards/lib/store";
+import { Store } from "../../../core/store/Store";
 
 export interface CustomCardsState {
   items: CustomCardRecord[];

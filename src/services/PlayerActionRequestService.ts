@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
 import type { ActionRollRequest, DamageRollRequest, ManualDiceRollRequest } from './DiceService';
@@ -44,7 +44,7 @@ export interface SubmitPlayerActionRequestInput {
 type RequestDiceService = Pick<DiceService, 'rollAction' | 'rollManualDice' | 'rollDamage'>;
 
 export class PlayerActionRequestService {
-  readonly requestsStore = new ReactiveStore<PlayerActionRequest[]>([]);
+  readonly requestsStore = new Store<PlayerActionRequest[]>([]);
 
   constructor(private readonly diceService: RequestDiceService | null = null) {}
 

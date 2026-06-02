@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
@@ -94,7 +94,7 @@ const AUTO_SNAPSHOT_DELAY_MS = 350;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
 
 export class P2PSessionService {
-  readonly sessionStore = new ReactiveStore<P2PSessionState>({
+  readonly sessionStore = new Store<P2PSessionState>({
     connected: false,
     status: 'disconnected',
     role: null,
@@ -105,7 +105,7 @@ export class P2PSessionService {
     lastRequestAt: null,
     message: 'Связь с сервером мастера не подключена.'
   });
-  readonly inviteStore = new ReactiveStore<P2PInviteDraftState>(initialInviteDraftState());
+  readonly inviteStore = new Store<P2PInviteDraftState>(initialInviteDraftState());
 
   private snapshotTimer: number | undefined;
   private productRecoveryTimer: number | undefined;

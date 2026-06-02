@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 import { effectiveSceneMusicPosition, sceneMusicDisplayTitle } from '../domain/audio/sceneAudio';
 import type { SceneMusicState } from '../domain/audio/sceneAudio';
 import type { SyncTransport } from '../domain/tabletop/types';
@@ -33,7 +33,7 @@ const initialAudioLayerState: AudioLayerState = {
 };
 
 export class AudioService {
-  readonly audioStore = new ReactiveStore<AudioLayerState>(initialAudioLayerState);
+  readonly audioStore = new Store<AudioLayerState>(initialAudioLayerState);
 
   private sceneAudioElement: HTMLAudioElement | null = null;
   private lastSceneMusic: SceneMusicState | null = null;

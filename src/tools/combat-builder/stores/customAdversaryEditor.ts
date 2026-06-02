@@ -1,5 +1,5 @@
 import type { Adversary } from "@combat/lib/api";
-import { Store } from "@combat/lib/store";
+import { Store } from "../../../core/store/Store";
 
 export type CustomAdversaryEditorMode = "create" | "edit";
 

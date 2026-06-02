@@ -1,6 +1,6 @@
 import type { EncounterEntry } from "@combat/lib/api";
 import type { DifficultyMode } from "@combat/lib/mechanics";
-import { Store } from "@combat/lib/store";
+import { Store } from "../../../core/store/Store";
 
 export interface EncounterUnitState {
   id: string;

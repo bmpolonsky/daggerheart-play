@@ -1,4 +1,4 @@
-import { Store } from "@cards/lib/store";
+import { Store } from "../../../core/store/Store";
 
 export type DomainSource = "default" | "custom";
 

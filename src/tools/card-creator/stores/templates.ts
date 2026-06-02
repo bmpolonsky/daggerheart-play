@@ -1,5 +1,5 @@
 import type { TemplateGroup } from "@cards/lib/api";
-import { Store } from "@cards/lib/store";
+import { Store } from "../../../core/store/Store";
 
 export interface TemplatesState {
   templateGroups: TemplateGroup[];

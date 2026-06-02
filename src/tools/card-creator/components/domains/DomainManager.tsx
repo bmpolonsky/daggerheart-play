@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
-import { useStore } from "@cards/lib/store";
+import { useStore } from "../../../../core/hooks/useStore";
 import { domainStore, type DomainTheme } from "@cards/stores/domains";
 import { domainService } from "@cards/services/domainService";
 import { Button } from "@cards/components/ui/button";

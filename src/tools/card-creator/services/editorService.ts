@@ -54,6 +54,7 @@ export class EditorService {
   readonly store = editorStore;
   private hashBootstrapped = false;
   private pendingHash: HashTarget | null = null;
+  private customImageObjectUrl: string | null = null;
   private readonly assetService = new AssetService();
 
   constructor() {
@@ -75,6 +76,7 @@ export class EditorService {
     const nextFields = this.applyDomainAssets(cardFields, typeId);
 
     this.prefetchAssets(nextFields, card.image);
+    this.revokeCustomImageObjectUrl();
 
     editorStore.update(() => ({
       selectedCard: card,
@@ -97,6 +99,8 @@ export class EditorService {
   }
 
   closeEditor(options?: { skipHash?: boolean }) {
+    this.revokeCustomImageObjectUrl();
+
     editorStore.update(() => ({
       selectedCard: null,
       selectedTypeId: DEFAULT_CARD_TYPE_ID,
@@ -189,6 +193,7 @@ export class EditorService {
 
   setCustomImage(displayUrl: string | null, sourceUrl = displayUrl) {
     this.ensureCustomCardId();
+    this.revokeCustomImageObjectUrl(displayUrl);
     editorStore.update((prev) => ({
       ...prev,
       customImage: displayUrl,
@@ -200,7 +205,22 @@ export class EditorService {
   async loadImageFromFile(file: File) {
     const asset = await this.assetService.saveFile(file);
     const objectUrl = await this.assetService.getObjectUrl(asset.id);
-    this.setCustomImage(objectUrl, `asset:${asset.id}`);
+    this.setManagedCustomImage(objectUrl, `asset:${asset.id}`);
+  }
+
+  private setManagedCustomImage(displayUrl: string | null, sourceUrl: string | null) {
+    this.revokeCustomImageObjectUrl(displayUrl);
+    this.customImageObjectUrl = displayUrl;
+    this.setCustomImage(displayUrl, sourceUrl);
+  }
+
+  private revokeCustomImageObjectUrl(nextUrl: string | null = null) {
+    if (this.customImageObjectUrl && this.customImageObjectUrl !== nextUrl) {
+      URL.revokeObjectURL(this.customImageObjectUrl);
+    }
+    if (this.customImageObjectUrl !== nextUrl) {
+      this.customImageObjectUrl = null;
+    }
   }
 
   private prefetchAssets(cardFields: CardFields, cardImage: string | null) {
@@ -317,6 +337,7 @@ export class EditorService {
     };
     const nextFields = this.applyDomainAssets(hydratedFields, record.typeId);
     this.prefetchAssets(nextFields, syntheticCard.image ?? null);
+    this.revokeCustomImageObjectUrl();
     editorStore.update(() => ({
       selectedCard: syntheticCard,
       selectedTypeId: record.typeId,
@@ -371,11 +392,7 @@ export class EditorService {
     if (typeof imageUrl !== "string" || !imageUrl.startsWith("asset:")) return;
     const objectUrl = await this.assetService.getObjectUrl(imageUrl.slice("asset:".length));
     if (!objectUrl) return;
-    editorStore.update((state) => ({
-      ...state,
-      customImage: objectUrl,
-      customImageSource: imageUrl,
-    }));
+    this.setManagedCustomImage(objectUrl, imageUrl);
   }
 
   private updateHash(target: HashTarget) {

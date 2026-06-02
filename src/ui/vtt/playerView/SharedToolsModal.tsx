@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { ChevronDown, ExternalLink, X } from 'lucide-react';
 import { useStore } from '../../../core/hooks/useStore';
-import type { GameState, Character, CharactersState, DaggerheartClass, EncounterState, SceneTableState } from '../../../domain/rules/types';
-import { contentService, sceneTableService, tabletopService } from '../../../services/serviceRegistry';
+import type { Character, DaggerheartClass } from '../../../domain/rules/types';
+import { characterService, contentService, encounterService, gameService, sceneTableService, tabletopService } from '../../../services/serviceRegistry';
 import { openWorkspaceInNewTab, toolTabLabel } from './helpers';
 import { COMPENDIUM_COLLECTIONS } from './library/compendiumCollections';
 import { SharedToolsLibraryTab } from './library/SharedToolsLibraryTab';
@@ -29,21 +29,13 @@ const GM_GAME_LIBRARY_TABS: SharedToolsTab[] = ['scenes', 'notes', 'handouts'];
 const PLAYER_GAME_LIBRARY_TABS: SharedToolsTab[] = ['handouts'];
 
 export function SharedToolsModal({
-  game,
-  characters,
-  encounter,
   role,
-  sceneTable,
   tab,
   targetCharacterId,
   onClose,
   onTabChange
 }: {
-  game: GameState;
-  characters: CharactersState;
-  encounter: EncounterState;
   role: TableViewRole;
-  sceneTable: SceneTableState;
   tab: SharedToolsTab;
   targetCharacterId?: string | null;
   onClose: () => void;
@@ -53,6 +45,10 @@ export function SharedToolsModal({
   const specialTabs: SharedToolsTab[] = role === 'gm' ? ['combat', 'cards'] : [];
   const gameLibraryTabs = role === 'gm' ? GM_GAME_LIBRARY_TABS : PLAYER_GAME_LIBRARY_TABS;
   const standaloneTabs = tabs.filter((item) => !gameLibraryTabs.includes(item));
+  const game = useStore(gameService.gameStore);
+  const characters = useStore(characterService.charactersStore);
+  const encounter = useStore(encounterService.encounterStore);
+  const sceneTable = useStore(sceneTableService.sceneTableStore);
   const content = useStore(contentService.contentStore);
   const libraryView = contentService.buildLibraryView(content);
   const compendiumCollections = role === 'player' ? PLAYER_COMPENDIUM_COLLECTIONS : COMPENDIUM_COLLECTIONS;

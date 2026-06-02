@@ -10,7 +10,7 @@ import {
   IconSearch,
   IconUpload,
 } from "@combat/components/icons";
-import { useStore } from "@combat/lib/store";
+import { useStore } from "../../../../core/hooks/useStore";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";
 import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";

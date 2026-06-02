@@ -4,7 +4,7 @@ import type { JSX } from "preact";
 import { Button } from "@cards/components/ui/button";
 import { IconClose } from "@cards/components/icons";
 import { CardWorkspace } from "@cards/components/workspace/CardWorkspace";
-import { useStore } from "@cards/lib/store";
+import { useStore } from "../../../../core/hooks/useStore";
 import { customCardsStore } from "@cards/stores/customCards";
 import { editorStore } from "@cards/stores/editor";
 import { exportStore } from "@cards/stores/export";

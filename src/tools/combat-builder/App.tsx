@@ -4,7 +4,7 @@ import { SidebarContainer } from "@combat/components/app/SidebarContainer";
 import { WorkspaceContainer } from "@combat/components/app/WorkspaceContainer";
 import { AdversaryDetailsModal } from "@combat/components/adversaries/AdversaryDetailsModal";
 import { CustomAdversaryEditorHost } from "@combat/components/adversaries/CustomAdversaryEditorHost";
-import { useStore } from "@combat/lib/store";
+import { useStore } from "../../core/hooks/useStore";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";
 import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";

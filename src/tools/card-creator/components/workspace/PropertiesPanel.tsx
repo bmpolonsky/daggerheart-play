@@ -8,7 +8,7 @@ import { Input } from "@cards/components/ui/input";
 import { Button } from "@cards/components/ui/button";
 import type { JSX } from "preact";
 import { normalizeFeatureName } from "@cards/lib/templateUtils";
-import { useStore } from "@cards/lib/store";
+import { useStore } from "../../../../core/hooks/useStore";
 import { domainStore } from "@cards/stores/domains";
 
 type CardFieldInputFactory = <

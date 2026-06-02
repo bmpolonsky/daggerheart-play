@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 import type { SceneMusicState } from '../domain/audio/sceneAudio';
 import type { SyncTransport } from '../domain/tabletop/types';
 
@@ -27,7 +27,7 @@ const initialBroadcastState: SceneAudioBroadcastState = {
 };
 
 export class SceneAudioBroadcastService {
-  readonly broadcastStore = new ReactiveStore<SceneAudioBroadcastState>(initialBroadcastState);
+  readonly broadcastStore = new Store<SceneAudioBroadcastState>(initialBroadcastState);
 
   private sceneAudioElement: HTMLAudioElement | null = null;
   private sceneMusic: SceneMusicState | null = null;

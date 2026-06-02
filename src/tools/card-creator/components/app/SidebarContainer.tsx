@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import type { TemplateCard } from "@cards/lib/api";
 import { TemplateSidebar } from "@cards/components/template/TemplateSidebar";
-import { useStore } from "@cards/lib/store";
+import { useStore } from "../../../../core/hooks/useStore";
 import { templatesStore } from "@cards/stores/templates";
 import { templatesService } from "@cards/services/templatesService";
 import { editorService } from "@cards/services/editorService";

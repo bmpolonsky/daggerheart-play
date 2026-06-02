@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../../../core/store/ReactiveStore';
+import { Store } from '../../../core/store/Store';
 import type { TableFeedItem } from '../../../domain/tabletop/feed';
 
 interface PlayerViewUiState {
@@ -6,7 +6,7 @@ interface PlayerViewUiState {
   ephemeralActivity: TableFeedItem | null;
 }
 
-export const playerViewUiStore = new ReactiveStore<PlayerViewUiState>({
+export const playerViewUiStore = new Store<PlayerViewUiState>({
   completedDiceRollIds: new Set(),
   ephemeralActivity: null
 });

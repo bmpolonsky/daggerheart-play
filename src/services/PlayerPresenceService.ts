@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 import { nowIso } from '../core/utils/date';
 import { hasBooleanFields, hasOptionalStringField, hasStringFields, isRecord } from '../core/utils/guards';
 
@@ -22,7 +22,7 @@ export interface PlayerVoiceControlMessage {
 }
 
 export class PlayerPresenceService {
-  readonly presenceStore = new ReactiveStore<Record<string, PlayerPresence>>({});
+  readonly presenceStore = new Store<Record<string, PlayerPresence>>({});
 
   upsert(presence: PlayerPresence): void {
     if (!isPlayerPresence(presence)) return;

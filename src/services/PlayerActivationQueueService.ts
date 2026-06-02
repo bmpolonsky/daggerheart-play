@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 import { nowIso } from '../core/utils/date';
 import { hasStringFields, isRecord } from '../core/utils/guards';
 import { createId } from '../core/utils/id';
@@ -29,8 +29,8 @@ export interface LocalActivationState {
 }
 
 export class PlayerActivationQueueService {
-  readonly queueStore = new ReactiveStore<PlayerActivationQueueItem[]>([]);
-  readonly localStore = new ReactiveStore<LocalActivationState>({ raised: false, actorId: null });
+  readonly queueStore = new Store<PlayerActivationQueueItem[]>([]);
+  readonly localStore = new Store<LocalActivationState>({ raised: false, actorId: null });
 
   raise(input: PlayerActivationInput): PlayerActivationQueueMessage {
     const request: PlayerActivationQueueItem = {

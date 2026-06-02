@@ -1,5 +1,5 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react';
-import type { ReadableStore } from '../store/ReactiveStore';
+import type { ReadableStore } from '../store/Store';
 
 type StoreField = string | symbol;
 

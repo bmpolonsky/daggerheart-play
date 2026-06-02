@@ -254,11 +254,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
       />
       {routedUi.toolsOpen && (
         <SharedToolsModal
-          game={game}
-          characters={characters}
-          encounter={encounter}
           role={role}
-          sceneTable={sceneTable}
           tab={routedUi.toolsTab}
           targetCharacterId={viewedCharacterId ?? model.character?.id ?? null}
           onClose={closeTools}

@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { CustomAdversaryModal } from "@combat/components/adversaries/CustomAdversaryModal";
 import type { Adversary } from "@combat/lib/api";
-import { useStore } from "@combat/lib/store";
+import { useStore } from "../../../../core/hooks/useStore";
 import { adversariesService } from "@combat/services/adversariesService";
 import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";
 import { customAdversaryEditorStore } from "@combat/stores/customAdversaryEditor";

@@ -10,12 +10,12 @@ import { hydratePersistedState, isPersistedState, normalizePersistedState, snaps
 import type { PersistedState } from '../domain/rules/types';
 import type { StoredGameSummary } from '../core/persistence/gameDocumentStore';
 import type { AssetService } from './AssetService';
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
 
 export class PersistenceService {
-  readonly storedGamesStore = new ReactiveStore<StoredGameSummary[]>([]);
+  readonly storedGamesStore = new Store<StoredGameSummary[]>([]);
 
   private started = false;
   private persistTimer: number | undefined;

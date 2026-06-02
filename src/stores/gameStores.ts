@@ -1,4 +1,4 @@
-import { ReactiveStore } from '../core/store/ReactiveStore';
+import { Store } from '../core/store/Store';
 import {
   createGameState,
   createEncounterState,
@@ -17,13 +17,13 @@ export function createCharactersState(): CharactersState {
   };
 }
 
-export const gameStore = new ReactiveStore<GameState>(createGameState());
-export const charactersStore = new ReactiveStore<CharactersState>(createCharactersState());
-export const encounterStore = new ReactiveStore<EncounterState>(createEncounterState());
-export const rollLogStore = new ReactiveStore<RollLogEntry[]>([]);
-export const feedStore = new ReactiveStore<FeedEntry[]>([]);
-export const uiStore = new ReactiveStore<UiState>(createUiState());
-export const sceneTableStore = new ReactiveStore<SceneTableState>(createSceneTableState());
+export const gameStore = new Store<GameState>(createGameState());
+export const charactersStore = new Store<CharactersState>(createCharactersState());
+export const encounterStore = new Store<EncounterState>(createEncounterState());
+export const rollLogStore = new Store<RollLogEntry[]>([]);
+export const feedStore = new Store<FeedEntry[]>([]);
+export const uiStore = new Store<UiState>(createUiState());
+export const sceneTableStore = new Store<SceneTableState>(createSceneTableState());
 
 export const syncedGameStores = {
   game: gameStore,

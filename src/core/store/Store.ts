@@ -1,20 +1,21 @@
-export type StoreListener = () => void;
+export type StoreListener<T> = (state: T) => void;
 export type StoreUpdater<T> = T | ((current: T) => T);
 
 export interface ReadableStore<T> {
   getSnapshot(): T;
-  subscribe(listener: StoreListener): () => void;
+  subscribe(listener: StoreListener<T>): () => void;
 }
 
 export interface WritableStore<T> extends ReadableStore<T> {
+  getState(): T;
   set(next: T): void;
   update(updater: StoreUpdater<T>): void;
   reset(next: T): void;
 }
 
-export class ReactiveStore<T> implements WritableStore<T> {
+export class Store<T> implements WritableStore<T> {
   private value: T;
-  private readonly listeners = new Set<StoreListener>();
+  private readonly listeners = new Set<StoreListener<T>>();
 
   constructor(initialValue: T) {
     this.value = initialValue;
@@ -22,7 +23,9 @@ export class ReactiveStore<T> implements WritableStore<T> {
 
   getSnapshot = (): T => this.value;
 
-  subscribe = (listener: StoreListener): (() => void) => {
+  getState = (): T => this.value;
+
+  subscribe = (listener: StoreListener<T>): (() => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   };
@@ -47,7 +50,7 @@ export class ReactiveStore<T> implements WritableStore<T> {
 
   private emit(): void {
     for (const listener of [...this.listeners]) {
-      listener();
+      listener(this.value);
     }
   }
 }
