@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { parseDomainCardTextMacros } from "../../src/domain/rules/domainCards";
 import { createInventoryItem } from "../../src/domain/rules/factories";
 import { buildCharacterSidecarModel, sheetCardKindLabel } from "../../src/domain/rules/sidecar";
-import { buildDomainCardPreviewFeedItem } from "../../src/domain/tabletop/feed";
+import { buildCharacterFeaturePreviewFeedItem, buildCountdownComposerFeedItem, buildDomainCardPreviewFeedItem } from "../../src/domain/tabletop/feed";
 import { resetAllStores, feedStore } from "../../src/stores/gameStores";
-import { characterService, feedService } from "../../src/services/serviceRegistry";
+import { characterService, encounterService, feedService } from "../../src/services/serviceRegistry";
+import { playerViewUiActions, playerViewUiStore } from "../../src/ui/vtt/playerView/playerViewUiState";
 import { starterDomainCardsFromLibrary } from "../../src/domain/characterBuilder/index";
 import { firstCharacter, genericItem } from "./helpers";
 
@@ -83,6 +84,56 @@ test('domain card ephemeral previews use raw card text and inline macros without
   assert.equal(preview.actor?.actorId, character.id);
   assert.equal(preview.card?.text.includes('Бросок Заклинания'), true);
   assert.deepEqual(parseDomainCardTextMacros(preview.card?.text ?? '').map((macro) => macro.kind), ['spendHope', 'actionRoll']);
+});
+
+test('ephemeral feed items cover countdown composers and character features without writing feed', () => {
+  resetAllStores();
+  playerViewUiActions.reset();
+  const character = firstCharacter();
+
+  const composer = buildCountdownComposerFeedItem({
+    id: 'ephemeral-countdown',
+    createdAt: '2026-05-30T00:01:00.000Z'
+  });
+  assert.equal(composer.kind, 'countdownComposer');
+  assert.equal(composer.kicker, 'Действие');
+  assert.equal(composer.ephemeral, true);
+  assert.equal(composer.publication, 'gm');
+  assert.equal(composer.countdownComposer?.name, '');
+  assert.equal(composer.countdownComposer?.max, 4);
+  assert.equal(encounterService.encounterStore.getSnapshot().countdowns.length, 0);
+
+  playerViewUiActions.openCountdownComposer();
+  const active = playerViewUiStore.getSnapshot().ephemeralFeedItem;
+  assert.equal(active?.kind, 'countdownComposer');
+  assert.equal(feedService.feedStore.getSnapshot().length, 0);
+  assert.equal(encounterService.encounterStore.getSnapshot().countdowns.length, 0);
+
+  const feature = buildCharacterFeaturePreviewFeedItem({
+    id: 'ephemeral-feature',
+    createdAt: '2026-05-30T00:02:00.000Z',
+    authorName: character.name,
+    feature: {
+      id: 'feature-1',
+      name: 'Battle Feature',
+      subtitle: 'Passive',
+      text: 'Потратьте Надежду. Бросок Действия (12).',
+      sourceLabel: 'Инвентарь'
+    },
+    actor: {
+      actorId: character.id,
+      actorName: character.name,
+      actorType: 'character'
+    }
+  });
+  assert.equal(feature.kind, 'feature');
+  assert.equal(feature.ephemeral, true);
+  assert.equal(feature.publication, 'private');
+  assert.equal(feature.kicker, 'Инвентарь');
+  assert.equal(feature.feature?.sourceLabel, 'Инвентарь');
+  assert.equal(feature.actor?.actorId, character.id);
+  assert.equal(feature.body, 'Потратьте Надежду. Бросок Действия (12).');
+  assert.equal(feedService.feedStore.getSnapshot().length, 0);
 });
 
 test('character sidecar model separates loadout cards and feature sections outside UI', () => {

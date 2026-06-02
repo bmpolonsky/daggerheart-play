@@ -1,11 +1,11 @@
 import { TRAIT_LABELS } from '../rules/constants';
 import { hasRolledDiceTerms } from '../rules/diceFormula';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
-import type { ActionRollOutcome, GameHandout, Character, DeathMoveFeedRequest, DiceVisualTone, DomainCardRecord, FeedActorReference, FeedEntry, FormulaTermRoll, ManualDiceRollEntry, ModifierPart, RestFeedRequest, RollLogEntry, RollPublication, TeamworkRollRequest, TraitId } from '../rules/types';
+import type { ActionRollOutcome, Countdown, GameHandout, Character, DeathMoveFeedRequest, DiceVisualTone, DomainCardRecord, FeedActorReference, FeedEntry, FormulaTermRoll, ManualDiceRollEntry, ModifierPart, RestFeedRequest, RollLogEntry, RollPublication, TeamworkRollRequest, TraitId } from '../rules/types';
 import { canViewFeedEntry, canViewRollLogEntry, feedEntryPublication, rollLogEntryPublication } from './rollPublication';
 import type { TableSyncRole, TableVisibility } from './types';
 
-export type TableFeedItemKind = 'system' | 'message' | 'roll' | 'card' | 'handout' | 'rest' | 'teamwork' | 'deathMove';
+export type TableFeedItemKind = 'system' | 'message' | 'roll' | 'card' | 'feature' | 'handout' | 'rest' | 'teamwork' | 'deathMove' | 'countdownComposer';
 
 export interface TableFeedDieResult {
   sides: number;
@@ -55,6 +55,16 @@ export interface TableFeedRollSummary {
   dice?: TableFeedDiceSummary;
 }
 
+export type CountdownComposerDraft = Pick<Countdown, 'name' | 'current' | 'max' | 'visibility'>;
+
+export interface TableFeedFeaturePreview {
+  id: string;
+  name: string;
+  subtitle?: string;
+  text: string;
+  sourceLabel?: string;
+}
+
 export interface TableFeedItem {
   id: string;
   kind: TableFeedItemKind;
@@ -65,11 +75,13 @@ export interface TableFeedItem {
   body: string;
   tone: string;
   card?: DomainCardRecord;
+  feature?: TableFeedFeaturePreview;
   actor?: FeedActorReference;
   handout?: Pick<GameHandout, 'id' | 'title' | 'body' | 'imageUrl'>;
   rest?: RestFeedRequest;
   teamwork?: TeamworkRollRequest;
   deathMove?: DeathMoveFeedRequest;
+  countdownComposer?: CountdownComposerDraft;
   roll?: TableFeedRollSummary;
   rollId?: string;
   publication: RollPublication;
@@ -199,6 +211,56 @@ export function buildDomainCardPreviewFeedItem(input: {
     card: input.card,
     actor: input.actor,
     publication: 'private',
+    ephemeral: true
+  };
+}
+
+export function buildCharacterFeaturePreviewFeedItem(input: {
+  id: string;
+  createdAt: string;
+  authorName: string;
+  feature: TableFeedFeaturePreview;
+  actor?: FeedActorReference;
+}): TableFeedItem {
+  return {
+    id: input.id,
+    kind: 'feature',
+    createdAt: input.createdAt,
+    authorName: input.authorName.trim() || 'Игра',
+    kicker: input.feature.sourceLabel ?? 'Особенность',
+    title: input.feature.name,
+    body: input.feature.text || input.feature.subtitle || `${input.feature.name}: описание не заполнено.`,
+    tone: 'hope',
+    feature: input.feature,
+    actor: input.actor,
+    publication: 'private',
+    ephemeral: true
+  };
+}
+
+export function buildCountdownComposerFeedItem(input: {
+  id: string;
+  createdAt: string;
+  draft?: Partial<CountdownComposerDraft>;
+}): TableFeedItem {
+  const max = Math.max(1, Math.min(20, Math.trunc(input.draft?.max ?? 4)));
+  const current = Math.max(0, Math.min(max, Math.trunc(input.draft?.current ?? 0)));
+  return {
+    id: input.id,
+    kind: 'countdownComposer',
+    createdAt: input.createdAt,
+    authorName: 'Мастер',
+    kicker: 'Действие',
+    title: 'Новый отсчет',
+    body: 'Приватная настройка отсчета.',
+    tone: 'neutral',
+    countdownComposer: {
+      name: input.draft?.name ?? '',
+      current,
+      max,
+      visibility: input.draft?.visibility ?? 'gm'
+    },
+    publication: 'gm',
     ephemeral: true
   };
 }

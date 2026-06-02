@@ -1,24 +1,23 @@
 import { Store } from '../../../core/store/Store';
-import type { TableFeedItem } from '../../../domain/tabletop/feed';
+import { buildCountdownComposerFeedItem, type TableFeedItem } from '../../../domain/tabletop/feed';
+import { createId } from '../../../core/utils/id';
+import { nowIso } from '../../../core/utils/date';
 
 interface PlayerViewUiState {
   completedDiceRollIds: Set<string>;
-  countdownComposerOpen: boolean;
-  ephemeralActivity: TableFeedItem | null;
+  ephemeralFeedItem: TableFeedItem | null;
 }
 
 export const playerViewUiStore = new Store<PlayerViewUiState>({
   completedDiceRollIds: new Set(),
-  countdownComposerOpen: false,
-  ephemeralActivity: null
+  ephemeralFeedItem: null
 });
 
 export const playerViewUiActions = {
   reset(): void {
     playerViewUiStore.set({
       completedDiceRollIds: new Set(),
-      countdownComposerOpen: false,
-      ephemeralActivity: null
+      ephemeralFeedItem: null
     });
   },
 
@@ -31,11 +30,14 @@ export const playerViewUiActions = {
     });
   },
 
-  setEphemeralActivity(ephemeralActivity: TableFeedItem | null): void {
-    playerViewUiStore.update((current) => ({ ...current, ephemeralActivity }));
+  setEphemeralFeedItem(ephemeralFeedItem: TableFeedItem | null): void {
+    playerViewUiStore.update((current) => ({ ...current, ephemeralFeedItem }));
   },
 
-  setCountdownComposerOpen(countdownComposerOpen: boolean): void {
-    playerViewUiStore.update((current) => ({ ...current, countdownComposerOpen }));
+  openCountdownComposer(): void {
+    playerViewUiActions.setEphemeralFeedItem(buildCountdownComposerFeedItem({
+      id: createId('ephemeral-countdown'),
+      createdAt: nowIso()
+    }));
   }
 };

@@ -41,17 +41,17 @@ export function PlayerLeftRail({
   const [inviteCopied, setInviteCopied] = useState(false);
   const p2pSession = useStore(p2pSessionService.sessionStore);
   const encounter = useStore(encounterService.encounterStore);
-  const { completedDiceRollIds, countdownComposerOpen, ephemeralActivity } = useStore(playerViewUiStore);
+  const { completedDiceRollIds, ephemeralFeedItem } = useStore(playerViewUiStore);
   const [revealedRollIds, setRevealedRollIds] = useState<Set<string>>(() => revealedRollIdsFromActivity(model.activity));
   const mountedAtRef = useRef(Date.now());
   const activityRef = useRef<HTMLDivElement>(null);
   const activity = useMemo(() => {
-    if (!ephemeralActivity) return model.activity;
+    if (!ephemeralFeedItem) return model.activity;
     return [
-      ephemeralActivity,
+      ephemeralFeedItem,
       ...model.activity.filter((event) => event.id !== 'feed-empty')
     ];
-  }, [ephemeralActivity, model.activity]);
+  }, [ephemeralFeedItem, model.activity]);
   const visibleActivity = useMemo(() => activity.slice().reverse(), [activity]);
   const visibleCountdowns = useMemo(() => encounter.countdowns.filter((countdown) => role === 'gm' || countdown.visibility === 'public'), [encounter.countdowns, role]);
   const hasClearableActivity = activity.some((event) => event.id !== 'feed-empty');
@@ -101,6 +101,7 @@ export function PlayerLeftRail({
       character,
       role,
       publication: item.publication,
+      sourceLabel: item.feature?.sourceLabel ?? (item.kind === 'feature' ? 'Особенность' : 'Карта'),
       openRollDraft: (draft) => setRollDraftState({ draft, character })
     });
   };
@@ -168,7 +169,7 @@ export function PlayerLeftRail({
           <MessageCircle size={16} />
           <span>Игра</span>
           {role === 'gm' && hasClearableActivity ? (
-            <button className="player-activity-clear" type="button" onClick={() => { feedService.clear(); playerViewUiActions.setEphemeralActivity(null); }}>Очистить</button>
+            <button className="player-activity-clear" type="button" onClick={() => { feedService.clear(); playerViewUiActions.setEphemeralFeedItem(null); }}>Очистить</button>
           ) : (
             <span className="player-activity-clear player-activity-clear--placeholder" aria-hidden="true">Очистить</span>
           )}
@@ -209,7 +210,7 @@ export function PlayerLeftRail({
                     type="button"
                     aria-label={event.ephemeral ? `Закрыть ${event.title}` : `Удалить событие ${event.title}`}
                     title={event.ephemeral ? 'Закрыть' : 'Удалить'}
-                    onClick={() => event.ephemeral ? playerViewUiActions.setEphemeralActivity(null) : feedService.remove(event.id)}
+                    onClick={() => event.ephemeral ? playerViewUiActions.setEphemeralFeedItem(null) : feedService.remove(event.id)}
                   >
                     ×
                   </button>
@@ -226,7 +227,6 @@ export function PlayerLeftRail({
             );
           })}
         </div>
-        {(role === 'gm' && countdownComposerOpen) && <CountdownComposer />}
         <form className="player-chat-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
           <input aria-label="Сообщение игрока" value={message} onInput={(event) => setMessage(event.currentTarget.value)} placeholder={`Сообщение от ${model.character?.name ?? (role === 'gm' ? 'Мастера' : 'игрока')}`} />
           <button type="submit" disabled={!message.trim()} aria-label="Отправить сообщение" title="Отправить сообщение">
@@ -235,59 +235,6 @@ export function PlayerLeftRail({
         </form>
       </section>
     </aside>
-  );
-}
-
-function CountdownComposer() {
-  const [name, setName] = useState('');
-  const [current, setCurrent] = useState(0);
-  const [max, setMax] = useState(4);
-  const [direction, setDirection] = useState<Countdown['direction']>('up');
-  const [visibility, setVisibility] = useState<Countdown['visibility']>('gm');
-  const safeMax = Math.max(1, Math.min(20, Math.trunc(max || 1)));
-  const safeCurrent = Math.max(0, Math.min(safeMax, Math.trunc(current || 0)));
-  return (
-    <section className="player-countdown-composer" aria-label="Создать отсчет">
-      <header>
-        <strong>Новый отсчет</strong>
-        <button type="button" title="Закрыть" onClick={() => playerViewUiActions.setCountdownComposerOpen(false)}>
-          <X size={14} aria-hidden="true" />
-        </button>
-      </header>
-      <label>
-        <span>Название</span>
-        <input value={name} placeholder="Опасность нарастает" onInput={(event) => setName(event.currentTarget.value)} />
-      </label>
-      <div className="player-countdown-composer__grid">
-        <label>
-          <span>Текущее</span>
-          <input type="number" min={0} max={safeMax} value={current} onInput={(event) => setCurrent(Number(event.currentTarget.value))} />
-        </label>
-        <label>
-          <span>Макс</span>
-          <input type="number" min={1} max={20} value={max} onInput={(event) => setMax(Number(event.currentTarget.value))} />
-        </label>
-      </div>
-      <div className="player-countdown-composer__segmented" aria-label="Направление">
-        <button className={direction === 'up' ? 'dh-is-active' : ''} type="button" onClick={() => setDirection('up')}>Вверх</button>
-        <button className={direction === 'down' ? 'dh-is-active' : ''} type="button" onClick={() => setDirection('down')}>Вниз</button>
-      </div>
-      <div className="player-countdown-composer__segmented" aria-label="Видимость">
-        <button className={visibility === 'gm' ? 'dh-is-active' : ''} type="button" onClick={() => setVisibility('gm')}>GM</button>
-        <button className={visibility === 'public' ? 'dh-is-active' : ''} type="button" onClick={() => setVisibility('public')}>Публичный</button>
-      </div>
-      <button
-        className="dh-button dh-variant-primary"
-        type="button"
-        onClick={() => {
-          encounterService.addCountdown({ name: name.trim() || 'Отсчет', current: safeCurrent, max: safeMax, direction, visibility });
-          playerViewUiActions.setCountdownComposerOpen(false);
-        }}
-        disabled={!name.trim()}
-      >
-        Запустить
-      </button>
-    </section>
   );
 }
 

@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "preact/hooks";
 import { ChevronLeft, Crosshair, Heart, PawPrint, Shield, Swords, Zap } from "lucide-react";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
+import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import { defaultCharacterPortraitUrl } from "../../../domain/tabletop/defaultArt";
 import { scaleWeaponFormulaByProficiency } from "../../../domain/rules/diceFormula";
 import { characterLevelRank } from "../../../domain/rules/levelUp";
@@ -17,7 +18,6 @@ import type { PlayerViewDomainCard } from "./domainCards/types";
 import { PlayerRollConfirm } from "./PlayerRollConfirm";
 import { PlayerSheetSectionRail, SheetSection, TrackDots, TrackRow } from "./PlayerSheetControls";
 import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./types";
-import { renderRulesText } from "./sheetText";
 
 export function CharacterSheet({
   character,
@@ -25,7 +25,8 @@ export function CharacterSheet({
   role,
   showBackButton = false,
   onBack,
-  onDomainCardPreview
+  onDomainCardPreview,
+  onFeaturePreview
 }: {
   character: PlayerViewCharacterSummary;
   beastforms?: LibraryBeastform[];
@@ -33,11 +34,10 @@ export function CharacterSheet({
   showBackButton?: boolean;
   onBack?: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
+  onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
 }) {
   const panelRef = useRef<HTMLElement>(null);
   const [activeSheetSection, setActiveSheetSection] = useState<PlayerSheetSectionId>('overview');
-  const [expandedFeatureId, setExpandedFeatureId] = useState<string | null>(null);
-  const [expandedInventoryId, setExpandedInventoryId] = useState<string | null>(null);
   const [rollDraft, setRollDraft] = useState<PlayerRollDraft | null>(null);
   const [selectedBeastformId, setSelectedBeastformId] = useState('');
   const [evolutionTrait, setEvolutionTrait] = useState(character.traits[0]?.id ?? 'agility');
@@ -427,10 +427,7 @@ export function CharacterSheet({
       <SheetSection id="player-sheet-features" title="Особенности" emptyLabel="Особенности появятся после заполнения листа">
         {character.features.map((feature) => {
           const detail = feature.text.trim();
-          const expanded = expandedFeatureId === feature.id;
           const summary = feature.subtitle || detail || 'Особенность';
-          const normalizedSummary = summary.trim();
-          const showSummary = !expanded || (normalizedSummary !== detail && !detail.startsWith(normalizedSummary));
           if (!detail) {
             return (
               <article className="player-sheet-row" key={feature.id}>
@@ -440,18 +437,15 @@ export function CharacterSheet({
             );
           }
           return (
-            <article className={`player-sheet-row player-sheet-row--feature ${expanded ? 'player-sheet-row--expanded' : ''}`} key={feature.id}>
+            <article className="player-sheet-row player-sheet-row--feature" key={feature.id}>
               <button
                 className="player-sheet-feature-toggle"
                 type="button"
-                aria-expanded={expanded}
-                onClick={() => setExpandedFeatureId(expanded ? null : feature.id)}
+                onClick={() => onFeaturePreview?.(character, feature)}
               >
                 <strong>{feature.name}</strong>
-                <small>{expanded ? 'Свернуть' : 'Подробнее'}</small>
-                {showSummary && <span>{summary}</span>}
+                <span>{summary}</span>
               </button>
-              {expanded && <p className="player-sheet-feature-detail">{renderRulesText(detail)}</p>}
             </article>
           );
         })}
@@ -463,19 +457,41 @@ export function CharacterSheet({
           onTokenChange={(cardId, next) => characterService.updateDomainCardTokens(character.id, cardId, next)}
         />
       </SheetSection>
-      <SheetSection id="player-sheet-gear" title="Броня и снаряжение">
-        <article className="player-sheet-row">
-          <strong>{character.armor.name || 'Броня'}</strong>
-          {character.armor.feature && <span>{renderRulesText(character.armor.feature)}</span>}
+      <SheetSection id="player-sheet-gear" title="Инвентарь">
+        <article className="player-sheet-row player-sheet-row--feature">
+          <button
+            className="player-sheet-feature-toggle"
+            type="button"
+            onClick={() => onFeaturePreview?.(character, {
+              id: 'armor',
+              name: character.armor.name || 'Броня',
+              subtitle: `Пороги ${character.thresholds.major} / ${character.thresholds.severe} · Показатель ${character.armor.score}`,
+              text: character.armor.feature,
+              sourceLabel: 'Броня'
+            })}
+          >
+            <strong>{character.armor.name || 'Броня'}</strong>
+            <span>Пороги {character.thresholds.major} / {character.thresholds.severe} · Показатель {character.armor.score}</span>
+          </button>
         </article>
         {character.inventory.filter((item) => item.kind === 'consumable').map((item) => {
           return (
             <article className="player-sheet-row player-sheet-row--consumable" key={item.id}>
-              <div className="player-sheet-item-main">
+              <button
+                className="player-sheet-item-main player-sheet-item-main--button"
+                type="button"
+                onClick={() => onFeaturePreview?.(character, {
+                  id: item.id,
+                  name: item.name,
+                  subtitle: inventorySubtitle(item),
+                  text: item.text || inventorySubtitle(item),
+                  sourceLabel: 'Инвентарь'
+                })}
+              >
                 <strong>{item.name}</strong>
-                <span>{inventoryMeta(item)}</span>
-                {item.text && <p className="player-sheet-feature-detail">{renderRulesText(item.text)}</p>}
-              </div>
+                {inventoryQuantityLabel(item) && <small>{inventoryQuantityLabel(item)}</small>}
+                {inventorySubtitle(item) && <span>{inventorySubtitle(item)}</span>}
+              </button>
               <button
                 className="player-sheet-use-button"
                 type="button"
@@ -488,20 +504,23 @@ export function CharacterSheet({
           );
         })}
         {character.inventory.filter((item) => item.kind !== 'consumable').map((item) => {
-          const expanded = expandedInventoryId === item.id;
           return (
-            <article className={`player-sheet-row player-sheet-row--feature ${expanded ? 'player-sheet-row--expanded' : ''}`} key={item.id}>
+            <article className="player-sheet-row player-sheet-row--feature" key={item.id}>
               <button
                 className="player-sheet-feature-toggle"
                 type="button"
-                aria-expanded={expanded}
-                onClick={() => setExpandedInventoryId(expanded ? null : item.id)}
+                onClick={() => onFeaturePreview?.(character, {
+                  id: item.id,
+                  name: item.name,
+                  subtitle: inventorySubtitle(item),
+                  text: item.text || inventorySubtitle(item),
+                  sourceLabel: 'Инвентарь'
+                })}
               >
                 <strong>{item.name}</strong>
-                <small>{expanded ? 'Свернуть' : 'Подробнее'}</small>
-                <span>{inventoryMeta(item)}</span>
+                {inventoryQuantityLabel(item) && <small>{inventoryQuantityLabel(item)}</small>}
+                {inventorySubtitle(item) && <span>{inventorySubtitle(item)}</span>}
               </button>
-              {expanded && item.text && <p className="player-sheet-feature-detail">{renderRulesText(item.text)}</p>}
             </article>
           );
         })}
@@ -532,11 +551,12 @@ function traitLabel(character: PlayerViewCharacterSummary, traitId: TraitId): st
   return character.traits.find((trait) => trait.id === traitId)?.label ?? traitId;
 }
 
-function inventoryMeta(item: PlayerViewCharacterSummary['inventory'][number]): string {
-  const parts = [];
-  if (item.uses) parts.push(`Осталось ${item.uses.current}/${item.uses.max}`);
-  if (item.quantity !== 1 || !item.uses) parts.push(`x${item.quantity}`);
-  return parts.join(' · ');
+function inventorySubtitle(item: PlayerViewCharacterSummary['inventory'][number]): string {
+  return item.uses ? `Осталось ${item.uses.current}/${item.uses.max}` : '';
+}
+
+function inventoryQuantityLabel(item: PlayerViewCharacterSummary['inventory'][number]): string {
+  return item.quantity > 1 ? `x${item.quantity}` : '';
 }
 
 function canUseInventoryItem(item: PlayerViewCharacterSummary['inventory'][number]): boolean {

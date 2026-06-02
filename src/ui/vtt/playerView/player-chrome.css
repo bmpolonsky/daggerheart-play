@@ -255,6 +255,10 @@
   overflow: hidden;
 }
 
+.player-activity-list > .player-activity-event:first-child {
+  margin-top: auto;
+}
+
 .player-activity-card > header,
 .player-activity-header {
   display: flex;
@@ -418,7 +422,6 @@
   --activity-accent: rgba(240, 201, 106, 0.58);
 }
 
-.player-countdown-composer,
 .player-countdown-stack {
   flex: 0 0 auto;
   display: grid;
@@ -432,7 +435,6 @@
   scrollbar-width: thin;
 }
 
-.player-countdown-composer,
 .player-countdown-card {
   border: 1px solid rgba(240, 201, 106, 0.24);
   border-radius: 8px;
@@ -441,14 +443,15 @@
 }
 
 .player-countdown-composer {
-  padding: 9px;
+  display: grid;
+  gap: 9px;
+  margin-top: 8px;
 }
 
 .player-countdown-card {
   padding: 8px;
 }
 
-.player-countdown-composer > header,
 .player-countdown-card > header,
 .player-countdown-card footer {
   display: flex;
@@ -457,7 +460,6 @@
   gap: 8px;
 }
 
-.player-countdown-composer button,
 .player-countdown-card button,
 .player-countdown-composer input,
 .player-countdown-card input {
@@ -478,7 +480,7 @@
   text-transform: uppercase;
 }
 
-.player-countdown-composer > header strong,
+.player-countdown-composer > strong,
 .player-countdown-card strong,
 .player-countdown-card > header input,
 .player-countdown-card footer span {
@@ -506,33 +508,51 @@
   font-weight: 900;
 }
 
-.player-countdown-composer__grid,
-.player-countdown-composer__segmented {
+.player-countdown-composer__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-.player-countdown-composer__segmented button,
-.player-countdown-composer > .dh-button {
-  min-height: 32px;
-  padding: 6px 8px;
-  font-size: 0.72rem;
-  font-weight: 900;
+.player-countdown-composer__footer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
 }
 
-.player-countdown-composer__segmented button.dh-is-active {
-  border-color: rgba(240, 201, 106, 0.34);
-  background: rgba(240, 201, 106, 0.14);
-  color: #fff7e7;
+.player-countdown-composer .player-countdown-composer__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(243, 234, 216, 0.72);
+  font-size: 0.7rem;
+  font-weight: 850;
 }
 
-.player-countdown-composer > .dh-button:disabled {
+.player-countdown-composer .player-countdown-composer__checkbox span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: none;
+}
+
+.player-countdown-composer__checkbox input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--dh-gold-400);
+}
+
+.player-countdown-composer .feed-rest-card__resolve {
+  min-height: 34px;
+  border-radius: 9px;
+}
+
+.player-countdown-composer .feed-rest-card__resolve:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.player-countdown-composer > header button,
 .player-countdown-card > header button,
 .player-countdown-card__controls button {
   display: inline-grid;
@@ -590,6 +610,8 @@
 }
 
 .player-activity-event--card,
+.player-activity-event--countdownComposer,
+.player-activity-event--feature,
 .player-activity-event--handout,
 .player-activity-event--rest,
 .player-activity-event--teamwork,
@@ -606,15 +628,6 @@
 
 .player-activity-event--ephemeral {
   background: rgba(33, 27, 15, 0.4);
-}
-
-.player-activity-event--ephemeral .player-activity-event__kicker::after {
-  content: "preview";
-  padding: 2px 5px;
-  border: 1px solid rgba(240, 201, 106, 0.22);
-  border-radius: 999px;
-  color: rgba(243, 234, 216, 0.58);
-  font-size: 0.52rem;
 }
 
 .player-activity-event--empty {
@@ -648,6 +661,8 @@
 }
 
 .player-activity-event--card::before,
+.player-activity-event--countdownComposer::before,
+.player-activity-event--feature::before,
 .player-activity-event--handout::before,
 .player-activity-event--rest::before,
 .player-activity-event--teamwork::before,
@@ -700,6 +715,7 @@
 .player-activity-event > strong,
 .feed-roll-wait > strong,
 .feed-domain-card__body > strong,
+.feed-feature-card > strong,
 .feed-handout-card > div > strong,
 .feed-rest-card__title strong {
   display: block;
@@ -752,9 +768,23 @@
 
 .feed-roll-card,
 .feed-domain-card,
+.feed-feature-card,
 .feed-handout-card,
 .feed-rest-card {
   min-width: 0;
+}
+
+.feed-feature-card {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.feed-feature-card > span {
+  color: rgba(243, 234, 216, 0.58);
+  font-size: 0.72rem;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
 }
 
 .feed-roll-card {
@@ -1499,7 +1529,9 @@
 }
 
 .player-chat-composer {
-  align-self: end;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
   min-height: 46px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 32px;

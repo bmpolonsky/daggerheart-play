@@ -10,6 +10,7 @@ export interface DomainCardMacroActionContext {
   character: PlayerViewCharacterSummary;
   role: TableViewRole;
   publication?: RollPublication;
+  sourceLabel?: string;
   openRollDraft: (draft: PlayerRollDraft) => void;
   afterAction?: () => void;
 }
@@ -20,6 +21,7 @@ export function runDomainCardMacroAction(
   context: DomainCardMacroActionContext
 ): void {
   const { character, role } = context;
+  const sourceLabel = context.sourceLabel ?? 'Карта';
   if (macro.kind === 'actionRoll') {
     context.openRollDraft({
       kind: 'card',
@@ -28,7 +30,7 @@ export function runDomainCardMacroAction(
       trait: macro.traitHint === 'spellcast' && character.spellcastTrait ? character.spellcastTrait : character.traits[0]?.id ?? 'presence',
       cardId: card.id,
       difficulty: macro.difficulty ?? 0,
-      notes: `Карта: ${card.name}. ${macro.label}`
+      notes: `${sourceLabel}: ${card.name}. ${macro.label}`
     });
     context.afterAction?.();
     return;
@@ -42,7 +44,7 @@ export function runDomainCardMacroAction(
           type: 'damage',
           formula: macro.formula,
           damageType: macro.damageType as DamageType | undefined,
-          notes: `Карта: ${card.name}. ${macro.label}`
+          notes: `${sourceLabel}: ${card.name}. ${macro.label}`
         }
       });
       context.afterAction?.();
@@ -53,7 +55,7 @@ export function runDomainCardMacroAction(
       actorName: character.name,
       formula: macro.formula,
       damageType: macro.damageType as DamageType | undefined,
-      notes: `Карта: ${card.name}. ${macro.label}`
+      notes: `${sourceLabel}: ${card.name}. ${macro.label}`
     });
     context.afterAction?.();
     return;
@@ -69,7 +71,7 @@ export function runDomainCardMacroAction(
           type: 'manualDice',
           formula,
           label,
-          notes: `Карта: ${card.name}. ${macro.label}`
+          notes: `${sourceLabel}: ${card.name}. ${macro.label}`
         }
       });
       context.afterAction?.();
@@ -80,7 +82,7 @@ export function runDomainCardMacroAction(
       actorName: character.name,
       formula,
       label,
-      notes: `Карта: ${card.name}. ${macro.label}`
+      notes: `${sourceLabel}: ${card.name}. ${macro.label}`
     });
     context.afterAction?.();
     return;
@@ -90,7 +92,7 @@ export function runDomainCardMacroAction(
   const plan = planDomainCardResourceMacro(actionCard, macro, role);
   if (!plan?.canApply) {
     if (plan?.warning) {
-      logDomainCardResourceUse(character.name, card.name, `не применено: ${compactResourceMacroLabel(macro)}`, context.publication);
+      logDomainCardResourceUse(character.name, card.name, `не применено: ${compactResourceMacroLabel(macro)}`, context.publication, sourceLabel);
     }
     return;
   }
@@ -99,7 +101,8 @@ export function runDomainCardMacroAction(
     character.name,
     card.name,
     applied ? compactResourceMacroLabel(macro) : `не хватает: ${compactResourceMacroLabel(macro)}`,
-    context.publication
+    context.publication,
+    sourceLabel
   );
   if (applied) context.afterAction?.();
 }
@@ -164,8 +167,8 @@ function applySourceResourceMacro(
   return false;
 }
 
-function logDomainCardResourceUse(actorName: string, cardName: string, detail: string, publication: RollPublication = 'public'): void {
-  feedService.addMessage(actorName, `${cardName} · ${detail}`, { title: 'Карта', publication });
+function logDomainCardResourceUse(actorName: string, cardName: string, detail: string, publication: RollPublication = 'public', sourceLabel = 'Карта'): void {
+  feedService.addMessage(actorName, `${cardName} · ${detail}`, { title: sourceLabel, publication });
 }
 
 function compactResourceMacroLabel(macro: Extract<PlayerViewDomainCardMacro, { amount: number }>): string {

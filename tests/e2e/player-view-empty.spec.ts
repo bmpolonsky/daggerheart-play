@@ -94,9 +94,14 @@ test.describe('Player View empty state', () => {
     await page.getByRole('button', { name: 'Создать отсчет' }).click();
 
     const composer = page.locator('.player-countdown-composer');
+    const composerEvent = composer.locator('xpath=ancestor::article[contains(@class, "player-activity-event--countdownComposer")]');
     await expect(composer).toBeVisible();
+    await expect(composerEvent).toBeVisible();
+    await expect(composer.getByRole('button', { name: 'Запустить' })).toBeDisabled();
+    await expect(page.getByLabel('Название отсчета')).toHaveCount(0);
     await composer.getByLabel('Название').fill('Ритуал');
     await composer.getByRole('button', { name: 'Запустить' }).click();
+    await expect(composer).toHaveCount(0);
 
     const countdownName = page.getByLabel('Название отсчета');
     await expect(countdownName).toHaveValue('Ритуал');

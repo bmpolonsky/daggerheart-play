@@ -1661,13 +1661,45 @@
 .player-sheet-item-main {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+}
+
+.player-sheet-item-main--button {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .player-sheet-item-main > strong {
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
+}
+
+.player-sheet-item-main > span {
+  grid-column: 1 / -1;
+  color: var(--dh-paper-muted);
+  font-size: 0.72rem;
+  line-height: 1.32;
+}
+
+.player-sheet-item-main > small {
+  align-self: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: rgba(240, 201, 106, 0.86);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .player-sheet-use-button {

@@ -2,6 +2,7 @@
 import { useMemo } from "preact/hooks";
 import { useStore } from "../../../core/hooks/useStore";
 import { buildPlayerTokens, type PlayerViewAdversarySummary, type PlayerViewCharacterSummary, type PlayerViewEmptyCharacterState } from "../../../domain/tabletop/playerView";
+import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
 import { characterService, contentService, encounterService, playerActivationQueueService, playerPresenceService } from "../../../services/serviceRegistry";
 import { buildSessionRosterActors } from "./helpers";
@@ -24,6 +25,7 @@ export function PlayerCharacterPanel({
   onClearActivationRequest,
   onClearActor,
   onDomainCardPreview,
+  onFeaturePreview,
   onEmptyAction,
   onForceMutePlayer,
   onOpenActor
@@ -41,6 +43,7 @@ export function PlayerCharacterPanel({
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor["activationRequest"]>) => void;
   onClearActor: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
+  onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onEmptyAction?: () => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
@@ -79,6 +82,7 @@ export function PlayerCharacterPanel({
         onClearActivationRequest={onClearActivationRequest}
         onClearActor={onClearActor}
         onDomainCardPreview={onDomainCardPreview}
+        onFeaturePreview={onFeaturePreview}
         onForceMutePlayer={onForceMutePlayer}
         onOpenActor={onOpenActor}
       />
@@ -91,6 +95,7 @@ export function PlayerCharacterPanel({
       emptyActionLabel={emptyActionLabel}
       emptyState={emptyState}
       onDomainCardPreview={onDomainCardPreview}
+      onFeaturePreview={onFeaturePreview}
       onEmptyAction={onEmptyAction}
     />
   );

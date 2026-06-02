@@ -3,6 +3,7 @@ import { useState } from "preact/hooks";
 import { useStore } from "../../../core/hooks/useStore";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewAdversarySummary, PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
+import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
 import { gameService, tabletopService } from "../../../services/serviceRegistry";
 import { PlayerRoster } from "./PlayerRoster";
@@ -29,6 +30,7 @@ export function GmRightPanel({
   onClearActivationRequest,
   onClearActor,
   onDomainCardPreview,
+  onFeaturePreview,
   onForceMutePlayer,
   onOpenActor
 }: {
@@ -44,6 +46,7 @@ export function GmRightPanel({
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor['activationRequest']>) => void;
   onClearActor: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
+  onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
@@ -57,7 +60,7 @@ export function GmRightPanel({
     return <EnvironmentSheet environment={environment} onBack={onClearActor} />;
   }
   if (character) {
-    return <CharacterSheet character={character} beastforms={beastforms} role="gm" showBackButton onBack={onClearActor} onDomainCardPreview={onDomainCardPreview} />;
+    return <CharacterSheet character={character} beastforms={beastforms} role="gm" showBackButton onBack={onClearActor} onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} />;
   }
 
   const playerActors = actors.filter((actor) => actor.kind === 'character');

@@ -7,7 +7,7 @@ import {
   buildPlayerViewModel,
   type PlayerViewCharacterSummary
 } from '../../domain/tabletop/playerView';
-import { buildDomainCardPreviewFeedItem } from '../../domain/tabletop/feed';
+import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, type TableFeedFeaturePreview } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation, readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import { nowIso } from '../../core/utils/date';
@@ -180,11 +180,31 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
     }
   }, [role, selectedPlayerName, selectedPlayerSeatId]);
   const previewDomainCard = useCallback((character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => {
-    playerViewUiActions.setEphemeralActivity(buildDomainCardPreviewFeedItem({
+    playerViewUiActions.setEphemeralFeedItem(buildDomainCardPreviewFeedItem({
       id: `ephemeral-card-${character.id}`,
       createdAt: nowIso(),
       authorName: character.name,
       card: toDomainCardRecord(card),
+      actor: {
+        actorId: character.id,
+        actorName: character.name,
+        actorType: 'character'
+      }
+    }));
+    setMobileLayer('feed');
+  }, []);
+  const previewCharacterFeature = useCallback((character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => {
+    playerViewUiActions.setEphemeralFeedItem(buildCharacterFeaturePreviewFeedItem({
+      id: `ephemeral-feature-${character.id}-${feature.id}`,
+      createdAt: nowIso(),
+      authorName: character.name,
+      feature: {
+        id: feature.id,
+        name: feature.name,
+        subtitle: feature.subtitle,
+        text: feature.text,
+        sourceLabel: feature.sourceLabel
+      },
       actor: {
         actorId: character.id,
         actorName: character.name,
@@ -270,6 +290,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         onClearActivationRequest={(request) => void p2pSessionService.clearRaisedHand(request)}
         onClearActor={() => setViewedActor(null)}
         onDomainCardPreview={previewDomainCard}
+        onFeaturePreview={previewCharacterFeature}
         onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
         onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
         onOpenActor={openActor}

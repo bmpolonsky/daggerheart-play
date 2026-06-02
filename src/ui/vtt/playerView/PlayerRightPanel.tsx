@@ -2,6 +2,7 @@
 import { LayoutDashboard, UserRound } from "lucide-react";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewCharacterSummary, PlayerViewEmptyCharacterState } from "../../../domain/tabletop/playerView";
+import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import { inferBasePathFromWorkspacePath } from "../../../domain/p2p/sessionLinks";
 import { CharacterSheet } from "./CharacterSheet";
 import type { PlayerViewDomainCard } from "./domainCards/types";
@@ -12,7 +13,8 @@ export function PlayerRightPanel({
   emptyActionLabel,
   emptyState,
   onEmptyAction,
-  onDomainCardPreview
+  onDomainCardPreview,
+  onFeaturePreview
 }: {
   character: PlayerViewCharacterSummary | null;
   beastforms?: LibraryBeastform[];
@@ -20,9 +22,10 @@ export function PlayerRightPanel({
   emptyState: PlayerViewEmptyCharacterState;
   onEmptyAction?: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
+  onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
 }) {
   if (character) {
-    return <CharacterSheet character={character} beastforms={beastforms} role="player" onDomainCardPreview={onDomainCardPreview} />;
+    return <CharacterSheet character={character} beastforms={beastforms} role="player" onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} />;
   }
   return (
     <aside className="player-character-panel player-character-panel--empty" aria-label="Персонаж игрока">
