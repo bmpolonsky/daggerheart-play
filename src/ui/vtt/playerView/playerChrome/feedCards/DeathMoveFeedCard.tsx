@@ -3,6 +3,7 @@ import { Flame, HeartPulse, Skull } from 'lucide-react';
 import { riskItAllOutcome } from '../../../../../domain/rules/deathMoves';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { characterService, diceService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
+import { renderRulesText } from '../../sheetText';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
 
@@ -19,7 +20,7 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
       <>
         <FeedCardHeader item={item} label={item.kicker} />
         <strong>{item.title}</strong>
-        <p>{item.body}</p>
+        <p>{renderRulesText(item.body)}</p>
       </>
     );
   }

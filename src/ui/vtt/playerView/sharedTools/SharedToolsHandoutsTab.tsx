@@ -4,6 +4,7 @@ import type { GameState } from '../../../../domain/rules/types';
 import { gameService } from '../../../../services/serviceRegistry';
 import { ImageFilePicker } from '../../../components/common/ImageFilePicker';
 import { cssImageUrl } from '../helpers';
+import { renderRulesText } from '../sheetText';
 import type { TableViewRole } from '../types';
 import { readFileAsDataUrl } from './readFileAsDataUrl';
 
@@ -49,7 +50,7 @@ export function SharedToolsHandoutsTab({ game, role }: { game: GameState; role: 
               ) : (
                 <>
                   <strong>{handout.title}</strong>
-                  <span>{handout.body || 'Раздатка'}</span>
+                  <span>{renderRulesText(handout.body || 'Раздатка')}</span>
                 </>
               )}
             </div>

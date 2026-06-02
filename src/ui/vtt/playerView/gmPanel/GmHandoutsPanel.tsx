@@ -3,6 +3,7 @@ import { Image } from "lucide-react";
 import type { GameHandout } from "../../../../domain/rules/types";
 import { cssImageUrl } from "../helpers";
 import { playerViewUiActions } from "../playerViewUiState";
+import { renderRulesText } from "../sheetText";
 
 export function GmHandoutsPanel({
   handouts
@@ -18,7 +19,7 @@ export function GmHandoutsPanel({
           </div>
           <div className="player-gm-handouts__body">
             <strong>{handout.title || 'Без названия'}</strong>
-            <small>{handout.body || 'Без текста'}</small>
+            <small>{renderRulesText(handout.body || 'Без текста')}</small>
           </div>
         </button>
       ))}

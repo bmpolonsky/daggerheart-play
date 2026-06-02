@@ -93,6 +93,40 @@ test('equipment mapper preserves consumable uses', () => {
   assert.equal(item.uses, 1);
 });
 
+test('equipment mapper extracts fallback features without stat block noise', () => {
+  const emptyFeatureWeapon = mapRawEquipmentItem({
+    slug: 'crossbow',
+    name: 'Арбалет',
+    type_slug: 'primary-weapon',
+    char_trait: 'finesse',
+    range: 'far',
+    damage_ty: 'physical',
+    die_num: 1,
+    die_size: 6,
+    bonus: 1,
+    burden: 1,
+    features: [],
+    main_body: '**Trait:** Finesse; **Range:** Far; **Damage:** d6+1 phy; **Burden:** One-Handed\n\n**Feature:** —'
+  });
+  const fallbackFeatureWeapon = mapRawEquipmentItem({
+    slug: 'sample',
+    name: 'Sample',
+    type_slug: 'primary-weapon',
+    char_trait: 'agility',
+    range: 'melee',
+    damage_ty: 'physical',
+    die_num: 1,
+    die_size: 8,
+    burden: 2,
+    features: [],
+    main_body: '**Trait:** Agility; **Range:** Melee; **Damage:** d8 phy; **Burden:** Two-Handed\n\n**Feature:** ***Heavy:*** −1 к [Уклонению](/rule/evasion)'
+  });
+
+  assert.equal(emptyFeatureWeapon.featureText, '');
+  assert.equal(fallbackFeatureWeapon.featureText.includes('Trait:'), false);
+  assert.equal(fallbackFeatureWeapon.featureText, '***Heavy:*** −1 к [Уклонению](/rule/evasion)');
+});
+
 test('content service normalizes custom tool content into library collections during reload', async () => {
   const service = new ContentService();
   const originalFetch = globalThis.fetch;

@@ -3,6 +3,7 @@ import { Bed, CheckSquare, Coffee, RotateCcw } from 'lucide-react';
 import { canApplyRestChoice, canSelectRestChoices } from '../../../../../domain/rules/rest';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { feedService, p2pSessionService, tabletopService } from '../../../../../services/serviceRegistry';
+import { renderRulesText } from '../../sheetText';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
 
@@ -24,7 +25,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
       <>
         <FeedCardHeader item={item} label={item.kicker} />
         <strong>{item.title}</strong>
-        <p>{item.body}</p>
+        <p>{renderRulesText(item.body)}</p>
       </>
     );
   }
@@ -100,7 +101,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
             })}
           </div>
         ) : (
-          <p className="feed-rest-card__empty">{item.body}</p>
+          <p className="feed-rest-card__empty">{renderRulesText(item.body)}</p>
         )}
         {rest.fearPlan && (
           <p className="feed-rest-card__result">

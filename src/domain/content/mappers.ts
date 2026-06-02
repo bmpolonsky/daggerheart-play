@@ -489,7 +489,18 @@ function buildEquipmentFeatureText(features: RawEquipmentFeature[] | undefined, 
       .filter(Boolean)
       .join('\n');
   }
-  return asString(fallback);
+  return equipmentFeatureFromBody(asString(fallback));
+}
+
+function equipmentFeatureFromBody(body: string): string {
+  if (!body) return '';
+  const normalized = body.replace(/\r\n/g, '\n').trim();
+  const featureMatch = normalized.match(/(?:^|\n)\s*\*\*(?:Feature|Особенность|Свойство):\*\*\s*([\s\S]*)$/i);
+  if (!featureMatch) return normalized;
+
+  const featureText = featureMatch[1].trim();
+  const readableFeature = cleanMarkdownText(featureText, { stripEmphasis: true }).trim();
+  return /^[-—–]+$/.test(readableFeature) ? '' : featureText;
 }
 
 export function mapGenericItem(raw: RawContentItem, prefix: string): GenericLibraryItem {

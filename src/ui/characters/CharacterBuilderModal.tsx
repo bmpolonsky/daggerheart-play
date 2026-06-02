@@ -263,44 +263,6 @@ export function CharacterBuilderModal({
                   <p className="cinematic-builder-copy">Выберите броню, оружие и стартовые предметы. Модификаторы применяются в итоговом листе автоматически.</p>
                 </header>
                 <div className="dh-equipment-grid cinematic-builder-choice-area dh-scroll">
-                  <div className="dh-equipment-column">
-                    <h4 className="cinematic-panel-title">Броня</h4>
-                    <div className="dh-choice-grid dh-choice-grid--equipment">
-                      {options.armor.map((armor) => (
-                        <button className={`cinematic-card ${fields.armorId === armor.id ? 'dh-is-selected' : ''}`} key={armor.id} type="button" onClick={() => handlers.selectArmor(armor.id)}>
-                          <strong className="cinematic-card-title">{armor.name}</strong>
-                          <span className="cinematic-card-meta">Пороги {armor.baseMajor}/{armor.baseSevere} · Броня {armor.score}</span>
-                          {armor.feature && <span className="cinematic-card-body">{armor.feature}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="dh-equipment-column">
-                    <h4 className="cinematic-panel-title">Оружие</h4>
-                    <div className="dh-choice-grid dh-choice-grid--equipment">
-                      {options.primaryWeapons.map((weapon) => (
-                        <button className={`cinematic-card ${fields.primaryWeaponId === weapon.id ? 'dh-is-selected' : ''}`} key={weapon.id} type="button" onClick={() => handlers.selectPrimaryWeapon(weapon.id)}>
-                          <strong className="cinematic-card-title">{weapon.name}</strong>
-                          <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} · {weapon.range} · {weapon.damageFormula}</span>
-                          <span className="cinematic-card-body">{weapon.burden === 'two-handed' ? 'Двуручное' : 'Одноручное'}{weapon.feature ? ` · ${weapon.feature}` : ''}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {options.showSecondaryWeapon && (
-                    <div className="dh-equipment-column">
-                      <h4 className="cinematic-panel-title">Вторая рука</h4>
-                      <div className="dh-choice-grid dh-choice-grid--equipment">
-                        {options.secondaryWeapons.map((weapon) => (
-                          <button className={`cinematic-card ${fields.secondaryWeaponId === weapon.id ? 'dh-is-selected' : ''}`} key={weapon.id} type="button" onClick={() => handlers.selectSecondaryWeapon(weapon.id)}>
-                            <strong className="cinematic-card-title">{weapon.name}</strong>
-                            <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} · {weapon.range} · {weapon.damageFormula}</span>
-                            {weapon.feature && <span className="cinematic-card-body">{weapon.feature}</span>}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   <div className="dh-equipment-row">
                     <label className="dh-label">
                       <span>Предмет класса</span>
@@ -315,6 +277,44 @@ export function CharacterBuilderModal({
                       </select>
                     </label>
                   </div>
+                  <div className="dh-equipment-column">
+                    <h4 className="cinematic-panel-title">Броня</h4>
+                    <div className="dh-choice-grid dh-choice-grid--equipment">
+                      {options.armor.map((armor) => (
+                        <button className={`cinematic-card ${fields.armorId === armor.id ? 'dh-is-selected' : ''}`} key={armor.id} type="button" onClick={() => handlers.selectArmor(armor.id)}>
+                          <strong className="cinematic-card-title">{armor.name}</strong>
+                          <span className="cinematic-card-meta">Пороги {armor.baseMajor}/{armor.baseSevere} · Броня {armor.score}</span>
+                          {armor.feature && <span className="cinematic-card-body">{cleanRulesText(armor.feature)}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="dh-equipment-column">
+                    <h4 className="cinematic-panel-title">Оружие</h4>
+                    <div className="dh-choice-grid dh-choice-grid--equipment">
+                      {options.primaryWeapons.map((weapon) => (
+                        <button className={`cinematic-card ${fields.primaryWeaponId === weapon.id ? 'dh-is-selected' : ''}`} key={weapon.id} type="button" onClick={() => handlers.selectPrimaryWeapon(weapon.id)}>
+                          <strong className="cinematic-card-title">{weapon.name}</strong>
+                          <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} · {weapon.range} · {weapon.damageFormula}</span>
+                          <span className="cinematic-card-body">{cleanRulesText(`${weapon.burden === 'two-handed' ? 'Двуручное' : 'Одноручное'}${weapon.feature ? ` · ${weapon.feature}` : ''}`)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {options.showSecondaryWeapon && (
+                    <div className="dh-equipment-column">
+                      <h4 className="cinematic-panel-title">Вторая рука</h4>
+                      <div className="dh-choice-grid dh-choice-grid--equipment">
+                        {options.secondaryWeapons.map((weapon) => (
+                          <button className={`cinematic-card ${fields.secondaryWeaponId === weapon.id ? 'dh-is-selected' : ''}`} key={weapon.id} type="button" onClick={() => handlers.selectSecondaryWeapon(weapon.id)}>
+                            <strong className="cinematic-card-title">{weapon.name}</strong>
+                            <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} · {weapon.range} · {weapon.damageFormula}</span>
+                            {weapon.feature && <span className="cinematic-card-body">{cleanRulesText(weapon.feature)}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </section>
             )}

@@ -413,6 +413,10 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
       traits: equipment.traits,
       spellcastTrait,
       evasion: classStats.evasion + equipment.evasionModifier,
+      thresholds: {
+        major: equipment.armor.baseMajor + 1,
+        severe: equipment.armor.baseSevere + 1
+      },
       hp: { marked: 0, max: classStats.hp },
       armor: equipment.armor,
       experiences: buildExperiences(input.experienceNames, input.now),

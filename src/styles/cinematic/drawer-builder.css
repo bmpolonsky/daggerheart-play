@@ -711,8 +711,13 @@
 }
 
 .cinematic-builder .dh-choice-grid--equipment .cinematic-card {
-  min-height: 104px;
-  max-height: 150px;
+  min-height: 86px;
+  max-height: 118px;
+}
+
+.cinematic-builder .dh-choice-grid--equipment .cinematic-card-body {
+  max-height: 2.8em;
+  -webkit-line-clamp: 2;
 }
 
 .cinematic-builder .dh-textarea {

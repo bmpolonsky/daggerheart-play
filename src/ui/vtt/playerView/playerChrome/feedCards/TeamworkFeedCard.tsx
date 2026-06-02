@@ -5,6 +5,7 @@ import { TRAIT_LABELS, TRAITS } from '../../../../../domain/rules/constants';
 import type { TeamworkRollActorOption, TeamworkRollParticipant, TraitId } from '../../../../../domain/rules/types';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { gameService, diceService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
+import { renderRulesText } from '../../sheetText';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
 
@@ -23,7 +24,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
       <>
         <FeedCardHeader item={item} label={item.kicker} />
         <strong>{item.title}</strong>
-        <p>{item.body}</p>
+        <p>{renderRulesText(item.body)}</p>
       </>
     );
   }

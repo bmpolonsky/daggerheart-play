@@ -63,7 +63,7 @@ function MessageFeedFallback({ item }: { item: TableFeedItem }) {
     <>
       <FeedCardHeader item={item} label={item.kicker} />
       <strong>{item.title}</strong>
-      <p>{item.body}</p>
+      <p>{renderRulesText(item.body)}</p>
     </>
   );
 }

@@ -5,6 +5,7 @@ import { characterService } from "../../src/services/serviceRegistry";
 import {
   backgroundQuestionsFor,
   buildCharacterDraft,
+  buildCharacterBuilderChoicePreview,
   connectionQuestionsFor,
   featureListText,
   filterBuilderContent,
@@ -36,6 +37,7 @@ test('character builder applies starting equipment to draft outside UI', () => {
 
   assert.equal(result.draft.armor?.name, 'Латный Доспех');
   assert.equal(result.draft.armor?.score, 4);
+  assert.deepEqual(result.draft.thresholds, { major: 9, severe: 18 });
   assert.equal(result.draft.evasion, 11);
   assert.equal(result.draft.traits?.agility, 2);
   assert.deepEqual(result.draft.weapons?.map((weapon) => weapon.name), ['Палаш', 'Башенный Щит']);
@@ -281,6 +283,28 @@ test('character builder featureListText includes multiple ancestry features', ()
   });
 
   assert.equal(featureListText(item), 'First: First text\n\nSecond: Second text');
+});
+
+test('character builder equipment preview cleans markdown links', () => {
+  const result = buildCharacterDraft({
+    content: { ancestries: [], communities: [], subclasses: [], domainCards: [] },
+    equipment: equipmentFixture(),
+    className: 'Warrior',
+    armorId: 'full-plate-armor',
+    primaryWeaponId: 'longbow'
+  });
+
+  const preview = buildCharacterBuilderChoicePreview({
+    step: 'equipment',
+    selectedArmor: result.selections.armor,
+    selectedPrimaryWeapon: result.selections.primaryWeapon,
+    selectedSecondaryWeapon: result.selections.secondaryWeapon,
+    selectedConsumable: null
+  });
+
+  assert.equal(preview?.body.includes('[/rule/'), false);
+  assert.equal(preview?.body.includes('[Уклонению]'), false);
+  assert.match(preview?.body ?? '', /Очень тяжёлое: −2 к Уклонению; −1 к Проворности/);
 });
 
 test('character builder filters playtest content by default', () => {
