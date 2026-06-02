@@ -35,6 +35,7 @@ jobs:
       - name: Build with cached Daggerheart content
         run: npm run build
         env:
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           VITE_BASE_PATH: ${{ github.event.repository.name == format('{0}.github.io', github.repository_owner) && '/' || format('/{0}/', github.event.repository.name) }}
           CONTENT_SOURCE: https://daggerheart.su
           CONTENT_LANG: ru
