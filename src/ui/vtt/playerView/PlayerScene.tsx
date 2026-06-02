@@ -6,9 +6,23 @@ import { p2pSessionService, sceneTableService, tabletopService } from '../../../
 import { cssImageUrl, initials, shouldIgnoreTokenDeleteShortcut } from './helpers';
 import { PLAYER_SCENE_HEIGHT, PLAYER_SCENE_WIDTH } from './constants';
 import { PlayerMeasureLayer } from './PlayerMeasureLayer';
+import { PlayerDiceOverlay } from './PlayerDiceOverlay';
 import type { PlayerViewedActor, TableViewRole } from './types';
+import type { RollLogEntry } from '../../../domain/rules/types';
 
-export function PlayerScene({ model, role, onOpenActor }: { model: PlayerViewModel; role: TableViewRole; onOpenActor: (actor: PlayerViewedActor) => void }) {
+export function PlayerScene({
+  latestRoll,
+  model,
+  role,
+  onOpenActor,
+  onRollComplete
+}: {
+  latestRoll: RollLogEntry | undefined;
+  model: PlayerViewModel;
+  role: TableViewRole;
+  onOpenActor: (actor: PlayerViewedActor) => void;
+  onRollComplete: (rollId: string) => void;
+}) {
   const dragRef = useRef<{ tokenId: string; pointerId: number; startX: number; startY: number; moved: boolean } | null>(null);
   const suppressClickTokenIdRef = useRef<string | null>(null);
   const playerTokenIds = useMemo(() => playerTokensForCharacter(model.tokens, model.character?.id ?? null).map((token) => token.id), [model.character?.id, model.tokens]);
@@ -41,12 +55,13 @@ export function PlayerScene({ model, role, onOpenActor }: { model: PlayerViewMod
   return (
     <section className="player-scene-stage" aria-label="Игровая сцена">
       <div
-        className="player-scene-stage__tokens"
+        className="player-scene-stage__board"
         onPointerDown={(event) => {
           if (event.target === event.currentTarget) setSelectedTokenId(null);
         }}
       >
         <PlayerMeasureLayer origin={selectedOrigin} />
+        <PlayerDiceOverlay latestRoll={latestRoll} onRollComplete={onRollComplete} />
         {model.tokens.map((token) => {
           const canControlToken = role === 'gm' || playerTokenIds.includes(token.id);
           return (
@@ -153,7 +168,7 @@ function movePlayerTokenFromPointer(event: { clientX: number; clientY: number; c
 
 function worldPointFromPointer(event: { clientX: number; clientY: number; currentTarget: EventTarget | null }): { x: number; y: number } | null {
   const host = event.currentTarget instanceof HTMLElement
-    ? event.currentTarget.closest('.player-scene-stage__tokens')
+    ? event.currentTarget.closest('.player-scene-stage__board')
     : null;
   if (!(host instanceof HTMLElement)) return null;
   const rect = host.getBoundingClientRect();

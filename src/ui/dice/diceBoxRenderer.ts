@@ -3,6 +3,7 @@ import type { DiceRendererOptions, PolyhedralDiceRoll, PolyhedralDieVisual } fro
 import { diceBoxNotationForRoll } from './diceBoxNotation';
 
 const DICE_BOX_ASSET_PATH = './';
+const DICE_BASE_SCALE = 112;
 type DiceBoxCustomColorset = NonNullable<ConstructorParameters<typeof DiceBox>[1]>['theme_customColorset'];
 
 export class PolyhedralDiceRenderer {
@@ -38,11 +39,11 @@ export class PolyhedralDiceRenderer {
     this.layout.replaceChildren();
     const groups = diceGroupsForRoll(roll);
     if (groups.length === 0) return;
-    this.layout.style.gridTemplateColumns = `repeat(${groups.length}, minmax(0, 1fr))`;
     const completionOptions = groupCompletionOptions(roll.id, groups.length, this.options);
-    groups.forEach((group) => {
+    groups.forEach((group, index) => {
       const host = document.createElement('div');
       host.className = `dice-box-polyhedral-group dice-box-polyhedral-group--${group.tone}`;
+      host.style.setProperty('--dh-dice-group-offset', `${index - (groups.length - 1) / 2}`);
       this.layout.append(host);
       this.renderers.push(new SinglePolyhedralDiceRenderer(host, {
         ...roll,
@@ -91,7 +92,7 @@ class SinglePolyhedralDiceRenderer {
       theme_customColorset: colorsetFor(roll),
       gravity_multiplier: this.options.reducedMotion ? 140 : 420,
       light_intensity: 1.08,
-      baseScale: 128,
+      baseScale: DICE_BASE_SCALE,
       strength: this.options.reducedMotion ? 0.62 : 1.18
     });
     disableDiceBoxBumpMapping(this.box);

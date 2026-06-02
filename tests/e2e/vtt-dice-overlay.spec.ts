@@ -32,31 +32,45 @@ test.describe('duality dice overlay', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/player/test-room');
 
-    await expect(page.locator('.duality-dice-stage')).toHaveCount(0);
+    await expect(page.locator('.polyhedral-dice-stage')).toHaveCount(0);
     await rollAction(page);
-    const overlay = page.locator('.duality-dice-stage');
+    const overlay = page.locator('.polyhedral-dice-stage');
+    const board = page.locator('.player-scene-stage__board');
     await expect(overlay).toBeVisible();
     await expect(overlay).toHaveCSS('pointer-events', 'none');
 
     const box = await overlay.boundingBox();
-    expect(box?.width).toBeGreaterThanOrEqual(520);
-    expect(box?.width).toBeLessThanOrEqual(860);
-    expect(box?.height).toBeGreaterThanOrEqual(300);
-    expect(box?.height).toBeLessThanOrEqual(560);
+    const boardBox = await board.boundingBox();
+    expect(box?.width).toBeCloseTo(boardBox?.width ?? 0, 0);
+    expect(box?.height).toBeCloseTo(boardBox?.height ?? 0, 0);
   });
 
-  test('keeps the dice moment compact on mobile', async ({ page }) => {
+  test('uses the full token stage for the dice moment on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/player/test-room');
 
     await rollAction(page);
-    const overlay = page.locator('.duality-dice-stage');
+    const overlay = page.locator('.polyhedral-dice-stage');
+    const board = page.locator('.player-scene-stage__board');
     await expect(overlay).toBeVisible();
     await expectInsideViewport(page, overlay);
 
     const box = await overlay.boundingBox();
-    expect(box?.width).toBeLessThanOrEqual(330);
-    expect(box?.height).toBeLessThanOrEqual(240);
+    const boardBox = await board.boundingBox();
+    expect(box?.width).toBeCloseTo(boardBox?.width ?? 0, 0);
+    expect(box?.height).toBeCloseTo(boardBox?.height ?? 0, 0);
+
+    const canvases = page.locator('.polyhedral-dice-stage canvas');
+    await expect(canvases.first()).toBeVisible();
+    const canvasBoxes = await canvases.evaluateAll((nodes) => nodes.map((node) => {
+      const rect = node.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    }));
+    expect(canvasBoxes.length).toBeGreaterThanOrEqual(1);
+    canvasBoxes.forEach((canvasBox) => {
+      expect(canvasBox.width).toBeGreaterThanOrEqual((boardBox?.width ?? 0) * 0.95);
+      expect(canvasBox.height).toBeGreaterThanOrEqual((boardBox?.height ?? 0) * 0.95);
+    });
   });
 
   test('does not replay persisted player dice after async restore on reload', async ({ page }) => {
@@ -64,7 +78,7 @@ test.describe('duality dice overlay', () => {
     await page.goto('/player/test-room');
 
     await page.locator('.mini-dice-launcher__quick').click();
-    await expect(page.locator('.player-dice-overlay .duality-dice-stage')).toBeVisible();
+    await expect(page.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible();
     await expect.poll(() => storedRollCount(page)).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.localStorage.getItem('daggerheart-play:v3:game:local'))).toBeNull();
 

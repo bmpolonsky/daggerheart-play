@@ -14,19 +14,61 @@
   pointer-events: none;
 }
 
-.player-scene-stage__tokens {
+.player-scene-stage__board {
   position: absolute;
   top: var(--player-board-top);
   left: calc(50% + var(--player-board-center-offset));
   width: var(--player-board-size);
   aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-}
-
-.player-scene-stage__tokens {
   overflow: visible;
   border-radius: 16px;
   pointer-events: auto;
+  transform: translate(-50%, -50%);
+}
+
+.player-scene-stage__board .player-dice-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.player-scene-stage__board .polyhedral-dice-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 24px 36px rgba(0, 0, 0, 0.42));
+  transform: none;
+}
+
+.player-scene-stage__board .player-dice-overlay.dh-is-fading .polyhedral-dice-stage {
+  opacity: 0;
+  filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.28));
+  transform: scale(0.97);
+}
+
+.player-scene-stage__board .dice-box-threejs-host {
+  transform: scale(1.02);
+}
+
+.player-scene-stage__board .dice-box-polyhedral-group {
+  transform: translateX(calc(var(--dh-dice-group-offset, 0) * min(58px, 10vw)));
+}
+
+.player-scene-stage__board .polyhedral-dice-fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+}
+
+.player-scene-stage__board .player-dice-overlay.dh-is-fading .polyhedral-dice-fallback {
+  opacity: 0;
+  transform: translate(-50%, -48%) scale(0.97);
 }
 
 .player-token,

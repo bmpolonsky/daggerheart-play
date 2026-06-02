@@ -15,7 +15,6 @@ import { assetService, audioService, gameService, characterService, contentServi
 import { MiniDiceLauncher } from './MiniDiceLauncher';
 import { PlayerTopBar, PlayerLeftRail, PlayerSeatPicker } from './playerView/PlayerChrome';
 import { PlayerCharacterPanel } from './playerView/PlayerCharacterPanel';
-import { PlayerDiceOverlay } from './playerView/PlayerDiceOverlay';
 import { PlayerScene } from './playerView/PlayerScene';
 import { SharedToolsModal } from './playerView/SharedToolsModal';
 import { SceneAudioRuntime } from './playerView/SceneAudioRuntime';
@@ -383,9 +382,8 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         role={role}
         onClearEphemeralActivity={() => setEphemeralActivity(null)}
       />
-      <PlayerScene model={model} role={role} onOpenActor={openActor} />
+      <PlayerScene latestRoll={latestVisibleRoll} model={model} role={role} onOpenActor={openActor} onRollComplete={completeDiceRoll} />
       {role === 'gm' && <SceneAudioRuntime music={resolveSceneMusicSource(model.scene.music, assetUrls)} />}
-      <PlayerDiceOverlay latestRoll={latestVisibleRoll} onRollComplete={completeDiceRoll} />
       {needsSeatSelection && (
         <PlayerSeatPicker
           characters={characters}
