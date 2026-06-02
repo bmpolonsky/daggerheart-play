@@ -85,6 +85,7 @@ test('character builder uses API class data for stats, domains, and mementos', (
   assert.equal(result.draft.connections?.[0]?.targetName, 'Ари');
   assert.equal(result.draft.sheetCards?.some((card) => card.kind === 'classFeature' && card.name === 'Class Feature'), true);
   assert.equal(result.draft.sheetCards?.some((card) => card.kind === 'subclassFeature' && card.name === 'Foundation Feature'), true);
+  assert.equal(result.draft.sheetCards?.find((card) => card.kind === 'subclassFeature' && card.name === 'Foundation Feature')?.subclassTier, 'foundation');
 });
 
 test('character builder models spellcast trait and warns on magic weapons without one', () => {

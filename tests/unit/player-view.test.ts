@@ -118,7 +118,13 @@ test('player view model exposes only public live scene state', () => {
       tokens: { value: 0, max: 0 }
     }],
     sheetCards: [
+      { id: 'sheet-ancestry-ribbet', kind: 'ancestry', name: 'Ribbet', subtitle: 'Ancestry', text: 'The ancestry card is not a feature row.' },
       { id: 'feature-ribbet', kind: 'ancestryFeature', name: 'Ribbet Leap', subtitle: 'Ancestry', text: 'Leap with ease.' },
+      { id: 'sheet-community-wildborne', kind: 'community', name: 'Wildborne', subtitle: 'Community', text: 'The community card is not a feature row.' },
+      { id: 'sheet-subclass-beastbound', kind: 'subclass', name: 'Beastbound', subtitle: 'Subclass', text: 'The subclass card is not a feature row.' },
+      { id: 'feature-subclass', kind: 'subclassFeature', name: 'Companion', subtitle: 'Foundation', text: 'Work with a companion.' },
+      { id: 'feature-specialization', kind: 'subclassFeature', name: 'Advanced Companion', subclassTier: 'specialization', text: 'Improve the companion.' },
+      { id: 'feature-mastery', kind: 'subclassFeature', name: 'Master Companion', subclassTier: 'mastery', text: 'Perfect the companion.' },
       { id: 'sheet-domain-flight', kind: 'domainCard', name: 'Flight', subtitle: 'Grace', text: 'Take flight for a scene.' },
       { id: 'sheet-item-lantern', kind: 'item', name: 'Lantern', text: 'A reliable light.' },
       { id: 'sheet-note-background', kind: 'note', name: 'Background', text: 'Private sheet note.' }
@@ -155,7 +161,8 @@ test('player view model exposes only public live scene state', () => {
   assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.name), ['Flight', 'Archived Spell']);
   assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.domain), ['Grace', 'Codex']);
   assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.domainLabel), ['Грация', 'Кодекс']);
-  assert.deepEqual(assignedModel.character?.features.map((feature) => feature.name), ['Ribbet Leap']);
+  assert.deepEqual(assignedModel.character?.features.map((feature) => feature.name), ['Ribbet Leap', 'Companion', 'Advanced Companion', 'Master Companion']);
+  assert.deepEqual(assignedModel.character?.features.map((feature) => feature.subtitle), ['Ancestry', 'Основа', 'Специализация', 'Мастерство']);
   assert.deepEqual(assignedModel.character?.inventory.map((item) => item.name), ['Lantern', 'Rope']);
   assert.deepEqual(assignedModel.character?.conditions.map((condition) => condition.name), ['Hidden']);
 });

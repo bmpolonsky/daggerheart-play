@@ -166,7 +166,6 @@ export function CharacterBuilderModal({
               <section className="cinematic-builder-step">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Подкласс</h3>
-                  <p className="cinematic-builder-copy">Выберите Foundation-направление. Его способность будет добавлена в лист как отдельная карточка.</p>
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.classSubclasses.map((item) => (

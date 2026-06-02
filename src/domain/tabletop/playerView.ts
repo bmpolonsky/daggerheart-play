@@ -3,7 +3,7 @@ import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { buildEffectiveCharacterStats } from '../rules/effects';
 import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
-import { isCharacterFeatureSheetCard } from '../rules/sidecar';
+import { isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
 import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterRetirementState, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId } from '../rules/types';
 import { RANGE_LABELS, TRAIT_LABELS, classLabel, domainLabel } from '../rules/constants';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
@@ -425,7 +425,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       .map((card) => ({
         id: card.id,
         name: card.name,
-        subtitle: card.subtitle ?? '',
+        subtitle: characterSheetCardSubtitle(card),
         text: card.text ?? ''
       })),
     inventory: character.inventory.map((item) => ({
@@ -444,6 +444,11 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
 
 function buildAdversarySummaries(encounter: EncounterState): Record<string, PlayerViewAdversarySummary> {
   return Object.fromEntries(Object.values(encounter.adversaries).map((adversary) => [adversary.id, buildAdversarySummary(adversary)]));
+}
+
+function characterSheetCardSubtitle(card: Pick<Character['sheetCards'][number], 'subtitle' | 'subclassTier'>): string {
+  if (card.subclassTier) return subclassFeatureTierLabel(card.subclassTier);
+  return subclassFeatureTierLabel(card.subtitle);
 }
 
 export function buildAdversarySummary(adversary: Adversary): PlayerViewAdversarySummary {

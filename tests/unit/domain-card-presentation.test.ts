@@ -93,8 +93,12 @@ test('character sidecar model separates loadout cards and feature sections outsi
     { id: 'hand', name: 'Hand', domain: 'Blade', level: 1, text: '', inLoadout: true, tokens: { value: 0, max: 0 } }
   ];
   character.sheetCards = [
+    { id: 'ancestry-card', kind: 'ancestry', name: 'Ancestry Card' },
+    { id: 'community-card', kind: 'community', name: 'Community Card' },
+    { id: 'subclass-card', kind: 'subclass', name: 'Subclass Card' },
     { id: 'community', kind: 'communityFeature', name: 'Community' },
     { id: 'class', kind: 'classFeature', name: 'Class' },
+    { id: 'subclass-feature', kind: 'subclassFeature', name: 'Subclass Feature' },
     { id: 'domain', kind: 'domainCard', name: 'Domain Card' },
     { id: 'item', kind: 'item', name: 'Utility Item' },
     { id: 'note', kind: 'note', name: 'Sheet Note' }
@@ -122,7 +126,7 @@ test('character sidecar model separates loadout cards and feature sections outsi
   const model = buildCharacterSidecarModel(character);
   assert.deepEqual(model.loadoutCards.map((card) => card.id), ['hand']);
   assert.deepEqual(model.archivedCards.map((card) => card.id), ['archive']);
-  assert.deepEqual(model.features.map((card) => card.id), ['class', 'community']);
+  assert.deepEqual(model.features.map((card) => card.id), ['class', 'subclass-feature', 'community']);
   assert.deepEqual(model.experiences.map((experience) => experience.id), ['high', 'low']);
   assert.deepEqual(model.actions.weapons.map((weapon) => weapon.id), ['blade']);
   assert.deepEqual(model.weapons.map((weapon) => weapon.id), ['blade']);

@@ -129,6 +129,8 @@ export interface DomainCardRecord {
   };
 }
 
+export type SubclassFeatureTier = 'foundation' | 'specialization' | 'mastery';
+
 export interface CharacterSheetCard {
   id: string;
   kind: 'classFeature' | 'ancestry' | 'ancestryFeature' | 'community' | 'communityFeature' | 'subclass' | 'subclassFeature' | 'domainCard' | 'weapon' | 'item' | 'note' | 'custom';
@@ -137,6 +139,7 @@ export interface CharacterSheetCard {
   text?: string;
   imageUrl?: string | null;
   sourceId?: string | number;
+  subclassTier?: SubclassFeatureTier;
 }
 
 export interface CharacterCondition {

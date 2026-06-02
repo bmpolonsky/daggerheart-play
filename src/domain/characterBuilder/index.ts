@@ -254,7 +254,7 @@ export function buildCharacterBuilderChoicePreview(input: {
       return {
         kicker: 'Карта домена',
         title: card.name,
-        subtitle: [card.subtitle, `Уровень ${domainCardLevel(card)}`, domainCardRecallCost(card) ? `Recall ${domainCardRecallCost(card)}` : ''].filter(Boolean).join(' · '),
+        subtitle: [card.subtitle, `Уровень ${domainCardLevel(card)}`, domainCardRecallCost(card) ? `Возврат ${domainCardRecallCost(card)}` : ''].filter(Boolean).join(' · '),
         body: firstFeatureText(card) || domainCardText(card) || cleanRulesText(card.body),
         imageUrl: card.imageUrl,
         facts: [`Выбрано ${input.selectedCards?.length ?? 0}/2`]
@@ -391,7 +391,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
     community ? sheetCardFromLibrary(community, 'community') : null,
     ...libraryFeatureSheetCards(community, 'communityFeature'),
     subclass ? sheetCardFromLibrary(subclass, 'subclass') : null,
-    ...subclassFoundationSheetCards(subclass),
+    ...startingSubclassFeatureSheetCards(subclass),
     ...selectedDomainCards.map((card) => sheetCardFromLibrary(card, 'domainCard'))
   ].filter(Boolean) as CharacterSheetCard[];
   const backgroundAnswers = buildQuestionAnswers('background', backgroundQuestionsFor(classDefinition), input.backgroundAnswers ?? []);
@@ -488,9 +488,9 @@ function libraryFeatureSheetCards(item: GenericLibraryItem | null, kind: Extract
   return rawFeaturesToSheetCards(item.raw.features, kind, `${kind}-${item.slug}`, item.sourceId ?? item.id);
 }
 
-function subclassFoundationSheetCards(item: GenericLibraryItem | null): CharacterSheetCard[] {
+function startingSubclassFeatureSheetCards(item: GenericLibraryItem | null): CharacterSheetCard[] {
   if (!item) return [];
-  return rawFeaturesToSheetCards(item.raw.foundation_features, 'subclassFeature', `subclass-${item.slug}-foundation`, item.sourceId ?? item.id, 'Foundation');
+  return rawFeaturesToSheetCards(item.raw.foundation_features, 'subclassFeature', `subclass-${item.slug}-foundation`, item.sourceId ?? item.id, { subclassTier: 'foundation' });
 }
 
 function rawFeaturesToSheetCards(
@@ -498,7 +498,7 @@ function rawFeaturesToSheetCards(
   kind: CharacterSheetCard['kind'],
   idPrefix: string,
   sourceId: string | number | undefined,
-  subtitle = ''
+  metadata: Pick<CharacterSheetCard, 'subtitle' | 'subclassTier'> = {}
 ): CharacterSheetCard[] {
   if (!Array.isArray(features)) return [];
   return features
@@ -507,9 +507,10 @@ function rawFeaturesToSheetCards(
       id: `sheet-${idPrefix}-${feature.id ?? index}`,
       kind,
       name: typeof feature.name === 'string' ? feature.name : 'Особенность',
-      subtitle,
+      subtitle: metadata.subtitle ?? '',
       text: cleanRulesText(typeof feature.main_body === 'string' ? feature.main_body : typeof feature.text === 'string' ? feature.text : ''),
-      sourceId
+      sourceId,
+      subclassTier: metadata.subclassTier
     }));
 }
 

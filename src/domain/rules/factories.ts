@@ -243,7 +243,8 @@ export function createSheetCard(input?: Partial<CharacterSheetCard>): CharacterS
     subtitle: input?.subtitle ?? '',
     text: input?.text ?? '',
     imageUrl: input?.imageUrl ?? null,
-    sourceId: input?.sourceId
+    sourceId: input?.sourceId,
+    subclassTier: input?.subclassTier
   };
 }
 

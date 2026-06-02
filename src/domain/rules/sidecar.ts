@@ -1,5 +1,5 @@
 import { buildEffectiveCharacterStats } from './effects';
-import type { Adversary, AdversaryFeature, Character, CharacterInventoryItem, CharacterSheetCard, DomainCardRecord, TraitId, Weapon } from './types';
+import type { Adversary, AdversaryFeature, Character, CharacterInventoryItem, CharacterSheetCard, DomainCardRecord, SubclassFeatureTier, TraitId, Weapon } from './types';
 
 export type CharacterSidecarTab = 'overview' | 'features' | 'actions' | 'gear' | 'cards';
 
@@ -88,7 +88,17 @@ export function buildAdversarySidecarModel(adversary: Adversary): AdversarySidec
 }
 
 export function isCharacterFeatureSheetCard(card: CharacterSheetCard): boolean {
-  return ['classFeature', 'ancestry', 'ancestryFeature', 'community', 'communityFeature', 'subclass', 'subclassFeature', 'custom'].includes(card.kind);
+  return ['classFeature', 'ancestryFeature', 'communityFeature', 'subclassFeature', 'custom'].includes(card.kind);
+}
+
+export function subclassFeatureTierLabel(value: SubclassFeatureTier | string | undefined): string {
+  const subtitle = value?.trim() ?? '';
+  const labels: Record<string, string> = {
+    foundation: 'Основа',
+    specialization: 'Специализация',
+    mastery: 'Мастерство'
+  };
+  return labels[subtitle.toLowerCase()] ?? subtitle;
 }
 
 export function sheetCardKindLabel(kind: CharacterSheetCard['kind']): string {
