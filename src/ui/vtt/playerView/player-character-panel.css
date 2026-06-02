@@ -1290,9 +1290,9 @@
   flex: 0 0 auto;
   width: 9px;
   height: 18px;
-  border: 0;
   border-radius: 5px;
-  background: rgba(7, 9, 12, 0.46);
+  background: rgba(255, 247, 231, 0.11);
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 231, 0.24);
 }
 
 .player-track-dots button {
@@ -1302,12 +1302,14 @@
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: rgba(7, 9, 12, 0.46);
+  background: rgba(255, 247, 231, 0.11);
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 231, 0.24);
   cursor: pointer;
 }
 
 .player-track-dots button.is-filled {
   background: var(--dh-gold-400);
+  box-shadow: 0 0 12px rgba(240, 201, 106, 0.3);
 }
 
 .player-track-dots--hope i.is-filled {
@@ -1329,10 +1331,16 @@
 
 .player-track-dots--mark i.is-filled {
   background: var(--dh-danger-500);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 247, 231, 0.16),
+    0 0 12px rgba(220, 79, 79, 0.28);
 }
 
 .player-track-dots--mark button.is-filled {
   background: var(--dh-danger-500);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 247, 231, 0.16),
+    0 0 12px rgba(220, 79, 79, 0.28);
 }
 
 .player-defense-row,
