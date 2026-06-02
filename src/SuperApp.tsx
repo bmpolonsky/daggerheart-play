@@ -1,65 +1,54 @@
 /** @jsxImportSource preact */
+import { lazy, Suspense } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
-import { Crown, GalleryHorizontalEnd, LayoutDashboard, MonitorPlay, Swords } from 'lucide-react';
-import { TabletopApp } from './ui/vtt/TabletopApp';
-import { PlayerViewApp } from './ui/vtt/PlayerViewApp';
-import { CardCreatorTool } from './tools/CardCreatorTool';
-import { CombatBuilderTool } from './tools/CombatBuilderTool';
-import { parsePlayerSessionLocation } from './domain/p2p/sessionLinks';
-import { PlayerJoinLobby, SessionLobby } from './ui/lobby/SessionLobby';
+import { RoleEntry } from './ui/lobby/RoleEntry';
 
 type WorkspaceId = 'play' | 'combat' | 'cards';
 type RouteId = 'entry' | 'gm' | 'join' | 'player' | 'combat' | 'cards';
 type OpenWorkspaceEvent = CustomEvent<{ workspace: WorkspaceId; hash?: string }>;
 
+const PlayerViewApp = lazy(async () => {
+  const { PlayerViewApp } = await import('./ui/vtt/PlayerViewApp');
+  return { default: PlayerViewApp };
+});
+
+const CombatBuilderTool = lazy(async () => {
+  const { CombatBuilderTool } = await import('./tools/CombatBuilderTool');
+  return { default: CombatBuilderTool };
+});
+
+const CardCreatorTool = lazy(async () => {
+  const { CardCreatorTool } = await import('./tools/CardCreatorTool');
+  return { default: CardCreatorTool };
+});
+
 const ROUTES: Array<{
   id: RouteId;
   path: string;
-  label: string;
-  description: string;
-  icon: typeof LayoutDashboard;
 }> = [
   {
     id: 'entry',
-    path: '/',
-    label: 'Вход',
-    description: 'Выбор локальной роли',
-    icon: LayoutDashboard
+    path: '/'
   },
   {
     id: 'gm',
-    path: '/gm',
-    label: 'Игра',
-    description: 'Сцены, персонажи, броски и библиотека',
-    icon: Crown
+    path: '/gm'
   },
   {
     id: 'join',
-    path: '/join',
-    label: 'Подключение',
-    description: 'Лобби игрока перед входом в игру',
-    icon: MonitorPlay
+    path: '/join'
   },
   {
     id: 'player',
-    path: '/player',
-    label: 'Игрок',
-    description: 'Публичная сцена без мастерских панелей',
-    icon: MonitorPlay
+    path: '/player'
   },
   {
     id: 'combat',
-    path: '/tools/combat',
-    label: 'Бои',
-    description: 'Конструктор столкновений и противников',
-    icon: Swords
+    path: '/tools/combat'
   },
   {
     id: 'cards',
-    path: '/tools/cards',
-    label: 'Карты',
-    description: 'Редактор и экспорт карточек',
-    icon: GalleryHorizontalEnd
+    path: '/tools/cards'
   }
 ];
 
@@ -176,46 +165,19 @@ export function SuperApp() {
   return (
     <div className={`superapp-shell superapp-shell--${activeRoute}`}>
       <main className="superapp-content">
-        {activeRoute === 'entry' && <RoleEntry key={activeLocation} onSelectRole={navigateToRoute} />}
-        {activeRoute === 'join' && <RoleEntry key={activeLocation} onSelectRole={navigateToRoute} />}
-        {activeRoute === 'gm' && <TabletopApp />}
-        {activeRoute === 'player' && <PlayerViewApp key={activeLocation} />}
-        {activeRoute === 'combat' && <CombatBuilderTool />}
-        {activeRoute === 'cards' && <CardCreatorTool />}
+        <Suspense fallback={<RouteFallback />}>
+          {activeRoute === 'entry' && <RoleEntry key={activeLocation} basePath={appBasePath()} onSelectRole={navigateToRoute} />}
+          {activeRoute === 'join' && <RoleEntry key={activeLocation} basePath={appBasePath()} onSelectRole={navigateToRoute} />}
+          {activeRoute === 'gm' && <PlayerViewApp role="gm" />}
+          {activeRoute === 'player' && <PlayerViewApp key={activeLocation} />}
+          {activeRoute === 'combat' && <CombatBuilderTool />}
+          {activeRoute === 'cards' && <CardCreatorTool />}
+        </Suspense>
       </main>
     </div>
   );
 }
 
-function RoleEntry({ onSelectRole }: { onSelectRole: (route: RouteId, hash?: string, search?: string, roomId?: string) => void }) {
-  const sessionParams = typeof window === 'undefined' ? null : parsePlayerSessionLocation(window.location.pathname, appBasePath());
-
-  if (sessionParams) {
-    return (
-      <PlayerJoinLobby
-        roomId={sessionParams.roomId}
-        password={sessionParams.password}
-        onBackToLobby={() => onSelectRole('entry')}
-        onEnterPlayerRoom={(roomId) => onSelectRole('player', '', '', roomId)}
-      />
-    );
-  }
-
-  return (
-    <SessionLobby
-      inviteContext={lobbyInviteContext()}
-      onEnterGm={() => onSelectRole('gm')}
-      onJoinRoom={(roomId) => onSelectRole('join', '', '', roomId)}
-    />
-  );
-}
-
-function lobbyInviteContext() {
-  if (typeof window === 'undefined') {
-    return { origin: 'http://localhost', basePath: appBasePath() };
-  }
-  return {
-    origin: window.location.origin,
-    basePath: appBasePath()
-  };
+function RouteFallback() {
+  return <div className="app-loading">Загрузка...</div>;
 }
