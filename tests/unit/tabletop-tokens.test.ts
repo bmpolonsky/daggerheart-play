@@ -8,6 +8,7 @@ import { clientPointToWorld, rangeLabelStyle, rangeLineStyle, tokenPositionStyle
 import { resetAllStores, charactersStore, sceneTableStore } from "../../src/stores/gameStores";
 import { characterService, encounterService, sceneTableService, tabletopService } from "../../src/services/serviceRegistry";
 import { shouldIgnoreTokenDeleteShortcut } from "../../src/ui/vtt/playerView/helpers";
+import { ActorStatus } from "../../src/domain/rules/statuses";
 import type { Adversary, Character } from "../../src/domain/rules/types";
 import { firstCharacter } from "./helpers";
 
@@ -136,6 +137,39 @@ test('GM visibility token flag hides the token from PlayerView', () => {
 
   assert.equal(updated?.ownership.visibility, 'gm');
   assert.deepEqual(model.tokens.map((token) => token.id), []);
+});
+
+test('player view token model marks zero-HP characters and defeated adversaries', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  characterService.updateResourceMax(character.id, 'hp', 1);
+  characterService.markSlots(character.id, 'hp', 1);
+  const adversary = encounterService.createAdversary({
+    name: 'Костяной страж',
+    hp: { marked: 2, max: 2 },
+    conditions: [{ id: 'condition-restrained', name: ActorStatus.Restrained }]
+  });
+  const scene = createTableScene({
+    tokens: [
+      createTokenState({ kind: 'character', id: character.id }, { id: 'zero-hp-character' }),
+      createTokenState({ kind: 'adversary', id: adversary.id }, { id: 'defeated-adversary' })
+    ]
+  });
+
+  const model = buildPlayerViewModel({
+    game: createGameState(),
+    characters: charactersStore.getSnapshot(),
+    encounter: encounterService.encounterStore.getSnapshot(),
+    liveScene: scene,
+    assets: {},
+    assetUrls: {},
+    rollLog: [],
+    role: 'gm'
+  });
+
+  assert.equal(model.tokens.find((token) => token.id === 'zero-hp-character')?.statuses?.includes(ActorStatus.Defeated), true);
+  assert.equal(model.tokens.find((token) => token.id === 'defeated-adversary')?.statuses?.includes(ActorStatus.Defeated), true);
+  assert.deepEqual(model.adversaries[adversary.id]?.conditions.map((condition) => condition.name), [ActorStatus.Defeated, ActorStatus.Restrained]);
 });
 
 test('removing a token from scene does not delete actor state', () => {

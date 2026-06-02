@@ -393,7 +393,7 @@ function buildDeathMoveFeedItem(entry: Extract<FeedEntry, { type: 'deathMove' }>
     createdAt: entry.createdAt,
     authorName: entry.authorName,
     kicker: deathMoveStatusLabel(entry.deathMove.status),
-    title: 'Ход смерти',
+    title: 'Предсмертный ход',
     body: entry.body,
     tone: entry.deathMove.status === 'resolved'
       ? (entry.deathMove.roll?.outcome === 'fear' || entry.deathMove.retirement ? 'danger' : 'hope')
@@ -571,10 +571,10 @@ function teamworkStatusLabel(status: TeamworkRollRequest['status']): string {
 }
 
 function deathMoveStatusLabel(status: DeathMoveFeedRequest['status']): string {
-  if (status === 'resolved') return 'Ход смерти завершён';
-  if (status === 'cancelled') return 'Ход смерти отменён';
+  if (status === 'resolved') return 'Предсмертный ход завершён';
+  if (status === 'cancelled') return 'Предсмертный ход отменён';
   if (status === 'allocating') return 'Распределение восстановления';
-  return 'Ход смерти';
+  return 'Предсмертный ход';
 }
 
 function isCardEvent(entry: Extract<RollLogEntry, { type: 'manual' }>): boolean {

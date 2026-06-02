@@ -6,6 +6,7 @@ import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from 
 import { isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
 import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterRetirementState, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId } from '../rules/types';
 import { RANGE_LABELS, TRAIT_LABELS, classLabel, domainLabel } from '../rules/constants';
+import { normalizeStatusTag } from '../rules/statuses';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
 import { canViewFeedEntry, latestVisibleRollLogEntry } from './rollPublication';
 import { defaultCharacterPortraitUrl, defaultSceneImageUrl } from './defaultArt';
@@ -26,6 +27,7 @@ export interface PlayerViewToken {
   aura?: string;
   hidden?: boolean;
   visibility?: 'public' | 'gm';
+  statuses?: string[];
 }
 
 export interface PlayerViewCharacterSummary {
@@ -73,7 +75,7 @@ export interface PlayerViewAdversarySummary {
   standardAttack: { name: string; range: string; damage: string; damageType: string };
   experiences: Array<{ id: string; name: string; modifier: number }>;
   features: Array<{ id: string; name: string; kind: string; cost: string; text: string }>;
-  isDefeated: boolean;
+  conditions: Array<{ id: string; name: string; notes: string }>;
   notes: string;
 }
 
@@ -244,6 +246,7 @@ export function buildPlayerTokens(tokens: TokenState[], characters: Record<strin
     if (token.actor.kind === 'character') {
       const character = characters[token.actor.id];
       if (!character) return;
+      const conditions = statusConditions(character.conditions);
       visibleTokens.push({
         id: token.id,
         actorId: character.id,
@@ -258,13 +261,15 @@ export function buildPlayerTokens(tokens: TokenState[], characters: Record<strin
         tint: token.tint,
         aura: token.aura,
         hidden: token.hidden,
-        visibility: token.ownership.visibility
+        visibility: token.ownership.visibility,
+        statuses: conditions.map((condition) => condition.name)
       });
       return;
     }
     if (token.actor.kind === 'adversary') {
       const adversary = encounter.adversaries[token.actor.id];
       if (!adversary) return;
+      const conditions = statusConditions(adversary.conditions ?? []);
       visibleTokens.push({
         id: token.id,
         actorId: adversary.id,
@@ -279,7 +284,8 @@ export function buildPlayerTokens(tokens: TokenState[], characters: Record<strin
         tint: token.tint,
         aura: token.aura,
         hidden: token.hidden,
-        visibility: token.ownership.visibility
+        visibility: token.ownership.visibility,
+        statuses: conditions.map((condition) => condition.name)
       });
       return;
     }
@@ -432,7 +438,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       ...item,
       uses: item.uses ? { ...item.uses } : undefined
     })),
-    conditions: character.conditions.map((condition) => ({
+    conditions: statusConditions(character.conditions).map((condition) => ({
       id: condition.id,
       name: condition.name,
       notes: condition.notes ?? ''
@@ -452,6 +458,7 @@ function characterSheetCardSubtitle(card: Pick<Character['sheetCards'][number], 
 }
 
 export function buildAdversarySummary(adversary: Adversary): PlayerViewAdversarySummary {
+  const conditions = statusConditions(adversary.conditions ?? []);
   return {
     id: adversary.id,
     name: adversary.name,
@@ -482,9 +489,19 @@ export function buildAdversarySummary(adversary: Adversary): PlayerViewAdversary
       cost: feature.cost?.trim() ?? '',
       text: cleanAdversaryRulesText(feature.text)
     })),
-    isDefeated: adversary.isDefeated,
+    conditions: conditions.map((condition) => ({
+      id: condition.id,
+      name: condition.name,
+      notes: condition.notes ?? ''
+    })),
     notes: cleanAdversaryRulesText(adversaryDescriptionText(adversary))
   };
+}
+
+function statusConditions(conditions: Array<{ id: string; name: string; notes?: string }>): Array<{ id: string; name: string; notes?: string }> {
+  return conditions
+    .map((condition) => ({ ...condition, name: normalizeStatusTag(condition.name) }))
+    .filter((condition) => condition.name);
 }
 
 function cleanAdversaryRulesText(value: string): string {

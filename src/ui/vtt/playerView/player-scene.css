@@ -213,6 +213,8 @@
 }
 
 .player-token img {
+  position: relative;
+  z-index: 1;
   display: block;
   width: min(100cqw, 100cqh);
   height: min(100cqw, 100cqh);
@@ -222,15 +224,29 @@
 }
 
 .player-token > span {
+  position: relative;
+  z-index: 1;
   color: var(--dh-paper-100);
   font-size: 0.92rem;
   font-weight: 950;
+}
+
+.player-token.dh-is-defeated {
+  border-color: rgba(35, 22, 22, 0.92);
+  box-shadow: 0 0 0 4px rgba(12, 8, 8, 0.6), 0 16px 44px rgba(0, 0, 0, 0.66), inset 0 0 18px rgba(0, 0, 0, 0.24);
+}
+
+.player-token.dh-is-defeated img,
+.player-token.dh-is-defeated > span {
+  opacity: 0.62;
+  filter: grayscale(0.9) brightness(0.5) contrast(1.04);
 }
 
 .player-token footer {
   position: absolute;
   top: calc(100% + 8px);
   left: 50%;
+  z-index: 4;
   min-width: 96px;
   display: grid;
   justify-items: center;

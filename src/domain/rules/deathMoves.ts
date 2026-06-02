@@ -39,7 +39,7 @@ export function retirementForLastHopeScar(notes = 'Шрам занял посл�
   };
 }
 
-export function retirementForDeathMove(notes = 'Ход смерти завершился гибелью.'): CharacterRetirementState {
+export function retirementForDeathMove(notes = 'Предсмертный ход завершился гибелью.'): CharacterRetirementState {
   return {
     reason: 'deathMove',
     notes,

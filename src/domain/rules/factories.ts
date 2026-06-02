@@ -14,6 +14,7 @@ import {
   DEFAULT_TRAITS
 } from './constants';
 import { normalizeRangerCompanion } from './rangerCompanion';
+import { ActorStatus, normalizeStatusTag } from './statuses';
 import type {
   Adversary,
   GameState,
@@ -250,6 +251,8 @@ export function createSheetCard(input?: Partial<CharacterSheetCard>): CharacterS
 
 export function createAdversary(input?: Partial<Adversary>): Adversary {
   const now = nowIso();
+  const hp = input?.hp ?? { marked: 0, max: 4 };
+  const conditions = syncAdversaryDefeatedCondition(input?.conditions ?? [], hp);
   return {
     id: input?.id ?? createId('adv'),
     sourceId: input?.sourceId,
@@ -265,7 +268,7 @@ export function createAdversary(input?: Partial<Adversary>): Adversary {
     difficulty: input?.difficulty ?? 12,
     attackModifier: input?.attackModifier ?? 1,
     thresholds: input?.thresholds ?? { major: 7, severe: 12 },
-    hp: input?.hp ?? { marked: 0, max: 4 },
+    hp,
     stress: input?.stress ?? { marked: 0, max: 3 },
     standardAttack: input?.standardAttack ?? {
       name: 'Обычная атака',
@@ -275,11 +278,19 @@ export function createAdversary(input?: Partial<Adversary>): Adversary {
     },
     experiences: input?.experiences ?? [{ id: createId('advexp'), name: 'Острые чувства', modifier: 2 }],
     features: input?.features ?? [],
-    isDefeated: input?.isDefeated ?? false,
+    conditions,
     notes: input?.notes ?? '',
     createdAt: input?.createdAt ?? now,
     updatedAt: now
   };
+}
+
+function syncAdversaryDefeatedCondition(conditions: Adversary['conditions'], hp: Adversary['hp']): Adversary['conditions'] {
+  const hasDefeated = conditions.some((condition) => normalizeStatusTag(condition.name) === ActorStatus.Defeated);
+  if (hp.max > 0 && hp.marked >= hp.max) {
+    return hasDefeated ? conditions : [{ id: createId('condition'), name: ActorStatus.Defeated }, ...conditions];
+  }
+  return conditions.filter((condition) => normalizeStatusTag(condition.name) !== ActorStatus.Defeated);
 }
 
 export function createCountdown(input?: Partial<Countdown>): Countdown {

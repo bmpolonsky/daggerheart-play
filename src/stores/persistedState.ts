@@ -169,6 +169,7 @@ function normalizeAdversaryState(id: string, adversary: Adversary | undefined): 
     return null;
   }
   const base = createAdversary({ id });
+  const conditions = Array.isArray(adversary.conditions) ? adversary.conditions : base.conditions;
   return {
     ...base,
     ...adversary,
@@ -186,6 +187,7 @@ function normalizeAdversaryState(id: string, adversary: Adversary | undefined): 
     standardAttack: adversary.standardAttack ?? base.standardAttack,
     experiences: Array.isArray(adversary.experiences) ? adversary.experiences : base.experiences,
     features: Array.isArray(adversary.features) ? adversary.features : base.features,
+    conditions,
     notes: typeof adversary.notes === 'string' ? adversary.notes : '',
     createdAt: typeof adversary.createdAt === 'string' ? adversary.createdAt : base.createdAt,
     updatedAt: typeof adversary.updatedAt === 'string' ? adversary.updatedAt : base.updatedAt

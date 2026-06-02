@@ -309,7 +309,7 @@ export interface Adversary {
   standardAttack: AdversaryAttack;
   experiences: AdversaryExperience[];
   features: AdversaryFeature[];
-  isDefeated: boolean;
+  conditions: CharacterCondition[];
   notes: string;
   createdAt: string;
   updatedAt: string;

@@ -9,6 +9,7 @@ import { defaultCharacterPortraitUrl } from "../../../domain/tabletop/defaultArt
 import { scaleWeaponFormulaByProficiency } from "../../../domain/rules/diceFormula";
 import { characterLevelRank } from "../../../domain/rules/levelUp";
 import { companionDamageFormula } from "../../../domain/rules/rangerCompanion";
+import { ACTOR_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import type { DamageType, TraitId } from "../../../domain/rules/types";
 import { gameService, characterService, diceService, feedService, p2pSessionService } from "../../../services/serviceRegistry";
 import { PLAYER_SHEET_SECTIONS } from "./constants";
@@ -17,7 +18,10 @@ import { CharacterSheetDomainCards } from "./CharacterSheetDomainCards";
 import type { PlayerViewDomainCard } from "./domainCards/types";
 import { PlayerRollConfirm } from "./PlayerRollConfirm";
 import { PlayerSheetSectionRail, SheetSection, TrackDots, TrackRow } from "./PlayerSheetControls";
+import { StatusChips } from "./StatusChips";
 import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./types";
+
+const CHARACTER_STATUS_OPTIONS = ACTOR_STATUS_TAGS;
 
 export function CharacterSheet({
   character,
@@ -90,21 +94,21 @@ export function CharacterSheet({
     if (!card) return;
     onDomainCardPreview?.(character, card);
   };
-  const setHpSlots = (next: number) => {
-    const wasWaitingForDeathMove = character.deathMove?.status === 'pending';
-    characterService.markSlots(character.id, 'hp', next - character.hp.marked);
-    const updated = characterService.getCharacter(character.id);
-    const connectedPlayer = role === 'player' && p2pSessionService.isConnectedPlayerSession();
-    if (!connectedPlayer && !wasWaitingForDeathMove && updated?.deathMove?.status === 'pending') {
-      feedService.requestDeathMove({
-        actor: {
-          actorId: character.id,
-          actorName: character.name,
-          actorType: 'character'
-        },
-        publication: 'public'
-      });
+  const setHpSlots = (next: number) => characterService.markSlots(character.id, 'hp', next - character.hp.marked);
+  const addStatus = (name: string) => {
+    if (normalizeStatusTag(name) === ActorStatus.Defeated) {
+      setHpSlots(character.hp.max);
+      return;
     }
+    characterService.addCondition(character.id, name);
+  };
+  const removeStatus = (conditionId: string) => {
+    const condition = character.conditions.find((item) => item.id === conditionId);
+    if (condition && normalizeStatusTag(condition.name) === ActorStatus.Defeated) {
+      setHpSlots(Math.max(0, character.hp.max - 1));
+      return;
+    }
+    characterService.removeCondition(character.id, conditionId);
   };
   return (
     <div className="player-character-panel-shell">
@@ -225,7 +229,7 @@ export function CharacterSheet({
           )}
           {character.retirement && (
             <p className="player-character-panel__retirement">
-              Персонаж готов к завершению: {character.retirement.reason === 'deathMove' ? 'ход смерти' : 'последний слот Надежды'}
+              Персонаж готов к завершению: {character.retirement.reason === 'deathMove' ? 'предсмертный ход' : 'последний слот Надежды'}
             </p>
           )}
         </section>
@@ -388,6 +392,17 @@ export function CharacterSheet({
             )}
           </section>
         )}
+        <section className="player-sheet-status-block">
+          <header>
+            <span>Статус</span>
+          </header>
+          <StatusChips
+            conditions={character.conditions}
+            options={CHARACTER_STATUS_OPTIONS}
+            onAdd={addStatus}
+            onRemove={removeStatus}
+          />
+        </section>
         </SheetSection>
       <SheetSection id="player-sheet-traits" title="Характеристики и опыт">
         <section className="player-trait-grid">
@@ -402,12 +417,6 @@ export function CharacterSheet({
           <article className="player-sheet-row player-sheet-row--compact" key={experience.id}>
             <strong>{experience.name}</strong>
             <b>{signed(experience.modifier)}</b>
-          </article>
-        ))}
-        {character.conditions.map((condition) => (
-          <article className="player-sheet-row player-sheet-row--compact" key={condition.id}>
-            <strong>{condition.name}</strong>
-            <span>{condition.notes || 'Состояние'}</span>
           </article>
         ))}
       </SheetSection>

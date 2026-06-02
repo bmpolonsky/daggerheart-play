@@ -1,7 +1,7 @@
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
 import { hasStringFields, isRecord } from '../core/utils/guards';
-import type { Character, DamageType, DeathMoveChoice, DiceVisualTone, FeedEntry, PersistedState, RollPublication, TraitId } from '../domain/rules/types';
+import type { Character, CharacterCondition, DamageType, DeathMoveChoice, DiceVisualTone, FeedEntry, PersistedState, RollPublication, TraitId } from '../domain/rules/types';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableParticipant } from '../domain/tabletop/types';
 import { hydratePersistedState, isPersistedState, normalizePersistedState, snapshotPersistedState } from '../stores/persistedState';
 import { isPlayerActivationQueueMessage, type PlayerActivationQueueMessage } from './PlayerActivationQueueService';
@@ -45,6 +45,7 @@ export interface PlayerCharacterResourcePatch {
   armor?: { markedSlots: number };
   domainCards?: Array<{ id: string; tokens?: { value: number } }>;
   companion?: { stress?: { marked: number } };
+  conditions?: CharacterCondition[];
 }
 
 export interface PlayerCharacterResourcesMessage {
@@ -501,8 +502,19 @@ function isPlayerCharacterResourcePatch(value: unknown): value is PlayerCharacte
     isOptionalNumberRecord(value.stress, ['marked']) &&
     isOptionalNumberRecord(value.armor, ['markedSlots']) &&
     isOptionalDomainCardResourceList(value.domainCards) &&
-    isOptionalCompanionResourcePatch(value.companion)
+    isOptionalCompanionResourcePatch(value.companion) &&
+    isOptionalConditionList(value.conditions)
   );
+}
+
+function isOptionalConditionList(value: unknown): boolean {
+  if (value === undefined) return true;
+  return Array.isArray(value) && value.every((condition) => (
+    isRecord(condition) &&
+    typeof condition.id === 'string' &&
+    typeof condition.name === 'string' &&
+    (condition.notes === undefined || typeof condition.notes === 'string')
+  ));
 }
 
 function isOptionalCompanionResourcePatch(value: unknown): boolean {

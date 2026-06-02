@@ -5,6 +5,7 @@ import { buildTableFeedFromEntries } from "../../src/domain/tabletop/feed";
 import { resetAllStores, feedStore } from "../../src/stores/gameStores";
 import { gameService, characterService, feedService, tabletopService } from "../../src/services/serviceRegistry";
 import { LocalSyncTransport, SyncService } from "../../src/services/SyncService";
+import { ActorStatus } from "../../src/domain/rules/statuses";
 
 test('SRD rest fear helper uses short and long rest formulas', () => {
   const shortRest = rollRestFear('short', 4, () => 0.99);
@@ -27,7 +28,7 @@ test('tabletop rest flow grants Fear and explicit long rest recovery clears grou
     hp: { marked: 2, max: 6 },
     stress: { marked: 3, max: 6 },
     armor: { name: 'Chain', baseMajor: 6, baseSevere: 12, score: 3, markedSlots: 2 },
-    conditions: [{ id: 'condition-vulnerable', name: 'Уязвим' }]
+    conditions: [{ id: 'condition-vulnerable', name: ActorStatus.Vulnerable }]
   });
   const second = characterService.createCharacter({
     name: 'Rested Two',
@@ -49,7 +50,7 @@ test('tabletop rest flow grants Fear and explicit long rest recovery clears grou
   assert.equal(updatedFirst?.hp.marked, 0);
   assert.equal(updatedFirst?.stress.marked, 0);
   assert.equal(updatedFirst?.armor.markedSlots, 0);
-  assert.equal(updatedFirst?.conditions.some((condition) => condition.name === 'Уязвим'), false);
+  assert.equal(updatedFirst?.conditions.some((condition) => condition.name === ActorStatus.Vulnerable), false);
   assert.equal(updatedSecond?.hp.marked, 0);
   assert.equal(updatedSecond?.stress.marked, 0);
   assert.equal(updatedSecond?.armor.markedSlots, 0);

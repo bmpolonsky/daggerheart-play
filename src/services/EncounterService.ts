@@ -3,6 +3,8 @@ import { nowIso } from '../core/utils/date';
 import { removeFromRecord, replaceInRecord } from '../core/utils/object';
 import { createAdversary, createCountdown, createEncounterEnvironment } from '../domain/rules/factories';
 import { buildCoreAdversariesFromCombatBuilder, isCombatBuilderEncounterSnapshot, type CombatBuilderEncounterSnapshot } from '../domain/combatBuilderBridge/index';
+import { ensureCharacterCondition, removeCharacterConditionByName } from '../domain/rules/characterDamage';
+import { ActorStatus } from '../domain/rules/statuses';
 import type { Adversary, AdversaryExperience, AdversaryFeature, Countdown, EncounterEnvironment, EncounterState } from '../domain/rules/types';
 import { gameStore, encounterStore } from '../stores/gameStores';
 
@@ -144,13 +146,14 @@ export class EncounterService {
     this.patchAdversary(id, (adversary) => {
       const track = adversary[resource];
       const max = clamp(toSafeInteger(patch.max ?? track.max, track.max), 0, 99);
+      const marked = clamp(toSafeInteger(patch.marked ?? track.marked, track.marked), 0, max);
       return {
         ...adversary,
         [resource]: {
           max,
-          marked: clamp(toSafeInteger(patch.marked ?? track.marked, track.marked), 0, max)
+          marked
         },
-        isDefeated: resource === 'hp' ? clamp(toSafeInteger(patch.marked ?? track.marked, track.marked), 0, max) >= max : adversary.isDefeated
+        conditions: resource === 'hp' ? syncDefeatedCondition(adversary.conditions ?? [], marked, max) : adversary.conditions
       };
     });
   }
@@ -162,9 +165,23 @@ export class EncounterService {
       return {
         ...adversary,
         [resource]: { ...track, marked },
-        isDefeated: resource === 'hp' ? marked >= track.max : adversary.isDefeated
+        conditions: resource === 'hp' ? syncDefeatedCondition(adversary.conditions ?? [], marked, track.max) : adversary.conditions
       };
     });
+  }
+
+  addCondition(id: string, name: string = ActorStatus.Vulnerable): void {
+    this.patchAdversary(id, (adversary) => ({
+      ...adversary,
+      conditions: ensureCharacterCondition(adversary.conditions ?? [], name)
+    }));
+  }
+
+  removeCondition(id: string, conditionId: string): void {
+    this.patchAdversary(id, (adversary) => ({
+      ...adversary,
+      conditions: (adversary.conditions ?? []).filter((condition) => condition.id !== conditionId)
+    }));
   }
 
   addExperience(id: string, input?: Partial<AdversaryExperience>): void {
@@ -298,6 +315,12 @@ export class EncounterService {
       };
     });
   }
+}
+
+function syncDefeatedCondition(conditions: Adversary['conditions'], marked: number, max: number): Adversary['conditions'] {
+  return max > 0 && marked >= max
+    ? ensureCharacterCondition(conditions, ActorStatus.Defeated)
+    : removeCharacterConditionByName(conditions, ActorStatus.Defeated);
 }
 
 function normalizeCountdownPatch(countdown: Countdown, patch: Partial<Countdown>): Countdown {

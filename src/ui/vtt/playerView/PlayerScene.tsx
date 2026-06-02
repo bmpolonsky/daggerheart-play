@@ -9,6 +9,7 @@ import { PlayerMeasureLayer } from './PlayerMeasureLayer';
 import { PlayerDiceOverlay } from './PlayerDiceOverlay';
 import type { PlayerViewedActor, TableViewRole } from './types';
 import type { RollLogEntry } from '../../../domain/rules/types';
+import { ActorStatus, normalizeStatusTag, statusLabel } from '../../../domain/rules/statuses';
 
 export function PlayerScene({
   latestRoll,
@@ -64,13 +65,17 @@ export function PlayerScene({
         <PlayerDiceOverlay latestRoll={latestRoll} onRollComplete={onRollComplete} />
         {model.tokens.map((token) => {
           const canControlToken = role === 'gm' || playerTokenIds.includes(token.id);
+          const defeatedLabel = statusLabel(ActorStatus.Defeated);
+          const hasDefeatedStatus = token.statuses?.some((status) => normalizeStatusTag(status) === ActorStatus.Defeated) ?? false;
+          const tokenTitle = hasDefeatedStatus ? `${token.name}: ${defeatedLabel.toLowerCase()}` : token.name;
           return (
             <button
+              aria-label={tokenTitle}
               aria-pressed={canControlToken ? token.id === selectedPlayerTokenId : undefined}
-              className={`player-token player-token--${token.kind} ${canControlToken ? 'dh-is-player-origin' : ''} ${token.id === selectedPlayerTokenId ? 'dh-is-selected' : ''} ${token.hidden ? 'dh-is-hidden' : ''} ${token.visibility === 'gm' ? 'dh-is-gm-only' : ''}`}
+              className={`player-token player-token--${token.kind} ${canControlToken ? 'dh-is-player-origin' : ''} ${token.id === selectedPlayerTokenId ? 'dh-is-selected' : ''} ${token.hidden ? 'dh-is-hidden' : ''} ${token.visibility === 'gm' ? 'dh-is-gm-only' : ''} ${hasDefeatedStatus ? 'dh-is-defeated' : ''}`}
               key={token.id}
               tabIndex={canControlToken ? 0 : -1}
-              title={canControlToken ? 'Выбранный токен' : token.name}
+              title={tokenTitle}
               type="button"
               onClick={(event) => {
                 if (suppressClickTokenIdRef.current === token.id) {
@@ -144,7 +149,7 @@ export function PlayerScene({
               {token.imageUrl ? <img src={cssImageUrl(token.imageUrl)} alt="" draggable={false} onDragStart={(event) => event.preventDefault()} /> : <span>{initials(token.name)}</span>}
               <footer className={token.subtitle ? '' : 'player-token__label--compact'}>
                 <strong>{token.name}</strong>
-                {token.subtitle && <small>{token.subtitle}</small>}
+                {hasDefeatedStatus ? <small>{defeatedLabel}</small> : token.subtitle && <small>{token.subtitle}</small>}
               </footer>
             </button>
           );

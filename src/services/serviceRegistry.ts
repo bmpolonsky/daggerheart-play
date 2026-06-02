@@ -35,6 +35,22 @@ export const sceneTableService = new SceneTableService();
 export const sceneAudioBroadcastService = new SceneAudioBroadcastService();
 export const syncService = new SyncService();
 export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService);
+characterService.setDeathMoveRequestHandler((character, transition) => {
+  if (p2pSessionService.isConnectedPlayerSession()) return;
+  if (transition === 'defeatedRemoved') {
+    feedService.cancelOpenDeathMoves(character.id);
+    return;
+  }
+  feedService.requestDeathMove({
+    actor: {
+      actorId: character.id,
+      actorName: character.name,
+      actorType: 'character'
+    },
+    publication: 'public',
+    dedupe: false
+  });
+});
 export const tabletopService = new TabletopService({
   gameService,
   characterService,

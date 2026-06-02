@@ -2,6 +2,7 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import { buildPresentedHandoutOverlay, selectPresentedHandout } from "../../src/domain/rules/handouts";
 import { createGameHandout, createGameState, createInventoryItem } from "../../src/domain/rules/factories";
+import { ActorStatus } from "../../src/domain/rules/statuses";
 import { buildPlayerViewModel } from "../../src/domain/tabletop/playerView";
 import { defaultCharacterPortraitUrl, defaultSceneImageUrl } from "../../src/domain/tabletop/defaultArt";
 import { createTableScene, createTokenState } from "../../src/domain/tabletop/factories";
@@ -130,7 +131,7 @@ test('player view model exposes only public live scene state', () => {
       { id: 'sheet-note-background', kind: 'note', name: 'Background', text: 'Private sheet note.' }
     ],
     inventory: [createInventoryItem({ name: 'Lantern' }), createInventoryItem({ name: 'Rope' })],
-    conditions: [{ id: 'condition-hidden', name: 'Hidden', notes: 'Hard to spot.' }]
+    conditions: [{ id: 'condition-hidden', name: ActorStatus.Hidden, notes: 'Hard to spot.' }]
   });
   sceneTableService.assignLocalPlayerCharacter(assigned.id);
   assert.deepEqual(sceneTableStore.getSnapshot().participants['local-player']?.actorIds, [assigned.id]);
@@ -164,7 +165,7 @@ test('player view model exposes only public live scene state', () => {
   assert.deepEqual(assignedModel.character?.features.map((feature) => feature.name), ['Ribbet Leap', 'Companion', 'Advanced Companion', 'Master Companion']);
   assert.deepEqual(assignedModel.character?.features.map((feature) => feature.subtitle), ['Ancestry', 'Основа', 'Специализация', 'Мастерство']);
   assert.deepEqual(assignedModel.character?.inventory.map((item) => item.name), ['Lantern', 'Rope']);
-  assert.deepEqual(assignedModel.character?.conditions.map((condition) => condition.name), ['Hidden']);
+  assert.deepEqual(assignedModel.character?.conditions.map((condition) => condition.name), [ActorStatus.Hidden]);
 });
 
 test('mini dice launcher mode follows role and selected actor', () => {

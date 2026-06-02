@@ -25,6 +25,7 @@ import { createCharacter, createDomainCard, createExperience, createInventoryIte
 import type { CharacterAdvancementChoiceId } from '../domain/rules/levelUp';
 import { createDefaultRangerCompanion, normalizeRangerCompanion } from '../domain/rules/rangerCompanion';
 import type { LongRestRecoveryMove } from '../domain/rules/rest';
+import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
 import { starterDomainCardsFromLibrary } from '../domain/characterBuilder/index';
 import type { GenericLibraryItem, LibraryBeastform, LibraryEquipmentItem } from '../domain/content/types';
 import type {
@@ -46,6 +47,9 @@ import type {
 import { charactersStore } from '../stores/gameStores';
 
 const MAX_ARMOR_SCORE = 12;
+
+export type DeathMoveStatusTransition = 'defeatedAdded' | 'defeatedRemoved';
+export type DeathMoveRequestHandler = (character: Pick<Character, 'id' | 'name'>, transition: DeathMoveStatusTransition) => void;
 
 export interface EquipmentApplicationResult {
   characterId: string;
@@ -71,6 +75,11 @@ export interface CharacterLevelUpInput {
 
 export class CharacterService {
   readonly charactersStore = charactersStore;
+  private deathMoveRequestHandler: DeathMoveRequestHandler | null = null;
+
+  setDeathMoveRequestHandler(handler: DeathMoveRequestHandler | null): void {
+    this.deathMoveRequestHandler = handler;
+  }
 
   createCharacter(input?: Partial<Character> & { className?: DaggerheartClass }): Character {
     const character = createCharacter(input);
@@ -265,7 +274,7 @@ export class CharacterService {
 
   updateResourceMax(id: string, resource: 'hp' | 'stress' | 'hope', max: number): void {
     const safeMax = clamp(toSafeInteger(max, 1), 0, resource === 'hope' ? DEFAULT_MAX_HOPE : 12);
-    this.patchCharacter(id, (character) => {
+    const patch = this.patchCharacter(id, (character) => {
       if (resource === 'hope') {
         const nextCharacter = { ...character, hope: { ...character.hope, max: safeMax } };
         return {
@@ -276,26 +285,39 @@ export class CharacterService {
           }
         };
       }
-      return {
+      const nextCharacter = {
         ...character,
         [resource]: {
           marked: Math.min(character[resource].marked, safeMax),
           max: safeMax
         }
       };
+      if (resource === 'hp') {
+        return syncCharacterDeathMoveState(nextCharacter);
+      }
+      const effective = buildEffectiveCharacterStats(nextCharacter);
+      return {
+        ...nextCharacter,
+        conditions: safeMax > 0 && nextCharacter.stress.marked >= effective.stress.max
+          ? ensureCharacterCondition(nextCharacter.conditions, ActorStatus.Vulnerable)
+          : removeCharacterConditionByName(nextCharacter.conditions, ActorStatus.Vulnerable)
+      };
     });
+    if (resource === 'hp') {
+      this.requestDeathMoveOnDefeatedTransition(patch);
+    }
   }
 
   markSlots(id: string, resource: 'hp' | 'stress', delta: number): void {
-    this.patchCharacter(id, (character) => {
+    const patch = this.patchCharacter(id, (character) => {
       const track = character[resource];
       const effective = buildEffectiveCharacterStats(character);
       const effectiveMax = effective[resource].max;
       const marked = clamp(track.marked + delta, 0, effectiveMax);
       const nextConditions = resource === 'stress'
-        ? (effectiveMax > 0 && marked >= effectiveMax ? ensureCharacterCondition(character.conditions, 'Уязвим') : removeCharacterConditionByName(character.conditions, 'Уязвим'))
+        ? (effectiveMax > 0 && marked >= effectiveMax ? ensureCharacterCondition(character.conditions, ActorStatus.Vulnerable) : removeCharacterConditionByName(character.conditions, ActorStatus.Vulnerable))
         : (delta < 0 && character.hp.marked > marked
-          ? removeCharacterConditionByName(character.conditions, 'Пал')
+          ? removeCharacterConditionByName(character.conditions, ActorStatus.Defeated)
           : character.conditions);
       const updated = {
         ...character,
@@ -305,6 +327,9 @@ export class CharacterService {
       };
       return resource === 'hp' ? syncCharacterDeathMoveState(updated) : updated;
     });
+    if (resource === 'hp') {
+      this.requestDeathMoveOnDefeatedTransition(patch);
+    }
   }
 
   markStress(id: string, amount = 1): void {
@@ -664,7 +689,7 @@ export class CharacterService {
     }));
   }
 
-  addCondition(id: string, name = 'Condition'): void {
+  addCondition(id: string, name: string = ActorStatus.Vulnerable): void {
     this.patchCharacter(id, (character) => ({
       ...character,
       conditions: ensureCharacterCondition(character.conditions, name)
@@ -683,7 +708,7 @@ export class CharacterService {
     this.patchCharacter(id, (character) => ({
       ...character,
       deathMove: createDeathMoveState(status, notes),
-      conditions: removeCharacterConditionByName(character.conditions, 'Ход смерти')
+      conditions: character.conditions
     }));
     return true;
   }
@@ -708,7 +733,7 @@ export class CharacterService {
           roll,
           updatedAt: nowIso()
         },
-        conditions: removeCharacterConditionByName(current.conditions, 'Ход смерти')
+        conditions: current.conditions
       });
       return {
         ...withScar,
@@ -732,14 +757,14 @@ export class CharacterService {
           roll,
           updatedAt: nowIso()
         },
-        conditions: removeCharacterConditionByName(current.conditions, 'Ход смерти')
+        conditions: current.conditions
       };
       if (roll.outcome === 'critical') {
         return {
           ...base,
           hp: { ...base.hp, marked: 0 },
           stress: { ...base.stress, marked: 0 },
-          conditions: removeCharacterConditionByName(removeCharacterConditionByName(base.conditions, 'Пал'), 'Уязвим')
+          conditions: removeCharacterConditionByName(removeCharacterConditionByName(base.conditions, ActorStatus.Defeated), ActorStatus.Vulnerable)
         };
       }
       if (roll.outcome === 'fear') {
@@ -768,10 +793,10 @@ export class CharacterService {
       const effective = buildEffectiveCharacterStats({ ...current, hp: { ...current.hp, marked: hpMarked }, stress: { ...current.stress, marked: stressMarked } });
       let conditions = current.conditions;
       if (hpMarked < effective.hp.max) {
-        conditions = removeCharacterConditionByName(conditions, 'Пал');
+        conditions = removeCharacterConditionByName(conditions, ActorStatus.Defeated);
       }
       if (stressMarked < effective.stress.max) {
-        conditions = removeCharacterConditionByName(conditions, 'Уязвим');
+        conditions = removeCharacterConditionByName(conditions, ActorStatus.Vulnerable);
       }
       return {
         ...current,
@@ -837,20 +862,39 @@ export class CharacterService {
     return this.getCharacter(charactersStore.getSnapshot().selectedId);
   }
 
-  private patchCharacter(id: string, updater: (character: Character) => Character): void {
+  private patchCharacter(id: string, updater: (character: Character) => Character): { previous: Character; current: Character } | null {
+    let patched: { previous: Character; current: Character } | null = null;
     charactersStore.update((state: CharactersState) => {
       const current = state.entities[id];
       if (!current) {
         return state;
       }
       const updated = { ...updater(current), updatedAt: nowIso() };
+      patched = { previous: current, current: updated };
       return {
         ...state,
         entities: replaceInRecord(state.entities, updated),
         updatedAt: nowIso()
       };
     });
+    return patched;
   }
+
+  private requestDeathMoveOnDefeatedTransition(patch: { previous: Character; current: Character } | null): void {
+    if (!patch) return;
+    const hadDefeated = hasConditionTag(patch.previous, ActorStatus.Defeated);
+    const hasDefeated = hasConditionTag(patch.current, ActorStatus.Defeated);
+    if (!hadDefeated && hasDefeated) {
+      this.deathMoveRequestHandler?.({ id: patch.current.id, name: patch.current.name }, 'defeatedAdded');
+    }
+    if (hadDefeated && !hasDefeated) {
+      this.deathMoveRequestHandler?.({ id: patch.current.id, name: patch.current.name }, 'defeatedRemoved');
+    }
+  }
+}
+
+function hasConditionTag(character: Pick<Character, 'conditions'>, tag: ActorStatus): boolean {
+  return character.conditions.some((condition) => normalizeStatusTag(condition.name) === tag);
 }
 
 function recoverLongRestCharacter(character: Character, move: LongRestRecoveryMove): Character {
@@ -869,12 +913,12 @@ function recoverLongRestCharacter(character: Character, move: LongRestRecoveryMo
     return {
       ...character,
       hp: { ...character.hp, marked: 0 },
-      conditions: removeCharacterConditionByName(character.conditions, 'Пал'),
+      conditions: removeCharacterConditionByName(character.conditions, ActorStatus.Defeated),
       companion
     };
   }
   if (move === 'clearStress') {
-    const conditions = removeCharacterConditionByName(character.conditions, 'Уязвим');
+    const conditions = removeCharacterConditionByName(character.conditions, ActorStatus.Vulnerable);
     if (character.stress.marked <= 0 && conditions.length === character.conditions.length && companion === character.companion) return character;
     return { ...character, stress: { ...character.stress, marked: 0 }, conditions, companion };
   }

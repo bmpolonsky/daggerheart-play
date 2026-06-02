@@ -8,10 +8,10 @@ import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
 
 const DEATH_MOVE_STATUS_LABELS: Record<string, string> = {
-  pending: 'Выберите ход смерти',
+  pending: 'Выберите предсмертный ход',
   allocating: 'Распределите восстановление',
-  resolved: 'Ход смерти завершён',
-  cancelled: 'Ход смерти отменён'
+  resolved: 'Предсмертный ход завершён',
+  cancelled: 'Предсмертный ход отменён'
 };
 
 export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | null; item: TableFeedItem; role: TableViewRole }) {
@@ -46,7 +46,7 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
 
   const resolveBlazeOfGlory = () => {
     if (!deathMove.actor.actorId) return;
-    characterService.chooseBlazeOfGlory(deathMove.actor.actorId, 'Выбрана славная гибель.');
+    characterService.chooseBlazeOfGlory(deathMove.actor.actorId, 'Выбрана вспышка славы.');
     feedService.updateDeathMove(item.id, { status: 'resolved', choice: 'blazeOfGlory' });
   };
 
@@ -156,14 +156,14 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
           <Skull size={17} />
           <div>
             <strong>{deathMove.actor.actorName}</strong>
-            <span>Ход смерти</span>
+            <span>Предсмертный ход</span>
           </div>
         </div>
         <p className="feed-death-move-card__summary">{deathMoveSummary(deathMove)}</p>
         {(canChoose || canRequestChoice) && deathMove.status === 'pending' && (
           <div className="feed-death-move-card__actions">
             <button type="button" onClick={canRequestChoice ? () => requestChoice('blazeOfGlory') : resolveBlazeOfGlory}>
-              <Flame size={14} /> Славная гибель
+              <Flame size={14} /> Вспышка славы
             </button>
             <button type="button" onClick={canRequestChoice ? () => requestChoice('avoidDeath') : resolveAvoidDeath}>
               <HeartPulse size={14} /> Избежать смерти
@@ -227,17 +227,17 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
 }
 
 function deathMoveChoiceLabel(choice: NonNullable<NonNullable<TableFeedItem['deathMove']>['choice']>): string {
-  if (choice === 'blazeOfGlory') return 'Славная гибель';
+  if (choice === 'blazeOfGlory') return 'Вспышка славы';
   if (choice === 'avoidDeath') return 'Избежать смерти';
   return 'Рискнуть всем';
 }
 
 function deathMoveSummary(deathMove: NonNullable<TableFeedItem['deathMove']>): string {
-  if (!deathMove.roll) return 'Выберите славную гибель, попытку избежать смерти или рискнуть всем.';
+  if (!deathMove.roll) return 'Выберите вспышку славы, попытку избежать смерти или рискнуть всем.';
   if (deathMove.roll.kind === 'avoidDeathHope') {
     return `Избежать смерти: кость Надежды ${deathMove.roll.hopeDie}${deathMove.roll.scarGained ? ', получен шрам.' : '.'}`;
   }
   if (deathMove.roll.outcome === 'critical') return 'Рискнуть всем: критическая Надежда, очищены раны и стресс.';
-  if (deathMove.roll.outcome === 'fear') return `Рискнуть всем: Страх ${deathMove.roll.fearDie}, персонаж погибает.`;
+  if (deathMove.roll.outcome === 'fear') return `Рискнуть всем: Страх ${deathMove.roll.fearDie}, персонаж пересекает завесу смерти.`;
   return `Рискнуть всем: Надежда ${deathMove.roll.hopeDie}, Страх ${deathMove.roll.fearDie}.`;
 }

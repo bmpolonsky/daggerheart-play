@@ -138,20 +138,7 @@ function applySourceResourceMacro(
     return true;
   }
   if (macro.kind === 'markHp') {
-    const wasWaitingForDeathMove = characterService.getCharacter(character.id)?.deathMove?.status === 'pending';
     characterService.markSlots(character.id, 'hp', macro.amount);
-    const updated = characterService.getCharacter(character.id);
-    const connectedPlayer = role === 'player' && p2pSessionService.isConnectedPlayerSession();
-    if (!connectedPlayer && !wasWaitingForDeathMove && updated?.deathMove?.status === 'pending') {
-      feedService.requestDeathMove({
-        actor: {
-          actorId: character.id,
-          actorName: character.name,
-          actorType: 'character'
-        },
-        publication: 'public'
-      });
-    }
     return true;
   }
   if (macro.kind === 'spendToken') {

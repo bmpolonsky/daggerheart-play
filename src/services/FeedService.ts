@@ -56,6 +56,7 @@ interface RequestDeathMoveOptions extends FeedEntryOptions {
   id?: string;
   actor: FeedActorReference;
   status?: DeathMoveFeedStatus;
+  dedupe?: boolean;
 }
 
 interface UpdateDeathMoveInput {
@@ -415,8 +416,10 @@ export class FeedService {
   }
 
   requestDeathMove(options: RequestDeathMoveOptions): DeathMoveFeedEntry {
-    const existing = this.findOpenDeathMove(options.actor.actorId);
-    if (existing) return existing;
+    if (options.dedupe !== false) {
+      const existing = this.findOpenDeathMove(options.actor.actorId);
+      if (existing) return existing;
+    }
     const publication = normalizeRollPublication(options.publication ?? 'public', options.visibility);
     const createdAt = nowIso();
     const entry: DeathMoveFeedEntry = {
@@ -426,8 +429,8 @@ export class FeedService {
       visibility: legacyVisibilityForPublication(publication),
       publication,
       authorName: options.actor.actorName || 'Персонаж',
-      title: options.title?.trim() || 'Ход смерти',
-      body: 'Выберите исход хода смерти на карточке.',
+      title: options.title?.trim() || 'Предсмертный ход',
+      body: 'Выберите исход предсмертного хода на карточке.',
       deathMove: {
         id: options.id ?? createId('death-move'),
         status: options.status ?? 'pending',
@@ -437,6 +440,32 @@ export class FeedService {
     };
     this.append(entry);
     return entry;
+  }
+
+  cancelOpenDeathMoves(actorId: string | undefined): number {
+    if (!actorId) return 0;
+    let changed = 0;
+    const resolvedAt = nowIso();
+    feedStore.update((feed) => feed.map((entry) => {
+      if (
+        entry.type !== 'deathMove' ||
+        entry.deathMove.actor.actorId !== actorId ||
+        entry.deathMove.status === 'resolved' ||
+        entry.deathMove.status === 'cancelled'
+      ) {
+        return entry;
+      }
+      changed += 1;
+      return {
+        ...entry,
+        deathMove: {
+          ...entry.deathMove,
+          status: 'cancelled',
+          resolvedAt
+        }
+      };
+    }));
+    return changed;
   }
 
   updateDeathMove(deathMoveEntryId: string, input: UpdateDeathMoveInput, options: { actorId?: string } = {}): DeathMoveFeedEntry | null {

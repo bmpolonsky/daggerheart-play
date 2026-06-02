@@ -3,17 +3,36 @@ import { useState } from "preact/hooks";
 import { ChevronLeft, Heart, Zap } from "lucide-react";
 import type { PlayerViewAdversarySummary } from "../../../domain/tabletop/playerView";
 import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
+import { ACTOR_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import type { DamageType } from "../../../domain/rules/types";
 import { diceService, encounterService, feedService, gameService } from "../../../services/serviceRegistry";
 import { compactDamageTypeLabel, signed } from "./helpers";
 import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
 import { SheetFeatureSection, SheetHero, SheetLeadBlock, type SheetFeatureView } from "./SheetContent";
+import { StatusChips } from "./StatusChips";
+
+const ADVERSARY_STATUS_OPTIONS = ACTOR_STATUS_TAGS;
 
 export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdversarySummary; onBack: () => void }) {
   const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
   const runFeatureMacro = (feature: SheetFeatureView, macro: DomainCardTextMacro) => {
     runAdversaryFeatureMacro(adversary, feature, macro);
+  };
+  const addStatus = (name: string) => {
+    if (normalizeStatusTag(name) === ActorStatus.Defeated) {
+      encounterService.updateAdversarySlots(adversary.id, 'hp', { marked: adversary.hp.max });
+      return;
+    }
+    encounterService.addCondition(adversary.id, name);
+  };
+  const removeStatus = (conditionId: string) => {
+    const condition = adversary.conditions.find((item) => item.id === conditionId);
+    if (condition && normalizeStatusTag(condition.name) === ActorStatus.Defeated) {
+      encounterService.updateAdversarySlots(adversary.id, 'hp', { marked: Math.max(0, adversary.hp.max - 1) });
+      return;
+    }
+    encounterService.removeCondition(adversary.id, conditionId);
   };
   return (
     <>
@@ -24,7 +43,7 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
         <SheetHero
           imageUrl={adversary.portraitUrl}
           title={adversary.name}
-          subtitle={`${adversary.subtitle}${adversary.isDefeated ? ' / повержен' : ''}`}
+          subtitle={adversary.subtitle}
         />
         <SheetLeadBlock text={adversary.notes} />
         <SheetSection title="Статус">
@@ -57,6 +76,17 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
               <span>Тяжелый</span>
               <strong>{adversary.thresholds.severe}+</strong>
             </div>
+          </section>
+          <section className="player-sheet-status-block">
+            <header>
+              <span>Статусы</span>
+            </header>
+            <StatusChips
+              conditions={adversary.conditions}
+              options={ADVERSARY_STATUS_OPTIONS}
+              onAdd={addStatus}
+              onRemove={removeStatus}
+            />
           </section>
         </SheetSection>
         <SheetSection title="Атака">

@@ -3,8 +3,10 @@ import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
 import { describeFormulaRoll, parseDiceFormula, rollDie, rollFormula } from '../domain/rules/diceFormula';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
+import { removeCharacterConditionByName } from '../domain/rules/characterDamage';
 import { TRAIT_LABELS } from '../domain/rules/constants';
 import { resolveActionOutcome } from '../domain/rules/rollOutcomes';
+import { ActorStatus } from '../domain/rules/statuses';
 import type {
   ActionRollEntry,
   Character,
@@ -475,7 +477,7 @@ export class DiceService {
             hope: { ...character.hope, value: clamp(character.hope.value + 1, 0, effective.hope.max) },
             stress,
             conditions: isCritical && stress.marked < effective.stress.max
-              ? character.conditions.filter((condition) => condition.name !== 'Уязвим')
+              ? removeCharacterConditionByName(character.conditions, ActorStatus.Vulnerable)
               : character.conditions
           };
         });

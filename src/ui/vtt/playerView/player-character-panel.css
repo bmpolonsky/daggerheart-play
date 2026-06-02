@@ -186,14 +186,19 @@
 }
 
 .player-character-panel__back {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 2;
+  position: sticky;
+  top: 2px;
+  left: 2px;
+  z-index: 5;
+  grid-row: 1;
+  grid-column: 1;
+  align-self: start;
+  justify-self: start;
   width: 30px;
   height: 30px;
   display: grid;
   place-items: center;
+  margin: 2px 0 0 2px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -204,6 +209,11 @@
 
 .player-character-panel__back:hover {
   background: rgba(240, 201, 106, 0.14);
+}
+
+.player-character-panel__back + .player-character-panel__hero {
+  grid-row: 1;
+  grid-column: 1;
 }
 
 .player-roster {
@@ -1611,6 +1621,137 @@
   line-height: 1.35;
 }
 
+.player-sheet-status-block {
+  display: grid;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(7, 9, 12, 0.22);
+}
+
+.player-sheet-status-block > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(240, 201, 106, 0.72);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.player-status-chips {
+  min-width: 0;
+}
+
+.player-status-chips__list {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+}
+
+.player-status-chip {
+  min-width: 0;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 4px 3px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(28, 24, 18, 0.72);
+  color: rgba(255, 247, 231, 0.92);
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.player-status-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-status-chip button,
+.player-status-chips__add-button {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(7, 9, 12, 0.42);
+  color: rgba(255, 247, 231, 0.78);
+}
+
+.player-status-chip button:hover,
+.player-status-chips__add-button:hover,
+.player-status-chips__add-button[aria-expanded="true"] {
+  background: rgba(240, 201, 106, 0.14);
+  color: var(--dh-paper-100);
+}
+
+.player-status-chips__add {
+  display: contents;
+}
+
+.player-status-chips__add-button {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  color: rgba(240, 201, 106, 0.9);
+}
+
+.player-status-chips__menu {
+  position: static;
+  z-index: 12;
+  flex: 1 1 100%;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.player-status-chips__menu button,
+.player-status-chips__menu span {
+  width: auto;
+  min-width: 0;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(7, 9, 12, 0.32);
+  color: rgba(255, 247, 231, 0.88);
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: left;
+}
+
+.player-status-chips__menu button:hover {
+  background: rgba(240, 201, 106, 0.12);
+  color: var(--dh-paper-100);
+}
+
+.player-status-chips__menu span {
+  min-height: 24px;
+  color: var(--dh-paper-muted);
+}
+
 .player-sheet-row {
   display: grid;
   gap: 3px;
@@ -2313,6 +2454,10 @@
     min-height: 132px;
     gap: 12px;
     margin: -14px -14px 0;
+  }
+
+  .player-character-panel__back {
+    margin: -2px 0 0 -2px;
   }
 
   .player-character-panel__hero img,

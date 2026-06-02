@@ -156,7 +156,7 @@ function mapCombatAdversary(adversary: CombatBuilderAdversary, instance: CombatB
     },
     experiences: parseExperiences(adversary.experiences ?? ''),
     features,
-    isDefeated: toNumber(instance.currentHp, 0) >= hpMax,
+    conditions: [],
     notes: ''
   });
 }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createGameState } from "../../src/domain/rules/factories";
 import { resetAllStores } from "../../src/stores/gameStores";
 import { gameService, characterService, diceService } from "../../src/services/serviceRegistry";
+import { ActorStatus } from "../../src/domain/rules/statuses";
 import { firstCharacter } from "./helpers";
 
 test('stress marks Vulnerable on full track and overflows into HP', () => {
@@ -14,12 +15,12 @@ test('stress marks Vulnerable on full track and overflows into HP', () => {
   const updated = characterService.getCharacter(character.id);
   assert.equal(updated?.stress.marked, 2);
   assert.equal(updated?.hp.marked, 1);
-  assert.equal(updated?.conditions.some((condition) => condition.name === 'Уязвим'), true);
+  assert.equal(updated?.conditions.some((condition) => condition.name === ActorStatus.Vulnerable), true);
 
   characterService.clearStress(character.id, 1);
   const cleared = characterService.getCharacter(character.id);
   assert.equal(cleared?.stress.marked, 1);
-  assert.equal(cleared?.conditions.some((condition) => condition.name === 'Уязвим'), false);
+  assert.equal(cleared?.conditions.some((condition) => condition.name === ActorStatus.Vulnerable), false);
 });
 
 test('critical action roll clears stress through the same Vulnerable cleanup path', () => {
@@ -27,7 +28,7 @@ test('critical action roll clears stress through the same Vulnerable cleanup pat
   const character = firstCharacter();
   characterService.updateResourceMax(character.id, 'stress', 2);
   characterService.markStress(character.id, 2);
-  assert.equal(characterService.getCharacter(character.id)?.conditions.some((condition) => condition.name === 'Уязвим'), true);
+  assert.equal(characterService.getCharacter(character.id)?.conditions.some((condition) => condition.name === ActorStatus.Vulnerable), true);
 
   const originalRandom = Math.random;
   Math.random = () => 0;
@@ -40,7 +41,7 @@ test('critical action roll clears stress through the same Vulnerable cleanup pat
 
   const updated = characterService.getCharacter(character.id);
   assert.equal(updated?.stress.marked, 1);
-  assert.equal(updated?.conditions.some((condition) => condition.name === 'Уязвим'), false);
+  assert.equal(updated?.conditions.some((condition) => condition.name === ActorStatus.Vulnerable), false);
 });
 
 test('new campaigns default to manual roll consequences', () => {

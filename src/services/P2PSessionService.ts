@@ -6,8 +6,9 @@ import { buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } fro
 import { createCharacter } from '../domain/rules/factories';
 import { syncCharacterDeathMoveState } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
+import { normalizeStatusTag } from '../domain/rules/statuses';
 import type { SyncTargetPeer, TableParticipant } from '../domain/tabletop/types';
-import type { Character, FeedEntry } from '../domain/rules/types';
+import type { Character, CharacterCondition, FeedEntry } from '../domain/rules/types';
 import { gameStore, charactersStore, resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
 import { hydratePersistedState, snapshotPersistedState } from '../stores/persistedState';
 import type { PlayerActionRequest, SubmitPlayerActionRequestInput } from './PlayerActionRequestService';
@@ -923,13 +924,14 @@ export class P2PSessionService {
           }
           : character.companion ?? null,
         domainCards: nextDomainCards,
+        conditions: resources.conditions ? normalizePlayerConditionList(resources.conditions) : character.conditions,
         updatedAt: message.updatedAt
       });
       applied = playerCharacterResourceSignature(character) !== playerCharacterResourceSignature(updated);
       if (!applied) {
         return state;
       }
-      if (!character.deathMove && updated.deathMove?.status === 'pending') {
+      if (updated.deathMove?.status === 'pending') {
         pendingDeathMoveActor.current = { id: updated.id, name: updated.name };
       }
       return {
@@ -1322,6 +1324,7 @@ function playerCharacterResourceSignature(character: Character): string {
     armor: character.armor.markedSlots,
     activeBeastform: character.activeBeastform ?? null,
     companion: character.companion ? { stress: character.companion.stress.marked, unavailableUntilLongRest: character.companion.unavailableUntilLongRest } : null,
+    conditions: character.conditions.map((condition) => [condition.id, condition.name, condition.notes ?? '']),
     domainCards: character.domainCards.map((card) => [card.id, card.tokens.value])
   });
 }
@@ -1342,6 +1345,11 @@ function createPlayerCharacterResourcesMessage(character: Character, participant
       stress: { marked: character.stress.marked },
       armor: { markedSlots: character.armor.markedSlots },
       companion: character.companion ? { stress: { marked: character.companion.stress.marked } } : undefined,
+      conditions: character.conditions.map((condition) => ({
+        id: condition.id,
+        name: condition.name,
+        notes: condition.notes
+      })),
       domainCards: character.domainCards.map((card) => ({
         id: card.id,
         tokens: { value: card.tokens.value }
@@ -1349,4 +1357,20 @@ function createPlayerCharacterResourcesMessage(character: Character, participant
     },
     updatedAt: nowIso()
   };
+}
+
+function normalizePlayerConditionList(conditions: CharacterCondition[]): CharacterCondition[] {
+  const seen = new Set<string>();
+  return conditions.flatMap((condition) => {
+    const name = normalizeStatusTag(condition.name);
+    if (!name) return [];
+    const key = name.toLowerCase();
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{
+      id: condition.id.trim() || createId('condition'),
+      name,
+      notes: condition.notes?.trim() || undefined
+    }];
+  });
 }
