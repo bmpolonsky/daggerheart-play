@@ -42,6 +42,18 @@ function createFakeWindow(memory = new Map<string, string>()) {
   } as unknown as Window;
 }
 
+class DelayedMemoryGameDocumentStore extends MemoryGameDocumentStore {
+  saveDelays: number[] = [];
+
+  async save(document: GameDocument): Promise<void> {
+    const delay = this.saveDelays.shift() ?? 0;
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    await super.save(document);
+  }
+}
+
 test('persistence mirrors the exported game document into IndexedDB with custom tool content', async () => {
   resetAllStores();
   const originalWindow = globalThis.window;
@@ -187,6 +199,32 @@ test('persistence autosaves newly created characters across reloads', async () =
     assert.equal(characterService.getCharacter(character.id)?.name, 'Автосохраненный герой');
   } finally {
     service?.stop();
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});
+
+test('persistence keeps the newest snapshot when saves finish out of order', async () => {
+  resetAllStores();
+  const originalWindow = globalThis.window;
+  const documentStore = new DelayedMemoryGameDocumentStore();
+  documentStore.saveDelays = [100, 0];
+  Object.defineProperty(globalThis, 'window', {
+    value: createFakeWindow(),
+    configurable: true
+  });
+
+  try {
+    const service = new PersistenceService(documentStore);
+    service.persistNow();
+    const character = characterService.createCharacter({ name: 'Последний герой' });
+    service.persistNow();
+
+    await waitFor(() => {
+      assert.equal(documentStore.state?.files['data/characters.json'].entities[character.id]?.name, 'Последний герой');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.equal(documentStore.state?.files['data/characters.json'].entities[character.id]?.name, 'Последний герой');
+  } finally {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });

@@ -44,7 +44,7 @@ test('critical action roll clears stress through the same Vulnerable cleanup pat
 });
 
 test('new campaigns default to manual roll consequences', () => {
-  assert.equal(createGameState().autoApplyRollConsequences, false);
+  assert.equal(createGameState().autoApplyRollConsequences, true);
 });
 
 test('action rolls do not apply Hope/Fear consequences unless explicitly enabled', () => {

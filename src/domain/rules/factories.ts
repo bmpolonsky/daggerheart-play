@@ -44,7 +44,7 @@ export function createGameState(): GameState {
     maxFear: DEFAULT_MAX_FEAR,
     spotlight: 'players',
     actionTokensPerScene: DEFAULT_ACTION_TOKENS,
-    autoApplyRollConsequences: false,
+    autoApplyRollConsequences: true,
     showLegacyActionTokens: false,
     safetyNotes: '',
     tableNotes: '',

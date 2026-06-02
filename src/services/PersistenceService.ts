@@ -1,4 +1,3 @@
-import { STORAGE_DEBOUNCE_MS } from '../core/persistence/storageKeys';
 import { createGameDocumentStore, type GameDocumentStore } from '../core/persistence/gameDocumentStore';
 import { loadBrowserCustomContent, readBrowserCustomContent } from '../core/persistence/browserProjectContent';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../domain/p2p/sessionLinks';
@@ -18,13 +17,15 @@ export class PersistenceService {
   readonly storedGamesStore = new Store<StoredGameSummary[]>([]);
 
   private started = false;
-  private persistTimer: number | undefined;
   private unsubscribeCallbacks: Array<() => void> = [];
   private unsubscribeDocumentChanges: (() => void) | null = null;
   private readonly documentStore: GameDocumentStore | null;
   private readyPromise: Promise<void> = Promise.resolve();
   private isApplyingStoredDocument = false;
   private lastDocumentSignature: string | null = null;
+  private queuedPersistSnapshot: ReturnType<typeof snapshotPersistedState> | null = null;
+  private persistQueuePromise: Promise<void> | null = null;
+  private readonly flushPendingPersist = () => this.flushPersistNow();
 
   constructor(documentStore: GameDocumentStore | null = createGameDocumentStore(), private readonly assetService?: AssetService) {
     this.documentStore = documentStore;
@@ -41,6 +42,8 @@ export class PersistenceService {
       this.readyPromise = this.hydrateFromIndexedDb().then(() => {
         this.subscribeDocumentChanges();
         this.unsubscribeCallbacks = subscribeToSyncedGameStores(() => this.schedulePersist());
+        window.addEventListener('pagehide', this.flushPendingPersist);
+        window.addEventListener('beforeunload', this.flushPendingPersist);
       });
     }
     if (remotePlayerJoin) {
@@ -55,6 +58,10 @@ export class PersistenceService {
     this.unsubscribeCallbacks = [];
     this.unsubscribeDocumentChanges?.();
     this.unsubscribeDocumentChanges = null;
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', this.flushPendingPersist);
+      window.removeEventListener('beforeunload', this.flushPendingPersist);
+    }
     this.started = false;
   }
 
@@ -70,7 +77,7 @@ export class PersistenceService {
       return;
     }
     const snapshot = snapshotPersistedState();
-    void this.persistGameDocument(snapshot);
+    void this.queuePersist(snapshot);
   }
 
   resetEverything(): void {
@@ -95,6 +102,7 @@ export class PersistenceService {
     if (!this.documentStore) {
       return null;
     }
+    await this.flushPersistNow();
     await loadBrowserCustomContent();
     const document = this.createEmptyGameDocumentFromProject();
     const id = await this.documentStore.create(document);
@@ -107,6 +115,7 @@ export class PersistenceService {
     if (!this.documentStore) {
       return false;
     }
+    await this.flushPersistNow();
     const document = await this.documentStore.setActive(id);
     if (!document) {
       return false;
@@ -120,6 +129,7 @@ export class PersistenceService {
     if (!this.documentStore) {
       return false;
     }
+    await this.flushPersistNow();
     const wasActive = (await this.documentStore.list()).some((game) => game.id === id && game.active);
     const replacement = wasActive ? this.createEmptyGameDocumentFromProject() : undefined;
     const nextDocument = await this.documentStore.remove(id, replacement);
@@ -164,12 +174,16 @@ export class PersistenceService {
       return;
     }
     if (isRemotePlayerJoin()) {
-      window.clearTimeout(this.persistTimer);
-      this.persistTimer = undefined;
       return;
     }
-    window.clearTimeout(this.persistTimer);
-    this.persistTimer = window.setTimeout(() => this.persistNow(), STORAGE_DEBOUNCE_MS);
+    this.persistNow();
+  }
+
+  private async flushPersistNow(): Promise<void> {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    await this.persistQueuePromise;
   }
 
   private async hydrateFromIndexedDb(): Promise<boolean> {
@@ -208,6 +222,22 @@ export class PersistenceService {
       void this.refreshStoredGames();
     } catch (error) {
       console.warn('Failed to persist Daggerheart game to IndexedDB.', error);
+    }
+  }
+
+  private queuePersist(snapshot: ReturnType<typeof snapshotPersistedState>): Promise<void> {
+    this.queuedPersistSnapshot = snapshot;
+    this.persistQueuePromise ??= this.drainPersistQueue().finally(() => {
+      this.persistQueuePromise = null;
+    });
+    return this.persistQueuePromise;
+  }
+
+  private async drainPersistQueue(): Promise<void> {
+    while (this.queuedPersistSnapshot) {
+      const snapshot = this.queuedPersistSnapshot;
+      this.queuedPersistSnapshot = null;
+      await this.persistGameDocument(snapshot);
     }
   }
 
