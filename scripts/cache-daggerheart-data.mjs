@@ -46,6 +46,10 @@ async function readJson(path) {
   }
 }
 
+function isUsablePayload(payload) {
+  return payload?.result === 'ok' && Array.isArray(payload?.data) && payload.data.length > 0;
+}
+
 function isFreshPayload(payload) {
   if (SHOULD_REFRESH) return false;
   if (!Number.isFinite(CACHE_TTL_HOURS) || CACHE_TTL_HOURS <= 0) return true;
@@ -128,12 +132,22 @@ async function downloadAsset(pathname) {
   const targetNormalized = publicAssetPath(normalized);
   if (!targetNormalized) return;
   const targetPath = resolve(PUBLIC_DIR, `.${targetNormalized}`);
-  if (!SHOULD_REFRESH && (await fileExists(targetPath))) return;
+  const hasCachedTarget = await fileExists(targetPath);
+  if (!SHOULD_REFRESH && hasCachedTarget) return;
 
   await ensureDir(dirname(targetPath));
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download ${url} (${response.status})`);
+  let response;
+  try {
+    response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to download ${url} (${response.status})`);
+    }
+  } catch (error) {
+    if (hasCachedTarget) {
+      console.warn(`Using cached asset ${targetNormalized}: ${String(error)}`);
+      return;
+    }
+    throw error;
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
@@ -176,12 +190,8 @@ async function cacheCssFiles() {
     }
 
     for (const assetUrl of collectUrlsFromCss(cssText)) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        await downloadAsset(assetUrl);
-      } catch (error) {
-        console.warn(String(error));
-      }
+      // eslint-disable-next-line no-await-in-loop
+      await downloadAsset(assetUrl);
     }
 
     const rewrittenCss = rewriteCssUrls(cssText);
@@ -257,7 +267,7 @@ async function loadCollection(collection) {
   const targetPath = resolve(DATA_DIR, collection.file);
   const cached = await readJson(targetPath);
 
-  if (cached?.result === 'ok' && Array.isArray(cached?.data) && cached.data.length > 0 && isFreshPayload(cached)) {
+  if (isUsablePayload(cached) && isFreshPayload(cached)) {
     return {
       payload: cached,
       assetUrls: collection.assets ? collectAssetUrls(cached) : new Set()
@@ -267,6 +277,9 @@ async function loadCollection(collection) {
   const sourceUrl = buildEndpointUrl(collection.endpoint);
   try {
     const payload = await fetchJson(sourceUrl);
+    if (!isUsablePayload(payload)) {
+      throw new Error(`Fetched ${collection.key} is empty or invalid`);
+    }
     const sourceAssetUrls = collection.assets ? collectAssetUrls(payload) : new Set();
     const normalizedPayload = rewritePayloadAssetReferences({
       ...payload,
@@ -286,7 +299,7 @@ async function loadCollection(collection) {
       assetUrls: sourceAssetUrls
     };
   } catch (error) {
-    if (cached?.result === 'ok' && Array.isArray(cached?.data)) {
+    if (isUsablePayload(cached)) {
       console.warn(`Using cached ${collection.key}: ${String(error)}`);
       return {
         payload: cached,
@@ -294,31 +307,7 @@ async function loadCollection(collection) {
       };
     }
 
-    const fallbackPayload = {
-      result: 'ok',
-      data: [],
-      meta: {
-        key: collection.key,
-        endpoint: collection.endpoint,
-        sourceUrl,
-        generatedAt: new Date().toISOString(),
-        warning: String(error)
-      }
-    };
-
-    await ensureDir(dirname(targetPath));
-    await writeFile(targetPath, JSON.stringify(fallbackPayload, null, 2));
-
-    const message = `No cache for ${collection.key}; wrote empty fallback: ${String(error)}`;
-    if (collection.required) {
-      console.warn(message);
-    } else {
-      console.warn(message);
-    }
-    return {
-      payload: fallbackPayload,
-      assetUrls: new Set()
-    };
+    throw new Error(`No usable cache for ${collection.key}; refusing to write empty fallback: ${String(error)}`);
   }
 }
 
@@ -348,12 +337,8 @@ async function main() {
     if (!collection.assets) continue;
 
     for (const assetUrl of assetUrls) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        await downloadAsset(assetUrl);
-      } catch (error) {
-        console.warn(String(error));
-      }
+      // eslint-disable-next-line no-await-in-loop
+      await downloadAsset(assetUrl);
     }
   }
 
@@ -376,12 +361,8 @@ async function main() {
     '/image/domain/emblems/midnight.svg',
     '/image/domain/emblems/dread.svg'
   ]) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      await downloadAsset(staticAsset);
-    } catch (error) {
-      console.warn(String(error));
-    }
+    // eslint-disable-next-line no-await-in-loop
+    await downloadAsset(staticAsset);
   }
 
   const existingManifest = await readJson(manifestPath);
