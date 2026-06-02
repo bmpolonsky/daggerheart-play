@@ -4,7 +4,7 @@ import { buildEffectiveCharacterStats } from '../rules/effects';
 import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { isCharacterFeatureSheetCard } from '../rules/sidecar';
-import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterRetirementState, CharacterScar, CharactersState, EncounterState, FeedEntry, RollLogEntry, TraitId } from '../rules/types';
+import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterRetirementState, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId } from '../rules/types';
 import { RANGE_LABELS, TRAIT_LABELS, classLabel, domainLabel } from '../rules/constants';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
 import { canViewFeedEntry, latestVisibleRollLogEntry } from './rollPublication';
@@ -14,7 +14,7 @@ import type { MapAsset, TableScene, TokenState } from './types';
 export interface PlayerViewToken {
   id: string;
   actorId: string;
-  kind: 'character' | 'adversary';
+  kind: 'character' | 'adversary' | 'environment';
   name: string;
   subtitle: string;
   imageUrl: string;
@@ -181,8 +181,8 @@ function buildPlayerActivity(feed: FeedEntry[], handout: PresentedHandoutOverlay
 export function buildPlayerViewEmptyCharacterState(): PlayerViewEmptyCharacterState {
   return {
     title: 'Персонаж не назначен',
-    description: 'Попросите мастера назначить героя для вашего места в игре.',
-    actionLabel: 'Вернуться в лобби'
+    description: 'Создайте героя, и он появится у мастера после завершения визарда.',
+    actionLabel: 'Создать персонажа'
   };
 }
 
@@ -281,6 +281,27 @@ export function buildPlayerTokens(tokens: TokenState[], characters: Record<strin
         hidden: token.hidden,
         visibility: token.ownership.visibility
       });
+      return;
+    }
+    if (token.actor.kind === 'environment') {
+      const environment = encounter.environments[token.actor.id];
+      if (!environment) return;
+      visibleTokens.push({
+        id: token.id,
+        actorId: environment.id,
+        kind: 'environment',
+        name: environment.name,
+        subtitle: role === 'gm' ? environmentSubtitle(environment) : '',
+        imageUrl: environment.imageUrl ?? '',
+        x: token.x,
+        y: token.y,
+        width: token.width,
+        height: token.height,
+        tint: token.tint,
+        aura: token.aura,
+        hidden: token.hidden,
+        visibility: token.ownership.visibility
+      });
     }
   });
   return visibleTokens;
@@ -293,6 +314,10 @@ function selectPlayerCharacter(characters: CharactersState, playerCharacterId?: 
 
 function adversarySubtitle(adversary: Pick<Adversary, 'tier' | 'type'>): string {
   return `Ранг ${adversary.tier} / ${adversaryTypeLabel(adversary.type)}`;
+}
+
+function environmentSubtitle(environment: Pick<EncounterEnvironment, 'difficulty'>): string {
+  return environment.difficulty ? `Сложность ${environment.difficulty}` : 'Окружение';
 }
 
 function adversaryTypeLabel(type: Adversary['type']): string {

@@ -125,6 +125,10 @@ function environmentEntry(item: LibraryEnvironment): LibraryEntry {
     sections,
     actions: [
       {
+        label: 'Добавить в столкновение',
+        onClick: () => contentService.addEnvironmentToEncounter(item.id) ? `${item.name} добавлено в столкновение` : null
+      },
+      {
         label: 'Создать сцену',
         onClick: () => {
           sceneTableService.createScene({ name: item.name, subtitle: item.summary, backgroundUrl: item.imageUrl ?? '', notes: item.body });

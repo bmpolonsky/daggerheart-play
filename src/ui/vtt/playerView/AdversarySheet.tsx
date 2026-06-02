@@ -1,47 +1,32 @@
 /** @jsxImportSource preact */
-import type { JSX } from "preact";
 import { useState } from "preact/hooks";
 import { ChevronLeft, Heart, Zap } from "lucide-react";
 import type { PlayerViewAdversarySummary } from "../../../domain/tabletop/playerView";
-import { parseDomainCardTextMacros, type DomainCardTextMacro } from "../../../domain/rules/domainCards";
+import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import type { DamageType } from "../../../domain/rules/types";
 import { diceService, encounterService, feedService, gameService } from "../../../services/serviceRegistry";
-import { compactDamageTypeLabel, cssImageUrl, initials, signed } from "./helpers";
+import { compactDamageTypeLabel, signed } from "./helpers";
 import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
-import { cleanRulesTextForInlineMacros, renderRulesText } from "./sheetText";
-import { RulesMacroText } from "./domainCards/RulesMacroText";
+import { SheetFeatureSection, SheetHero, SheetLeadBlock, type SheetFeatureView } from "./SheetContent";
 
 export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdversarySummary; onBack: () => void }) {
   const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
-  const runFeatureMacro = (feature: AdversaryFeatureView, macro: DomainCardTextMacro) => {
+  const runFeatureMacro = (feature: SheetFeatureView, macro: DomainCardTextMacro) => {
     runAdversaryFeatureMacro(adversary, feature, macro);
   };
-  const heroStyle = {
-    '--player-character-portrait': adversary.portraitUrl ? `url("${cssImageUrl(adversary.portraitUrl)}")` : 'none'
-  } as JSX.CSSProperties;
   return (
     <>
       <aside className="player-character-panel" aria-label="Противник мастера">
         <button className="player-character-panel__back" type="button" title="К ростеру" onClick={onBack}>
           <ChevronLeft size={17} />
         </button>
-        <header className="player-character-panel__hero" style={heroStyle}>
-          {adversary.portraitUrl ? (
-            <img src={cssImageUrl(adversary.portraitUrl)} alt="" />
-          ) : (
-            <div className="player-character-panel__portrait-fallback" aria-hidden="true">{initials(adversary.name)}</div>
-          )}
-          <div>
-            <strong>{adversary.name}</strong>
-            <span>{adversary.subtitle}{adversary.isDefeated ? ' / повержен' : ''}</span>
-          </div>
-        </header>
-        {adversary.notes && (
-          <article className="player-sheet-row player-sheet-row--adversary-description">
-            <p>{renderRulesText(adversary.notes)}</p>
-          </article>
-        )}
+        <SheetHero
+          imageUrl={adversary.portraitUrl}
+          title={adversary.name}
+          subtitle={`${adversary.subtitle}${adversary.isDefeated ? ' / повержен' : ''}`}
+        />
+        <SheetLeadBlock text={adversary.notes} />
         <SheetSection title="Статус">
           <section className="player-track-list">
             <TrackRow
@@ -92,25 +77,12 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
             </article>
           ))}
         </SheetSection>
-        <SheetSection title="Особенности" emptyLabel="Особенности не указаны">
-          {adversary.features.map((feature) => {
-            const text = cleanRulesTextForInlineMacros(feature.text);
-            const textMacros = parseDomainCardTextMacros(text);
-            return (
-              <article className="player-sheet-row player-sheet-row--fulltext" key={feature.id}>
-                <strong>{feature.name}</strong>
-                <p>
-                  <RulesMacroText
-                    text={text}
-                    macros={textMacros}
-                    isInteractive={isInteractiveAdversaryFeatureTextMacro}
-                    onMacro={(macro) => runFeatureMacro(feature, macro)}
-                  />
-                </p>
-              </article>
-            );
-          })}
-        </SheetSection>
+        <SheetFeatureSection
+          emptyLabel="Особенности не указаны"
+          features={adversary.features}
+          isInteractive={isInteractiveAdversaryFeatureTextMacro}
+          onMacro={runFeatureMacro}
+        />
       </aside>
       {adversaryAttackConfirmOpen && (
         <AdversaryAttackConfirm
@@ -143,21 +115,22 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
 }
 
 function isInteractiveAdversaryFeatureTextMacro(macro: DomainCardTextMacro): boolean {
-  return macro.kind === 'actionRoll' || macro.kind === 'diceRoll' || macro.kind === 'spendFear' || macro.kind === 'gainFear';
+  return macro.kind === 'actionRoll' || macro.kind === 'diceRoll' || macro.kind === 'damageRoll' || macro.kind === 'spendFear' || macro.kind === 'gainFear';
 }
 
 function runAdversaryFeatureMacro(
   adversary: PlayerViewAdversarySummary,
-  feature: AdversaryFeatureView,
+  feature: SheetFeatureView,
   macro: DomainCardTextMacro
 ): void {
+  const featureName = feature.name || 'Особенность';
   if (macro.kind === 'actionRoll') {
     diceService.rollManualDice({
       actorId: adversary.id,
       actorName: adversary.name,
       formula: '1d20',
       label: macro.label,
-      notes: featureMacroNotes(feature.name, macro)
+      notes: featureMacroNotes(featureName, macro)
     });
     return;
   }
@@ -167,7 +140,7 @@ function runAdversaryFeatureMacro(
       actorName: adversary.name,
       formula: macro.formula,
       label: macro.label,
-      notes: featureMacroNotes(feature.name, macro)
+      notes: featureMacroNotes(featureName, macro)
     });
     return;
   }
@@ -183,10 +156,10 @@ function runAdversaryFeatureMacro(
     detail = `+${macro.amount} Страх`;
   }
   if (detail) {
-    feedService.addMessage(adversary.name, `${feature.name} · ${detail}`, { title: 'Особенность', publication: 'public' });
+    feedService.addMessage(adversary.name, `${featureName} · ${detail}`, { title: 'Особенность', publication: 'public' });
   }
   if (!applied && !detail) {
-    feedService.addMessage(adversary.name, `${feature.name} · ресурс не применен: нужна ручная цель`, { title: 'Особенность', publication: 'public' });
+    feedService.addMessage(adversary.name, `${featureName} · ресурс не применен: нужна ручная цель`, { title: 'Особенность', publication: 'public' });
   }
 }
 
@@ -194,5 +167,3 @@ function featureMacroNotes(featureName: string, macro: DomainCardTextMacro): str
   const difficulty = macro.kind === 'actionRoll' && macro.difficulty ? ` / Сложность ${macro.difficulty}` : '';
   return `Особенность: ${featureName}. ${macro.label}${difficulty}`;
 }
-
-type AdversaryFeatureView = PlayerViewAdversarySummary['features'][number];

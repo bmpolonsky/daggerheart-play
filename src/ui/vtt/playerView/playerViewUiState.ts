@@ -3,11 +3,13 @@ import type { TableFeedItem } from '../../../domain/tabletop/feed';
 
 interface PlayerViewUiState {
   completedDiceRollIds: Set<string>;
+  countdownComposerOpen: boolean;
   ephemeralActivity: TableFeedItem | null;
 }
 
 export const playerViewUiStore = new Store<PlayerViewUiState>({
   completedDiceRollIds: new Set(),
+  countdownComposerOpen: false,
   ephemeralActivity: null
 });
 
@@ -15,6 +17,7 @@ export const playerViewUiActions = {
   reset(): void {
     playerViewUiStore.set({
       completedDiceRollIds: new Set(),
+      countdownComposerOpen: false,
       ephemeralActivity: null
     });
   },
@@ -30,5 +33,9 @@ export const playerViewUiActions = {
 
   setEphemeralActivity(ephemeralActivity: TableFeedItem | null): void {
     playerViewUiStore.update((current) => ({ ...current, ephemeralActivity }));
+  },
+
+  setCountdownComposerOpen(countdownComposerOpen: boolean): void {
+    playerViewUiStore.update((current) => ({ ...current, countdownComposerOpen }));
   }
 };

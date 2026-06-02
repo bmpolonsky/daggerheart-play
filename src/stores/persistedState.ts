@@ -1,5 +1,5 @@
-import type { Adversary, GameState, CharacterBeastformState, CharacterCompanionState, CharacterRetirementState, CharacterScar, CharactersState, EncounterState, PersistedState, SceneTableState } from '../domain/rules/types';
-import { createAdversary, createGameState, createDomainCard, createEncounterState, createSceneTableState, sanitizeInventory } from '../domain/rules/factories';
+import type { Adversary, Countdown, EncounterEnvironment, GameState, CharacterBeastformState, CharacterCompanionState, CharacterRetirementState, CharacterScar, CharactersState, EncounterState, PersistedState, SceneTableState } from '../domain/rules/types';
+import { createAdversary, createCountdown, createGameState, createDomainCard, createEncounterEnvironment, createEncounterState, createSceneTableState, sanitizeInventory } from '../domain/rules/factories';
 import { normalizeRangerCompanion } from '../domain/rules/rangerCompanion';
 import { syncedGameStores } from './gameStores';
 
@@ -134,12 +134,19 @@ function normalizeEncounterState(encounter: EncounterState): EncounterState {
       .map(([id, adversary]) => [id, normalizeAdversaryState(id, adversary)])
       .filter((entry): entry is [string, Adversary] => Boolean(entry[1]))
   );
+  const environments = Object.fromEntries(
+    Object.entries(encounter.environments ?? {})
+      .map(([id, environment]) => [id, normalizeEncounterEnvironmentState(id, environment)])
+      .filter((entry): entry is [string, EncounterEnvironment] => Boolean(entry[1]))
+  );
   return {
     ...base,
     ...encounter,
     adversaries,
     order: Array.isArray(encounter.order) ? encounter.order.filter((id) => Boolean(adversaries[id])) : base.order,
     activeAdversaryId: encounter.activeAdversaryId && adversaries[encounter.activeAdversaryId] ? encounter.activeAdversaryId : null,
+    environments,
+    countdowns: Array.isArray(encounter.countdowns) ? encounter.countdowns.map(normalizeCountdownState) : base.countdowns,
     playerCount: typeof encounter.playerCount === 'number' ? encounter.playerCount : base.playerCount,
     difficultyMode:
       encounter.difficultyMode === 'easy' || encounter.difficultyMode === 'standard' || encounter.difficultyMode === 'hard'
@@ -148,6 +155,13 @@ function normalizeEncounterState(encounter: EncounterState): EncounterState {
     isDamageBoosted: typeof encounter.isDamageBoosted === 'boolean' ? encounter.isDamageBoosted : base.isDamageBoosted,
     isLowerTierUsed: typeof encounter.isLowerTierUsed === 'boolean' ? encounter.isLowerTierUsed : base.isLowerTierUsed
   };
+}
+
+function normalizeCountdownState(countdown: Countdown): Countdown {
+  return createCountdown({
+    ...countdown,
+    visibility: countdown.visibility === 'gm' ? 'gm' : 'public'
+  });
 }
 
 function normalizeAdversaryState(id: string, adversary: Adversary | undefined): Adversary | null {
@@ -175,6 +189,35 @@ function normalizeAdversaryState(id: string, adversary: Adversary | undefined): 
     notes: typeof adversary.notes === 'string' ? adversary.notes : '',
     createdAt: typeof adversary.createdAt === 'string' ? adversary.createdAt : base.createdAt,
     updatedAt: typeof adversary.updatedAt === 'string' ? adversary.updatedAt : base.updatedAt
+  };
+}
+
+function normalizeEncounterEnvironmentState(id: string, environment: EncounterEnvironment | undefined): EncounterEnvironment | null {
+  if (!environment || typeof environment !== 'object') {
+    return null;
+  }
+  const base = createEncounterEnvironment({ id });
+  return {
+    ...base,
+    ...environment,
+    id: typeof environment.id === 'string' && environment.id ? environment.id : id,
+    sourceId: environment.sourceId,
+    sourceSlug: typeof environment.sourceSlug === 'string' ? environment.sourceSlug : undefined,
+    sourceName: typeof environment.sourceName === 'string' ? environment.sourceName : undefined,
+    name: typeof environment.name === 'string' && environment.name.trim() ? environment.name : base.name,
+    tier: typeof environment.tier === 'number' ? environment.tier : base.tier,
+    difficulty: typeof environment.difficulty === 'number' ? environment.difficulty : base.difficulty,
+    type: typeof environment.type === 'string' ? environment.type : base.type,
+    typeName: typeof environment.typeName === 'string' ? environment.typeName : base.typeName,
+    summary: typeof environment.summary === 'string' ? environment.summary : '',
+    body: typeof environment.body === 'string' ? environment.body : '',
+    featureText: typeof environment.featureText === 'string' ? environment.featureText : '',
+    impulses: typeof environment.impulses === 'string' ? environment.impulses : '',
+    potentialAdversaries: typeof environment.potentialAdversaries === 'string' ? environment.potentialAdversaries : '',
+    imageUrl: typeof environment.imageUrl === 'string' ? environment.imageUrl : null,
+    notes: typeof environment.notes === 'string' ? environment.notes : '',
+    createdAt: typeof environment.createdAt === 'string' ? environment.createdAt : base.createdAt,
+    updatedAt: typeof environment.updatedAt === 'string' ? environment.updatedAt : base.updatedAt
   };
 }
 

@@ -11,7 +11,8 @@ import { buildDomainCardPreviewFeedItem } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation, readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import { nowIso } from '../../core/utils/date';
-import { gameService, characterService, encounterService, feedService, p2pSessionService, rollLogService, sceneTableService } from '../../services/serviceRegistry';
+import { gameService, characterService, contentService, encounterService, feedService, p2pSessionService, rollLogService, sceneTableService } from '../../services/serviceRegistry';
+import { CharacterBuilderModal } from '../characters/CharacterBuilderModal';
 import { PlayerTopBar, PlayerLeftRail, PlayerSeatPicker } from './playerView/PlayerChrome';
 import { PlayerCharacterPanel } from './playerView/PlayerCharacterPanel';
 import { PlayerScene } from './playerView/PlayerScene';
@@ -32,7 +33,7 @@ import {
 } from './playerView/routedUiState';
 import { playerViewUiActions } from './playerView/playerViewUiState';
 import type { SceneMusicState } from '../../domain/audio/sceneAudio';
-import type { DomainCardRecord, DomainName } from '../../domain/rules/types';
+import type { Character, DaggerheartClass, DomainCardRecord, DomainName, EncounterEnvironment } from '../../domain/rules/types';
 import type { PlayerViewDomainCard } from './playerView/domainCards/types';
 import type { PlayerMobileLayer, PlayerViewedActor, SharedToolsTab, TableViewRole } from './playerView/types';
 import './playerView/player-view.css';
@@ -41,6 +42,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
   const game = useStore(gameService.gameStore);
   const characters = useStore(characterService.charactersStore);
   const encounter = useStore(encounterService.encounterStore);
+  const content = useStore(contentService.contentStore);
   const sceneTable = useStore(sceneTableService.sceneTableStore);
   const rollLog = useStore(rollLogService.rollLogStore);
   const feed = useStore(feedService.feedStore);
@@ -53,9 +55,11 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
   const [viewedActor, setViewedActor] = useState<PlayerViewedActor | null>(null);
   const [mobileLayer, setMobileLayer] = useState<PlayerMobileLayer>('scene');
   const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(typeof window === 'undefined' ? '' : window.location.search, role));
+  const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role);
   const viewedCharacterId = viewedActor?.kind === 'character' ? viewedActor.actorId : null;
   const viewedAdversaryId = viewedActor?.kind === 'adversary' ? viewedActor.actorId : null;
+  const viewedEnvironmentId = viewedActor?.kind === 'environment' ? viewedActor.actorId : null;
 
   useEffect(() => {
     playerViewUiActions.reset();
@@ -88,6 +92,9 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
       .map((character) => [character.id, buildCharacterSummary(character)])
   ), [characters.entities]);
   const displayedAdversary = role === 'gm' && viewedAdversaryId ? model.adversaries[viewedAdversaryId] ?? null : null;
+  const displayedEnvironment = role === 'gm' && viewedEnvironmentId
+    ? resolveEnvironmentDisplay(encounter.environments[viewedEnvironmentId] ?? null, content.environments)
+    : null;
   const latestVisibleRoll = useMemo(
     () => latestVisibleRollLogEntry(rollLog, { role, actorId: playerCharacterId }),
     [playerCharacterId, role, rollLog]
@@ -98,6 +105,8 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
     ? { id: displayedCharacter.id, name: displayedCharacter.name, kind: 'character' as const }
     : displayedAdversary
       ? { id: displayedAdversary.id, name: displayedAdversary.name, kind: 'adversary' as const }
+      : displayedEnvironment
+        ? { id: displayedEnvironment.id, name: displayedEnvironment.name, kind: 'environment' as const }
       : model.character
         ? { id: model.character.id, name: model.character.name, kind: 'character' as const }
         : null;
@@ -130,15 +139,6 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
     setSelectedPlayerSeatId(seatId);
     if (sessionParams?.roomId) writeStoredPlayerSeatId(sessionParams.roomId, seatId);
   }, [sessionParams?.roomId]);
-  const returnToJoinLobby = useCallback(() => {
-    if (typeof window === 'undefined' || !sessionParams?.roomId) return;
-    const nextUrl = new URL(window.location.href);
-    nextUrl.pathname = `${inferBasePathFromWorkspacePath(window.location.pathname)}/join/${encodeURIComponent(sessionParams.roomId)}`;
-    nextUrl.search = '';
-    nextUrl.hash = '';
-    window.history.pushState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  }, [sessionParams?.roomId]);
   const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab }) => {
     if (typeof window === 'undefined') return;
     const nextSearch = updateRoutedPlayerViewSearch(window.location.search, role, next);
@@ -158,6 +158,27 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
   const changeToolsTab = useCallback((tab: SharedToolsTab) => {
     commitRoutedUi({ toolsOpen: true, toolsTab: tab });
   }, [commitRoutedUi]);
+  const createPlayerCharacterFromBuilder = useCallback((input: Partial<Character> & { className?: DaggerheartClass }) => {
+    setPlayerCharacterBuilderOpen(false);
+    if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
+      void p2pSessionService.submitPlayerCharacterCreate({
+        draft: input,
+        participantName: selectedPlayerName ?? input.playerName ?? input.name
+      });
+      return;
+    }
+    const character = characterService.createCharacter({
+      ...input,
+      playerName: selectedPlayerName ?? input.playerName ?? ''
+    });
+    if (role === 'player') {
+      if (selectedPlayerSeatId) {
+        sceneTableService.updatePlayerSeat(selectedPlayerSeatId, { characterId: character.id });
+      } else {
+        sceneTableService.assignLocalPlayerCharacter(character.id);
+      }
+    }
+  }, [role, selectedPlayerName, selectedPlayerSeatId]);
   const previewDomainCard = useCallback((character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => {
     playerViewUiActions.setEphemeralActivity(buildDomainCardPreviewFeedItem({
       id: `ephemeral-card-${character.id}`,
@@ -239,8 +260,9 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         activeCharacterId={displayedCharacter?.id ?? null}
         activeAdversaryId={displayedAdversary?.id ?? null}
         adversary={displayedAdversary}
+        environment={displayedEnvironment}
         character={displayedCharacter}
-        emptyActionLabel={role === 'player' && sessionParams?.roomId ? 'Вернуться в лобби' : undefined}
+        emptyActionLabel={role === 'player' ? 'Создать персонажа' : undefined}
         emptyState={model.emptyCharacterState}
         role={role}
         sceneId={model.scene.id}
@@ -248,7 +270,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         onClearActivationRequest={(request) => void p2pSessionService.clearRaisedHand(request)}
         onClearActor={() => setViewedActor(null)}
         onDomainCardPreview={previewDomainCard}
-        onEmptyAction={role === 'player' && sessionParams?.roomId ? returnToJoinLobby : undefined}
+        onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
         onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
         onOpenActor={openActor}
       />
@@ -259,6 +281,15 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
           targetCharacterId={viewedCharacterId ?? model.character?.id ?? null}
           onClose={closeTools}
           onTabChange={changeToolsTab}
+        />
+      )}
+      {playerCharacterBuilderOpen && role === 'player' && (
+        <CharacterBuilderModal
+          content={content.generic}
+          classes={content.classes}
+          equipment={content.equipment}
+          onCancel={() => setPlayerCharacterBuilderOpen(false)}
+          onCreate={createPlayerCharacterFromBuilder}
         />
       )}
     </main>
@@ -278,6 +309,20 @@ function toDomainCardRecord(card: PlayerViewDomainCard): DomainCardRecord {
     imageUrl: card.imageUrl || null,
     tokens: card.tokens
   };
+}
+
+function resolveEnvironmentDisplay(
+  environment: EncounterEnvironment | null,
+  libraryEnvironments: Array<{ imageUrl: string | null; name: string; sourceId?: string | number; slug: string }>
+): EncounterEnvironment | null {
+  if (!environment || environment.imageUrl) return environment;
+  const sourceId = environment.sourceId == null ? null : String(environment.sourceId);
+  const libraryMatch = libraryEnvironments.find((item) => (
+    (sourceId && item.sourceId != null && String(item.sourceId) === sourceId) ||
+    (environment.sourceSlug && item.slug === environment.sourceSlug) ||
+    item.name === environment.name
+  ));
+  return libraryMatch?.imageUrl ? { ...environment, imageUrl: libraryMatch.imageUrl } : environment;
 }
 
 function resolveSceneMusicSource(music: SceneMusicState, assetUrls: Record<string, string>): SceneMusicState {

@@ -3,6 +3,7 @@ import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
 import { buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
+import { createCharacter } from '../domain/rules/factories';
 import { syncCharacterDeathMoveState } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import type { SyncTargetPeer, TableParticipant } from '../domain/tabletop/types';
@@ -20,6 +21,7 @@ import type { FeedService } from './FeedService';
 import type {
   AssetRequestReason,
   PlayerCharacterResourcePatch,
+  PlayerCharacterCreateMessage,
   PlayerCharacterResourcesMessage,
   PlayerDecision,
   PlayerDecisionMessage,
@@ -114,6 +116,7 @@ export class P2PSessionService {
   private readonly publishedPlayerFeedEntrySignatures = new Map<string, string>();
   private readonly publishingPlayerFeedEntryIds = new Set<string>();
   private readonly playerCharacterResourceSignatures = new Map<string, string>();
+  private readonly processedPlayerCharacterCreateIds = new Set<string>();
   private readonly subscriptions = new SubscriptionBag();
   private suppressPlayerStoreForwarding = false;
   private playerActorContext: PlayerActorContext = {};
@@ -337,6 +340,14 @@ export class P2PSessionService {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Выбор игрока ожидает подтверждения мастера.' });
       void this.publishSnapshot();
     }));
+    this.subscriptions.add(this.syncService.subscribePlayerCharacterCreates((message) => {
+      if (!this.applyPlayerCharacterCreate(message)) {
+        this.patchSession({ lastRequestAt: nowIso(), message: 'Создание персонажа отклонено.' });
+        return;
+      }
+      this.patchSession({ lastRequestAt: nowIso(), message: 'Персонаж игрока создан.' });
+      void this.publishSnapshot();
+    }));
     this.subscriptions.add(this.syncService.subscribePlayerActivations((message) => {
       this.playerActivationQueueService.receiveRemote(message);
       this.patchSession({ lastRequestAt: nowIso(), message: message.type === 'raise' ? 'Игрок поднял руку.' : 'Очередь активаций обновлена.' });
@@ -374,8 +385,12 @@ export class P2PSessionService {
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
     await this.stop({ forgetSession: false });
     resetAllStores();
+    const participant = this.createParticipant('player', input.participantName, {
+      id: input.participantId,
+      actorIds: input.actorIds
+    });
     this.setPlayerActorContext({
-      participantId: input.participantId,
+      participantId: participant.id,
       actorId: input.actorIds?.[0],
       actorName: input.participantName
     });
@@ -387,10 +402,7 @@ export class P2PSessionService {
     this.syncService.setTransport(transport);
     this.patchSession({ status: 'connecting', role: 'player', roomId, message: 'Подключаемся к серверу мастера.' });
     try {
-      await this.syncService.connectReadOnly(roomId, this.createParticipant('player', input.participantName, {
-        id: input.participantId,
-        actorIds: input.actorIds
-      }), (state) => {
+      await this.syncService.connectReadOnly(roomId, participant, (state) => {
         this.suppressPlayerStoreForwarding = true;
         try {
           hydratePersistedState(state);
@@ -469,6 +481,7 @@ export class P2PSessionService {
     this.publishedPlayerFeedEntrySignatures.clear();
     this.publishingPlayerFeedEntryIds.clear();
     this.playerCharacterResourceSignatures.clear();
+    this.processedPlayerCharacterCreateIds.clear();
     this.suppressPlayerStoreForwarding = false;
     this.playerActorContext = {};
     this.subscriptions.clear();
@@ -653,6 +666,34 @@ export class P2PSessionService {
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось отправить выбор мастеру.';
+      this.patchSession({ status: 'degraded', message });
+      return false;
+    }
+  }
+
+  async submitPlayerCharacterCreate(input: { draft: Partial<Character>; participantName?: string }): Promise<boolean> {
+    const session = this.sessionStore.getSnapshot();
+    if (session.role !== 'player' || !session.connected) {
+      return false;
+    }
+    const participantId = this.playerActorContext.participantId?.trim();
+    if (!participantId) {
+      this.patchSession({ status: 'degraded', message: 'Персонаж не отправлен: место игрока не определено.' });
+      return false;
+    }
+    try {
+      await this.syncService.publishPlayerCharacterCreate({
+        type: 'playerCharacterCreate',
+        requestId: createId('character-create'),
+        participantId,
+        participantName: input.participantName?.trim() || this.playerActorContext.actorName?.trim() || undefined,
+        draft: input.draft,
+        createdAt: nowIso()
+      });
+      this.patchSession({ lastRequestAt: nowIso(), message: 'Персонаж отправлен мастеру.' });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось отправить персонажа мастеру.';
       this.patchSession({ status: 'degraded', message });
       return false;
     }
@@ -909,6 +950,51 @@ export class P2PSessionService {
       });
     }
     return applied;
+  }
+
+  private applyPlayerCharacterCreate(message: PlayerCharacterCreateMessage): boolean {
+    if (this.processedPlayerCharacterCreateIds.has(message.requestId)) {
+      return true;
+    }
+    const participantId = message.participantId.trim();
+    if (!participantId) {
+      return false;
+    }
+    const sceneTable = this.sceneTableService.sceneTableStore.getSnapshot();
+    const currentParticipant = sceneTable.participants[participantId];
+    if (currentParticipant?.role === 'player' && currentParticipant.actorIds.some((actorId) => charactersStore.getSnapshot().entities[actorId])) {
+      this.processedPlayerCharacterCreateIds.add(message.requestId);
+      return true;
+    }
+
+    const character = createCharacter({
+      ...message.draft,
+      id: undefined,
+      playerName: message.participantName?.trim() || currentParticipant?.name || message.draft.playerName || ''
+    });
+    charactersStore.update((state) => ({
+      ...state,
+      entities: { ...state.entities, [character.id]: character },
+      order: [...state.order, character.id],
+      selectedId: character.id,
+      updatedAt: nowIso()
+    }));
+
+    if (currentParticipant?.role === 'player') {
+      this.sceneTableService.updatePlayerSeat(participantId, {
+        name: currentParticipant.name || message.participantName || character.name,
+        characterId: character.id
+      });
+    } else {
+      this.sceneTableService.createPlayerSeat({
+        id: participantId,
+        name: message.participantName || character.playerName || character.name,
+        characterId: character.id
+      });
+    }
+
+    this.processedPlayerCharacterCreateIds.add(message.requestId);
+    return true;
   }
 
   private applyPlayerRestChoice(message: PlayerRestChoiceMessage): boolean {

@@ -9,7 +9,7 @@ export type SharedToolsTab = 'scenes' | 'characters' | 'combat' | 'cards' | 'lib
 export type PlayerRosterActor = {
   tokenId: string;
   actorId: string;
-  kind: 'character' | 'adversary';
+  kind: 'character' | 'adversary' | 'environment';
   name: string;
   subtitle: string;
   imageUrl: string;
@@ -18,7 +18,7 @@ export type PlayerRosterActor = {
   presence?: PlayerPresence;
 };
 
-export type PlayerViewedActor = { kind: 'character' | 'adversary'; actorId: string };
+export type PlayerViewedActor = { kind: 'character' | 'adversary' | 'environment'; actorId: string };
 export type PlayerMobileLayer = 'feed' | 'scene' | 'sheet';
 export type PlayerRollType = 'action' | 'reaction';
 

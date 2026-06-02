@@ -1,9 +1,10 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { MessageCircle, SendHorizontal } from 'lucide-react';
+import { Eye, EyeOff, MessageCircle, Minus, Plus, SendHorizontal, X } from 'lucide-react';
 import { useStore } from '../../../../core/hooks/useStore';
+import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
-import { gameService, diceService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
+import { gameService, diceService, encounterService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
 import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS } from '../constants';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainCards/types';
@@ -39,7 +40,8 @@ export function PlayerLeftRail({
   const [rollDraftState, setRollDraftState] = useState<FeedCardRollDraftState | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
   const p2pSession = useStore(p2pSessionService.sessionStore);
-  const { completedDiceRollIds, ephemeralActivity } = useStore(playerViewUiStore);
+  const encounter = useStore(encounterService.encounterStore);
+  const { completedDiceRollIds, countdownComposerOpen, ephemeralActivity } = useStore(playerViewUiStore);
   const [revealedRollIds, setRevealedRollIds] = useState<Set<string>>(() => revealedRollIdsFromActivity(model.activity));
   const mountedAtRef = useRef(Date.now());
   const activityRef = useRef<HTMLDivElement>(null);
@@ -51,6 +53,7 @@ export function PlayerLeftRail({
     ];
   }, [ephemeralActivity, model.activity]);
   const visibleActivity = useMemo(() => activity.slice().reverse(), [activity]);
+  const visibleCountdowns = useMemo(() => encounter.countdowns.filter((countdown) => role === 'gm' || countdown.visibility === 'public'), [encounter.countdowns, role]);
   const hasClearableActivity = activity.some((event) => event.id !== 'feed-empty');
 
   useEffect(() => {
@@ -178,6 +181,13 @@ export function PlayerLeftRail({
             </button>
           </div>
         )}
+        {visibleCountdowns.length > 0 && (
+          <div className="player-countdown-stack" aria-label="Отсчеты">
+            {visibleCountdowns.map((countdown) => (
+              <CountdownCard countdown={countdown} key={countdown.id} role={role} />
+            ))}
+          </div>
+        )}
         <div className={`player-activity-list ${visibleActivity.length === 0 ? 'player-activity-list--empty' : ''}`} ref={activityRef}>
           {visibleActivity.map((event) => {
             const waitingForDice = waitsForDiceReveal(event) && !revealedRollIds.has(feedRollRevealId(event));
@@ -216,6 +226,7 @@ export function PlayerLeftRail({
             );
           })}
         </div>
+        {(role === 'gm' && countdownComposerOpen) && <CountdownComposer />}
         <form className="player-chat-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
           <input aria-label="Сообщение игрока" value={message} onInput={(event) => setMessage(event.currentTarget.value)} placeholder={`Сообщение от ${model.character?.name ?? (role === 'gm' ? 'Мастера' : 'игрока')}`} />
           <button type="submit" disabled={!message.trim()} aria-label="Отправить сообщение" title="Отправить сообщение">
@@ -224,5 +235,107 @@ export function PlayerLeftRail({
         </form>
       </section>
     </aside>
+  );
+}
+
+function CountdownComposer() {
+  const [name, setName] = useState('');
+  const [current, setCurrent] = useState(0);
+  const [max, setMax] = useState(4);
+  const [direction, setDirection] = useState<Countdown['direction']>('up');
+  const [visibility, setVisibility] = useState<Countdown['visibility']>('gm');
+  const safeMax = Math.max(1, Math.min(20, Math.trunc(max || 1)));
+  const safeCurrent = Math.max(0, Math.min(safeMax, Math.trunc(current || 0)));
+  return (
+    <section className="player-countdown-composer" aria-label="Создать отсчет">
+      <header>
+        <strong>Новый отсчет</strong>
+        <button type="button" title="Закрыть" onClick={() => playerViewUiActions.setCountdownComposerOpen(false)}>
+          <X size={14} aria-hidden="true" />
+        </button>
+      </header>
+      <label>
+        <span>Название</span>
+        <input value={name} placeholder="Опасность нарастает" onInput={(event) => setName(event.currentTarget.value)} />
+      </label>
+      <div className="player-countdown-composer__grid">
+        <label>
+          <span>Текущее</span>
+          <input type="number" min={0} max={safeMax} value={current} onInput={(event) => setCurrent(Number(event.currentTarget.value))} />
+        </label>
+        <label>
+          <span>Макс</span>
+          <input type="number" min={1} max={20} value={max} onInput={(event) => setMax(Number(event.currentTarget.value))} />
+        </label>
+      </div>
+      <div className="player-countdown-composer__segmented" aria-label="Направление">
+        <button className={direction === 'up' ? 'dh-is-active' : ''} type="button" onClick={() => setDirection('up')}>Вверх</button>
+        <button className={direction === 'down' ? 'dh-is-active' : ''} type="button" onClick={() => setDirection('down')}>Вниз</button>
+      </div>
+      <div className="player-countdown-composer__segmented" aria-label="Видимость">
+        <button className={visibility === 'gm' ? 'dh-is-active' : ''} type="button" onClick={() => setVisibility('gm')}>GM</button>
+        <button className={visibility === 'public' ? 'dh-is-active' : ''} type="button" onClick={() => setVisibility('public')}>Публичный</button>
+      </div>
+      <button
+        className="dh-button dh-variant-primary"
+        type="button"
+        onClick={() => {
+          encounterService.addCountdown({ name: name.trim() || 'Отсчет', current: safeCurrent, max: safeMax, direction, visibility });
+          playerViewUiActions.setCountdownComposerOpen(false);
+        }}
+        disabled={!name.trim()}
+      >
+        Запустить
+      </button>
+    </section>
+  );
+}
+
+function CountdownCard({ countdown, role }: { countdown: Countdown; role: TableViewRole }) {
+  const filled = Math.max(0, Math.min(countdown.max, countdown.current));
+  return (
+    <article className={`player-countdown-card ${countdown.visibility === 'gm' ? 'dh-is-private' : ''}`}>
+      <header>
+        {role === 'gm' ? (
+          <input
+            aria-label="Название отсчета"
+            value={countdown.name}
+            onInput={(event) => encounterService.updateCountdown(countdown.id, { name: event.currentTarget.value })}
+          />
+        ) : (
+          <strong>{countdown.name}</strong>
+        )}
+        {role === 'gm' && (
+          <button type="button" title="Удалить отсчет" aria-label={`Удалить отсчет ${countdown.name}`} onClick={() => encounterService.removeCountdown(countdown.id)}>
+            <X size={14} aria-hidden="true" />
+          </button>
+        )}
+      </header>
+      <div className="player-countdown-card__pips" aria-label={`${filled} из ${countdown.max}`}>
+        {Array.from({ length: countdown.max }, (_, index) => (
+          <i className={index < filled ? 'dh-is-filled' : ''} key={index} />
+        ))}
+      </div>
+      <footer>
+        <span>{countdown.current}/{countdown.max}</span>
+        {role === 'gm' && (
+          <div className="player-countdown-card__controls">
+            <button type="button" title="Назад" onClick={() => encounterService.tickCountdown(countdown.id, -1)}>
+              <Minus size={13} aria-hidden="true" />
+            </button>
+            <button type="button" title="Вперед" onClick={() => encounterService.tickCountdown(countdown.id, 1)}>
+              <Plus size={13} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              title={countdown.visibility === 'public' ? 'Скрыть от игроков' : 'Показать игрокам'}
+              onClick={() => encounterService.updateCountdown(countdown.id, { visibility: countdown.visibility === 'public' ? 'gm' : 'public' })}
+            >
+              {countdown.visibility === 'public' ? <Eye size={13} aria-hidden="true" /> : <EyeOff size={13} aria-hidden="true" />}
+            </button>
+          </div>
+        )}
+      </footer>
+    </article>
   );
 }

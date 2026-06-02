@@ -24,7 +24,7 @@ async function addRedOoze(page: Page): Promise<void> {
 }
 
 async function openNpcRoster(page: Page): Promise<void> {
-  await page.locator('.player-roster-tabs').getByRole('button', { name: 'NPC' }).click();
+  await page.locator('.player-roster-tabs').getByRole('button', { name: 'Сцена' }).click();
 }
 
 test.describe('combat builder sync', () => {
@@ -33,7 +33,7 @@ test.describe('combat builder sync', () => {
     const gm = await openGmTable(context);
 
     await openNpcRoster(gm);
-    await expect(gm.locator('.player-roster-empty')).toContainText('NPC еще не добавлены.');
+    await expect(gm.locator('.player-roster-empty')).toContainText('На сцене еще никого нет.');
 
     await addRedOoze(builder);
     await expect(builder.locator('.combat-encounter-panel')).toContainText('1 противников');
@@ -51,6 +51,6 @@ test.describe('combat builder sync', () => {
     await secondBuilder.getByTitle('Уменьшить / Удалить').first().click();
 
     await expect(builder.locator('.combat-encounter-panel')).toContainText('0 противников');
-    await expect(gm.locator('.player-roster-empty')).toContainText('NPC еще не добавлены.');
+    await expect(gm.locator('.player-roster-empty')).toContainText('На сцене еще никого нет.');
   });
 });

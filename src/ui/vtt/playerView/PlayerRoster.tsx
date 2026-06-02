@@ -42,7 +42,7 @@ export function PlayerRoster({
             <button
               className="player-roster__open"
               disabled={locked}
-              title={opensSheet ? actor.name : 'Лист НПС скрыт от игроков'}
+              title={opensSheet ? actor.name : 'Детали скрыты от игроков'}
               type="button"
               onClick={() => {
                 if (opensSheet) onOpenActor({ kind: actor.kind, actorId: actor.actorId });
@@ -61,7 +61,7 @@ export function PlayerRoster({
               )}
               <span>
                 <strong>{actor.name}</strong>
-                <small>{actor.kind === 'adversary' ? 'НПС' : actor.subtitle}</small>
+                <small>{actor.kind === 'character' ? actor.subtitle : actor.kind === 'environment' ? actor.subtitle || 'Окружение' : 'НПС'}</small>
               </span>
             </button>
             {role === 'gm' && (

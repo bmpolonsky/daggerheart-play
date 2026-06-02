@@ -342,6 +342,38 @@ test('player view model exposes adversary details only to GM role', () => {
   assert.equal(gmModel.adversaries[adversary.id]?.features[0]?.text, '**Потратьте Страх**, чтобы **активировать** стражей.');
 });
 
+test('player view model exposes environment tokens but keeps environment details GM-only', () => {
+  resetAllStores();
+  const environment = encounterService.createEnvironment({
+    name: 'Штормовой мост',
+    tier: 2,
+    difficulty: 15,
+    typeName: 'Опасное окружение',
+    summary: 'Мост раскачивается над бездной.',
+    featureText: '**Потратьте Страх**, чтобы сорвать крепление.',
+    imageUrl: 'https://example.test/bridge.png'
+  });
+  const scene = createTableScene({
+    tokens: [
+      createTokenState({ kind: 'environment', id: environment.id }, { id: 'environment-token' })
+    ]
+  });
+  const baseInput = {
+    game: createGameState(),
+    characters: charactersStore.getSnapshot(),
+    encounter: encounterService.encounterStore.getSnapshot(),
+    liveScene: scene,
+    assets: {},
+    assetUrls: {},
+    rollLog: []
+  };
+
+  const playerModel = buildPlayerViewModel({ ...baseInput, role: 'player' });
+
+  assert.deepEqual(playerModel.tokens.map((token) => `${token.kind}:${token.name}`), ['environment:Штормовой мост']);
+  assert.equal(encounterService.encounterStore.getSnapshot().environments[environment.id]?.featureText, '**Потратьте Страх**, чтобы сорвать крепление.');
+});
+
 test('player view model leaves adversary portrait empty when library art is missing', () => {
   resetAllStores();
   const adversary = encounterService.createAdversary({

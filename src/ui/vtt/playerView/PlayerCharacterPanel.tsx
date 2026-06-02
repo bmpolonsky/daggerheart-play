@@ -2,7 +2,7 @@
 import { useMemo } from "preact/hooks";
 import { useStore } from "../../../core/hooks/useStore";
 import { buildPlayerTokens, type PlayerViewAdversarySummary, type PlayerViewCharacterSummary, type PlayerViewEmptyCharacterState } from "../../../domain/tabletop/playerView";
-import type { SceneTableState } from "../../../domain/rules/types";
+import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
 import { characterService, contentService, encounterService, playerActivationQueueService, playerPresenceService } from "../../../services/serviceRegistry";
 import { buildSessionRosterActors } from "./helpers";
 import type { PlayerRosterActor, PlayerViewedActor, TableViewRole } from "./types";
@@ -15,6 +15,7 @@ export function PlayerCharacterPanel({
   activeCharacterId,
   adversary,
   character,
+  environment,
   emptyActionLabel,
   emptyState,
   role,
@@ -31,6 +32,7 @@ export function PlayerCharacterPanel({
   activeCharacterId: string | null;
   adversary: PlayerViewAdversarySummary | null;
   character: PlayerViewCharacterSummary | null;
+  environment: EncounterEnvironment | null;
   emptyActionLabel?: string;
   emptyState: PlayerViewEmptyCharacterState;
   role: TableViewRole;
@@ -55,11 +57,12 @@ export function PlayerCharacterPanel({
       tokens,
       characters,
       adversaries: encounter.adversaries,
+      environments: encounter.environments,
       role,
       activationQueue,
       presence: playerPresence
     })
-    : [], [activationQueue, characters, encounter.adversaries, playerPresence, role, tokens]);
+    : [], [activationQueue, characters, encounter.adversaries, encounter.environments, playerPresence, role, tokens]);
 
   if (role === "gm") {
     return (
@@ -67,6 +70,7 @@ export function PlayerCharacterPanel({
         activeAdversaryId={activeAdversaryId}
         activeCharacterId={activeCharacterId}
         adversary={adversary}
+        environment={environment}
         actors={actors}
         beastforms={beastforms}
         character={character}

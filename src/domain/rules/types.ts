@@ -318,7 +318,29 @@ export interface Countdown {
   current: number;
   max: number;
   direction: 'up' | 'down';
+  visibility: 'public' | 'gm';
   notes?: string;
+}
+
+export interface EncounterEnvironment {
+  id: string;
+  sourceId?: string | number;
+  sourceSlug?: string;
+  sourceName?: string;
+  name: string;
+  tier: number;
+  difficulty: number;
+  type: string;
+  typeName: string;
+  summary: string;
+  body: string;
+  featureText: string;
+  impulses: string;
+  potentialAdversaries: string;
+  imageUrl: string | null;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface GameState {
@@ -364,6 +386,7 @@ export interface EncounterState {
   activeAdversaryId: string | null;
   adversaries: Record<string, Adversary>;
   order: string[];
+  environments: Record<string, EncounterEnvironment>;
   countdowns: Countdown[];
   playerCount: number;
   difficultyMode: EncounterDifficultyMode;

@@ -3,12 +3,13 @@ import { useState } from "preact/hooks";
 import { useStore } from "../../../core/hooks/useStore";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewAdversarySummary, PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
-import type { SceneTableState } from "../../../domain/rules/types";
+import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
 import { gameService, tabletopService } from "../../../services/serviceRegistry";
 import { PlayerRoster } from "./PlayerRoster";
 import type { PlayerRosterActor, PlayerViewedActor } from "./types";
 import { AdversarySheet } from "./AdversarySheet";
 import { CharacterSheet } from "./CharacterSheet";
+import { EnvironmentSheet } from "./EnvironmentSheet";
 import type { PlayerViewDomainCard } from "./domainCards/types";
 import { RosterGmDock } from "./gmPanel/RosterGmDock";
 import { SceneMusicControls } from "./gmPanel/SceneMusicControls";
@@ -22,6 +23,7 @@ export function GmRightPanel({
   actors,
   beastforms,
   character,
+  environment,
   sceneId,
   sceneTable,
   onClearActivationRequest,
@@ -36,6 +38,7 @@ export function GmRightPanel({
   actors: PlayerRosterActor[];
   beastforms?: LibraryBeastform[];
   character: PlayerViewCharacterSummary | null;
+  environment: EncounterEnvironment | null;
   sceneId: string;
   sceneTable: SceneTableState;
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor['activationRequest']>) => void;
@@ -46,17 +49,20 @@ export function GmRightPanel({
 }) {
   const { handouts } = useStore(gameService.gameStore);
   const [activeGmPanelTab, setActiveGmPanelTab] = useState<GmDockTab>('scenes');
-  const [activeRosterTab, setActiveRosterTab] = useState<'players' | 'npc'>('players');
+  const [activeRosterTab, setActiveRosterTab] = useState<'players' | 'scene'>('players');
   if (adversary) {
     return <AdversarySheet adversary={adversary} onBack={onClearActor} />;
+  }
+  if (environment) {
+    return <EnvironmentSheet environment={environment} onBack={onClearActor} />;
   }
   if (character) {
     return <CharacterSheet character={character} beastforms={beastforms} role="gm" showBackButton onBack={onClearActor} onDomainCardPreview={onDomainCardPreview} />;
   }
 
   const playerActors = actors.filter((actor) => actor.kind === 'character');
-  const npcActors = actors.filter((actor) => actor.kind === 'adversary');
-  const visibleRosterActors = activeRosterTab === 'players' ? playerActors : npcActors;
+  const sceneActors = actors.filter((actor) => actor.kind === 'adversary' || actor.kind === 'environment');
+  const visibleRosterActors = activeRosterTab === 'players' ? playerActors : sceneActors;
   return (
     <aside className="player-character-panel player-character-panel--gm-overview" aria-label="Инструменты сцены">
       <section className="player-gm-overview__actors" aria-label="Персонажи">
@@ -65,8 +71,8 @@ export function GmRightPanel({
           <button className={activeRosterTab === 'players' ? 'dh-is-active' : ''} type="button" onClick={() => setActiveRosterTab('players')}>
             Игроки
           </button>
-          <button className={activeRosterTab === 'npc' ? 'dh-is-active' : ''} type="button" onClick={() => setActiveRosterTab('npc')}>
-            NPC
+          <button className={activeRosterTab === 'scene' ? 'dh-is-active' : ''} type="button" onClick={() => setActiveRosterTab('scene')}>
+            Сцена
           </button>
         </nav>
         {visibleRosterActors.length > 0 ? (
@@ -82,7 +88,7 @@ export function GmRightPanel({
             onOpenActor={onOpenActor}
           />
         ) : (
-          <p className="player-roster-empty">{activeRosterTab === 'players' ? 'Игроки еще не созданы.' : 'NPC еще не добавлены.'}</p>
+          <p className="player-roster-empty">{activeRosterTab === 'players' ? 'Игроки еще не созданы.' : 'На сцене еще никого нет.'}</p>
         )}
       </section>
       <RosterGmDock

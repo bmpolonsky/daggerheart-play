@@ -1,7 +1,7 @@
 import type { SubmitPlayerActionRequestInput } from '../../../services/PlayerActionRequestService';
 import type { PlayerActivationQueueItem } from '../../../services/PlayerActivationQueueService';
 import type { PlayerPresence } from '../../../services/PlayerPresenceService';
-import type { Adversary, CharactersState, DamageType, RollLogEntry, TraitId } from '../../../domain/rules/types';
+import type { Adversary, CharactersState, DamageType, EncounterEnvironment, RollLogEntry, TraitId } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
 import type { PlayerViewModel, PlayerViewToken } from '../../../domain/tabletop/playerView';
 import { defaultCharacterPortraitUrl } from '../../../domain/tabletop/defaultArt';
@@ -9,7 +9,7 @@ import { inferBasePathFromWorkspacePath } from '../../../domain/p2p/sessionLinks
 import { classLabel } from '../../../domain/rules/constants';
 import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
 
-export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: CharactersState | null = null, adversaries: Record<string, Adversary> | null = null): PlayerRosterActor[] {
+export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: CharactersState | null = null, adversaries: Record<string, Adversary> | null = null, environments: Record<string, EncounterEnvironment> | null = null): PlayerRosterActor[] {
   const seen = new Set<string>();
   const placed = new Set(tokens.map((token) => `${token.kind}:${token.actorId}`));
   const actors = tokens.filter((token) => {
@@ -60,6 +60,22 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
       });
     });
   }
+  if (environments) {
+    Object.values(environments).forEach((environment) => {
+      const key = `environment:${environment.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      actors.push({
+        tokenId: key,
+        actorId: environment.id,
+        kind: 'environment',
+        name: environment.name,
+        subtitle: environment.difficulty ? `Сложность ${environment.difficulty}` : 'Окружение',
+        imageUrl: environment.imageUrl ?? '',
+        isOnScene: placed.has(key)
+      });
+    });
+  }
   return actors;
 }
 
@@ -67,6 +83,7 @@ export function buildSessionRosterActors(input: {
   tokens: PlayerViewToken[];
   characters: CharactersState;
   adversaries: Record<string, Adversary>;
+  environments?: Record<string, EncounterEnvironment>;
   role: TableViewRole;
   playerCharacterId?: string | null;
   activationQueue: PlayerActivationQueueItem[];
@@ -75,7 +92,8 @@ export function buildSessionRosterActors(input: {
   let actors = buildPlayerRosterActors(
     input.tokens,
     input.role === 'gm' ? input.characters : null,
-    input.role === 'gm' ? input.adversaries : null
+    input.role === 'gm' ? input.adversaries : null,
+    input.role === 'gm' ? input.environments ?? null : null
   ).map((actor) => withPlayerPresence(actor, input.presence));
 
   if (input.role !== 'gm') {

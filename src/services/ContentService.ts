@@ -3,7 +3,7 @@ import { reloadBrowserCustomContent, subscribeCustomContentChanges } from '../co
 import { contentStore } from '../stores/contentStore';
 import { readRawCustomCardCollections } from '../domain/content/customCardLibrary';
 import { encounterStore } from '../stores/gameStores';
-import { mapGenericItem, mapRawAdversary, createAdversaryFromLibrary, mapRawBeastformItem, mapRawClassItem, mapRawEnvironmentItem, mapRawEquipmentItem, mapRawRuleItem } from '../domain/content/mappers';
+import { mapGenericItem, mapRawAdversary, createAdversaryFromLibrary, createEnvironmentFromLibrary, mapRawBeastformItem, mapRawClassItem, mapRawEnvironmentItem, mapRawEquipmentItem, mapRawRuleItem } from '../domain/content/mappers';
 import {
   buildApiCollectionUrl,
   CONTENT_COLLECTIONS,
@@ -175,6 +175,19 @@ export class ContentService {
       adversaries: { ...state.adversaries, [adversary.id]: adversary },
       order: [...state.order, adversary.id],
       activeAdversaryId: adversary.id,
+      updatedAt: nowIso()
+    }));
+    return true;
+  }
+
+  addEnvironmentToEncounter(libraryEnvironmentId: string): boolean {
+    const item = contentStore.getSnapshot().environments.find((environment) => environment.id === libraryEnvironmentId);
+    if (!item) return false;
+
+    const environment = createEnvironmentFromLibrary(item);
+    encounterStore.update((state) => ({
+      ...state,
+      environments: { ...state.environments, [environment.id]: environment },
       updatedAt: nowIso()
     }));
     return true;

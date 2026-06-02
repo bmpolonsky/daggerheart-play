@@ -1,7 +1,7 @@
 import type { DamageType, TraitId } from '../rules/types';
 import type { SceneMusicState } from '../audio/sceneAudio';
 
-export type TableActorKind = 'character' | 'adversary' | 'npc' | 'companion';
+export type TableActorKind = 'character' | 'adversary' | 'environment' | 'npc' | 'companion';
 export type SceneLayerKind = 'background' | 'overlay' | 'fog' | 'annotation';
 export type TableGridType = 'none' | 'square';
 export type TableSyncRole = 'gm' | 'player' | 'observer';
@@ -102,7 +102,7 @@ export interface SyncEvent {
   id: string;
   createdAt: string;
   authorId: string;
-  kind: 'scene' | 'actor' | 'roll' | 'presence' | 'asset' | 'snapshot' | 'snapshotRequest' | 'playerRequest' | 'playerTokenMove' | 'playerRestChoice' | 'playerRollIntent' | 'playerDecision' | 'playerActivation' | 'playerVoiceControl' | 'feed';
+  kind: 'scene' | 'actor' | 'roll' | 'presence' | 'asset' | 'snapshot' | 'snapshotRequest' | 'playerRequest' | 'playerTokenMove' | 'playerRestChoice' | 'playerRollIntent' | 'playerDecision' | 'playerActivation' | 'playerVoiceControl' | 'playerCharacterCreate' | 'feed';
   value: unknown;
 }
 

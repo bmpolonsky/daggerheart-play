@@ -58,7 +58,9 @@ export function syncSceneTokens(scene: TableScene, characters: Character[], adve
     ...characters.map((character) => tokenIdFor('character', character.id)),
     ...adversaries.map((adversary) => tokenIdFor('adversary', adversary.id))
   ]);
-  const nextTokens = scene.tokens.filter((token) => actorIds.has(token.id));
+  const nextTokens = scene.tokens.filter((token) => (
+    (token.actor.kind !== 'character' && token.actor.kind !== 'adversary') || actorIds.has(token.id)
+  ));
   const existing = new Set(nextTokens.map((token) => token.id));
 
   characters.forEach((character, index) => {

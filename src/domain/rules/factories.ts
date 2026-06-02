@@ -24,6 +24,7 @@ import type {
   Countdown,
   DaggerheartClass,
   DomainCardRecord,
+  EncounterEnvironment,
   EncounterState,
   Experience,
   SceneTableState,
@@ -283,11 +284,36 @@ export function createAdversary(input?: Partial<Adversary>): Adversary {
 export function createCountdown(input?: Partial<Countdown>): Countdown {
   return {
     id: input?.id ?? createId('countdown'),
-    name: input?.name ?? 'Countdown',
+    name: input?.name ?? 'Отсчет',
     current: input?.current ?? 0,
     max: input?.max ?? 4,
     direction: input?.direction ?? 'up',
+    visibility: input?.visibility ?? 'public',
     notes: input?.notes ?? ''
+  };
+}
+
+export function createEncounterEnvironment(input?: Partial<EncounterEnvironment>): EncounterEnvironment {
+  const now = nowIso();
+  return {
+    id: input?.id ?? createId('env'),
+    sourceId: input?.sourceId,
+    sourceSlug: input?.sourceSlug,
+    sourceName: input?.sourceName,
+    name: input?.name ?? 'Окружение',
+    tier: input?.tier ?? 1,
+    difficulty: input?.difficulty ?? 0,
+    type: input?.type ?? 'environment',
+    typeName: input?.typeName ?? 'Окружение',
+    summary: input?.summary ?? '',
+    body: input?.body ?? '',
+    featureText: input?.featureText ?? '',
+    impulses: input?.impulses ?? '',
+    potentialAdversaries: input?.potentialAdversaries ?? '',
+    imageUrl: input?.imageUrl ?? null,
+    notes: input?.notes ?? '',
+    createdAt: input?.createdAt ?? now,
+    updatedAt: now
   };
 }
 
@@ -299,6 +325,7 @@ export function createEncounterState(): EncounterState {
     activeAdversaryId: null,
     adversaries: {},
     order: [],
+    environments: {},
     countdowns: [],
     playerCount: 4,
     difficultyMode: 'standard',

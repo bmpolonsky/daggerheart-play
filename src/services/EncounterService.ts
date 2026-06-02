@@ -1,9 +1,9 @@
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { removeFromRecord, replaceInRecord } from '../core/utils/object';
-import { createAdversary, createCountdown } from '../domain/rules/factories';
+import { createAdversary, createCountdown, createEncounterEnvironment } from '../domain/rules/factories';
 import { buildCoreAdversariesFromCombatBuilder, isCombatBuilderEncounterSnapshot, type CombatBuilderEncounterSnapshot } from '../domain/combatBuilderBridge/index';
-import type { Adversary, AdversaryExperience, AdversaryFeature, Countdown, EncounterState } from '../domain/rules/types';
+import type { Adversary, AdversaryExperience, AdversaryFeature, Countdown, EncounterEnvironment, EncounterState } from '../domain/rules/types';
 import { gameStore, encounterStore } from '../stores/gameStores';
 
 export interface CombatBuilderEncounterImportReport {
@@ -40,6 +40,16 @@ export class EncounterService {
       updatedAt: nowIso()
     }));
     return adversary;
+  }
+
+  createEnvironment(input?: Partial<EncounterEnvironment>): EncounterEnvironment {
+    const environment = createEncounterEnvironment(input);
+    encounterStore.update((state) => ({
+      ...state,
+      environments: { ...state.environments, [environment.id]: environment },
+      updatedAt: nowIso()
+    }));
+    return environment;
   }
 
   importCombatBuilderEncounter(snapshot: CombatBuilderEncounterSnapshot, replace = true): CombatBuilderEncounterImportReport {
@@ -240,7 +250,7 @@ export class EncounterService {
   updateCountdown(id: string, patch: Partial<Countdown>): void {
     encounterStore.update((state) => ({
       ...state,
-      countdowns: state.countdowns.map((countdown) => (countdown.id === id ? { ...countdown, ...patch } : countdown)),
+      countdowns: state.countdowns.map((countdown) => (countdown.id === id ? normalizeCountdownPatch(countdown, patch) : countdown)),
       updatedAt: nowIso()
     }));
   }
@@ -288,6 +298,22 @@ export class EncounterService {
       };
     });
   }
+}
+
+function normalizeCountdownPatch(countdown: Countdown, patch: Partial<Countdown>): Countdown {
+  const max = clamp(toSafeInteger(patch.max ?? countdown.max, countdown.max), 1, 20);
+  const current = clamp(toSafeInteger(patch.current ?? countdown.current, countdown.current), 0, max);
+  const direction = patch.direction === 'down' ? 'down' : patch.direction === 'up' ? 'up' : countdown.direction;
+  const visibility = patch.visibility === 'gm' ? 'gm' : patch.visibility === 'public' ? 'public' : countdown.visibility;
+  return {
+    ...countdown,
+    ...patch,
+    id: countdown.id,
+    current,
+    max,
+    direction,
+    visibility
+  };
 }
 
 function unwrapCombatBuilderSnapshot(value: unknown): CombatBuilderEncounterSnapshot | null {

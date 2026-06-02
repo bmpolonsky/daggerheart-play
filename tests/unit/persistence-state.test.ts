@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createSceneTableState } from "../../src/domain/rules/factories";
 import { resetAllStores, sceneTableStore, subscribeToSyncedGameStores, syncedGameStores } from "../../src/stores/gameStores";
 import { snapshotPersistedState, hydratePersistedState } from "../../src/stores/persistedState";
-import { characterService, importExportService, sceneTableService } from "../../src/services/serviceRegistry";
+import { characterService, encounterService, importExportService, sceneTableService } from "../../src/services/serviceRegistry";
 import type { GameDocument } from "../../src/domain/game/gameDocument";
 
 test('persistence v4 includes table scenes and import/export hydrates them', () => {
@@ -102,6 +102,25 @@ test('hydration drops legacy string inventory instead of migrating it', () => {
   hydratePersistedState(snapshot);
 
   assert.deepEqual(characterService.getCharacter(character.id)?.inventory, []);
+});
+
+test('persistence normalizes countdown visibility and encounter environments', () => {
+  resetAllStores();
+  encounterService.addCountdown({ id: 'countdown-public', name: 'Ритуал', current: 1, max: 4 });
+  encounterService.addCountdown({ id: 'countdown-gm', name: 'Секрет', current: 2, max: 6, visibility: 'gm' });
+  const environment = encounterService.createEnvironment({ name: 'Затопленный рынок', difficulty: 13 });
+  const snapshot = snapshotPersistedState();
+  snapshot.encounter.countdowns[0] = {
+    ...snapshot.encounter.countdowns[0],
+    visibility: undefined
+  } as unknown as typeof snapshot.encounter.countdowns[number];
+
+  hydratePersistedState(snapshot);
+
+  const encounter = encounterService.encounterStore.getSnapshot();
+  assert.equal(encounter.countdowns.find((item) => item.id === 'countdown-public')?.visibility, 'public');
+  assert.equal(encounter.countdowns.find((item) => item.id === 'countdown-gm')?.visibility, 'gm');
+  assert.equal(encounter.environments[environment.id]?.name, 'Затопленный рынок');
 });
 
 test('v3 persistence snapshots are rejected after the migration cutoff', () => {

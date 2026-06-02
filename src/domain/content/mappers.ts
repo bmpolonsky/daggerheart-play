@@ -1,4 +1,4 @@
-import type { Adversary, AdversaryFeature, AdversaryType, DaggerheartClass, DamageType, DomainName, TraitId } from '../rules/types';
+import type { Adversary, AdversaryFeature, AdversaryType, DaggerheartClass, DamageType, DomainName, EncounterEnvironment, TraitId } from '../rules/types';
 import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { inferExplicitAdversaryFeatureCost } from '../rules/adversaries';
 import type {
@@ -20,7 +20,7 @@ import type {
   RawEquipmentItem,
   RawRuleItem
 } from './types';
-import { createAdversary } from '../rules/factories';
+import { createAdversary, createEncounterEnvironment } from '../rules/factories';
 import { createId } from '../../core/utils/id';
 
 const ADVERSARY_TYPES: AdversaryType[] = [
@@ -288,6 +288,26 @@ export function createAdversaryFromLibrary(item: LibraryAdversary): Adversary {
   });
 }
 
+export function createEnvironmentFromLibrary(item: LibraryEnvironment): EncounterEnvironment {
+  return createEncounterEnvironment({
+    sourceId: item.sourceId,
+    sourceSlug: item.slug,
+    sourceName: item.name,
+    name: item.name,
+    tier: item.tier,
+    difficulty: item.difficulty,
+    type: item.type,
+    typeName: item.typeName,
+    summary: item.summary,
+    body: item.body,
+    featureText: item.featureText,
+    impulses: item.impulses,
+    potentialAdversaries: item.potentialAdversaries,
+    imageUrl: item.imageUrl,
+    notes: ''
+  });
+}
+
 export function mapRawEquipmentItem(raw: RawEquipmentItem): LibraryEquipmentItem {
   const name = asString(raw.name, 'Без названия');
   const type = coerceEquipmentType(raw.type_slug);
@@ -419,7 +439,13 @@ function coerceEquipmentType(input: unknown): LibraryEquipmentType {
 function buildEnvironmentFeatureText(features: RawAdversaryFeature[] | undefined): string {
   if (!Array.isArray(features)) return '';
   return features
-    .map((feature) => [asString(feature.name), asString(feature.main_body ?? feature.text)].filter(Boolean).join(': '))
+    .map((feature) => {
+      const title = asString(feature.name);
+      const body = asString(feature.main_body ?? feature.text);
+      if (!title) return body;
+      if (!body) return `### ${title}`;
+      return `### ${title}\n${body}`;
+    })
     .filter(Boolean)
     .join('\n\n');
 }

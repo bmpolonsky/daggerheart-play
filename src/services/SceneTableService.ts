@@ -46,8 +46,8 @@ export class SceneTableService {
     if (nextParticipants) syncCharacterPlayerNames(nextParticipants);
   }
 
-  createPlayerSeat(input: { name?: string; characterId?: string | null } = {}): TableParticipant {
-    const id = `player-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  createPlayerSeat(input: { id?: string; name?: string; characterId?: string | null } = {}): TableParticipant {
+    const id = input.id?.trim() || `player-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const currentParticipants = sceneTableStore.getSnapshot().participants;
     const participant = createLocalParticipant({
       id,
@@ -560,7 +560,7 @@ function hasSceneFields(record: Record<string, unknown>): boolean {
 function mapLegacyToken(value: unknown): TokenState | null {
   if (!value || typeof value !== 'object') return null;
   const token = value as Record<string, unknown>;
-  const kind = token.kind === 'character' || token.kind === 'adversary' ? token.kind : null;
+  const kind = token.kind === 'character' || token.kind === 'adversary' || token.kind === 'environment' ? token.kind : null;
   const sourceId = stringField(token, 'sourceId') || stringField(token, 'actorId');
   if (!kind || !sourceId) return null;
   const x = numberField(token, 'x') ?? 50;

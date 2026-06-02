@@ -1,8 +1,9 @@
 /** @jsxImportSource preact */
-import { Bed, Coffee, Swords, Users } from "lucide-react";
+import { Bed, Coffee, Hourglass, Swords, Users } from "lucide-react";
 import { useStore } from "../../../../core/hooks/useStore";
 import type { RestType } from "../../../../domain/rules/rest";
 import { characterService, feedService } from "../../../../services/serviceRegistry";
+import { playerViewUiActions } from "../playerViewUiState";
 
 export function GmActionsPanel() {
   const charactersState = useStore(characterService.charactersStore);
@@ -35,6 +36,12 @@ export function GmActionsPanel() {
         <RestRow restType="long" onRequest={() => requestRest('long')} />
         <TeamworkRow kind="groupAction" onRequest={() => requestTeamwork('groupAction')} />
         <TeamworkRow kind="tagTeam" onRequest={() => requestTeamwork('tagTeam')} />
+        <button className="player-gm-actions__rest-row" type="button" onClick={() => playerViewUiActions.setCountdownComposerOpen(true)}>
+          <Hourglass size={16} aria-hidden="true" />
+          <span>
+            <strong>Создать отсчет</strong>
+          </span>
+        </button>
       </div>
     </section>
   );

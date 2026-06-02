@@ -219,8 +219,8 @@
 .player-activity-card {
   height: 100%;
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   overflow: visible;
   padding: 10px;
@@ -241,11 +241,8 @@
   background: rgba(9, 10, 12, 0.36);
 }
 
-.player-activity-card--gm {
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-}
-
 .player-activity-list {
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -258,7 +255,7 @@
   overflow: hidden;
 }
 
-.player-activity-card header,
+.player-activity-card > header,
 .player-activity-header {
   display: flex;
   align-items: center;
@@ -419,6 +416,161 @@
 
 .player-activity-event.dh-is-rolling {
   --activity-accent: rgba(240, 201, 106, 0.58);
+}
+
+.player-countdown-composer,
+.player-countdown-stack {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 8px;
+}
+
+.player-countdown-stack {
+  max-height: 30%;
+  overflow: auto;
+  padding: 1px 2px 4px;
+  scrollbar-width: thin;
+}
+
+.player-countdown-composer,
+.player-countdown-card {
+  border: 1px solid rgba(240, 201, 106, 0.24);
+  border-radius: 8px;
+  background: rgba(8, 10, 13, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(7, 9, 12, 0.28), 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+
+.player-countdown-composer {
+  padding: 9px;
+}
+
+.player-countdown-card {
+  padding: 8px;
+}
+
+.player-countdown-composer > header,
+.player-countdown-card > header,
+.player-countdown-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.player-countdown-composer button,
+.player-countdown-card button,
+.player-countdown-composer input,
+.player-countdown-card input {
+  border: 1px solid rgba(240, 201, 106, 0.16);
+  border-radius: 7px;
+  color: #fff7e7;
+}
+
+.player-countdown-composer label {
+  display: grid;
+  gap: 4px;
+}
+
+.player-countdown-composer label span {
+  color: rgba(243, 234, 216, 0.62);
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.player-countdown-composer > header strong,
+.player-countdown-card strong,
+.player-countdown-card > header input,
+.player-countdown-card footer span {
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.player-countdown-composer input,
+.player-countdown-card input {
+  min-width: 0;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.18);
+  font: inherit;
+  padding: 6px 7px;
+}
+
+.player-countdown-composer input::placeholder {
+  color: rgba(243, 234, 216, 0.42);
+}
+
+.player-countdown-card > header input {
+  border-color: transparent;
+  background: transparent;
+  padding-left: 0;
+  font-weight: 900;
+}
+
+.player-countdown-composer__grid,
+.player-countdown-composer__segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.player-countdown-composer__segmented button,
+.player-countdown-composer > .dh-button {
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.player-countdown-composer__segmented button.dh-is-active {
+  border-color: rgba(240, 201, 106, 0.34);
+  background: rgba(240, 201, 106, 0.14);
+  color: #fff7e7;
+}
+
+.player-countdown-composer > .dh-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.player-countdown-composer > header button,
+.player-countdown-card > header button,
+.player-countdown-card__controls button {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+}
+
+.player-countdown-card.dh-is-private {
+  border-color: rgba(142, 171, 255, 0.22);
+}
+
+.player-countdown-card__pips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9px, 1fr));
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.player-countdown-card__pips i {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(243, 234, 216, 0.14);
+}
+
+.player-countdown-card__pips i.dh-is-filled {
+  background: var(--dh-gold, #f0c96a);
+}
+
+.player-countdown-card footer span {
+  color: rgba(243, 234, 216, 0.68);
+}
+
+.player-countdown-card__controls {
+  display: flex;
+  gap: 5px;
 }
 
 .player-activity-event.dh-is-rolling strong::after {

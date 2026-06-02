@@ -6,7 +6,7 @@ import { audioService, diceService, gameService, p2pSessionService, playerActiva
 import { MiniDiceLauncher } from '../MiniDiceLauncher';
 import type { TableViewRole } from './types';
 
-type DisplayedActor = { id: string; name: string; kind: 'character' | 'adversary' } | null;
+type DisplayedActor = { id: string; name: string; kind: 'character' | 'adversary' | 'environment' } | null;
 type ActiveCharacterActor = { id: string; name: string } | null;
 
 interface PlayerActionDockProps {
@@ -57,7 +57,7 @@ export function PlayerActionDock({
   return (
     <MiniDiceLauncher
       actorName={displayedActorName}
-      selectedActorKind={displayedActor?.kind ?? null}
+      selectedActorKind={displayedActor?.kind === 'environment' ? null : displayedActor?.kind ?? null}
       role={role}
       voiceState={audioState}
       activationRaised={Boolean(displayedCharacter?.id && localActivation.raised && localActivation.actorId === displayedCharacter.id)}

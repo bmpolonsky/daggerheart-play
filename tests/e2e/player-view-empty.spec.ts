@@ -37,20 +37,20 @@ test.describe('Player View empty state', () => {
     await expectInsideViewport(page, panel);
   });
 
-  test('desktop explains the missing character and returns to the game table', async ({ page }) => {
+  test('desktop explains the missing character and opens character creation', async ({ page }) => {
     await openPlayerView(page, { width: 1440, height: 900 });
 
     const panel = page.locator('.player-character-panel--empty');
-    const cta = panel.getByRole('button', { name: 'Вернуться в лобби' });
+    const cta = panel.getByRole('button', { name: 'Создать персонажа' });
 
     await expect(panel).toBeVisible();
     await expect(panel).toContainText('Персонаж не назначен');
-    await expect(panel).toContainText('Попросите мастера назначить героя для вашего места в игре');
+    await expect(panel).toContainText('Создайте героя');
     await expect(cta).toBeVisible();
     await expectInsideViewport(page, panel);
 
     await cta.click();
-    await expect(page.locator('.role-entry')).toBeVisible();
+    await expect(page.locator('.cinematic-builder')).toBeVisible();
   });
 
   test('mobile keeps the empty state readable and actionable', async ({ page }) => {
@@ -58,18 +58,18 @@ test.describe('Player View empty state', () => {
     await page.locator('.player-mobile-layer-tabs').getByRole('button', { name: 'Лист' }).click();
 
     const panel = page.locator('.player-character-panel--empty');
-    const cta = panel.getByRole('button', { name: 'Вернуться в лобби' });
+    const cta = panel.getByRole('button', { name: 'Создать персонажа' });
 
     await expect(panel).toBeVisible();
     await expect(panel).toContainText('Персонаж не назначен');
-    await expect(panel).toContainText('Попросите мастера назначить героя');
+    await expect(panel).toContainText('Создайте героя');
     await expect(cta).toBeVisible();
     await expectInsideViewport(page, panel);
     await expectInsideViewport(page, cta);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
 
     await cta.click();
-    await expect(page.locator('.role-entry')).toBeVisible();
+    await expect(page.locator('.cinematic-builder')).toBeVisible();
   });
 
   test('GM can adjust Fear from the VTT top bar', async ({ page }) => {
@@ -84,5 +84,28 @@ test.describe('Player View empty state', () => {
 
     await fearTrack.getByRole('button', { name: 'Страх 3' }).click();
     await expect(fearTrack).toContainText('2/12');
+  });
+
+  test('GM creates and manages countdown from the feed composer', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/gm');
+
+    await page.locator('.player-roster-gm-dock__tabs').getByRole('button', { name: 'Действия' }).click();
+    await page.getByRole('button', { name: 'Создать отсчет' }).click();
+
+    const composer = page.locator('.player-countdown-composer');
+    await expect(composer).toBeVisible();
+    await composer.getByLabel('Название').fill('Ритуал');
+    await composer.getByRole('button', { name: 'Запустить' }).click();
+
+    const countdownName = page.getByLabel('Название отсчета');
+    await expect(countdownName).toHaveValue('Ритуал');
+    const countdown = countdownName.locator('xpath=ancestor::article[contains(@class, "player-countdown-card")]');
+    await expect(countdown).toBeVisible();
+    await countdown.getByTitle('Вперед').click();
+    await expect(countdown).toContainText('1/4');
+    await countdown.getByTitle('Показать игрокам').click();
+    await countdown.getByTitle('Удалить отсчет').click();
+    await expect(countdown).toHaveCount(0);
   });
 });

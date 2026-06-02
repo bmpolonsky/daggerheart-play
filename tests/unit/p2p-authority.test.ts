@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { resetAllStores, feedStore, sceneTableStore } from "../../src/stores/gameStores";
+import { resetAllStores, charactersStore, feedStore, sceneTableStore } from "../../src/stores/gameStores";
 import { characterService, diceService, feedService, rollLogService } from "../../src/services/serviceRegistry";
 import { P2PRoomConnection } from "../../src/services/p2p/P2PRoomConnection";
 import { AssetService } from "../../src/services/AssetService";
@@ -77,6 +77,40 @@ test('P2P snapshot publishes asset metadata without pushing asset blobs', async 
     assert.equal(network.dataMessages.asset ?? 0, 0);
   } finally {
     await playerSync.disconnect().catch(() => undefined);
+    await gm.stop().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
+test('P2P player character create is applied by GM and bound to the player seat', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gm = createTestP2PSession(network, { dice: true });
+  const player = createTestP2PSession(network);
+
+  try {
+    await gm.startGmRoom({ roomId: 'character-create-room', participantName: 'GM' });
+    await player.startPlayerRoom({ roomId: 'CHARACTER-CREATE-ROOM', participantId: 'player-seat-create', participantName: 'Игрок' });
+    await waitFor(() => {
+      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
+      assert.equal(player.sessionStore.getSnapshot().connected, true);
+    });
+
+    assert.equal(await player.submitPlayerCharacterCreate({
+      participantName: 'Игрок',
+      draft: { name: 'Новый герой', className: 'Warrior', playerName: 'Игрок' }
+    }), true);
+
+    await waitFor(() => {
+      const state = charactersStore.getSnapshot();
+      assert.equal(state.order.length, 1);
+      const character = state.entities[state.order[0]];
+      assert.equal(character?.name, 'Новый герой');
+      assert.deepEqual(sceneTableStore.getSnapshot().participants['player-seat-create']?.actorIds, [character.id]);
+    });
+  } finally {
+    await player.stop().catch(() => undefined);
     await gm.stop().catch(() => undefined);
     restoreWindow();
   }

@@ -1,7 +1,7 @@
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
 import { hasStringFields, isRecord } from '../core/utils/guards';
-import type { DamageType, DeathMoveChoice, DiceVisualTone, FeedEntry, PersistedState, RollPublication, TraitId } from '../domain/rules/types';
+import type { Character, DamageType, DeathMoveChoice, DiceVisualTone, FeedEntry, PersistedState, RollPublication, TraitId } from '../domain/rules/types';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableParticipant } from '../domain/tabletop/types';
 import { hydratePersistedState, isPersistedState, normalizePersistedState, snapshotPersistedState } from '../stores/persistedState';
 import { isPlayerActivationQueueMessage, type PlayerActivationQueueMessage } from './PlayerActivationQueueService';
@@ -54,6 +54,15 @@ export interface PlayerCharacterResourcesMessage {
   actorName?: string;
   resources: PlayerCharacterResourcePatch;
   updatedAt: string;
+}
+
+export interface PlayerCharacterCreateMessage {
+  type: 'playerCharacterCreate';
+  requestId: string;
+  participantId: string;
+  participantName?: string;
+  draft: Partial<Character>;
+  createdAt: string;
 }
 
 export type PlayerRollIntent =
@@ -153,6 +162,7 @@ const syncChannels = {
   playerRestChoice: channel<PlayerRestChoiceMessage>('playerRestChoice', isPlayerRestChoiceMessage),
   playerRollIntent: channel<PlayerRollIntentMessage>('playerRollIntent', isPlayerRollIntentMessage),
   playerDecision: channel<PlayerDecisionMessage>('playerDecision', isPlayerDecisionMessage),
+  playerCharacterCreate: channel<PlayerCharacterCreateMessage>('playerCharacterCreate', isPlayerCharacterCreateMessage),
   snapshotRequest: channel<SnapshotRequestMessage>('snapshotRequest', isSnapshotRequestMessage),
   playerCharacterResources: channel<PlayerCharacterResourcesMessage>('actor', isPlayerCharacterResourcesMessage),
   asset: channel<AssetMessage>('asset', isAssetMessage)
@@ -318,6 +328,14 @@ export class SyncService {
     return this.subscribeChannel(syncChannels.playerDecision, listener);
   }
 
+  async publishPlayerCharacterCreate(message: PlayerCharacterCreateMessage): Promise<boolean> {
+    return this.publishChannel(syncChannels.playerCharacterCreate, message);
+  }
+
+  subscribePlayerCharacterCreates(listener: (message: PlayerCharacterCreateMessage, event: SyncEvent) => void): () => void {
+    return this.subscribeChannel(syncChannels.playerCharacterCreate, listener);
+  }
+
   async publishSnapshotRequest(reason: SnapshotRequestMessage['reason'] = 'join', targetPeer?: SyncTargetPeer): Promise<boolean> {
     const createdAt = nowIso();
     return this.publishChannel(syncChannels.snapshotRequest, { requestedAt: createdAt, reason }, targetPeer);
@@ -425,6 +443,14 @@ function isPlayerDecisionMessage(value: unknown): value is PlayerDecisionMessage
     hasStringFields(value, ['decisionId', 'participantId', 'actorId', 'createdAt']) &&
     (value.actorName === undefined || typeof value.actorName === 'string') &&
     isPlayerDecision(value.decision)
+  );
+}
+
+function isPlayerCharacterCreateMessage(value: unknown): value is PlayerCharacterCreateMessage {
+  if (!isRecord(value) || value.type !== 'playerCharacterCreate' || !isRecord(value.draft)) return false;
+  return (
+    hasStringFields(value, ['requestId', 'participantId', 'createdAt']) &&
+    (value.participantName === undefined || typeof value.participantName === 'string')
   );
 }
 
