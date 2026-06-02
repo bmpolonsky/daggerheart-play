@@ -33,7 +33,7 @@ test.describe('VTT detail composition', () => {
     await expect(panel).toBeVisible();
     await expect(gmDock).toBeVisible();
     await gmDock.getByRole('button', { name: 'Раздатка' }).click();
-    await expect(panel.getByRole('heading', { name: 'Раздатка' })).toBeVisible();
+    await expect(panel.getByRole('region', { name: 'Раздатка' })).toBeVisible();
     await expectNoOverlap(feed, panel);
   });
 });

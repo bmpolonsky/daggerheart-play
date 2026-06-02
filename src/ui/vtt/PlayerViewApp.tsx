@@ -328,7 +328,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
     setMobileLayer('feed');
   }, []);
   const needsSeatSelection = role === 'player' && playerSeats.length > 0 && !selectedPlayerSeat;
-  const showConnectionOverlay = role === 'player' && Boolean(sessionParams?.roomId) && (
+  const showConnectionOverlay = role === 'player' && Boolean(sessionParams?.roomId) && Boolean(model.character) && (
     !p2pSession.connected ||
     p2pSession.status === 'connecting' ||
     p2pSession.status === 'degraded' ||
