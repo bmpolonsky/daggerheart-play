@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { MessageCircle, SendHorizontal } from 'lucide-react';
 import { useStore } from '../../../../core/hooks/useStore';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
-import type { TableFeedItem } from '../../../../domain/tabletop/feed';
 import { gameService, diceService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
 import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS } from '../constants';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainCards/types';
 import { currentSettingsInviteContext, feedRollRevealId, revealedRollIdsFromActivity } from '../helpers';
+import { playerViewUiActions, playerViewUiStore } from '../playerViewUiState';
 import { PlayerRollConfirm } from '../PlayerRollConfirm';
 import type { PlayerRollDraft, TableViewRole } from '../types';
 import {
@@ -25,26 +25,21 @@ type FeedCardRollDraftState = {
 };
 
 export function PlayerLeftRail({
-  completedDiceRollIds,
-  ephemeralActivity,
   macroCharacter,
   macroCharacters,
   model,
-  role,
-  onClearEphemeralActivity
+  role
 }: {
-  completedDiceRollIds: Set<string>;
-  ephemeralActivity?: TableFeedItem | null;
   macroCharacter?: PlayerViewCharacterSummary | null;
   macroCharacters?: Record<string, PlayerViewCharacterSummary>;
   model: PlayerViewModel;
   role: TableViewRole;
-  onClearEphemeralActivity?: () => void;
 }) {
   const [message, setMessage] = useState('');
   const [rollDraftState, setRollDraftState] = useState<FeedCardRollDraftState | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
   const p2pSession = useStore(p2pSessionService.sessionStore);
+  const { completedDiceRollIds, ephemeralActivity } = useStore(playerViewUiStore);
   const [revealedRollIds, setRevealedRollIds] = useState<Set<string>>(() => revealedRollIdsFromActivity(model.activity));
   const mountedAtRef = useRef(Date.now());
   const activityRef = useRef<HTMLDivElement>(null);
@@ -170,7 +165,7 @@ export function PlayerLeftRail({
           <MessageCircle size={16} />
           <span>Игра</span>
           {role === 'gm' && hasClearableActivity ? (
-            <button className="player-activity-clear" type="button" onClick={() => { feedService.clear(); onClearEphemeralActivity?.(); }}>Очистить</button>
+            <button className="player-activity-clear" type="button" onClick={() => { feedService.clear(); playerViewUiActions.setEphemeralActivity(null); }}>Очистить</button>
           ) : (
             <span className="player-activity-clear player-activity-clear--placeholder" aria-hidden="true">Очистить</span>
           )}
@@ -204,7 +199,7 @@ export function PlayerLeftRail({
                     type="button"
                     aria-label={event.ephemeral ? `Закрыть ${event.title}` : `Удалить событие ${event.title}`}
                     title={event.ephemeral ? 'Закрыть' : 'Удалить'}
-                    onClick={() => event.ephemeral ? onClearEphemeralActivity?.() : feedService.remove(event.id)}
+                    onClick={() => event.ephemeral ? playerViewUiActions.setEphemeralActivity(null) : feedService.remove(event.id)}
                   >
                     ×
                   </button>

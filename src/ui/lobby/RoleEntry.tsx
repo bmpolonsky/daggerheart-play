@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import { parsePlayerSessionLocation } from '../../domain/p2p/sessionLinks';
-import { PlayerJoinLobby, SessionLobby } from './SessionLobby';
+import { PlayerJoinLobby } from './PlayerJoinLobby';
+import { SessionLobby } from './SessionLobby';
 
 type RoleRouteId = 'entry' | 'gm' | 'join' | 'player' | 'combat' | 'cards';
 

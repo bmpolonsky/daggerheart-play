@@ -10,10 +10,13 @@ import { hydratePersistedState, isPersistedState, normalizePersistedState, snaps
 import type { PersistedState } from '../domain/rules/types';
 import type { StoredGameSummary } from '../core/persistence/gameDocumentStore';
 import type { AssetService } from './AssetService';
+import { ReactiveStore } from '../core/store/ReactiveStore';
 
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
 
 export class PersistenceService {
+  readonly storedGamesStore = new ReactiveStore<StoredGameSummary[]>([]);
+
   private started = false;
   private persistTimer: number | undefined;
   private unsubscribeCallbacks: Array<() => void> = [];
@@ -80,6 +83,12 @@ export class PersistenceService {
 
   async listStoredGames(): Promise<StoredGameSummary[]> {
     return this.documentStore?.list() ?? [];
+  }
+
+  async refreshStoredGames(): Promise<StoredGameSummary[]> {
+    const games = await this.listStoredGames();
+    this.storedGamesStore.set(games);
+    return games;
   }
 
   async createStoredGame(): Promise<string | null> {
@@ -196,6 +205,7 @@ export class PersistenceService {
       const document = createGameDocument(snapshot, readBrowserCustomContent());
       await this.documentStore.save(document);
       this.lastDocumentSignature = stableJsonSignature(document);
+      void this.refreshStoredGames();
     } catch (error) {
       console.warn('Failed to persist Daggerheart game to IndexedDB.', error);
     }
@@ -225,6 +235,7 @@ export class PersistenceService {
         this.isApplyingStoredDocument = false;
       }
       void loadBrowserCustomContent();
+      void this.refreshStoredGames();
     });
   }
 

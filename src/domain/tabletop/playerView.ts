@@ -237,7 +237,7 @@ export function buildPlayerRollSummary(entry: RollLogEntry | undefined): PlayerV
   };
 }
 
-function buildPlayerTokens(tokens: TokenState[], characters: Record<string, Character>, encounter: EncounterState, role: 'player' | 'gm'): PlayerViewToken[] {
+export function buildPlayerTokens(tokens: TokenState[], characters: Record<string, Character>, encounter: EncounterState, role: 'player' | 'gm'): PlayerViewToken[] {
   const visibleTokens: PlayerViewToken[] = [];
   tokens.forEach((token) => {
     if (role !== 'gm' && (token.hidden || token.ownership.visibility !== 'public')) return;
