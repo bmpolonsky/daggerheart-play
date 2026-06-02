@@ -7,7 +7,7 @@ import {
   buildPlayerViewModel,
   type PlayerViewCharacterSummary
 } from '../../domain/tabletop/playerView';
-import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, type TableFeedFeaturePreview } from '../../domain/tabletop/feed';
+import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation, readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import { nowIso } from '../../core/utils/date';
@@ -213,6 +213,20 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
     }));
     setMobileLayer('feed');
   }, []);
+  const editCharacterWealth = useCallback((character: PlayerViewCharacterSummary) => {
+    playerViewUiActions.setEphemeralFeedItem(buildWealthEditorFeedItem({
+      id: `ephemeral-wealth-${character.id}`,
+      createdAt: nowIso(),
+      authorName: character.name,
+      characterId: character.id,
+      actor: {
+        actorId: character.id,
+        actorName: character.name,
+        actorType: 'character'
+      }
+    }));
+    setMobileLayer('feed');
+  }, []);
   const needsSeatSelection = role === 'player' && playerSeats.length > 0 && !selectedPlayerSeat;
 
   return (
@@ -291,6 +305,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         onClearActor={() => setViewedActor(null)}
         onDomainCardPreview={previewDomainCard}
         onFeaturePreview={previewCharacterFeature}
+        onWealthEdit={editCharacterWealth}
         onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
         onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
         onOpenActor={openActor}

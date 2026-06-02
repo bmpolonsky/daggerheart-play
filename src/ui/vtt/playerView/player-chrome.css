@@ -616,6 +616,7 @@
 .player-activity-event--rest,
 .player-activity-event--teamwork,
 .player-activity-event--deathMove,
+.player-activity-event--wealth,
 .player-activity-event--roll {
   margin: 8px 0;
   padding: 10px;
@@ -667,6 +668,7 @@
 .player-activity-event--rest::before,
 .player-activity-event--teamwork::before,
 .player-activity-event--deathMove::before,
+.player-activity-event--wealth::before,
 .player-activity-event--roll::before {
   display: none;
 }
@@ -770,8 +772,66 @@
 .feed-domain-card,
 .feed-feature-card,
 .feed-handout-card,
+.feed-wealth-editor,
 .feed-rest-card {
   min-width: 0;
+}
+
+.feed-wealth-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.feed-wealth-editor > strong {
+  display: block;
+  color: var(--dh-paper-100);
+  font-size: 0.9rem;
+  font-weight: 950;
+  line-height: 1.18;
+}
+
+.feed-wealth-editor__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.feed-wealth-editor__grid--coins {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.feed-wealth-editor__field {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 7px;
+  border-radius: 8px;
+  background: rgba(243, 234, 216, 0.055);
+}
+
+.feed-wealth-editor__field span {
+  overflow: hidden;
+  color: rgba(243, 234, 216, 0.62);
+  font-size: 0.58rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.feed-wealth-editor__field input {
+  min-width: 0;
+  width: 100%;
+  height: 30px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(7, 9, 12, 0.34);
+  color: #fff7e7;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 850;
 }
 
 .feed-feature-card {

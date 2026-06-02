@@ -104,7 +104,7 @@ export const CLASS_STARTING_ITEMS: Record<DaggerheartClass, [string, string]> = 
   Custom: ['Памятный предмет', 'Личный талисман']
 };
 
-export const STARTING_BASE_INVENTORY = ['Факел', '50 футов веревки', 'Основные припасы', 'Горсть золота'] as const;
+export const STARTING_BASE_INVENTORY = ['Факел', '50 футов веревки', 'Основные припасы'] as const;
 
 const STARTING_CONSUMABLE_SLUGS = new Set(['minor-health-potion', 'minor-stamina-potion']);
 

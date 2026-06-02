@@ -35,6 +35,14 @@ export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
         />
         <span>Автоматически применять последствия бросков</span>
       </label>
+      <label className="player-tools-toggle">
+        <input
+          type="checkbox"
+          checked={game.showCoins}
+          onChange={(event) => gameService.updateSettings({ showCoins: event.currentTarget.checked })}
+        />
+        <span>Использовать монеты</span>
+      </label>
     </section>
   );
 }

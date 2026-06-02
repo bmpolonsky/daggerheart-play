@@ -5,9 +5,11 @@ import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../
 import { domainCardFromLibrary, isDomainCardForDomains } from '../../domain/characterBuilder';
 import { buildEquipmentAttachmentPlan } from '../../domain/rules/equipment';
 import type { Character, DamageType, TraitId } from '../../domain/rules/types';
-import { characterService } from '../../services/serviceRegistry';
+import { useStore } from '../../core/hooks/useStore';
+import { characterService, gameService } from '../../services/serviceRegistry';
 
 export function LoadoutPanel({ character, content }: { character: Character; content?: ContentState }) {
+  const game = useStore(gameService.gameStore);
   const weaponOptions = content?.equipment.filter((item) => item.type === 'primary-weapon' || item.type === 'secondary-weapon') ?? [];
   const inventoryOptions = content?.equipment.filter((item) => item.type === 'consumable' || item.type === 'item' || item.type === 'combat-wheelchair') ?? [];
   const domainCardOptions = (content?.generic.domainCards ?? [])
@@ -151,6 +153,42 @@ export function LoadoutPanel({ character, content }: { character: Character; con
               </select>
             )}
             <Button onClick={() => characterService.addInventoryItem(character.id)}>+ Свой предмет</Button>
+          </div>
+        </div>
+        <div className="nested-card">
+          <h3>Деньги</h3>
+          <div className={game.showCoins ? 'grid-4' : 'grid-3'}>
+            {game.showCoins && (
+              <NumberField
+                label="Монеты"
+                min={0}
+                max={9}
+                value={character.wealth.coins}
+                hint="Опциональная деноминация."
+                onChange={(event) => characterService.updateWealth(character.id, { coins: Number(event.currentTarget.value) })}
+              />
+            )}
+            <NumberField
+              label="Горсти"
+              min={0}
+              max={9}
+              value={character.wealth.handfuls}
+              onChange={(event) => characterService.updateWealth(character.id, { handfuls: Number(event.currentTarget.value) })}
+            />
+            <NumberField
+              label="Мешки"
+              min={0}
+              max={9}
+              value={character.wealth.bags}
+              onChange={(event) => characterService.updateWealth(character.id, { bags: Number(event.currentTarget.value) })}
+            />
+            <NumberField
+              label="Сундуки"
+              min={0}
+              max={1}
+              value={character.wealth.chests}
+              onChange={(event) => characterService.updateWealth(character.id, { chests: Number(event.currentTarget.value) })}
+            />
           </div>
         </div>
         {character.inventory.map((item) => (

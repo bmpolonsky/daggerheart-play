@@ -1785,6 +1785,10 @@
   gap: 10px;
 }
 
+.player-sheet-wealth-toggle span {
+  color: rgba(243, 234, 216, 0.66);
+}
+
 .player-sheet-item-main {
   min-width: 0;
   display: grid;

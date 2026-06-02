@@ -2,6 +2,7 @@
 import type { JSX } from "preact";
 import { useMemo, useRef, useState } from "preact/hooks";
 import { ChevronLeft, Crosshair, Heart, PawPrint, Shield, Swords, Zap } from "lucide-react";
+import { useStore } from "../../../core/hooks/useStore";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
@@ -11,6 +12,7 @@ import { characterLevelRank } from "../../../domain/rules/levelUp";
 import { companionDamageFormula } from "../../../domain/rules/rangerCompanion";
 import { ACTOR_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import type { DamageType, TraitId } from "../../../domain/rules/types";
+import { formatWealthSummary } from "../../../domain/rules/wealthPresentation";
 import { gameService, characterService, diceService, feedService, p2pSessionService } from "../../../services/serviceRegistry";
 import { PLAYER_SHEET_SECTIONS } from "./constants";
 import { compactDamageTypeLabel, cssImageUrl, signed } from "./helpers";
@@ -30,7 +32,8 @@ export function CharacterSheet({
   showBackButton = false,
   onBack,
   onDomainCardPreview,
-  onFeaturePreview
+  onFeaturePreview,
+  onWealthEdit
 }: {
   character: PlayerViewCharacterSummary;
   beastforms?: LibraryBeastform[];
@@ -39,7 +42,9 @@ export function CharacterSheet({
   onBack?: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
+  onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
 }) {
+  const game = useStore(gameService.gameStore);
   const panelRef = useRef<HTMLElement>(null);
   const [activeSheetSection, setActiveSheetSection] = useState<PlayerSheetSectionId>('overview');
   const [rollDraft, setRollDraft] = useState<PlayerRollDraft | null>(null);
@@ -462,6 +467,16 @@ export function CharacterSheet({
         />
       </SheetSection>
       <SheetSection id="player-sheet-gear" title="Инвентарь">
+        <article className="player-sheet-row player-sheet-row--feature">
+          <button
+            className="player-sheet-feature-toggle player-sheet-wealth-toggle"
+            type="button"
+            onClick={() => onWealthEdit?.(character)}
+          >
+            <strong>Деньги</strong>
+            <span>{formatWealthSummary(character.wealth, { showCoins: game.showCoins })}</span>
+          </button>
+        </article>
         <article className="player-sheet-row player-sheet-row--feature">
           <button
             className="player-sheet-feature-toggle"

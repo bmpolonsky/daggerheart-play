@@ -424,6 +424,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
       sheetCards,
       weapons: equipment.weapons,
       inventory: equipment.inventory,
+      wealth: { coins: 0, handfuls: 1, bags: 0, chests: 0 },
       description,
       backgroundAnswers,
       connections,

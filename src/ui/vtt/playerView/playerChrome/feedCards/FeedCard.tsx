@@ -11,6 +11,7 @@ import { MessageFeedCard } from './MessageFeedCard';
 import { RestFeedCard } from './RestFeedCard';
 import { RollFeedCard } from './RollFeedCard';
 import { TeamworkFeedCard } from './TeamworkFeedCard';
+import { WealthFeedCard } from './WealthFeedCard';
 
 export function FeedCard({
   actorId,
@@ -52,6 +53,9 @@ export function FeedCard({
   }
   if (item.kind === 'handout') {
     return <HandoutFeedCard item={item} />;
+  }
+  if (item.kind === 'wealth') {
+    return <WealthFeedCard item={item} />;
   }
   return <MessageFeedCard item={item} />;
 }

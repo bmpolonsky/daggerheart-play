@@ -18,7 +18,7 @@ import {
 } from '../domain/rules/deathMoves';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import { buildEquipmentAttachmentPlan } from '../domain/rules/equipment';
-import { createCharacter, createDomainCard, createExperience, createInventoryItem, createSheetCard, createWeapon } from '../domain/rules/factories';
+import { createCharacter, createDomainCard, createExperience, createInventoryItem, createSheetCard, createWeapon, sanitizeWealth } from '../domain/rules/factories';
 import type { CharacterAdvancementChoiceId } from '../domain/rules/levelUp';
 import { createDefaultRangerCompanion, normalizeRangerCompanion } from '../domain/rules/rangerCompanion';
 import type { LongRestRecoveryMove } from '../domain/rules/rest';
@@ -30,6 +30,7 @@ import type {
   Character,
   CharacterCompanionState,
   CharacterInventoryItem,
+  CharacterWealth,
   DeathMoveRollResult,
   CharacterSheetCard,
   CharactersState,
@@ -631,6 +632,13 @@ export class CharacterService {
     this.patchCharacter(id, (character) => ({
       ...character,
       inventory: character.inventory.map((item) => (item.id === itemId ? createInventoryItem({ ...item, ...patch, id: item.id }) : item))
+    }));
+  }
+
+  updateWealth(id: string, patch: Partial<CharacterWealth>): void {
+    this.patchCharacter(id, (character) => ({
+      ...character,
+      wealth: sanitizeWealth({ ...character.wealth, ...patch })
     }));
   }
 

@@ -3,7 +3,7 @@ import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
 import { buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
-import { createCharacter } from '../domain/rules/factories';
+import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
@@ -913,6 +913,9 @@ export class P2PSessionService {
         armor: resources.armor
           ? { ...character.armor, markedSlots: clamp(toSafeInteger(resources.armor.markedSlots, character.armor.markedSlots), 0, character.armor.score) }
           : character.armor,
+        wealth: resources.wealth
+          ? sanitizeWealth({ ...character.wealth, ...resources.wealth })
+          : character.wealth,
         activeBeastform: character.activeBeastform ?? null,
         companion: resources.companion?.stress && character.companion
           ? {
@@ -1321,6 +1324,7 @@ function playerCharacterResourceSignature(character: Character): string {
     hp: character.hp.marked,
     stress: character.stress.marked,
     armor: character.armor.markedSlots,
+    wealth: character.wealth,
     activeBeastform: character.activeBeastform ?? null,
     companion: character.companion ? { stress: character.companion.stress.marked, unavailableUntilLongRest: character.companion.unavailableUntilLongRest } : null,
     conditions: character.conditions.map((condition) => [condition.id, condition.name, condition.notes ?? '']),
@@ -1343,6 +1347,7 @@ function createPlayerCharacterResourcesMessage(character: Character, participant
       hp: { marked: character.hp.marked },
       stress: { marked: character.stress.marked },
       armor: { markedSlots: character.armor.markedSlots },
+      wealth: character.wealth,
       companion: character.companion ? { stress: { marked: character.companion.stress.marked } } : undefined,
       conditions: character.conditions.map((condition) => ({
         id: condition.id,

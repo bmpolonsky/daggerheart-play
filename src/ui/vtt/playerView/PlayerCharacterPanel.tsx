@@ -28,6 +28,7 @@ export function PlayerCharacterPanel({
   onFeaturePreview,
   onEmptyAction,
   onForceMutePlayer,
+  onWealthEdit,
   onOpenActor
 }: {
   activeAdversaryId: string | null;
@@ -46,6 +47,7 @@ export function PlayerCharacterPanel({
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onEmptyAction?: () => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
+  onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
   const characters = useStore(characterService.charactersStore);
@@ -84,6 +86,7 @@ export function PlayerCharacterPanel({
         onDomainCardPreview={onDomainCardPreview}
         onFeaturePreview={onFeaturePreview}
         onForceMutePlayer={onForceMutePlayer}
+        onWealthEdit={onWealthEdit}
         onOpenActor={onOpenActor}
       />
     );
@@ -97,6 +100,7 @@ export function PlayerCharacterPanel({
       onDomainCardPreview={onDomainCardPreview}
       onFeaturePreview={onFeaturePreview}
       onEmptyAction={onEmptyAction}
+      onWealthEdit={onWealthEdit}
     />
   );
 }

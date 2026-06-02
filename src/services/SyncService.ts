@@ -43,6 +43,7 @@ export interface PlayerCharacterResourcePatch {
   hp?: { marked: number };
   stress?: { marked: number };
   armor?: { markedSlots: number };
+  wealth?: { coins?: number; handfuls?: number; bags?: number; chests?: number };
   domainCards?: Array<{ id: string; tokens?: { value: number } }>;
   companion?: { stress?: { marked: number } };
   conditions?: CharacterCondition[];
@@ -499,6 +500,7 @@ function isPlayerCharacterResourcePatch(value: unknown): value is PlayerCharacte
     isOptionalNumberRecord(value.hp, ['marked']) &&
     isOptionalNumberRecord(value.stress, ['marked']) &&
     isOptionalNumberRecord(value.armor, ['markedSlots']) &&
+    isOptionalWealthResourcePatch(value.wealth) &&
     isOptionalDomainCardResourceList(value.domainCards) &&
     isOptionalCompanionResourcePatch(value.companion) &&
     isOptionalConditionList(value.conditions)
@@ -519,6 +521,14 @@ function isOptionalCompanionResourcePatch(value: unknown): boolean {
   if (value === undefined) return true;
   if (!isRecord(value)) return false;
   return value.stress === undefined || isOptionalNumberRecord(value.stress, ['marked']);
+}
+
+function isOptionalWealthResourcePatch(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!isRecord(value)) return false;
+  return ['coins', 'handfuls', 'bags', 'chests'].every((field) => (
+    value[field] === undefined || (typeof value[field] === 'number' && Number.isFinite(value[field]))
+  ));
 }
 
 function isPlayerRollIntent(value: unknown): value is PlayerRollIntent {

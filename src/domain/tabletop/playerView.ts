@@ -4,7 +4,7 @@ import { buildEffectiveCharacterStats } from '../rules/effects';
 import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
-import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId } from '../rules/types';
+import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId, CharacterWealth } from '../rules/types';
 import { RANGE_LABELS, TRAIT_LABELS, classLabel, domainLabel } from '../rules/constants';
 import { normalizeStatusTag } from '../rules/statuses';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
@@ -54,6 +54,7 @@ export interface PlayerViewCharacterSummary {
   loadoutCards: Array<{ id: string; name: string; domain: string; domainLabel: string; level: number; cost: string; recallCost: string; text: string; imageUrl: string; tokens: { value: number; max: number }; macros: DomainCardTextMacro[] }>;
   features: Array<{ id: string; name: string; subtitle: string; text: string }>;
   inventory: CharacterInventoryItem[];
+  wealth: CharacterWealth;
   conditions: Array<{ id: string; name: string; notes: string }>;
   scars: CharacterScar[];
 }
@@ -435,6 +436,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       ...item,
       uses: item.uses ? { ...item.uses } : undefined
     })),
+    wealth: { ...character.wealth },
     conditions: statusConditions(character.conditions).map((condition) => ({
       id: condition.id,
       name: condition.name,

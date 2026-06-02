@@ -8,6 +8,7 @@ import {
 } from '../../domain/characterBuilder';
 import { CLASS_LABELS, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { Character, DaggerheartClass } from '../../domain/rules/types';
+import { formatWealthSummary } from '../../domain/rules/wealthPresentation';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
 import { BuilderChoiceDetail } from './builder/BuilderChoiceDetail';
 import { BuilderLivePreview } from './builder/BuilderLivePreview';
@@ -352,6 +353,7 @@ export function CharacterBuilderModal({
                     <span>Оружие: {builderResult.draft.weapons?.map((weapon) => weapon.name).join(' / ')}</span>
                     <span>Броня: {builderResult.draft.armor?.name} · Уклонение {builderResult.draft.evasion}</span>
                     <span>{BUILDER_TRAIT_IDS.map((trait) => `${TRAIT_LABELS[trait]} ${signed(builderResult.draft.traits?.[trait] ?? fields.traits[trait] ?? 0)}`).join(' / ')}</span>
+                    <span>Деньги: {formatWealthSummary(builderResult.draft.wealth)}</span>
                     <span>Инвентарь: {builderResult.draft.inventory?.map((item) => item.name).join(' / ')}</span>
                   </article>
                   {builderResult.warnings.length > 0 && <p className="cinematic-builder-copy">{builderResult.warnings.join(' ')}</p>}

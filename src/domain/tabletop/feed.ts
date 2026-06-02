@@ -5,7 +5,7 @@ import type { ActionRollOutcome, Countdown, GameHandout, Character, DeathMoveFee
 import { canViewFeedEntry, canViewRollLogEntry, feedEntryPublication, rollLogEntryPublication } from './rollPublication';
 import type { TableSyncRole, TableVisibility } from './types';
 
-export type TableFeedItemKind = 'system' | 'message' | 'roll' | 'card' | 'feature' | 'handout' | 'rest' | 'teamwork' | 'deathMove' | 'countdownComposer';
+export type TableFeedItemKind = 'system' | 'message' | 'roll' | 'card' | 'feature' | 'handout' | 'rest' | 'teamwork' | 'deathMove' | 'countdownComposer' | 'wealth';
 
 export interface TableFeedDieResult {
   sides: number;
@@ -65,6 +65,10 @@ export interface TableFeedFeaturePreview {
   sourceLabel?: string;
 }
 
+export interface TableFeedWealthEditor {
+  characterId: string;
+}
+
 export interface TableFeedItem {
   id: string;
   kind: TableFeedItemKind;
@@ -82,6 +86,7 @@ export interface TableFeedItem {
   teamwork?: TeamworkRollRequest;
   deathMove?: DeathMoveFeedRequest;
   countdownComposer?: CountdownComposerDraft;
+  wealthEditor?: TableFeedWealthEditor;
   roll?: TableFeedRollSummary;
   rollId?: string;
   publication: RollPublication;
@@ -253,6 +258,31 @@ export function buildCharacterFeaturePreviewFeedItem(input: {
     tone: 'hope',
     feature: input.feature,
     actor: input.actor,
+    publication: 'private',
+    ephemeral: true
+  };
+}
+
+export function buildWealthEditorFeedItem(input: {
+  id: string;
+  createdAt: string;
+  authorName: string;
+  characterId: string;
+  actor?: FeedActorReference;
+}): TableFeedItem {
+  return {
+    id: input.id,
+    kind: 'wealth',
+    createdAt: input.createdAt,
+    authorName: input.authorName.trim() || 'Игра',
+    kicker: 'Инвентарь',
+    title: 'Деньги',
+    body: 'Редактирование денег.',
+    tone: 'hope',
+    actor: input.actor,
+    wealthEditor: {
+      characterId: input.characterId
+    },
     publication: 'private',
     ephemeral: true
   };

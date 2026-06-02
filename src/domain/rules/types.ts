@@ -111,6 +111,13 @@ export interface CharacterInventoryItem {
   sourceSlug?: string;
 }
 
+export interface CharacterWealth {
+  coins: number;
+  handfuls: number;
+  bags: number;
+  chests: number;
+}
+
 export interface DomainCardRecord {
   id: string;
   name: string;
@@ -215,6 +222,7 @@ export interface Character {
   domainCards: DomainCardRecord[];
   sheetCards: CharacterSheetCard[];
   inventory: CharacterInventoryItem[];
+  wealth: CharacterWealth;
   conditions: CharacterCondition[];
   activeBeastform?: CharacterBeastformState | null;
   rangerMark?: CharacterRangerMarkState | null;
@@ -343,6 +351,7 @@ export interface GameState {
   actionTokensPerScene: number;
   autoApplyRollConsequences: boolean;
   showLegacyActionTokens: boolean;
+  showCoins: boolean;
   safetyNotes: string;
   tableNotes: string;
   handouts: GameHandout[];

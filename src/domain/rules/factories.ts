@@ -22,6 +22,7 @@ import type {
   Character,
   CharacterInventoryItem,
   CharacterSheetCard,
+  CharacterWealth,
   Countdown,
   DaggerheartClass,
   DomainCardRecord,
@@ -47,6 +48,7 @@ export function createGameState(): GameState {
     actionTokensPerScene: DEFAULT_ACTION_TOKENS,
     autoApplyRollConsequences: true,
     showLegacyActionTokens: false,
+    showCoins: false,
     safetyNotes: '',
     tableNotes: '',
     presentedHandoutId: null,
@@ -74,6 +76,9 @@ type CharacterInput = Partial<Omit<Character, 'inventory'>> & {
   inventory?: CharacterInventoryItem[];
 };
 
+const DEFAULT_STARTING_WEALTH: CharacterWealth = { coins: 0, handfuls: 1, bags: 0, chests: 0 };
+const EMPTY_WEALTH: CharacterWealth = { coins: 0, handfuls: 0, bags: 0, chests: 0 };
+
 export function createCharacter(input?: CharacterInput): Character {
   const now = nowIso();
   const className = input?.className ?? 'Bard';
@@ -87,6 +92,7 @@ export function createCharacter(input?: CharacterInput): Character {
     markedSlots: 0,
     feature: ''
   });
+  const defaultWealth = input?.id && input?.createdAt ? EMPTY_WEALTH : DEFAULT_STARTING_WEALTH;
 
   const character: Character = {
     id: input?.id ?? createId('pc'),
@@ -122,6 +128,7 @@ export function createCharacter(input?: CharacterInput): Character {
       createInventoryItem({ name: '50 футов веревки' }),
       createInventoryItem({ name: 'Основные припасы' })
     ]),
+    wealth: sanitizeWealth(input?.wealth ?? defaultWealth),
     conditions: input?.conditions ?? [],
     activeBeastform: input?.activeBeastform ?? null,
     rangerMark: input?.rangerMark ?? null,
@@ -136,6 +143,16 @@ export function createCharacter(input?: CharacterInput): Character {
   };
 
   return character;
+}
+
+export function sanitizeWealth(input: Partial<CharacterWealth> | null | undefined): CharacterWealth {
+  const value = input ?? {};
+  return {
+    coins: clamp(toSafeInteger(value.coins, 0), 0, 9),
+    handfuls: clamp(toSafeInteger(value.handfuls, 0), 0, 9),
+    bags: clamp(toSafeInteger(value.bags, 0), 0, 9),
+    chests: clamp(toSafeInteger(value.chests, 0), 0, 1)
+  };
 }
 
 function sanitizeTrack(track: Character['hp']): Character['hp'] {
