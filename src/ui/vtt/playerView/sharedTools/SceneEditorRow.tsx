@@ -3,7 +3,10 @@ import { useEffect, useState } from 'preact/hooks';
 import { Trash2 } from 'lucide-react';
 import type { SceneTableState } from '../../../../domain/rules/types';
 import { assetService, sceneTableService } from '../../../../services/serviceRegistry';
+import { IconButton } from '../../../components/common/IconButton';
 import { FilePicker, ImageFilePicker } from '../../../components/common/ImageFilePicker';
+import { Surface } from '../../../components/common/Surface';
+import { TextControl } from '../../../components/common/Field';
 
 export function SceneEditorRow({ scene, canDelete }: { scene: SceneTableState['scenes'][string]; canDelete: boolean }) {
   const [backgroundObjectUrl, setBackgroundObjectUrl] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export function SceneEditorRow({ scene, canDelete }: { scene: SceneTableState['s
   const musicTitle = scene.music.title || 'Не выбрана';
 
   return (
-    <article className="player-tools-row player-tools-scene-row">
+    <Surface as="article" tone="subtle" className="player-tools-row player-tools-scene-row">
       <ImageFilePicker
         className="player-tools-scene-preview"
         label="Фон"
@@ -62,7 +65,7 @@ export function SceneEditorRow({ scene, canDelete }: { scene: SceneTableState['s
       <div className="player-tools-scene-main player-tools-edit-grid">
         <label className="player-tools-scene-name">
           <span>Название</span>
-          <input value={scene.name} onInput={(event) => sceneTableService.updateScene(scene.id, { name: event.currentTarget.value })} />
+          <TextControl value={scene.name} onInput={(event) => sceneTableService.updateScene(scene.id, { name: event.currentTarget.value })} />
         </label>
         <FilePicker
           className="player-tools-scene-music-picker"
@@ -76,18 +79,20 @@ export function SceneEditorRow({ scene, canDelete }: { scene: SceneTableState['s
           onClear={clearMusicFile}
         />
         <div className="player-tools-scene-actions">
-          <button
+          <IconButton
             className="player-tools-scene-delete"
+            variant="ghost"
+            size="sm"
             type="button"
             onClick={() => sceneTableService.deleteScene(scene.id)}
             disabled={!canDelete}
             title={canDelete ? 'Удалить сцену' : 'Нельзя удалить последнюю сцену'}
             aria-label="Удалить сцену"
           >
-            <Trash2 size={14} />
-          </button>
+            <Trash2 size={14} aria-hidden="true" />
+          </IconButton>
         </div>
       </div>
-    </article>
+    </Surface>
   );
 }

@@ -5,6 +5,9 @@ import type { ActionComposerRollOptions } from '../../domain/rules/actionCompose
 import type { DiceVisualTone, RollPublication, TraitId } from '../../domain/rules/types';
 import type { AudioLayerState } from '../../services/AudioService';
 import type { PolyhedralDieSides } from '../dice/types';
+import { Button } from '../components/common/Button';
+import { IconButton } from '../components/common/IconButton';
+import { TabButton, Tabs } from '../components/common/Tabs';
 import { DiceIcon } from './playerView/playerChrome/feedCards/DiceIcon';
 import { usePrivateRollPreference } from './playerView/rollPrivacyPreference';
 import type { PlayerRollType } from './playerView/types';
@@ -155,11 +158,13 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
       className={`mini-dice-launcher ${open ? 'dh-is-open' : ''} ${dismissed ? 'dh-is-dismissed' : ''}`}
       aria-label="Бросок костей"
     >
-      <button className="mini-dice-launcher__tools" type="button" title="Библиотека" onClick={onOpenTools}>
-        <LibraryBig size={16} />
-      </button>
-      <button
+      <IconButton className="mini-dice-launcher__tools" variant="ghost" size="sm" type="button" title="Библиотека" aria-label="Библиотека" onClick={onOpenTools}>
+        <LibraryBig size={16} aria-hidden="true" />
+      </IconButton>
+      <IconButton
         className={`mini-dice-launcher__quick mini-dice-launcher__quick--${launcherMode}`}
+        variant="secondary"
+        size="xl"
         type="button"
         title={open ? 'Скрыть панель костей' : 'Открыть панель костей'}
         aria-label={open ? 'Скрыть панель костей' : 'Открыть панель костей'}
@@ -169,67 +174,76 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
         <span className="mini-dice-launcher__quick-icons" aria-hidden="true">
           <DiceIcon kind="hope-d12" label="Надежда" />
         </span>
-      </button>
+      </IconButton>
       <div className="mini-dice-launcher__right-actions">
-      <button
-        className={`mini-dice-launcher__voice ${voiceActive ? 'dh-is-live' : ''} ${voiceAttention ? 'dh-needs-attention' : ''}`}
-        type="button"
-        title={voiceTitle}
-        aria-label={voiceTitle}
-        onClick={onVoiceToggle}
-      >
-        {voiceActive ? <Mic size={16} /> : <MicOff size={16} />}
-      </button>
-      {role === 'player' && (
-        <button
-          className={`mini-dice-launcher__hand ${activationRaised ? 'dh-is-raised' : ''}`}
+        <IconButton
+          className="mini-dice-launcher__voice"
+          variant={voiceAttention ? 'danger' : voiceActive ? 'primary' : 'ghost'}
+          size="sm"
           type="button"
-          title={activationRaised ? 'Опустить руку' : 'Поднять руку'}
-          aria-label={activationRaised ? 'Опустить руку' : 'Поднять руку'}
-          disabled={!canRequestActivation}
-          onClick={onActivationToggle}
+          title={voiceTitle}
+          aria-label={voiceTitle}
+          onClick={onVoiceToggle}
         >
-          <Hand size={16} />
-        </button>
-      )}
+          {voiceActive ? <Mic size={16} aria-hidden="true" /> : <MicOff size={16} aria-hidden="true" />}
+        </IconButton>
+        {role === 'player' && (
+          <IconButton
+            className="mini-dice-launcher__hand"
+            variant={activationRaised ? 'primary' : 'ghost'}
+            size="sm"
+            type="button"
+            title={activationRaised ? 'Опустить руку' : 'Поднять руку'}
+            aria-label={activationRaised ? 'Опустить руку' : 'Поднять руку'}
+            disabled={!canRequestActivation}
+            onClick={onActivationToggle}
+          >
+            <Hand size={16} aria-hidden="true" />
+          </IconButton>
+        )}
       </div>
       {open && (
       <div className="mini-dice-launcher__panel" aria-hidden={false}>
         <div className="mini-dice-launcher__panel-head">
           <strong>{isDualityRoll ? 'Дуальность' : 'Кости'}</strong>
           <span>{traySummary}</span>
-          <button className="mini-dice-launcher__close" type="button" title="Скрыть панель" aria-label="Скрыть панель" onClick={closeTray}>
-            <X size={14} />
-          </button>
+          <IconButton className="mini-dice-launcher__close" variant="ghost" size="sm" type="button" title="Скрыть панель" aria-label="Скрыть панель" onClick={closeTray}>
+            <X size={14} aria-hidden="true" />
+          </IconButton>
         </div>
         <div className="mini-dice-launcher__tray" aria-label="Подготовленные кости">
           <div className="mini-dice-launcher__tray-list">
             {trayItems.length > 0 ? (
               trayItems.map((item) => (
-                <button key={item.id} type="button" title={`Убрать ${trayItemTitle(item, trayBonusMode)}`} onClick={() => removeTrayItem(item.id)}>
+                <IconButton className="mini-dice-launcher__tray-button" variant="ghost" size="md" key={item.id} type="button" title={`Убрать ${trayItemTitle(item, trayBonusMode)}`} aria-label={`Убрать ${trayItemTitle(item, trayBonusMode)}`} onClick={() => removeTrayItem(item.id)}>
                   <DiceIcon kind={trayItemIconKind(item, trayBonusMode)} label={trayItemTitle(item, trayBonusMode)} mark={trayItemMark(item, trayBonusMode)} />
-                </button>
+                </IconButton>
               ))
             ) : (
               <span>Выберите кости</span>
             )}
           </div>
-          <button className="mini-dice-launcher__reset" type="button" title="Сбросить набор" onClick={resetTray}>
-            <RotateCcw size={13} />
-          </button>
+          <IconButton className="mini-dice-launcher__reset" variant="ghost" size="sm" type="button" title="Сбросить набор" aria-label="Сбросить набор" onClick={resetTray}>
+            <RotateCcw size={13} aria-hidden="true" />
+          </IconButton>
         </div>
         <div className="mini-dice-launcher__dice">
-          <button
+          <IconButton
             className="mini-dice-launcher__duality"
+            variant="ghost"
+            size="sm"
             type="button"
             title="Дуальность"
             aria-label="Дуальность"
             onClick={addDualityDice}
           >
             <DiceIcon kind="duality" label="Дуальность" />
-          </button>
+          </IconButton>
           {DICE_SIDES.map((sides) => (
-            <button
+            <IconButton
+              className="mini-dice-launcher__die-button"
+              variant="ghost"
+              size="sm"
               key={sides}
               type="button"
               title={`d${sides}`}
@@ -237,34 +251,34 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
               onClick={() => addDie(sides)}
             >
               <DiceIcon kind={`d${sides}`} label={`d${sides}`} mark={`d${sides}`} />
-            </button>
+            </IconButton>
           ))}
         </div>
         <div className="mini-dice-launcher__row">
           <div className="mini-dice-launcher__bonus" aria-label="Преимущество и помеха">
-            <button className={advantageCount > 0 ? 'dh-is-active' : ''} type="button" onClick={() => addBonusDie('advantage')}>
+            <Button variant={advantageCount > 0 ? 'primary' : 'ghost'} size="sm" grow type="button" onClick={() => addBonusDie('advantage')}>
               Преим.{advantageCount > 0 ? ` ${advantageCount}` : ''}
-            </button>
-            <button className={disadvantageCount > 0 ? 'dh-is-active dh-is-danger' : ''} type="button" onClick={() => addBonusDie('disadvantage')}>
+            </Button>
+            <Button variant={disadvantageCount > 0 ? 'danger' : 'ghost'} size="sm" grow type="button" onClick={() => addBonusDie('disadvantage')}>
               Помеха{disadvantageCount > 0 ? ` ${disadvantageCount}` : ''}
-            </button>
+            </Button>
           </div>
           <Stepper label="Мод." value={modifier} min={-20} max={20} onChange={setModifier} />
         </div>
         <div className="mini-dice-launcher__controls">
           {isDualityRoll && (
-            <div className="mini-dice-launcher__segmented" aria-label="Тип броска Дуальности">
-              <button className={dualityRollType === 'action' ? 'dh-is-active' : ''} type="button" onClick={() => setDualityRollType('action')}>
+            <Tabs className="mini-dice-launcher__segmented" label="Тип броска Дуальности">
+              <TabButton active={dualityRollType === 'action'} onClick={() => setDualityRollType('action')}>
                 Действие
-              </button>
-              <button className={dualityRollType === 'reaction' ? 'dh-is-active' : ''} type="button" onClick={() => setDualityRollType('reaction')}>
+              </TabButton>
+              <TabButton active={dualityRollType === 'reaction'} onClick={() => setDualityRollType('reaction')}>
                 Реакция
-              </button>
-            </div>
+              </TabButton>
+            </Tabs>
           )}
-          <button className="mini-dice-launcher__roll" type="button" disabled={trayItems.length === 0} onClick={rollTray}>
+          <Button className="mini-dice-launcher__roll" variant="primary" size="lg" type="button" disabled={trayItems.length === 0} onClick={rollTray}>
             Бросить
-          </button>
+          </Button>
         </div>
         <label className="mini-dice-launcher__private">
           <input type="checkbox" checked={privateRoll} onChange={(event) => setPrivateRoll(event.currentTarget.checked)} />
@@ -280,9 +294,9 @@ function Stepper({ label, value, min, max, onChange }: { label: string; value: n
   return (
     <span className="mini-stepper">
       <small>{label}</small>
-      <button type="button" onClick={() => onChange(Math.max(min, value - 1))}>-</button>
+      <Button size="iconSm" variant="ghost" type="button" onClick={() => onChange(Math.max(min, value - 1))}>-</Button>
       <strong>{value}</strong>
-      <button type="button" onClick={() => onChange(Math.min(max, value + 1))}>+</button>
+      <Button size="iconSm" variant="ghost" type="button" onClick={() => onChange(Math.min(max, value + 1))}>+</Button>
     </span>
   );
 }

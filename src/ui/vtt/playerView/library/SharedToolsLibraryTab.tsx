@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import { contentService } from '../../../../services/serviceRegistry';
+import { TextControl } from '../../../components/common/Field';
 import { compendiumCollectionLabel } from './compendiumCollections';
 import { LibraryResults } from './LibraryResults';
 
@@ -21,7 +22,7 @@ export function SharedToolsLibraryTab({ libraryView, targetCharacterId }: { libr
       <div className="player-library-controls">
         <label className="player-tools-field">
           <span>Поиск</span>
-          <input value={libraryView.searchTerm} onInput={(event) => contentService.setSearchTerm(event.currentTarget.value)} placeholder="Название, текст, тип..." />
+          <TextControl value={libraryView.searchTerm} onInput={(event) => contentService.setSearchTerm(event.currentTarget.value)} placeholder="Название, текст, тип..." />
         </label>
       </div>
 

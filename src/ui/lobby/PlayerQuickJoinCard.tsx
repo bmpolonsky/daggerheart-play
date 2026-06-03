@@ -3,6 +3,9 @@ import { useState } from 'preact/hooks';
 import { MonitorPlay } from 'lucide-react';
 import { normalizeSessionRoomId } from '../../domain/p2p/sessionLinks';
 import { p2pSessionService } from '../../services/serviceRegistry';
+import { Button } from '../components/common/Button';
+import { TextControl } from '../components/common/Field';
+import { Surface } from '../components/common/Surface';
 
 interface PlayerQuickJoinCardProps {
   onJoinRoom: (roomId: string) => void;
@@ -21,7 +24,7 @@ export function PlayerQuickJoinCard({ onJoinRoom }: PlayerQuickJoinCardProps) {
   };
 
   return (
-    <section className="role-entry__card role-entry__join-card" aria-label="Присоединиться игроком">
+    <Surface className="role-entry__card role-entry__join-card" aria-label="Присоединиться игроком">
       <header>
         <MonitorPlay size={20} />
         <div>
@@ -31,11 +34,11 @@ export function PlayerQuickJoinCard({ onJoinRoom }: PlayerQuickJoinCardProps) {
       </header>
       <label>
         <span>Код комнаты</span>
-        <input value={joinRoomId} onInput={(event) => setJoinRoomId(event.currentTarget.value)} placeholder="Например 7K2Q" />
+        <TextControl value={joinRoomId} onInput={(event) => setJoinRoomId(event.currentTarget.value)} placeholder="Например 7K2Q" />
       </label>
-      <button className="dh-button dh-variant-primary" type="button" onClick={joinPlayer}>
+      <Button fullWidth variant="primary" type="button" onClick={joinPlayer}>
         Присоединиться
-      </button>
-    </section>
+      </Button>
+    </Surface>
   );
 }

@@ -2,6 +2,8 @@
 import { useMemo, useState } from "preact/hooks";
 import { Plus, X } from "lucide-react";
 import { CORE_STATUS_TAGS, normalizeStatusTag, statusLabel } from "../../../domain/rules/statuses";
+import { Button } from "../../components/common/Button";
+import { IconButton } from "../../components/common/IconButton";
 
 export interface SheetStatus {
   id: string;
@@ -33,14 +35,16 @@ export function StatusChips({
         {visibleConditions.map((condition) => (
           <span className="player-status-chip" key={condition.id} title={condition.notes || condition.name}>
             <span>{statusLabel(condition.name)}</span>
-            <button type="button" aria-label={`Снять состояние ${statusLabel(condition.name)}`} onClick={() => onRemove(condition.id)}>
-              <X size={13} />
-            </button>
+            <IconButton variant="ghost" size="xs" type="button" aria-label={`Снять состояние ${statusLabel(condition.name)}`} onClick={() => onRemove(condition.id)}>
+              <X size={13} aria-hidden="true" />
+            </IconButton>
           </span>
         ))}
         <div className="player-status-chips__add">
-          <button
+          <IconButton
             className="player-status-chips__add-button"
+            variant="secondary"
+            size="xs"
             type="button"
             aria-expanded={isMenuOpen}
             aria-haspopup="menu"
@@ -48,13 +52,15 @@ export function StatusChips({
             title={addLabel}
             onClick={() => setIsMenuOpen((open) => !open)}
           >
-            <Plus size={15} />
-          </button>
+            <Plus size={15} aria-hidden="true" />
+          </IconButton>
           {isMenuOpen && (
             <div className="player-status-chips__menu" role="menu">
               {availableStatuses.length > 0 ? availableStatuses.map((status) => (
-                <button
+                <Button
                   key={status}
+                  size="sm"
+                  variant="ghost"
                   type="button"
                   role="menuitem"
                   onClick={() => {
@@ -63,7 +69,7 @@ export function StatusChips({
                   }}
                 >
                   {statusLabel(status)}
-                </button>
+                </Button>
               )) : (
                 <span>Все основные состояния уже добавлены</span>
               )}

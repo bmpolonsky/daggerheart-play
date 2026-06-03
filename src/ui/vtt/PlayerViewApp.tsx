@@ -36,6 +36,7 @@ import type { SceneMusicState } from '../../domain/audio/sceneAudio';
 import type { Character, DaggerheartClass, DomainCardRecord, DomainName, EncounterEnvironment } from '../../domain/rules/types';
 import type { PlayerViewDomainCard } from './playerView/domainCards/types';
 import type { PlayerMobileLayer, PlayerViewedActor, SharedToolsTab, TableViewRole } from './playerView/types';
+import { TabButton, Tabs } from '../components/common/Tabs';
 import './playerView/player-view.css';
 
 export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
@@ -250,20 +251,20 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
       <div className="player-view__backdrop" aria-hidden="true" />
       <PlayerConnectionStatus hasCharacter={Boolean(model.character)} hasSessionRoom={Boolean(sessionParams?.roomId)} role={role} />
       <PlayerTopBar model={model} role={role} />
-      <div className="player-mobile-layer-tabs" aria-label="Слой интерфейса">
-        <button className={mobileLayer === 'feed' ? 'dh-is-active' : ''} type="button" onClick={() => setMobileLayer('feed')}>
+      <Tabs className="player-mobile-layer-tabs" label="Слой интерфейса">
+        <TabButton active={mobileLayer === 'feed'} onClick={() => setMobileLayer('feed')}>
           <MessageCircle size={18} aria-hidden="true" />
           <span>Чат</span>
-        </button>
-        <button className={mobileLayer === 'scene' ? 'dh-is-active' : ''} type="button" onClick={() => setMobileLayer('scene')}>
+        </TabButton>
+        <TabButton active={mobileLayer === 'scene'} onClick={() => setMobileLayer('scene')}>
           <Swords size={18} aria-hidden="true" />
           <span>Сцена</span>
-        </button>
-        <button className={mobileLayer === 'sheet' ? 'dh-is-active' : ''} type="button" onClick={() => setMobileLayer('sheet')}>
+        </TabButton>
+        <TabButton active={mobileLayer === 'sheet'} onClick={() => setMobileLayer('sheet')}>
           <ScrollText size={18} aria-hidden="true" />
           <span>Лист</span>
-        </button>
-      </div>
+        </TabButton>
+      </Tabs>
       <PlayerLeftRail
         macroCharacter={displayedCharacter ?? model.character}
         macroCharacters={macroCharacters}

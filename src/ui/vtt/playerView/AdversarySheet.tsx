@@ -11,6 +11,8 @@ import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
 import { SheetFeatureSection, SheetHero, SheetLeadBlock, type SheetFeatureView } from "./SheetContent";
 import { StatusChips } from "./StatusChips";
+import { ChoiceCard } from "../../components/common/ChoiceCard";
+import { IconButton } from "../../components/common/IconButton";
 
 export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdversarySummary; onBack: () => void }) {
   const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
@@ -35,9 +37,9 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
   return (
     <>
       <aside className="player-character-panel" aria-label="Противник мастера">
-        <button className="player-character-panel__back" type="button" title="К ростеру" onClick={onBack}>
-          <ChevronLeft size={17} />
-        </button>
+        <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
+          <ChevronLeft size={17} aria-hidden="true" />
+        </IconButton>
         <SheetHero
           imageUrl={adversary.portraitUrl}
           title={adversary.name}
@@ -88,14 +90,14 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
           </section>
         </SheetSection>
         <SheetSection title="Атака">
-          <button
-            className="player-sheet-row player-sheet-row--featured player-sheet-row--button"
+          <ChoiceCard
+            className="player-sheet-row player-sheet-row--featured player-sheet-action-row"
             type="button"
             onClick={() => setAdversaryAttackConfirmOpen(true)}
           >
             <strong>{adversary.standardAttack.name}</strong>
             <span>{signed(adversary.attackModifier)} / {adversary.standardAttack.range} / {adversary.standardAttack.damage} {compactDamageTypeLabel(adversary.standardAttack.damageType)}</span>
-          </button>
+          </ChoiceCard>
         </SheetSection>
         <SheetSection title="Опыт" emptyLabel="Опыт не указан">
           {adversary.experiences.map((experience) => (

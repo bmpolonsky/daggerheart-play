@@ -9,10 +9,10 @@ module.exports = {
       },
       colors: {
         dagger: {
-          gold: '#d4af37',
-          dark: '#1a1d26',
-          panel: '#252936',
-          accent: '#3b82f6'
+          gold: 'var(--dh-gold-500, #d8ad53)',
+          dark: 'var(--dh-ink-900, #0d1218)',
+          panel: 'var(--dh-glass-strong, rgba(9, 11, 15, 0.84))',
+          accent: 'var(--dh-blue-500, #5b9fda)'
         }
       }
     }

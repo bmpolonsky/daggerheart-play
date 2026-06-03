@@ -1,0 +1,43 @@
+.root {
+  position: relative;
+  min-width: 0;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: var(--dh-radius-sm);
+  background: rgba(243, 234, 216, 0.05);
+  color: rgba(243, 234, 216, 0.72);
+  padding: 0 10px;
+  text-align: center;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.root:hover {
+  background: rgba(240, 201, 106, 0.07);
+  color: rgba(255, 244, 214, 0.9);
+}
+
+.root:focus-visible {
+  border-color: rgba(240, 201, 106, 0.72);
+  box-shadow: var(--dh-focus);
+  outline: none;
+}
+
+.root > span {
+  position: relative;
+  z-index: 1;
+}
+
+.active {
+  background: rgba(240, 201, 106, 0.13);
+  color: #fff4d6;
+}
+
+.collapsed {
+}

@@ -3,6 +3,7 @@ import { Flame, HeartPulse, Skull } from 'lucide-react';
 import { riskItAllOutcome } from '../../../../../domain/rules/deathMoves';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { characterService, diceService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
+import { Button } from '../../../../components/common/Button';
 import { renderRulesText } from '../../sheetText';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
@@ -136,22 +137,22 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
         <p className="feed-death-move-card__summary">{deathMoveSummary(deathMove)}</p>
         {(canChoose || canRequestChoice) && deathMove.status === 'pending' && (
           <div className="feed-death-move-card__actions">
-            <button type="button" onClick={canRequestChoice ? () => requestChoice('blazeOfGlory') : resolveBlazeOfGlory}>
-              <Flame size={14} /> Вспышка славы
-            </button>
-            <button type="button" onClick={canRequestChoice ? () => requestChoice('avoidDeath') : resolveAvoidDeath}>
-              <HeartPulse size={14} /> Избежать смерти
-            </button>
-            <button type="button" onClick={canRequestChoice ? () => requestChoice('riskItAll') : startRiskItAll}>
-              <Skull size={14} /> Рискнуть всем
-            </button>
+            <Button size="sm" variant="ghost" iconBefore={<Flame size={14} aria-hidden="true" />} type="button" onClick={canRequestChoice ? () => requestChoice('blazeOfGlory') : resolveBlazeOfGlory}>
+              Вспышка славы
+            </Button>
+            <Button size="sm" variant="ghost" iconBefore={<HeartPulse size={14} aria-hidden="true" />} type="button" onClick={canRequestChoice ? () => requestChoice('avoidDeath') : resolveAvoidDeath}>
+              Избежать смерти
+            </Button>
+            <Button size="sm" variant="ghost" iconBefore={<Skull size={14} aria-hidden="true" />} type="button" onClick={canRequestChoice ? () => requestChoice('riskItAll') : startRiskItAll}>
+              Рискнуть всем
+            </Button>
           </div>
         )}
         {canApply && deathMove.choice && (
           <div className="feed-death-move-card__actions feed-death-move-card__actions--pending">
             <span>Игрок выбрал: {deathMoveChoiceLabel(deathMove.choice)}</span>
-            <button type="button" onClick={applyPendingChoice}>Применить</button>
-            <button type="button" onClick={rejectPendingChoice}>Отклонить</button>
+            <Button size="sm" variant="primary" type="button" onClick={applyPendingChoice}>Применить</Button>
+            <Button size="sm" variant="danger" type="button" onClick={rejectPendingChoice}>Отклонить</Button>
           </div>
         )}
       </div>

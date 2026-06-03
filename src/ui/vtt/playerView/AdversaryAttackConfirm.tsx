@@ -7,6 +7,8 @@ import type { RollPublication } from '../../../domain/rules/types';
 import { compactDamageTypeLabel, signed } from './helpers';
 import { RollConfirmHeader, RollPrivateToggle, useRollConfirmDrag } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
+import { Button } from '../../components/common/Button';
+import { TabButton, Tabs } from '../../components/common/Tabs';
 
 export interface AdversaryAttackRollOptions {
   advantageCount: number;
@@ -71,23 +73,23 @@ export function AdversaryAttackConfirm({
         <strong>{adversary.standardAttack.name}</strong>
         <p>{signed(adversary.attackModifier)} / {adversary.standardAttack.range} / {adversary.standardAttack.damage} {compactDamageTypeLabel(adversary.standardAttack.damageType)}</p>
       </div>
-      <div className="player-roll-confirm__segmented" aria-label="Тип броска">
-        <button className={mode === 'attack' ? 'dh-is-active' : ''} type="button" onClick={() => setMode('attack')}>Атака</button>
-        <button className={mode === 'damage' ? 'dh-is-active' : ''} type="button" onClick={() => setMode('damage')}>Урон</button>
-      </div>
+      <Tabs className="player-roll-confirm__segmented" label="Тип броска">
+        <TabButton className="player-roll-confirm__segmented-option" active={mode === 'attack'} onClick={() => setMode('attack')}>Атака</TabButton>
+        <TabButton className="player-roll-confirm__segmented-option" active={mode === 'damage'} onClick={() => setMode('damage')}>Урон</TabButton>
+      </Tabs>
       <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
       {mode === 'attack' ? (
         <>
           <div className="player-roll-confirm__advantage" aria-label="Преимущество и помеха">
-            <button className={advantageCount > 0 ? 'dh-is-active' : ''} type="button" onClick={() => addAdvantage('advantage')}>
+            <Button className="player-roll-confirm__advantage-option" variant={advantageCount > 0 ? 'primary' : 'ghost'} size="sm" type="button" onClick={() => addAdvantage('advantage')}>
               Преим.{advantageCount > 0 ? ` ${advantageCount}` : ''}
-            </button>
-            <button type="button" onClick={resetAdvantage} disabled={advantageCount === 0 && disadvantageCount === 0}>
+            </Button>
+            <Button className="player-roll-confirm__advantage-option" variant="ghost" size="sm" type="button" onClick={resetAdvantage} disabled={advantageCount === 0 && disadvantageCount === 0}>
               Обычный
-            </button>
-            <button className={disadvantageCount > 0 ? 'dh-is-active dh-is-danger' : ''} type="button" onClick={() => addAdvantage('disadvantage')}>
+            </Button>
+            <Button className="player-roll-confirm__advantage-option" variant={disadvantageCount > 0 ? 'danger' : 'ghost'} size="sm" type="button" onClick={() => addAdvantage('disadvantage')}>
               Помеха{disadvantageCount > 0 ? ` ${disadvantageCount}` : ''}
-            </button>
+            </Button>
           </div>
           {adversary.experiences.length > 0 && (
             <div className="player-roll-confirm__checks">
@@ -120,8 +122,8 @@ export function AdversaryAttackConfirm({
         </div>
       )}
       <div className="player-roll-confirm__actions">
-        <button
-          className="dh-button dh-variant-primary"
+        <Button
+          variant="primary"
           type="button"
           onClick={() => {
             if (mode === 'attack') rollAttack();
@@ -129,7 +131,7 @@ export function AdversaryAttackConfirm({
           }}
         >
           {mode === 'attack' ? 'Бросить атаку' : 'Бросить урон'}
-        </button>
+        </Button>
       </div>
     </section>
   );

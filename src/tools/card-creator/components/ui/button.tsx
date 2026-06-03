@@ -1,7 +1,6 @@
 /** @jsxImportSource preact */
 import type { JSX } from "preact";
-import { cn } from "@cards/lib/utils";
-import "./button.css";
+import { Button as CommonButton } from "../../../../ui/components/common/Button";
 
 type ButtonVariant =
   | "primary"
@@ -18,36 +17,34 @@ type ButtonNativeProps = JSX.IntrinsicElements["button"];
 export interface ButtonProps extends ButtonNativeProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  fullWidth?: boolean;
+  grow?: boolean;
+  noWrap?: boolean;
 }
 
-const variantClassMap: Record<ButtonVariant, string> = {
-  primary: "btn--primary",
-  secondary: "btn--secondary",
-  ghost: "btn--ghost",
-  outline: "btn--outline",
-  destructive: "btn--destructive",
-  link: "btn--link",
-};
-
 const sizeClassMap: Record<ButtonSize, string> = {
-  md: "btn--md",
-  sm: "btn--sm",
-  lg: "btn--lg",
-  icon: "btn--icon",
+  md: "md",
+  sm: "sm",
+  lg: "lg",
+  icon: "icon",
 };
 
 export function Button({
   variant = "primary",
   size = "md",
   className,
+  fullWidth,
+  grow,
+  noWrap,
   type = "button",
   ...props
 }: ButtonProps) {
-  return (
-    <button
-      type={type}
-      className={cn("btn", variantClassMap[variant], sizeClassMap[size], className)}
-      {...props}
-    />
-  );
+  const commonVariant = variant === "destructive"
+    ? "danger"
+    : variant === "primary"
+      ? "primary"
+      : variant === "ghost" || variant === "link"
+        ? "ghost"
+        : "secondary";
+  return <CommonButton variant={commonVariant} size={sizeClassMap[size] as never} className={className} fullWidth={fullWidth} grow={grow} noWrap={noWrap} type={type} {...(props as any)} />;
 }

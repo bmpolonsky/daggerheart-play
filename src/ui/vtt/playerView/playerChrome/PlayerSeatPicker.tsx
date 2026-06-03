@@ -2,6 +2,7 @@
 import { UserRound } from 'lucide-react';
 import type { CharactersState } from '../../../../domain/rules/types';
 import type { TableParticipant } from '../../../../domain/tabletop/types';
+import { ChoiceCard } from '../../../components/common/ChoiceCard';
 
 export function PlayerSeatPicker({ characters, seats, onSelect }: { characters: CharactersState; seats: TableParticipant[]; onSelect: (seatId: string) => void }) {
   return (
@@ -17,10 +18,10 @@ export function PlayerSeatPicker({ characters, seats, onSelect }: { characters: 
         {seats.map((seat) => {
           const character = seat.actorIds[0] ? characters.entities[seat.actorIds[0]] : null;
           return (
-            <button type="button" key={seat.id} onClick={() => onSelect(seat.id)}>
+            <ChoiceCard key={seat.id} onClick={() => onSelect(seat.id)}>
               <strong>{seat.name}</strong>
               <span>{character?.name ?? 'Персонаж не назначен'}</span>
-            </button>
+            </ChoiceCard>
           );
         })}
       </div>

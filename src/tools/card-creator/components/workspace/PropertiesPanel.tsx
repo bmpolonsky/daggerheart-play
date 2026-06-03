@@ -6,10 +6,10 @@ import type { TemplateFeature } from "@cards/lib/api";
 import type { TargetedEvent } from "preact";
 import { Input } from "@cards/components/ui/input";
 import { Button } from "@cards/components/ui/button";
-import type { JSX } from "preact";
 import { normalizeFeatureName } from "@cards/lib/templateUtils";
 import { useStream } from "../../../../core/hooks/useStream";
 import { domainService } from "@cards/services/domainService";
+import { Field, SelectControl, TextAreaControl } from "../../../../ui/components/common/Field";
 
 type CardFieldInputFactory = <
   Element extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
@@ -75,23 +75,21 @@ export function PropertiesPanel({
     }
 
     return (
-      <div className="properties-field">
-        <label htmlFor="card-feature">Раздел</label>
-        <select
+      <Field label="Раздел">
+        <SelectControl
           id="card-feature"
-          className="card-feature-editor__select"
           value={String(selectedFeatureIndex)}
-          onChange={onSubclassFeatureChange}
+          onChange={onSubclassFeatureChange as any}
         >
           {features.map((feature, index) => (
             <option key={feature.id} value={index}>
               {feature.group
                 ? `${feature.group} · ${normalizeFeatureName(feature)}`
-                : normalizeFeatureName(feature)}
+              : normalizeFeatureName(feature)}
             </option>
           ))}
-        </select>
-      </div>
+        </SelectControl>
+      </Field>
     );
   };
 
@@ -100,13 +98,12 @@ export function PropertiesPanel({
 
     if (domainOptions.length === 0) {
       return (
-        <div className="properties-field">
-          <label>Домены</label>
+        <Field label="Домены">
           <p className="properties-hint">Нет доступных доменов. Создайте новый домен.</p>
           <Button variant="secondary" size="sm" onClick={onRequestDomainManager}>
             Открыть менеджер доменов
           </Button>
-        </div>
+        </Field>
       );
     }
 
@@ -124,11 +121,10 @@ export function PropertiesPanel({
     if (isDomainCard) {
       return (
         <Field label="Домен">
-          <select
+          <SelectControl
             id="card-domain-primary"
-            className="card-feature-editor__select"
             value={cardFields.domainPrimary}
-            onChange={handleDomainSelect("domainPrimary")}
+            onChange={handleDomainSelect("domainPrimary") as any}
           >
             <option value="">Не выбран</option>
             {domainOptions.map((domain) => (
@@ -137,19 +133,17 @@ export function PropertiesPanel({
               </option>
             ))}
             <option value="__create__">＋ Создать новый домен</option>
-          </select>
+          </SelectControl>
         </Field>
       );
     }
 
     return (
-      <div className="properties-field">
-        <label>Домены класса</label>
+      <Field label="Домены класса">
         <div className="domain-selects">
-          <select
-            className="card-feature-editor__select"
+          <SelectControl
             value={cardFields.domainPrimary}
-            onChange={handleDomainSelect("domainPrimary")}
+            onChange={handleDomainSelect("domainPrimary") as any}
           >
             <option value="">Домен 1</option>
             {domainOptions.map((domain) => (
@@ -158,11 +152,10 @@ export function PropertiesPanel({
               </option>
             ))}
             <option value="__create__">＋ Создать новый домен</option>
-          </select>
-          <select
-            className="card-feature-editor__select"
+          </SelectControl>
+          <SelectControl
             value={cardFields.domainSecondary}
-            onChange={handleDomainSelect("domainSecondary")}
+            onChange={handleDomainSelect("domainSecondary") as any}
           >
             <option value="">Домен 2</option>
             {domainOptions.map((domain) => (
@@ -171,9 +164,9 @@ export function PropertiesPanel({
               </option>
             ))}
             <option value="__create__">＋ Создать новый домен</option>
-          </select>
+          </SelectControl>
         </div>
-      </div>
+      </Field>
     );
   };
 
@@ -181,21 +174,19 @@ export function PropertiesPanel({
     <aside className="properties-panel">
       <div className="properties-section">
         <h3>Тип карты</h3>
-        <div className="properties-field">
-          <label htmlFor="card-type">Категория</label>
-          <select
+        <Field label="Категория">
+          <SelectControl
             id="card-type"
-            className="card-feature-editor__select"
             value={selectedTypeId}
-            onChange={onTypeChange}
+            onChange={onTypeChange as any}
           >
             {typeOptions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
               </option>
             ))}
-          </select>
-        </div>
+          </SelectControl>
+        </Field>
       </div>
 
       <div className="properties-section properties-section--form">
@@ -217,37 +208,36 @@ export function PropertiesPanel({
         </Field>
         {typeConfig.supportsPrelude && (
           <Field label="Прелюдия / вступление">
-            <textarea
+            <TextAreaControl
               id="card-prelude"
               className="properties-textarea"
               value={cardFields.prelude}
-              onInput={onFieldInput<HTMLTextAreaElement>("prelude", stripMarkdownLinks)}
+              onInput={onFieldInput<HTMLTextAreaElement>("prelude", stripMarkdownLinks) as any}
               rows={3}
             />
           </Field>
         )}
         <Field label="Описание">
-          <textarea
+          <TextAreaControl
             id="card-description"
             className="card-content-textarea"
             value={cardFields.description}
-            onInput={onFieldInput<HTMLTextAreaElement>("description", stripMarkdownLinks)}
+            onInput={onFieldInput<HTMLTextAreaElement>("description", stripMarkdownLinks) as any}
             rows={isSubclass ? 12 : 14}
           />
         </Field>
         <Field label="Размер текста карточки">
-          <select
+          <SelectControl
             id="card-body-font-size"
-            className="card-feature-editor__select"
             value={cardFields.bodyFontSize}
-            onChange={onFieldInput<HTMLSelectElement>("bodyFontSize")}
+            onChange={onFieldInput<HTMLSelectElement>("bodyFontSize") as any}
           >
             {fontSizeOptions.map((option) => (
               <option key={option.value || "default"} value={option.value}>
                 {option.label}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </Field>
         {renderFeatureOptions()}
         {typeConfig.supportsTier && (
@@ -326,19 +316,5 @@ export function PropertiesPanel({
       </Button>
       {exportError && <p className="export-error">{exportError}</p>}
     </aside>
-  );
-}
-
-interface FieldProps {
-  label: string;
-  children: JSX.Element;
-}
-
-function Field({ label, children }: FieldProps) {
-  return (
-    <div className="properties-field">
-      <label>{label}</label>
-      {children}
-    </div>
   );
 }

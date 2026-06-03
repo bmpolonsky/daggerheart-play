@@ -1,0 +1,120 @@
+.root {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(243, 234, 216, 0.1);
+  border-radius: var(--dh-radius);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.66), rgba(7, 9, 12, 0.42)),
+    rgba(7, 9, 12, 0.34);
+  color: inherit;
+  box-shadow: none;
+  padding: 12px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.root:hover:not(:disabled) {
+  border-color: var(--dh-border-strong);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.72), rgba(7, 9, 12, 0.48)),
+    rgba(7, 9, 12, 0.4);
+}
+
+.root:focus-visible {
+  border-color: rgba(240, 201, 106, 0.72);
+  box-shadow: var(--dh-focus);
+  outline: none;
+}
+
+.selected {
+  border-color: var(--dh-border-gold);
+  background:
+    linear-gradient(180deg, rgba(216, 173, 83, 0.15), rgba(7, 9, 12, 0.42)),
+    rgba(7, 9, 12, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(240, 201, 106, 0.12);
+}
+
+.classChoice,
+.media,
+.domain {
+  height: auto;
+  align-content: start;
+  overflow: hidden;
+  text-align: left;
+  column-gap: 10px;
+  row-gap: 5px;
+}
+
+.classChoice {
+  min-height: 112px;
+  max-height: 164px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.media {
+  min-height: 126px;
+  max-height: 164px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.domain {
+  min-height: 152px;
+  max-height: 206px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.classChoice > img,
+.media > img,
+.domain > img {
+  width: 100%;
+  height: 76px;
+  grid-row: 1 / -1;
+  object-fit: cover;
+  border: 1px solid rgba(240, 201, 106, 0.16);
+  border-radius: var(--dh-radius);
+}
+
+.domain > img {
+  height: 112px;
+  object-fit: contain;
+  background: rgba(7, 9, 12, 0.38);
+}
+
+.classChoice > *,
+.media > *,
+.domain > * {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .media {
+    min-height: 112px;
+    grid-template-columns: 68px minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, auto);
+  }
+
+  .domain {
+    min-height: 132px;
+    grid-template-columns: 74px minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, auto);
+  }
+
+  .classChoice {
+    min-height: 92px;
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .classChoice > img,
+  .media > img {
+    height: 68px;
+  }
+
+  .domain > img {
+    height: 96px;
+  }
+}

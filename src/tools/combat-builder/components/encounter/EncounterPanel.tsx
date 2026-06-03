@@ -11,6 +11,9 @@ import {
   IconSettings,
   IconUsers,
 } from "@combat/components/icons";
+import { Button } from "../../../../ui/components/common/Button";
+import { IconButton } from "../../../../ui/components/common/IconButton";
+import { Surface } from "../../../../ui/components/common/Surface";
 
 interface EncounterPanelProps {
   entries: EncounterBattleEntry[];
@@ -68,23 +71,29 @@ function Track({
         {label}
       </span>
       <div className="ml-auto flex items-center gap-1">
-        <button
+        <IconButton
           type="button"
           onClick={onDecrease}
-          className="flex h-5 w-5 items-center justify-center rounded-sm border border-slate-700/80 bg-slate-900/80 text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
+          size="xs"
+          variant="ghost"
+          title={`Уменьшить ${label.toLowerCase()}`}
+          aria-label={`Уменьшить ${label.toLowerCase()}`}
         >
           <IconMinus size={10} />
-        </button>
+        </IconButton>
         <span className="w-10 text-center font-mono text-xs text-white">
           {value}/{max}
         </span>
-        <button
+        <IconButton
           type="button"
           onClick={onIncrease}
-          className="flex h-5 w-5 items-center justify-center rounded-sm border border-slate-700/80 bg-slate-900/80 text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
+          size="xs"
+          variant="ghost"
+          title={`Увеличить ${label.toLowerCase()}`}
+          aria-label={`Увеличить ${label.toLowerCase()}`}
         >
           <IconPlus size={10} />
-        </button>
+        </IconButton>
       </div>
     </div>
   );
@@ -127,9 +136,11 @@ export function EncounterPanel({
   return (
     <div className="combat-encounter-panel flex h-full w-full flex-col bg-dagger-panel">
       <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-slate-900 p-4 shadow-xs">
-        <button
+        <Button
           type="button"
-          className="min-w-0 flex-1 text-left lg:hidden"
+          variant="ghost"
+          fullWidth
+          className="min-w-0 justify-start text-left lg:hidden"
           onClick={onToggleOpen}
           aria-expanded={isOpen}
         >
@@ -139,7 +150,7 @@ export function EncounterPanel({
           <span className="block truncate text-xs text-slate-500">
             {totalEntries} противников · {summary.totalCost}/{summary.finalBudget} ОБ
           </span>
-        </button>
+        </Button>
         <div className="hidden min-w-0 flex-1 lg:block">
           <span className="block text-sm font-bold uppercase tracking-wider text-slate-300">
             Бой
@@ -149,39 +160,42 @@ export function EncounterPanel({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <IconButton
             type="button"
             onClick={() => setShowModifiers(!showModifiers)}
-            className={`rounded-sm p-2 transition-colors ${
-              showModifiers
-                ? "bg-slate-800 text-dagger-gold"
-                : "text-slate-400 hover:bg-slate-800 hover:text-white"
-            }`}
+            variant={showModifiers ? "primary" : "ghost"}
+            size="sm"
             title="Настройки боя"
+            aria-label="Настройки боя"
+            aria-pressed={showModifiers}
           >
             <IconSettings size={18} />
-          </button>
+          </IconButton>
           {entries.length > 0 && (
-            <button
+            <IconButton
               type="button"
               onClick={onClear}
-              className="rounded-sm p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-red-400"
+              variant="danger"
+              size="sm"
               title="Очистить бой"
+              aria-label="Очистить бой"
             >
               <IconRefresh size={18} />
-            </button>
+            </IconButton>
           )}
           {onToggleOpen && (
-            <button
+            <IconButton
               type="button"
               onClick={onToggleOpen}
-              className="rounded-sm p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white lg:hidden"
+              className="lg:hidden"
+              variant="ghost"
+              size="sm"
               title={isOpen ? "Свернуть бой" : "Открыть бой"}
               aria-label={isOpen ? "Свернуть бой" : "Открыть бой"}
               aria-expanded={isOpen}
             >
               {isOpen ? <IconMinus size={18} /> : <IconPlus size={18} />}
-            </button>
+            </IconButton>
           )}
         </div>
       </div>
@@ -192,40 +206,37 @@ export function EncounterPanel({
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Настройка сложности
             </span>
-            <div className="flex rounded-lg border border-slate-700 bg-slate-900 p-1">
-              <button
+            <div className="flex gap-1">
+              <Button
                 type="button"
                 onClick={() => onSetDifficultyMode("easy")}
-                className={`flex-1 rounded-sm py-1 text-xs font-medium transition-colors ${
-                  difficultyMode === "easy"
-                    ? "bg-green-600 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                variant={difficultyMode === "easy" ? "primary" : "ghost"}
+                size="xs"
+                grow
+                aria-pressed={difficultyMode === "easy"}
               >
                 Легкий (-1)
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => onSetDifficultyMode("standard")}
-                className={`flex-1 rounded-sm py-1 text-xs font-medium transition-colors ${
-                  difficultyMode === "standard"
-                    ? "bg-slate-700 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                variant={difficultyMode === "standard" ? "primary" : "ghost"}
+                size="xs"
+                grow
+                aria-pressed={difficultyMode === "standard"}
               >
                 Норма
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => onSetDifficultyMode("hard")}
-                className={`flex-1 rounded-sm py-1 text-xs font-medium transition-colors ${
-                  difficultyMode === "hard"
-                    ? "bg-orange-600 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
+                variant={difficultyMode === "hard" ? "primary" : "ghost"}
+                size="xs"
+                grow
+                aria-pressed={difficultyMode === "hard"}
               >
                 Сложный (+2)
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -234,42 +245,40 @@ export function EncounterPanel({
               Ручные модификаторы
             </span>
             <div className="space-y-2">
-              <label className="group flex cursor-pointer items-center justify-between text-sm text-slate-300">
-                <span className="transition-colors group-hover:text-white">
+              <Button
+                type="button"
+                fullWidth
+                variant={isDamageBoosted ? "primary" : "secondary"}
+                size="sm"
+                className="justify-between"
+                onClick={onToggleDamageBoosted}
+                aria-pressed={isDamageBoosted}
+              >
+                <span>
                   Усиленный урон (+1d4 или +2)
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs text-red-400">-2 ОБ</span>
-                  <div
-                    className={`flex h-5 w-5 items-center justify-center rounded-sm border transition-colors ${
-                      isDamageBoosted
-                        ? "border-dagger-gold bg-dagger-gold text-dagger-dark"
-                        : "border-slate-600 bg-slate-900"
-                    }`}
-                    onClick={onToggleDamageBoosted}
-                  >
-                    {isDamageBoosted && "✓"}
-                  </div>
+                  <span>{isDamageBoosted ? "✓" : ""}</span>
                 </div>
-              </label>
-              <label className="group flex cursor-pointer items-center justify-between text-sm text-slate-300">
-                <span className="transition-colors group-hover:text-white">
+              </Button>
+              <Button
+                type="button"
+                fullWidth
+                variant={isLowerTierUsed ? "primary" : "secondary"}
+                size="sm"
+                className="justify-between"
+                onClick={onToggleLowerTierUsed}
+                aria-pressed={isLowerTierUsed}
+              >
+                <span>
                   Враги низкого ранга
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs text-green-400">+1 ОБ</span>
-                  <div
-                    className={`flex h-5 w-5 items-center justify-center rounded-sm border transition-colors ${
-                      isLowerTierUsed
-                        ? "border-dagger-gold bg-dagger-gold text-dagger-dark"
-                        : "border-slate-600 bg-slate-900"
-                    }`}
-                    onClick={onToggleLowerTierUsed}
-                  >
-                    {isLowerTierUsed && "✓"}
-                  </div>
+                  <span>{isLowerTierUsed ? "✓" : ""}</span>
                 </div>
-              </label>
+              </Button>
             </div>
           </div>
 
@@ -311,53 +320,65 @@ export function EncounterPanel({
           entries.map((entry) => {
             const cost = calculateAdversaryCost(entry.adversary.roleId);
             return (
-              <div
+              <Surface
                 key={entry.adversary.id}
-                className="rounded-sm border border-slate-700 bg-slate-800 p-3 shadow-xs"
+                tone="subtle"
+                padding="sm"
               >
                 <div className="flex items-start gap-3">
-                  <button
+                  <Button
                     type="button"
                     onClick={() => onOpenDetails(entry.adversary.id)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-dagger-gold/30 bg-dagger-dark text-sm font-bold text-dagger-gold shadow-inner transition-colors hover:bg-slate-700"
+                    size="iconSm"
+                    variant="secondary"
                     title="Посмотреть свойства"
+                    aria-label="Посмотреть свойства"
+                    className="shrink-0"
                   >
                     {cost}
-                  </button>
+                  </Button>
 
                   <div className="min-w-0 grow">
-                    <div
-                      className="truncate pr-1 text-sm font-medium text-slate-200 transition-colors hover:text-dagger-gold"
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      fullWidth
+                      className="justify-start"
                       onClick={() => onOpenDetails(entry.adversary.id)}
                     >
-                      {entry.adversary.name}
-                    </div>
+                      <span className="min-w-0 truncate">{entry.adversary.name}</span>
+                    </Button>
                     <div className="truncate text-xs capitalize text-slate-500">
                       {entry.adversary.roleName}
                       {entry.count > 1 ? ` • x${entry.count}` : ""}
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1 rounded-sm border border-slate-700 bg-slate-900 px-1 py-1">
-                    <button
+                  <div className="flex shrink-0 items-center gap-1">
+                    <IconButton
                       type="button"
                       onClick={() => onUpdateCount(entry.adversary.id, -1)}
-                      className="p-1 text-slate-400 transition-colors hover:text-red-400"
+                      size="xs"
+                      variant="ghost"
                       title="Уменьшить / Удалить"
+                      aria-label="Уменьшить / Удалить"
                     >
                       <IconMinus size={14} />
-                    </button>
+                    </IconButton>
                     <span className="w-5 select-none text-center text-sm font-mono text-white">
                       {entry.count}
                     </span>
-                    <button
+                    <IconButton
                       type="button"
                       onClick={() => onUpdateCount(entry.adversary.id, 1)}
-                      className="p-1 text-slate-400 transition-colors hover:text-green-400"
+                      size="xs"
+                      variant="ghost"
                       title="Увеличить"
+                      aria-label="Увеличить"
                     >
                       <IconPlus size={14} />
-                    </button>
+                    </IconButton>
                   </div>
                 </div>
 
@@ -386,7 +407,7 @@ export function EncounterPanel({
                   ))}
                 </div>
 
-              </div>
+              </Surface>
             );
           })
         )}
@@ -398,24 +419,28 @@ export function EncounterPanel({
             <IconUsers size={18} />
             <span className="text-sm font-medium">Размер группы</span>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 shadow-xs">
-            <button
+          <div className="flex items-center gap-2">
+            <IconButton
               type="button"
               onClick={() => onSetPlayerCount(Math.max(1, playerCount - 1))}
-              className="p-1 text-slate-400 transition-colors hover:text-white"
+              size="xs"
+              variant="ghost"
+              aria-label="Уменьшить размер группы"
             >
               <IconMinus size={16} />
-            </button>
+            </IconButton>
             <span className="w-6 select-none text-center text-lg font-bold text-white">
               {playerCount}
             </span>
-            <button
+            <IconButton
               type="button"
               onClick={() => onSetPlayerCount(playerCount + 1)}
-              className="p-1 text-slate-400 transition-colors hover:text-white"
+              size="xs"
+              variant="ghost"
+              aria-label="Увеличить размер группы"
             >
               <IconPlus size={16} />
-            </button>
+            </IconButton>
           </div>
         </div>
 

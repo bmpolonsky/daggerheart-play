@@ -4,6 +4,7 @@ import type { JSX } from "preact";
 import type { Adversary } from "@combat/lib/api";
 import { calculateAdversaryCost } from "@combat/lib/mechanics";
 import { IconEdit, IconPlus } from "@combat/components/icons";
+import { IconButton } from "../../../../ui/components/common/IconButton";
 
 interface AdversaryCardProps {
   adversary: Adversary;
@@ -53,30 +54,36 @@ export function AdversaryCard({
             </div>
           )}
 
-          <button
+          <IconButton
             type="button"
             onClick={(event) => {
               event.stopPropagation();
               onAdd();
             }}
-            className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded border border-dagger-gold/25 bg-black/70 text-dagger-gold shadow-sm backdrop-blur-sm transition-colors hover:border-dagger-gold/50 hover:bg-black/80"
+            className="absolute right-2 top-2 z-20"
+            variant="primary"
+            size="sm"
             title="Добавить в бой"
+            aria-label="Добавить в бой"
           >
-            <IconPlus size={14} />
-          </button>
+            <IconPlus size={14} aria-hidden="true" />
+          </IconButton>
 
           {adversary.isCustom && onEdit && (
-            <button
+            <IconButton
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
                 onEdit();
               }}
-              className="absolute right-2 top-12 z-20 flex h-8 w-8 items-center justify-center rounded border border-blue-300/25 bg-black/70 text-blue-200 shadow-sm backdrop-blur-sm transition-colors hover:border-blue-300/50 hover:bg-black/80"
+              className="absolute right-2 top-12 z-20"
+              variant="secondary"
+              size="sm"
               title="Редактировать"
+              aria-label="Редактировать"
             >
-              <IconEdit size={14} />
-            </button>
+              <IconEdit size={14} aria-hidden="true" />
+            </IconButton>
           )}
 
           <div

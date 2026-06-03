@@ -1,5 +1,7 @@
 import { ImagePlus, Music, X } from 'lucide-react';
 import type { CSSProperties, ChangeEvent } from 'react';
+import { IconButton } from './IconButton';
+import styles from './ImageFilePicker.module.css';
 
 interface FilePickerProps {
   accept: string;
@@ -41,16 +43,23 @@ export function FilePicker({
     input.value = '';
   };
   const renderedIcon = icon === 'music' ? <Music size={22} /> : <ImagePlus size={22} />;
+  const rootClassName = [
+    'image-file-picker',
+    styles.root,
+    size !== 'default' ? `image-file-picker--${size}` : '',
+    size !== 'default' ? styles.compact : '',
+    className
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className={['image-file-picker', size !== 'default' ? `image-file-picker--${size}` : '', className].filter(Boolean).join(' ')} style={style}>
-      <span className="image-file-picker__label">{label}</span>
-      <div className="image-file-picker__frame">
-        <label className="image-file-picker__upload-target">
+    <div className={rootClassName} style={style}>
+      <span className={`image-file-picker__label ${styles.label}`}>{label}</span>
+      <div className={`image-file-picker__frame ${styles.frame}`}>
+        <label className={`image-file-picker__upload-target ${styles.uploadTarget}`}>
           {resolvedPreviewUrl ? (
             <img src={resolvedPreviewUrl} alt="" />
           ) : (
-            <span className={hasFile ? 'image-file-picker__file' : 'image-file-picker__empty'}>
+            <span className={hasFile ? `image-file-picker__file ${styles.file}` : `image-file-picker__empty ${styles.empty}`}>
               {renderedIcon}
               {hasFile ? resolvedValueLabel : emptyLabel}
             </span>
@@ -58,9 +67,9 @@ export function FilePicker({
           <input type="file" accept={accept} onChange={handleChange} aria-label={label} />
         </label>
         {hasFile && onClear && (
-          <button className="image-file-picker__clear" type="button" onClick={onClear} aria-label={`Убрать ${label.toLowerCase()}`}>
-            <X size={14} />
-          </button>
+          <IconButton className={`image-file-picker__clear ${styles.clear}`} variant="danger" size="sm" type="button" onClick={onClear} aria-label={`Убрать ${label.toLowerCase()}`}>
+            <X size={14} aria-hidden="true" />
+          </IconButton>
         )}
       </div>
     </div>

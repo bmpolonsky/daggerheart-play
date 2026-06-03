@@ -1,12 +1,12 @@
 .tool-viewport--combat {
-  --combat-ink: #07090d;
-  --combat-panel: rgba(18, 20, 29, 0.92);
-  --combat-panel-strong: rgba(10, 12, 18, 0.96);
-  --combat-paper: #f4ead7;
-  --combat-muted: rgba(219, 211, 194, 0.66);
-  --combat-gold: #d8ad53;
+  --combat-ink: var(--dh-ink-950, #07090d);
+  --combat-panel: var(--dh-glass, rgba(10, 13, 17, 0.62));
+  --combat-panel-strong: var(--dh-glass-strong, rgba(9, 11, 15, 0.84));
+  --combat-paper: var(--dh-paper-100, #f4ead7);
+  --combat-muted: var(--dh-paper-muted, rgba(219, 211, 194, 0.66));
+  --combat-gold: var(--dh-gold-500, #d8ad53);
   --combat-blue: #6f95d8;
-  --combat-line: rgba(216, 173, 83, 0.18);
+  --combat-line: var(--dh-border, rgba(216, 173, 83, 0.18));
   background:
     radial-gradient(circle at 18% 8%, rgba(216, 173, 83, 0.14), transparent 28rem),
     radial-gradient(circle at 78% 0%, rgba(91, 159, 218, 0.1), transparent 30rem),
@@ -59,17 +59,22 @@
   text-shadow: 0 2px 18px rgba(216, 173, 83, 0.18);
 }
 
-.tool-viewport--combat header input,
-.tool-viewport--combat header select {
-  border-color: rgba(216, 173, 83, 0.2) !important;
-  background-color: rgba(7, 9, 13, 0.82) !important;
-  color: var(--combat-paper) !important;
+.tool-viewport--combat .combat-search-input {
+  padding-left: 2.25rem;
 }
 
-.tool-viewport--combat header input:focus,
-.tool-viewport--combat header select:focus {
-  border-color: rgba(216, 173, 83, 0.78) !important;
-  box-shadow: 0 0 0 1px rgba(216, 173, 83, 0.35);
+.tool-viewport--combat .combat-filter-select {
+  flex: 1 1 0;
+}
+
+.tool-viewport--combat .combat-filter-select--role {
+  max-width: 140px;
+}
+
+@media (min-width: 768px) {
+  .tool-viewport--combat .combat-filter-select {
+    flex: 0 0 auto;
+  }
 }
 
 .tool-viewport--combat main > div.flex-1 {
@@ -79,10 +84,12 @@
 }
 
 .tool-viewport--combat article {
-  border-color: rgba(216, 173, 83, 0.16) !important;
+  border-color: rgba(243, 234, 216, 0.1) !important;
+  border-radius: var(--dh-radius-lg, 12px) !important;
   background:
-    linear-gradient(180deg, rgba(24, 27, 38, 0.94), rgba(12, 14, 21, 0.96)) !important;
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+    linear-gradient(180deg, rgba(13, 18, 24, 0.72), rgba(7, 9, 12, 0.56)) !important;
+  box-shadow: var(--dh-shadow-soft, 0 14px 38px rgba(0, 0, 0, 0.28));
+  backdrop-filter: var(--dh-blur, blur(18px) saturate(1.1));
 }
 
 .tool-viewport--combat article:hover {
@@ -269,6 +276,43 @@
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.tool-viewport--combat :where(button, input, select, textarea) {
+  border-radius: var(--dh-radius-sm, 8px) !important;
+}
+
+.tool-viewport--combat :where(input, select, textarea) {
+  border-color: var(--dh-border, rgba(243, 234, 216, 0.12)) !important;
+  background-color: var(--dh-control, rgba(3, 5, 7, 0.46)) !important;
+  color: var(--dh-paper-100, #f3ead8) !important;
+}
+
+.tool-viewport--combat :where(button) {
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
+}
+
+.tool-viewport--combat :where(button:focus-visible, input:focus, select:focus, textarea:focus) {
+  border-color: rgba(240, 201, 106, 0.72) !important;
+  box-shadow: var(--dh-focus, 0 0 0 2px rgba(240, 201, 106, 0.2)) !important;
+  outline: none !important;
+}
+
+.tool-viewport--combat :where(.rounded-sm, .rounded, .rounded-md) {
+  border-radius: var(--dh-radius-sm, 8px) !important;
+}
+
+.tool-viewport--combat :where(.rounded-lg) {
+  border-radius: var(--dh-radius-lg, 12px) !important;
+}
+
+.tool-viewport--combat :where(.bg-slate-800, .bg-slate-900, .bg-dagger-panel) {
+  background-color: var(--dh-control, rgba(3, 5, 7, 0.46)) !important;
 }
 
 @media (max-width: 640px) {

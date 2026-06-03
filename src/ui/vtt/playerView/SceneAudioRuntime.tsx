@@ -4,6 +4,7 @@ import { Volume2 } from 'lucide-react';
 import { useStream } from '../../../core/hooks/useStream';
 import type { SceneMusicState } from '../../../domain/audio/sceneAudio';
 import { audioService, sceneAudioBroadcastService } from '../../../services/serviceRegistry';
+import { Button } from '../../components/common/Button';
 
 export function SceneAudioRuntime({ music }: { music: SceneMusicState }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -36,10 +37,10 @@ export function SceneAudioRuntime({ music }: { music: SceneMusicState }) {
       {needsGesture && (
         <aside className="scene-audio-runtime" role="status" aria-live="polite" data-scene-audio-status={audioState.sceneAudioStatus}>
           <span className="scene-audio-runtime__message">{audioState.sceneAudioMessage}</span>
-          <button type="button" onClick={() => void audioService.unlockSceneAudio()} title={actionLabel} aria-label={actionLabel}>
-            <Volume2 size={15} />
+          <Button size="sm" variant="primary" noWrap type="button" onClick={() => void audioService.unlockSceneAudio()} title={actionLabel} aria-label={actionLabel}>
+            <Volume2 size={15} aria-hidden="true" />
             <span>{actionLabel}</span>
-          </button>
+          </Button>
         </aside>
       )}
     </>

@@ -3,6 +3,10 @@ import { useEffect, useRef } from 'preact/hooks';
 import { Crown, Link2, Trash2 } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { characterService, gameService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
+import { Button } from '../components/common/Button';
+import { SelectControl, TextControl } from '../components/common/Field';
+import { IconButton } from '../components/common/IconButton';
+import { Surface } from '../components/common/Surface';
 import type { LobbyInviteContext } from './SessionLobby';
 
 interface GmLobbyCardProps {
@@ -56,7 +60,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
   };
 
   return (
-    <section className="role-entry__card role-entry__gm-card" aria-label="Создать сессию мастера">
+    <Surface className="role-entry__card role-entry__gm-card" aria-label="Создать сессию мастера">
       <header>
         <Crown size={20} />
         <div>
@@ -66,23 +70,23 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
       </header>
       <label>
         <span>Код комнаты</span>
-        <input value={displayedGmRoomId} readOnly />
+        <TextControl value={displayedGmRoomId} readOnly />
       </label>
       <div className="role-entry__players">
         <header>
           <strong>Игроки</strong>
-          <button className="dh-button" type="button" onClick={() => sceneTableService.createPlayerSeat({ name: `Игрок ${playerSeats.length + 1}`, characterId: characterOptions[playerSeats.length]?.id })}>
+          <Button size="sm" type="button" onClick={() => sceneTableService.createPlayerSeat({ name: `Игрок ${playerSeats.length + 1}`, characterId: characterOptions[playerSeats.length]?.id })}>
             Добавить
-          </button>
+          </Button>
         </header>
         {playerSeats.map((seat) => (
           <article className="role-entry__player-row" key={seat.id}>
-            <input
+            <TextControl
               aria-label="Имя игрока"
               value={seat.name}
               onInput={(event) => sceneTableService.updatePlayerSeat(seat.id, { name: event.currentTarget.value })}
             />
-            <select
+            <SelectControl
               aria-label="Персонаж игрока"
               value={seat.actorIds[0] ?? ''}
               onChange={(event) => sceneTableService.updatePlayerSeat(seat.id, { characterId: event.currentTarget.value || null })}
@@ -91,29 +95,28 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
               {characterOptions.map((character) => (
                 <option key={character.id} value={character.id}>{character.name}</option>
               ))}
-            </select>
-            <button className="role-entry__icon-action" type="button" title="Удалить игрока" aria-label={`Удалить игрока ${seat.name}`} onClick={() => sceneTableService.removePlayerSeat(seat.id)}>
+            </SelectControl>
+            <IconButton className="role-entry__icon-action" variant="ghost" size="sm" type="button" title="Удалить игрока" aria-label={`Удалить игрока ${seat.name}`} onClick={() => sceneTableService.removePlayerSeat(seat.id)}>
               <Trash2 size={15} aria-hidden="true" />
-            </button>
+            </IconButton>
           </article>
         ))}
         {playerSeats.length === 0 && <p>Добавьте игроков, чтобы они выбирали свои места при входе.</p>}
       </div>
       <div className="role-entry__inline-actions">
-        <button className="dh-button dh-variant-primary" type="button" onClick={enterGm}>
+        <Button variant="primary" type="button" onClick={enterGm}>
           Открыть игру
-        </button>
+        </Button>
       </div>
       <div className="role-entry__invite-line">
         <label>
           <span>Ссылка игрока</span>
-          <input readOnly aria-label="Ссылка приглашения" value={displayedInviteUrl} placeholder="Появится после ввода кода комнаты" />
+          <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteUrl} placeholder="Появится после ввода кода комнаты" />
         </label>
-        <button className="dh-button" type="button" disabled={!displayedInviteUrl} onClick={() => void copyInvite()}>
-          <Link2 size={15} />
+        <Button type="button" disabled={!displayedInviteUrl} iconBefore={<Link2 size={15} aria-hidden="true" />} onClick={() => void copyInvite()}>
           Копировать
-        </button>
+        </Button>
       </div>
-    </section>
+    </Surface>
   );
 }

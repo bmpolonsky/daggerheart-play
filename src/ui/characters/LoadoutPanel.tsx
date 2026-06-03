@@ -1,5 +1,6 @@
 import { Button } from '../components/common/Button';
-import { NumberField, SelectField, TextAreaField, TextField } from '../components/common/Field';
+import { NumberField, SelectControl, SelectField, TextAreaField, TextField } from '../components/common/Field';
+import { Surface } from '../components/common/Surface';
 import { DAMAGE_TYPE_LABELS, DOMAIN_LABELS, RANGE_LABELS, RANGES, TRAITS } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
 import { domainCardFromLibrary, isDomainCardForDomains } from '../../domain/characterBuilder';
@@ -23,16 +24,16 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <h3>Оружие и атаки</h3>
           <div className="character-editor-toolbar">
             {weaponOptions.length > 0 && (
-              <select className="input" value="" aria-label="Добавить оружие из каталога" onChange={(event) => addEquipmentFromCatalog(character.id, weaponOptions, event.currentTarget.value)}>
+              <SelectControl value="" aria-label="Добавить оружие из каталога" onChange={(event) => addEquipmentFromCatalog(character.id, weaponOptions, event.currentTarget.value)}>
                 <option value="">Добавить из каталога</option>
                 {weaponOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </SelectControl>
             )}
             <Button onClick={() => characterService.addWeapon(character.id)}>+ Своя атака</Button>
           </div>
         </div>
         {character.weapons.map((weapon) => (
-          <div key={weapon.id} className="nested-card">
+          <Surface as="div" tone="subtle" key={weapon.id} className="nested-card">
             <div className="grid-5">
               {weaponOptions.length > 0 ? (
                 <SelectField
@@ -104,7 +105,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             <div className="row-end">
               <Button variant="danger" onClick={() => characterService.removeWeapon(character.id, weapon.id)}>Удалить атаку</Button>
             </div>
-          </div>
+          </Surface>
         ))}
       </section>
 
@@ -113,10 +114,10 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <h3>Карты доменов / способности</h3>
           <div className="character-editor-toolbar">
             {domainCardOptions.length > 0 && (
-              <select className="input" value="" aria-label="Добавить карту домена" onChange={(event) => addDomainCardFromCatalog(character.id, domainCardOptions, event.currentTarget.value)}>
+              <SelectControl value="" aria-label="Добавить карту домена" onChange={(event) => addDomainCardFromCatalog(character.id, domainCardOptions, event.currentTarget.value)}>
                 <option value="">Добавить карту</option>
                 {domainCardOptions.map((item) => <option key={item.id} value={item.id}>{cardOptionLabel(item)}</option>)}
-              </select>
+              </SelectControl>
             )}
           </div>
         </div>
@@ -147,10 +148,10 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <h3>Инвентарь</h3>
           <div className="character-editor-toolbar">
             {inventoryOptions.length > 0 && (
-              <select className="input" value="" aria-label="Добавить предмет из каталога" onChange={(event) => addEquipmentFromCatalog(character.id, inventoryOptions, event.currentTarget.value)}>
+              <SelectControl value="" aria-label="Добавить предмет из каталога" onChange={(event) => addEquipmentFromCatalog(character.id, inventoryOptions, event.currentTarget.value)}>
                 <option value="">Добавить из каталога</option>
                 {inventoryOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
+              </SelectControl>
             )}
             <Button onClick={() => characterService.addInventoryItem(character.id)}>+ Свой предмет</Button>
           </div>
@@ -192,7 +193,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           </div>
         </div>
         {character.inventory.map((item) => (
-          <div key={item.id} className="nested-card">
+          <Surface as="div" tone="subtle" key={item.id} className="nested-card">
             <div className="grid-5">
               <TextField
                 label="Название"
@@ -237,7 +238,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             <div className="row-end">
               <Button variant="danger" onClick={() => characterService.removeInventoryItem(character.id, item.id)}>Удалить предмет</Button>
             </div>
-          </div>
+          </Surface>
         ))}
       </section>
     </div>

@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import type { TemplateCard } from "@cards/lib/api";
 import { Input } from "@cards/components/ui/input";
+import { Button } from "@cards/components/ui/button";
 import { IconSearch } from "@cards/components/icons";
 import { cn } from "@cards/lib/utils";
 import { stripInlineMarkers } from "@cards/lib/text";
@@ -48,7 +49,7 @@ export function TemplateSidebar({
 
   const renderTemplateGroup = (group: TemplateGroupView) => (
     <div key={group.id} className="template-group">
-      <button type="button" className="template-group__toggle" onClick={group.toggle}>
+      <Button variant="ghost" className="template-group__toggle" onClick={group.toggle}>
         <span className="template-group__title">{group.title}</span>
         <div className="template-group__meta">
           <span className="template-group__count">{group.filteredItems.length}</span>
@@ -61,7 +62,7 @@ export function TemplateSidebar({
             −
           </span>
         </div>
-      </button>
+      </Button>
       {group.expanded && group.filteredItems.length > 0 && (
         <div className="template-grid">
           {group.filteredItems.map((card) => {
@@ -105,16 +106,17 @@ export function TemplateSidebar({
             placeholder="Поиск по шаблонам..."
             value={searchTerm}
             onInput={handleSearchInput}
-            className="input--search"
+            className="sidebar__search-input"
           />
         </div>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          fullWidth
           className="sidebar__domain-button"
           onClick={onOpenDomainManager}
         >
           Управление доменами
-        </button>
+        </Button>
       </div>
 
       <div className="sidebar__templates">
@@ -151,8 +153,9 @@ export function TemplateSidebar({
                         <div className="custom-cards__placeholder">Нет изображения</div>
                       )}
                       <div className="custom-cards__label">{title}</div>
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="custom-cards__delete"
                         onClick={(event) => {
                           event.stopPropagation();
@@ -160,7 +163,7 @@ export function TemplateSidebar({
                         }}
                       >
                         Удалить
-                      </button>
+                      </Button>
                     </div>
                   );
                 })}

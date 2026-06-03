@@ -1,0 +1,37 @@
+.root {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eyebrow {
+  color: var(--dh-paper-muted);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.root h2 {
+  margin: 0;
+  color: #fff4d6;
+  font-size: 0.98rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.root p {
+  margin: 3px 0 0;
+  color: var(--dh-paper-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}

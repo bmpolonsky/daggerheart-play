@@ -5,6 +5,8 @@ import { TRAIT_LABELS, TRAITS } from '../../../../../domain/rules/constants';
 import type { TeamworkRollActorOption, TeamworkRollParticipant, TraitId } from '../../../../../domain/rules/types';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { gameService, diceService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
+import { Button } from '../../../../components/common/Button';
+import { SelectControl } from '../../../../components/common/Field';
 import { renderRulesText } from '../../sheetText';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
@@ -106,14 +108,15 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
         {role === 'gm' && !isClosed && teamwork.availableActors.length > 0 && (
           <div className="feed-teamwork-card__picker" aria-label="Выбор участников">
             {teamwork.availableActors.map((actor) => (
-              <button
-                className={selectedIds.has(actor.actorId) ? 'dh-is-selected' : ''}
+              <Button
+                variant={selectedIds.has(actor.actorId) ? 'primary' : 'ghost'}
+                size="sm"
                 key={actor.actorId}
                 type="button"
                 onClick={() => toggleParticipant(actor)}
               >
                 {actor.actorName}
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -136,27 +139,27 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                   <span>{participantRoleLabel(participant.role)}</span>
                 </div>
                 {role === 'gm' && teamwork.kind === 'groupAction' && !isClosed && (
-                  <button type="button" onClick={() => feedService.updateTeamworkParticipantRole(item.id, participant.actorId, 'leader')}>
+                  <Button size="sm" variant="ghost" type="button" onClick={() => feedService.updateTeamworkParticipantRole(item.id, participant.actorId, 'leader')}>
                     Сделать лидером
-                  </button>
+                  </Button>
                 )}
                 {participant.result ? (
                   <p className="feed-teamwork-card__result">{participant.result.note}</p>
                 ) : role === 'gm' && !isClosed && hasPendingRoll ? (
                   <div className="feed-teamwork-card__roll feed-teamwork-card__roll--pending">
                     <span>Игрок просит бросок: {TRAIT_LABELS[selectedTrait]}</span>
-                    <button type="button" onClick={() => executeParticipantRoll(participant, selectedTrait)}>
+                    <Button size="sm" variant="primary" type="button" onClick={() => executeParticipantRoll(participant, selectedTrait)}>
                       Apply
-                    </button>
-                    <button type="button" onClick={() => feedService.rejectTeamworkParticipantRoll(item.id, participant.actorId)}>
+                    </Button>
+                    <Button size="sm" variant="danger" type="button" onClick={() => feedService.rejectTeamworkParticipantRoll(item.id, participant.actorId)}>
                       Reject
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="feed-teamwork-card__roll">
                     {canRoll && (
                       <>
-                        <select
+                        <SelectControl
                           value={selectedTrait}
                           onChange={(event) => setTraitsByActor((current) => ({
                             ...current,
@@ -164,10 +167,10 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                           }))}
                         >
                           {TRAITS.map((trait) => <option key={trait.id} value={trait.id}>{trait.label}</option>)}
-                        </select>
-                        <button type="button" onClick={() => rollParticipant(participant)}>
+                        </SelectControl>
+                        <Button size="sm" variant="primary" type="button" onClick={() => rollParticipant(participant)}>
                           {participant.role === 'support' ? 'Бросок реакции' : 'Бросок действия'}
-                        </button>
+                        </Button>
                       </>
                     )}
                     {!canRoll && <span>{TRAIT_LABELS[selectedTrait]}</span>}
@@ -180,9 +183,9 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
           )}
         </div>
         {role === 'gm' && !isClosed && teamwork.participants.some((participant) => participant.result) && (
-          <button className="feed-rest-card__resolve" type="button" onClick={() => feedService.completeTeamworkRoll(item.id)}>
+          <Button fullWidth size="lg" variant="primary" type="button" onClick={() => feedService.completeTeamworkRoll(item.id)}>
             Завершить карточку
-          </button>
+          </Button>
         )}
       </div>
     </>

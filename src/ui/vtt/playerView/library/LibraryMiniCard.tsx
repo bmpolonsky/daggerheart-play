@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { cleanMarkdownText } from '../../../../core/utils/markdownText';
+import { ChoiceCard } from '../../../components/common/ChoiceCard';
 import { cssImageUrl } from '../helpers';
 
 export function LibraryMiniCard({
@@ -22,7 +23,7 @@ export function LibraryMiniCard({
   const resolvedImageUrl = imageUrl?.trim() ?? '';
   const hasImage = Boolean(resolvedImageUrl);
   return (
-    <button className={`player-library-card ${isSelected ? 'dh-is-selected' : ''} ${hasImage ? 'player-library-card--with-art' : ''}`} type="button" onClick={onSelect}>
+    <ChoiceCard className={`player-library-card ${hasImage ? 'player-library-card--with-art' : ''}`} selected={isSelected} onClick={onSelect}>
       {hasImage && (
         <div className="player-library-card__art" aria-hidden="true">
           <img src={cssImageUrl(resolvedImageUrl)} alt="" loading="lazy" />
@@ -38,7 +39,7 @@ export function LibraryMiniCard({
           </div>
         )}
       </div>
-    </button>
+    </ChoiceCard>
   );
 }
 

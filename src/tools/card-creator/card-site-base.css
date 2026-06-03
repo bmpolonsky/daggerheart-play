@@ -92,10 +92,10 @@
   display: inline;
 }
 
-.tool-viewport--cards input:not([type=file]):not([type=checkbox]):not(.clear),
-.tool-viewport--cards button,
-.tool-viewport--cards textarea,
-.tool-viewport--cards select {
+.tool-viewport--cards .card-preview-scope input:not([type=file]):not([type=checkbox]):not(.clear),
+.tool-viewport--cards .card-preview-scope button,
+.tool-viewport--cards .card-preview-scope textarea,
+.tool-viewport--cards .card-preview-scope select {
   display: block;
   margin: 3px;
   padding: 0 5px;
@@ -107,7 +107,7 @@
   color: #fff;
 }
 
-.tool-viewport--cards select {
+.tool-viewport--cards .card-preview-scope select {
   padding: 5px;
 }
 

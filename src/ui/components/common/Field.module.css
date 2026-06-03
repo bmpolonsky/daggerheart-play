@@ -1,0 +1,54 @@
+.label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.caption {
+  color: var(--dh-paper-muted);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.hint {
+  color: var(--dh-paper-faint);
+  font-size: 0.72rem;
+}
+
+.control {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--dh-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-control);
+  color: #fff4d6;
+  padding: 0 10px;
+  font: inherit;
+  outline: none;
+}
+
+.control:focus {
+  border-color: rgba(240, 201, 106, 0.72);
+  box-shadow: var(--dh-focus);
+}
+
+.plain {
+  min-height: 32px;
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0;
+}
+
+.plain:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.textarea {
+  min-height: 88px;
+  padding: 9px 10px;
+  line-height: 1.45;
+  resize: vertical;
+}

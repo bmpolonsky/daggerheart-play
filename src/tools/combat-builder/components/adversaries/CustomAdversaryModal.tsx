@@ -1,11 +1,15 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { ComponentChildren, JSX } from "preact";
+import type { JSX } from "preact";
 import type { Adversary, AdversaryFeature } from "@combat/lib/api";
 import { ADVERSARY_ROLE_OPTIONS } from "@combat/lib/customAdversaries";
 import { IconClose, IconMinus, IconPlus, IconTrash } from "@combat/components/icons";
 import { ImageFilePicker } from "../../../../ui/components/common/ImageFilePicker";
 import { readFileAsDataUrl } from "../../../../ui/vtt/playerView/sharedTools/readFileAsDataUrl";
+import { Button } from "../../../../ui/components/common/Button";
+import { Field, NumberControl, SelectControl, TextAreaControl, TextControl } from "../../../../ui/components/common/Field";
+import { IconButton } from "../../../../ui/components/common/IconButton";
+import { Surface } from "../../../../ui/components/common/Surface";
 
 interface CustomAdversaryModalProps {
   adversary?: Adversary | null;
@@ -148,29 +152,6 @@ function buildPayload(state: FormState): Partial<Adversary> {
   };
 }
 
-function Field({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: ComponentChildren;
-  className?: string;
-}) {
-  return (
-    <label className={`block space-y-1.5 ${className ?? ""}`}>
-      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-const inputClass =
-  "w-full rounded-sm border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-hidden transition-colors placeholder:text-slate-600 focus:border-dagger-gold focus:ring-1 focus:ring-dagger-gold";
-const textareaClass = `${inputClass} min-h-[5.5rem] resize-y leading-relaxed`;
-
 export function CustomAdversaryModal({
   adversary,
   mode,
@@ -206,7 +187,7 @@ export function CustomAdversaryModal({
 
   const updateField =
     <K extends keyof FormState>(key: K) =>
-    (event: JSX.TargetedEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    (event: { currentTarget: { value: string } }) => {
       setState((current) => ({ ...current, [key]: event.currentTarget.value }));
     };
 
@@ -273,14 +254,15 @@ export function CustomAdversaryModal({
               Заполните только то, что нужно для карточки и боя.
             </p>
           </div>
-          <button
+          <IconButton
             type="button"
-            className="rounded-sm p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+            variant="ghost"
+            size="sm"
             onClick={onClose}
             aria-label="Закрыть"
           >
             <IconClose size={22} />
-          </button>
+          </IconButton>
         </div>
 
         <div className="custom-scrollbar flex-1 space-y-6 overflow-y-auto px-5 py-5">
@@ -292,8 +274,7 @@ export function CustomAdversaryModal({
 
           <section className="grid gap-4 md:grid-cols-[minmax(0,1fr)_9rem_13rem]">
             <Field label="Название">
-              <input
-                className={inputClass}
+              <TextControl
                 value={state.name}
                 onInput={updateField("name")}
                 placeholder="Например, Кровавый культист"
@@ -301,8 +282,7 @@ export function CustomAdversaryModal({
               />
             </Field>
             <Field label="Ранг">
-              <input
-                className={inputClass}
+              <NumberControl
                 type="number"
                 min={1}
                 max={4}
@@ -311,20 +291,19 @@ export function CustomAdversaryModal({
               />
             </Field>
             <Field label="Роль">
-              <select className={inputClass} value={state.roleId} onChange={updateField("roleId")}>
+              <SelectControl value={state.roleId} onChange={updateField("roleId")}>
                 {ADVERSARY_ROLE_OPTIONS.map((role) => (
                   <option key={role.id} value={role.id}>
                     {role.name}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </Field>
           </section>
 
           <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <Field label="Краткое описание">
-              <textarea
-                className={textareaClass}
+              <TextAreaControl
                 value={state.summary}
                 onInput={updateField("summary")}
                 placeholder="Одна-две строки, которые видны на карточке."
@@ -345,52 +324,41 @@ export function CustomAdversaryModal({
 
           <section className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <Field label="Сложность">
-              <input
-                className={inputClass}
-                type="number"
+              <NumberControl
                 value={state.difficulty}
                 onInput={updateField("difficulty")}
               />
             </Field>
             <Field label="Раны">
-              <input
-                className={inputClass}
-                type="number"
+              <NumberControl
                 min={0}
                 value={state.hp}
                 onInput={updateField("hp")}
               />
             </Field>
             <Field label="Стресс">
-              <input
-                className={inputClass}
-                type="number"
+              <NumberControl
                 min={0}
                 value={state.stress}
                 onInput={updateField("stress")}
               />
             </Field>
             <Field label="Порог 1">
-              <input
-                className={inputClass}
-                type="number"
+              <NumberControl
                 min={0}
                 value={state.thresholdMinor}
                 onInput={updateField("thresholdMinor")}
               />
             </Field>
             <Field label="Порог 2">
-              <input
-                className={inputClass}
-                type="number"
+              <NumberControl
                 min={0}
                 value={state.thresholdMajor}
                 onInput={updateField("thresholdMajor")}
               />
             </Field>
             <Field label="ATK">
-              <input
-                className={inputClass}
+              <TextControl
                 value={state.attackBonus}
                 onInput={updateField("attackBonus")}
               />
@@ -399,15 +367,13 @@ export function CustomAdversaryModal({
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
             <Field label="Оружие" className="lg:col-span-2">
-              <input
-                className={inputClass}
+              <TextControl
                 value={state.weaponName}
                 onInput={updateField("weaponName")}
               />
             </Field>
             <Field label="Дистанция">
-              <select
-                className={inputClass}
+              <SelectControl
                 value={state.attackRange}
                 onChange={updateField("attackRange")}
               >
@@ -416,11 +382,10 @@ export function CustomAdversaryModal({
                     {option.name}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </Field>
             <Field label="Тип урона">
-              <select
-                className={inputClass}
+              <SelectControl
                 value={state.damageType}
                 onChange={updateField("damageType")}
               >
@@ -429,21 +394,17 @@ export function CustomAdversaryModal({
                     {option.name}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </Field>
             <Field label="Кости">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                <input
-                  className={inputClass}
-                  type="number"
+                <NumberControl
                   min={0}
                   value={state.damageDieCount}
                   onInput={updateField("damageDieCount")}
                 />
                 <span className="text-sm text-slate-500">d</span>
-                <input
-                  className={inputClass}
-                  type="number"
+                <NumberControl
                   min={0}
                   value={state.damageDieSize}
                   onInput={updateField("damageDieSize")}
@@ -451,9 +412,7 @@ export function CustomAdversaryModal({
               </div>
             </Field>
             <Field label="Бонус">
-              <input
-                className={inputClass}
-                type="number"
+              <NumberControl
                 value={state.damageBonus}
                 onInput={updateField("damageBonus")}
               />
@@ -462,15 +421,13 @@ export function CustomAdversaryModal({
 
           <section className="grid gap-4 md:grid-cols-2">
             <Field label="Мотивы и тактика">
-              <textarea
-                className={textareaClass}
+              <TextAreaControl
                 value={state.motives}
                 onInput={updateField("motives")}
               />
             </Field>
             <Field label="Опыт">
-              <textarea
-                className={textareaClass}
+              <TextAreaControl
                 value={state.experiences}
                 onInput={updateField("experiences")}
               />
@@ -480,14 +437,15 @@ export function CustomAdversaryModal({
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-display text-base font-bold text-dagger-gold">Свойства</h3>
-              <button
+              <Button
                 type="button"
-                className="flex items-center gap-2 rounded-sm border border-dagger-gold/30 bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-dagger-gold transition-colors hover:border-dagger-gold/60"
+                size="sm"
+                variant="secondary"
                 onClick={addFeature}
+                iconBefore={<IconPlus size={13} />}
               >
-                <IconPlus size={13} />
                 Добавить
-              </button>
+              </Button>
             </div>
 
             {state.features.length === 0 ? (
@@ -497,42 +455,41 @@ export function CustomAdversaryModal({
             ) : (
               <div className="space-y-3">
                 {state.features.map((feature) => (
-                  <div key={feature.id} className="rounded-sm border border-slate-700 bg-slate-900/50 p-3">
+                  <Surface key={feature.id} tone="subtle" padding="sm">
                     <div className="mb-3 flex items-center gap-2">
-                      <input
-                        className={inputClass}
+                      <TextControl
                         value={feature.name}
                         placeholder="Название свойства"
                         onInput={(event) =>
                           updateFeature(feature.id, { name: event.currentTarget.value })
                         }
                       />
-                      <button
+                      <IconButton
                         type="button"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-slate-700 text-slate-400 transition-colors hover:border-red-500/50 hover:text-red-300"
+                        variant="danger"
+                        size="sm"
                         onClick={() => removeFeature(feature.id)}
                         title="Удалить свойство"
+                        aria-label="Удалить свойство"
                       >
                         <IconMinus size={14} />
-                      </button>
+                      </IconButton>
                     </div>
-                    <textarea
-                      className={textareaClass}
+                    <TextAreaControl
                       value={feature.text}
                       placeholder="Текст свойства. Поддерживается базовый markdown."
                       onInput={(event) =>
                         updateFeature(feature.id, { text: event.currentTarget.value })
                       }
                     />
-                  </div>
+                  </Surface>
                 ))}
               </div>
             )}
           </section>
 
           <Field label="Основной текст">
-            <textarea
-              className={textareaClass}
+            <TextAreaControl
               value={state.mainBody}
               onInput={updateField("mainBody")}
             />
@@ -542,30 +499,31 @@ export function CustomAdversaryModal({
         <div className="flex shrink-0 flex-col gap-3 border-t border-slate-700 bg-slate-900 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             {isEditing && adversary && onDelete && (
-              <button
+              <Button
                 type="button"
-                className="flex items-center justify-center gap-2 rounded-sm border border-red-500/30 px-4 py-2 text-sm font-medium text-red-300 transition-colors hover:bg-red-950/50"
+                variant="danger"
+                iconBefore={<IconTrash size={15} />}
                 onClick={() => onDelete(adversary.id)}
               >
-                <IconTrash size={15} />
                 Удалить
-              </button>
+              </Button>
             )}
           </div>
           <div className="flex gap-3">
-            <button
+            <Button
               type="button"
-              className="rounded-sm border border-transparent px-4 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+              variant="ghost"
               onClick={onClose}
             >
               Отмена
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="rounded-sm bg-dagger-gold px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-dagger-dark transition-colors hover:bg-yellow-500"
+              variant="primary"
+              size="md"
             >
               {isEditing ? "Сохранить" : isTemplateCreate ? "Создать копию" : "Создать"}
-            </button>
+            </Button>
           </div>
         </div>
       </form>

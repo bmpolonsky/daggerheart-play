@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { TRAITS } from '../../domain/rules/constants';
 import type { Character, TraitId } from '../../domain/rules/types';
 import { characterService } from '../../services/serviceRegistry';
+import { SelectControl } from '../components/common/Field';
 import { formatTraitValue, isCompleteStartingTraitDistribution, traitOptionsFor, type TraitDraft } from './traitDistribution';
 
 export function TraitGrid({ character }: { character: Character }) {
@@ -29,13 +30,13 @@ export function TraitGrid({ character }: { character: Character }) {
       {TRAITS.map((trait) => (
         <label key={trait.id} className="trait-card">
           <span>{trait.label}</span>
-          <select
+          <SelectControl
             value={draft[trait.id] ?? ''}
             onChange={(event) => updateTraitDraft(trait.id as TraitId, event.currentTarget.value)}
           >
             <option value="">-</option>
             {traitOptionsFor(draft, trait.id).map((value) => <option key={value} value={value}>{formatTraitValue(value)}</option>)}
-          </select>
+          </SelectControl>
         </label>
       ))}
     </div>

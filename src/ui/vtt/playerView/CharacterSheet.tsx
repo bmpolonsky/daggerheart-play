@@ -22,6 +22,10 @@ import { PlayerRollConfirm } from "./PlayerRollConfirm";
 import { PlayerSheetSectionRail, SheetSection, TrackDots, TrackRow } from "./PlayerSheetControls";
 import { StatusChips } from "./StatusChips";
 import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./types";
+import { Button } from "../../components/common/Button";
+import { ChoiceCard } from "../../components/common/ChoiceCard";
+import { SelectControl } from "../../components/common/Field";
+import { IconButton } from "../../components/common/IconButton";
 
 export function CharacterSheet({
   character,
@@ -118,9 +122,9 @@ export function CharacterSheet({
       <PlayerSheetSectionRail activeSheetSection={activeSheetSection} onSelect={scrollToSheetSection} />
       <aside ref={panelRef} className="player-character-panel" aria-label="Персонаж игрока" onScroll={updateActiveSheetSection}>
         {showBackButton && (
-          <button className="player-character-panel__back" type="button" title="К ростеру" onClick={onBack}>
-            <ChevronLeft size={17} />
-          </button>
+          <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
+            <ChevronLeft size={17} aria-hidden="true" />
+          </IconButton>
         )}
         <header className="player-character-panel__hero" style={heroStyle}>
           <img src={cssImageUrl(portraitUrl)} alt="" />
@@ -222,9 +226,9 @@ export function CharacterSheet({
                 <span key={scar.id}>
                   Шрам: {scar.description}
                   {role === 'gm' && (
-                    <button type="button" onClick={() => characterService.healScar(character.id, scar.id)}>
+                    <Button size="xs" variant="ghost" type="button" onClick={() => characterService.healScar(character.id, scar.id)}>
                       Исцелить
-                    </button>
+                    </Button>
                   )}
                 </span>
               ))}
@@ -294,7 +298,9 @@ export function CharacterSheet({
                   {character.activeBeastform.traitType ? ` / ${traitLabel(character, character.activeBeastform.traitType)} ${signed(character.activeBeastform.traitBonus)}` : ''}
                   {character.activeBeastform.evolutionTrait ? ` / ${traitLabel(character, character.activeBeastform.evolutionTrait)} +1` : ''}
                 </span>
-                <button
+                <Button
+                  size="sm"
+                  variant="secondary"
                   type="button"
                   onClick={() => {
                     characterService.exitBeastform(character.id);
@@ -302,24 +308,24 @@ export function CharacterSheet({
                   }}
                 >
                   Выйти
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="player-beastform-panel__controls">
-                <select value={selectedBeastform?.id ?? ''} onChange={(event) => setSelectedBeastformId(event.currentTarget.value)} aria-label="Выбрать звериную форму">
+                <SelectControl value={selectedBeastform?.id ?? ''} onChange={(event) => setSelectedBeastformId(event.currentTarget.value)} aria-label="Выбрать звериную форму">
                   {availableBeastforms.map((beastform) => (
                     <option key={beastform.id} value={beastform.id}>{beastform.name} · ранг {beastform.tier}</option>
                   ))}
-                </select>
-                <select value={evolutionTrait} onChange={(event) => setEvolutionTrait(event.currentTarget.value as TraitId)} aria-label="Характеристика Эволюции">
+                </SelectControl>
+                <SelectControl value={evolutionTrait} onChange={(event) => setEvolutionTrait(event.currentTarget.value as TraitId)} aria-label="Характеристика Эволюции">
                   {character.traits.map((trait) => <option key={trait.id} value={trait.id}>{trait.label}</option>)}
-                </select>
-                <button type="button" disabled={!selectedBeastform} onClick={() => selectedBeastform && enterBeastform(character, selectedBeastform, 'stress')}>
+                </SelectControl>
+                <Button size="sm" variant="secondary" type="button" disabled={!selectedBeastform} onClick={() => selectedBeastform && enterBeastform(character, selectedBeastform, 'stress')}>
                   Форма
-                </button>
-                <button type="button" disabled={!selectedBeastform || character.hope.value < 3} onClick={() => selectedBeastform && enterBeastform(character, selectedBeastform, 'evolution', evolutionTrait)}>
+                </Button>
+                <Button size="sm" variant="primary" type="button" disabled={!selectedBeastform || character.hope.value < 3} onClick={() => selectedBeastform && enterBeastform(character, selectedBeastform, 'evolution', evolutionTrait)}>
                   Эволюция
-                </button>
+                </Button>
               </div>
             )}
           </section>
@@ -334,7 +340,7 @@ export function CharacterSheet({
               <div className="player-companion-panel__mark">
                 <Crosshair size={14} />
                 <span>Метка: {character.rangerMark.targetName}</span>
-                <button type="button" onClick={() => characterService.clearRangerMark(character.id)}>Снять</button>
+                <Button size="xs" variant="ghost" type="button" onClick={() => characterService.clearRangerMark(character.id)}>Снять</Button>
               </div>
             )}
             {character.companion ? (
@@ -352,7 +358,9 @@ export function CharacterSheet({
                 />
                 {character.companion.unavailableUntilLongRest && <small>Недоступен до продолжительного отдыха</small>}
                 <div className="player-companion-panel__actions">
-                  <button
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     type="button"
                     onClick={() => {
                       diceService.rollAction({
@@ -366,8 +374,10 @@ export function CharacterSheet({
                     }}
                   >
                     Команда
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
                     type="button"
                     onClick={() => {
                       if (!character.companion) return;
@@ -381,14 +391,13 @@ export function CharacterSheet({
                     }}
                   >
                     Урон
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <button type="button" onClick={() => characterService.ensureRangerCompanion(character.id)}>
-                <PawPrint size={16} />
+              <Button className="player-companion-panel__create" size="sm" variant="secondary" type="button" onClick={() => characterService.ensureRangerCompanion(character.id)} iconBefore={<PawPrint size={16} aria-hidden="true" />}>
                 Создать
-              </button>
+              </Button>
             )}
           </section>
         )}
@@ -407,10 +416,10 @@ export function CharacterSheet({
       <SheetSection id="player-sheet-traits" title="Характеристики и опыт">
         <section className="player-trait-grid">
           {character.traits.map((trait) => (
-            <button type="button" key={trait.id} onClick={() => setRollDraft({ kind: 'trait', title: trait.label, subtitle: `${character.name} / ${signed(trait.value)}`, trait: trait.id })}>
+            <ChoiceCard key={trait.id} onClick={() => setRollDraft({ kind: 'trait', title: trait.label, subtitle: `${character.name} / ${signed(trait.value)}`, trait: trait.id })}>
               <span>{trait.label}</span>
               <strong>{signed(trait.value)}</strong>
-            </button>
+            </ChoiceCard>
           ))}
         </section>
         {character.experiences.map((experience) => (
@@ -422,15 +431,15 @@ export function CharacterSheet({
       </SheetSection>
       <SheetSection id="player-sheet-actions" title="Действия" emptyLabel="Оружие не выбрано">
         {character.weapons.map((weapon) => (
-          <button
-            className="player-sheet-row player-sheet-row--featured player-sheet-row--button"
+          <ChoiceCard
+            className="player-sheet-row player-sheet-row--featured player-sheet-action-row"
             key={weapon.id}
             type="button"
             onClick={() => setRollDraft({ kind: 'weapon', title: weapon.name, subtitle: `${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`, trait: weapon.trait, damageFormula: weapon.damageFormula, damageType: weapon.damageType })}
           >
             <strong>{weapon.name}</strong>
             <span>{weapon.traitLabel} / {weapon.range} / {weapon.damage} {compactDamageTypeLabel(weapon.damageType)}</span>
-          </button>
+          </ChoiceCard>
         ))}
       </SheetSection>
       <SheetSection id="player-sheet-features" title="Особенности" emptyLabel="Особенности появятся после заполнения листа">
@@ -446,16 +455,10 @@ export function CharacterSheet({
             );
           }
           return (
-            <article className="player-sheet-row player-sheet-row--feature" key={feature.id}>
-              <button
-                className="player-sheet-feature-toggle"
-                type="button"
-                onClick={() => onFeaturePreview?.(character, feature)}
-              >
+            <ChoiceCard className="player-sheet-row player-sheet-row--feature" key={feature.id} onClick={() => onFeaturePreview?.(character, feature)}>
                 <strong>{feature.name}</strong>
                 <span>{summary}</span>
-              </button>
-            </article>
+            </ChoiceCard>
           );
         })}
       </SheetSection>
@@ -467,37 +470,33 @@ export function CharacterSheet({
         />
       </SheetSection>
       <SheetSection id="player-sheet-gear" title="Инвентарь">
-        <article className="player-sheet-row player-sheet-row--feature">
-          <button
-            className="player-sheet-feature-toggle player-sheet-wealth-toggle"
-            type="button"
-            onClick={() => onWealthEdit?.(character)}
-          >
-            <strong>Деньги</strong>
-            <span>{formatWealthSummary(character.wealth, { showCoins: game.showCoins })}</span>
-          </button>
-        </article>
-        <article className="player-sheet-row player-sheet-row--feature">
-          <button
-            className="player-sheet-feature-toggle"
-            type="button"
-            onClick={() => onFeaturePreview?.(character, {
+        <ChoiceCard
+          className="player-sheet-row player-sheet-row--feature"
+          onClick={() => onWealthEdit?.(character)}
+        >
+          <strong>Деньги</strong>
+          <span>{formatWealthSummary(character.wealth, { showCoins: game.showCoins })}</span>
+        </ChoiceCard>
+        <ChoiceCard
+          className="player-sheet-row player-sheet-row--feature"
+          onClick={() => onFeaturePreview?.(character, {
               id: 'armor',
               name: character.armor.name || 'Броня',
               subtitle: `Пороги ${character.thresholds.major} / ${character.thresholds.severe} · Показатель ${character.armor.score}`,
               text: character.armor.feature,
               sourceLabel: 'Броня'
             })}
-          >
+        >
             <strong>{character.armor.name || 'Броня'}</strong>
             <span>Пороги {character.thresholds.major} / {character.thresholds.severe} · Показатель {character.armor.score}</span>
-          </button>
-        </article>
+        </ChoiceCard>
         {character.inventory.filter((item) => item.kind === 'consumable').map((item) => {
           return (
             <article className="player-sheet-row player-sheet-row--consumable" key={item.id}>
-              <button
+              <Button
                 className="player-sheet-item-main player-sheet-item-main--button"
+                variant="ghost"
+                size="sm"
                 type="button"
                 onClick={() => onFeaturePreview?.(character, {
                   id: item.id,
@@ -509,25 +508,26 @@ export function CharacterSheet({
               >
                 <strong>{item.name}</strong>
                 {inventoryQuantityLabel(item) && <small>{inventoryQuantityLabel(item)}</small>}
-              </button>
-              <button
-                className="player-sheet-use-button"
+              </Button>
+              <Button
+                className="player-sheet-use-action"
+                variant="secondary"
+                size="sm"
                 type="button"
                 disabled={!canUseInventoryItem(item)}
                 onClick={() => characterService.useInventoryItem(character.id, item.id)}
               >
                 Использовать
-              </button>
+              </Button>
             </article>
           );
         })}
         {character.inventory.filter((item) => item.kind !== 'consumable').map((item) => {
           return (
-            <article className="player-sheet-row player-sheet-row--feature" key={item.id}>
-              <button
-                className="player-sheet-feature-toggle"
-                type="button"
-                onClick={() => onFeaturePreview?.(character, {
+            <ChoiceCard
+              className="player-sheet-row player-sheet-row--feature"
+              key={item.id}
+              onClick={() => onFeaturePreview?.(character, {
                   id: item.id,
                   name: item.name,
                   subtitle: inventoryQuantityLabel(item),
@@ -537,8 +537,7 @@ export function CharacterSheet({
               >
                 <strong>{item.name}</strong>
                 {inventoryQuantityLabel(item) && <small>{inventoryQuantityLabel(item)}</small>}
-              </button>
-            </article>
+            </ChoiceCard>
           );
         })}
       </SheetSection>

@@ -4,15 +4,16 @@ import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import type { EncounterEnvironment } from "../../../domain/rules/types";
 import { diceService, feedService, gameService } from "../../../services/serviceRegistry";
 import { parseSheetFeatureText, SheetFeatureSection, SheetHero, SheetLeadBlock, SheetTextSection, type SheetFeatureView } from "./SheetContent";
+import { IconButton } from "../../components/common/IconButton";
 
 export function EnvironmentSheet({ environment, onBack }: { environment: EncounterEnvironment; onBack: () => void }) {
   const portraitUrl = environment.imageUrl ?? '';
   const difficulty = environment.difficulty ? `Сложность ${environment.difficulty}` : 'Сложность не указана';
   return (
     <aside className="player-character-panel" aria-label="Окружение мастера">
-      <button className="player-character-panel__back" type="button" title="К ростеру" onClick={onBack}>
-        <ChevronLeft size={17} />
-      </button>
+      <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
+        <ChevronLeft size={17} aria-hidden="true" />
+      </IconButton>
       <SheetHero className="player-character-panel__hero--environment" imageUrl={portraitUrl} title={environment.name} meta={[difficulty]} />
       <SheetLeadBlock text={environmentLeadText(environment)} />
       <SheetTextSection title="Потенциальные противники" text={environment.potentialAdversaries} />

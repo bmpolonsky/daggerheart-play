@@ -1,12 +1,12 @@
 .tool-viewport--cards {
-  --cards-ink: #07090d;
-  --cards-panel: rgba(18, 20, 29, 0.92);
-  --cards-panel-strong: rgba(10, 12, 18, 0.96);
-  --cards-paper: #f4ead7;
-  --cards-muted: rgba(219, 211, 194, 0.66);
-  --cards-gold: #d8ad53;
+  --cards-ink: var(--dh-ink-950, #07090d);
+  --cards-panel: var(--dh-glass, rgba(10, 13, 17, 0.62));
+  --cards-panel-strong: var(--dh-glass-strong, rgba(9, 11, 15, 0.84));
+  --cards-paper: var(--dh-paper-100, #f4ead7);
+  --cards-muted: var(--dh-paper-muted, rgba(219, 211, 194, 0.66));
+  --cards-gold: var(--dh-gold-500, #d8ad53);
   --cards-blue: #7299d9;
-  --cards-line: rgba(216, 173, 83, 0.18);
+  --cards-line: var(--dh-border, rgba(216, 173, 83, 0.18));
 }
 
 .tool-viewport--cards .app-shell {
@@ -23,9 +23,11 @@
 .tool-viewport--cards .sidebar {
   width: 320px;
   background:
-    linear-gradient(180deg, rgba(20, 22, 32, 0.97), rgba(8, 10, 15, 0.98));
+    linear-gradient(180deg, rgba(13, 18, 24, 0.78), rgba(7, 9, 12, 0.62)),
+    var(--cards-panel);
   border-right: 1px solid var(--cards-line);
-  box-shadow: 22px 0 58px rgba(0, 0, 0, 0.34);
+  box-shadow: var(--dh-shadow-soft, 0 14px 38px rgba(0, 0, 0, 0.28));
+  backdrop-filter: var(--dh-blur, blur(18px) saturate(1.1));
   display: flex;
   flex-direction: column;
 }
@@ -49,24 +51,12 @@
   pointer-events: none;
 }
 
-
+.tool-viewport--cards .sidebar__search-input {
+  padding-left: 2rem;
+}
 
 .tool-viewport--cards .sidebar__domain-button {
   margin-top: 12px;
-  width: 100%;
-  border: 1px solid rgba(216, 173, 83, 0.24);
-  background: rgba(216, 173, 83, 0.08);
-  color: var(--cards-paper);
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-}
-
-.tool-viewport--cards .sidebar__domain-button:hover {
-  border-color: rgba(216, 173, 83, 0.5);
-  background: rgba(216, 173, 83, 0.14);
 }
 
 .tool-viewport--cards .sidebar__templates {
@@ -210,17 +200,6 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  border: none;
-  background: rgba(15, 16, 27, 0.85);
-  color: #fca5a5;
-  font-size: 0.7rem;
-  padding: 4px 8px;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.tool-viewport--cards .custom-cards__delete:hover {
-  background: rgba(239, 68, 68, 0.25);
 }
 
 .tool-viewport--cards .custom-cards__empty {
@@ -233,21 +212,7 @@
 
 .tool-viewport--cards .template-group__toggle {
   width: 100%;
-  border: 1px solid transparent;
-  background: transparent;
-  color: inherit;
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 8px;
-  border-radius: 8px;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-  cursor: pointer;
-}
-
-.tool-viewport--cards .template-group__toggle:hover {
-  border-color: rgba(216, 173, 83, 0.16);
-  background-color: rgba(216, 173, 83, 0.08);
 }
 
 .tool-viewport--cards .template-group__title {
@@ -552,53 +517,8 @@
   font-size: var(--card-body-font-size);
 }
 
-.tool-viewport--cards .card-feature-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tool-viewport--cards .card-feature-editor__label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: rgba(244, 234, 215, 0.7);
-}
-
-.tool-viewport--cards .card-feature-editor__select {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(216, 173, 83, 0.2);
-  color-scheme: dark;
-  background-color: rgba(7, 9, 13, 0.82);
-  font-size: 0.875rem;
-  color: var(--cards-paper);
-}
-
-.tool-viewport--cards .card-feature-editor__select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.tool-viewport--cards .card-feature-editor__select option {
-  background-color: #11131b;
-  color: var(--cards-paper);
-}
-
 .tool-viewport--cards .card-content-textarea {
   min-height: 220px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  background-color: rgba(255, 255, 255, 0.95);
-  color: #1f2933;
-  font-size: 0.8rem;
-  line-height: 1.5;
-  resize: vertical;
-}
-
-.tool-viewport--cards .card-content-textarea:focus {
-  outline: 2px solid rgba(141, 169, 227, 0.6);
 }
 
 .tool-viewport--cards .properties-section--form {
@@ -615,36 +535,8 @@
   margin-top: 12px;
 }
 
-.tool-viewport--cards .properties-field label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgba(244, 234, 215, 0.68);
-}
-
 .tool-viewport--cards .properties-textarea {
   min-height: 80px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background-color: rgba(255, 255, 255, 0.95);
-  color: #1f2933;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  resize: vertical;
-}
-
-.tool-viewport--cards .properties-textarea:focus {
-  outline: 2px solid rgba(141, 169, 227, 0.4);
-}
-
-.tool-viewport--cards .properties-section--form select {
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(216, 173, 83, 0.2);
-  background-color: rgba(7, 9, 13, 0.74);
-  color: var(--cards-paper);
-  font-size: 0.85rem;
 }
 
 .tool-viewport--cards .properties-empty {
@@ -994,6 +886,44 @@
 
 .tool-viewport--cards .banner_image {
   transform: translateY(13px);
+}
+
+.tool-viewport--cards .workspace__header,
+.tool-viewport--cards .editor-panel,
+.tool-viewport--cards .properties-panel,
+.tool-viewport--cards .properties-section,
+.tool-viewport--cards .domain-manager,
+.tool-viewport--cards .domain-card-editor,
+.tool-viewport--cards .template-card,
+.tool-viewport--cards .custom-cards__item {
+  border-color: rgba(243, 234, 216, 0.1);
+  border-radius: var(--dh-radius, 10px);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.66), rgba(7, 9, 12, 0.42)),
+    rgba(7, 9, 12, 0.34);
+  box-shadow: none;
+}
+
+.tool-viewport--cards .workspace__header,
+.tool-viewport--cards .editor-panel,
+.tool-viewport--cards .properties-panel,
+.tool-viewport--cards .domain-manager {
+  box-shadow: var(--dh-shadow-soft, 0 14px 38px rgba(0, 0, 0, 0.28));
+  backdrop-filter: var(--dh-blur, blur(18px) saturate(1.1));
+}
+
+.tool-viewport--cards .card-preview-wrapper {
+  border-color: rgba(243, 234, 216, 0.08);
+  border-radius: var(--dh-radius-lg, 12px);
+  background: rgba(243, 234, 216, 0.035);
+}
+
+.tool-viewport--cards .template-card:hover,
+.tool-viewport--cards .custom-cards__item:hover {
+  border-color: var(--dh-border-gold, rgba(240, 201, 106, 0.44));
+  background:
+    linear-gradient(180deg, rgba(216, 173, 83, 0.14), rgba(7, 9, 12, 0.42)),
+    rgba(7, 9, 12, 0.34);
 }
 
 @media (max-width: 720px) {

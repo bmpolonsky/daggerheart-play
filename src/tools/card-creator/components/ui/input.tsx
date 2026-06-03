@@ -1,10 +1,9 @@
 /** @jsxImportSource preact */
 import type { JSX } from "preact";
-import { cn } from "@cards/lib/utils";
-import "./input.css";
+import { TextControl } from "../../../../ui/components/common/Field";
 
 type InputProps = JSX.IntrinsicElements["input"];
 
 export function Input({ className, type = "text", ...props }: InputProps) {
-  return <input type={type} className={cn("input", className)} {...props} />;
+  return <TextControl type={type} className={className} {...(props as any)} />;
 }

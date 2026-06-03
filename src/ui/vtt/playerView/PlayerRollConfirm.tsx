@@ -8,6 +8,9 @@ import { signed } from './helpers';
 import { RollConfirmHeader, RollPrivateToggle, useRollConfirmDrag } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
 import type { PlayerRollDraft, PlayerRollType } from './types';
+import { Button } from '../../components/common/Button';
+import { SelectControl } from '../../components/common/Field';
+import { TabButton, Tabs } from '../../components/common/Tabs';
 
 export function PlayerRollConfirm({
   character,
@@ -66,34 +69,34 @@ export function PlayerRollConfirm({
         <strong>{draft.title}</strong>
         <p>{draft.subtitle}</p>
       </div>
-      <div className="player-roll-confirm__segmented" aria-label="Тип броска">
+      <Tabs className="player-roll-confirm__segmented" label="Тип броска">
         {([
           ['action', 'Действие'],
           ['reaction', 'Реакция']
         ] as Array<[PlayerRollType, string]>).map(([type, label]) => (
-          <button className={rollType === type ? 'dh-is-active' : ''} key={type} type="button" onClick={() => setRollType(type)}>
+          <TabButton className="player-roll-confirm__segmented-option" active={rollType === type} key={type} onClick={() => setRollType(type)}>
             {label}
-          </button>
+          </TabButton>
         ))}
-      </div>
+      </Tabs>
       <label className="player-roll-confirm__field">
         <span>Характеристика</span>
-        <select value={draft.trait} onChange={(event) => onTraitChange(event.currentTarget.value as TraitId)}>
+        <SelectControl value={draft.trait} onChange={(event) => onTraitChange(event.currentTarget.value as TraitId)}>
           {character.traits.map((trait) => (
             <option key={trait.id} value={trait.id}>{trait.label} {signed(trait.value)}</option>
           ))}
-        </select>
+        </SelectControl>
       </label>
       <div className="player-roll-confirm__advantage" aria-label="Преимущество и помеха">
-        <button className={advantageCount > 0 ? 'dh-is-active' : ''} type="button" onClick={() => addAdvantage('advantage')}>
+        <Button className="player-roll-confirm__advantage-option" variant={advantageCount > 0 ? 'primary' : 'ghost'} size="sm" type="button" onClick={() => addAdvantage('advantage')}>
           Преим.{advantageCount > 0 ? ` ${advantageCount}` : ''}
-        </button>
-        <button type="button" onClick={resetAdvantage} disabled={advantageCount === 0 && disadvantageCount === 0}>
+        </Button>
+        <Button className="player-roll-confirm__advantage-option" variant="ghost" size="sm" type="button" onClick={resetAdvantage} disabled={advantageCount === 0 && disadvantageCount === 0}>
           Обычный
-        </button>
-        <button className={disadvantageCount > 0 ? 'dh-is-active dh-is-danger' : ''} type="button" onClick={() => addAdvantage('disadvantage')}>
+        </Button>
+        <Button className="player-roll-confirm__advantage-option" variant={disadvantageCount > 0 ? 'danger' : 'ghost'} size="sm" type="button" onClick={() => addAdvantage('disadvantage')}>
           Помеха{disadvantageCount > 0 ? ` ${disadvantageCount}` : ''}
-        </button>
+        </Button>
       </div>
       <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
       {character.experiences.length > 0 && (
@@ -118,12 +121,12 @@ export function PlayerRollConfirm({
         </div>
       )}
       <div className="player-roll-confirm__actions">
-        <button
-          className="dh-button dh-variant-primary"
+        <Button
+          variant="primary"
           type="button"
           onClick={() => onRoll(buildActionComposerRollOptions({ advantageMode: 0, advantageCount, disadvantageCount, experienceIds, spendHopeForExperiences }), rollType, publication)}
-        >{rollType === 'reaction' ? 'Бросить реакцию' : 'Бросить действие'}</button>
-        {onDamage && <button className="dh-button" type="button" onClick={() => onDamage({ publication })}>Бросить урон</button>}
+        >{rollType === 'reaction' ? 'Бросить реакцию' : 'Бросить действие'}</Button>
+        {onDamage && <Button type="button" onClick={() => onDamage({ publication })}>Бросить урон</Button>}
       </div>
     </section>
   );

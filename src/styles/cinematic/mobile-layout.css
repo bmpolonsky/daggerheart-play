@@ -555,21 +555,6 @@
   .cinematic-builder-stepper {
     scrollbar-width: none;
   }
-
-  .cinematic-builder-step-tab {
-    min-width: 0;
-    white-space: nowrap;
-  }
-
-  .cinematic-builder-step-tab span:not(.dh-hex) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    text-overflow: clip;
-  }
 }
 
 /* VTT edge layout contract: edge panels share the same vertical lane. */
@@ -753,6 +738,15 @@
     align-content: start;
     justify-content: start;
     z-index: calc(var(--dh-z-floating) + 2);
+  }
+
+  .cinematic-builder-panel {
+    gap: 8px;
+  }
+
+  .cinematic-builder .cinematic-builder-step {
+    gap: 8px;
+    padding: 9px;
   }
 }
 

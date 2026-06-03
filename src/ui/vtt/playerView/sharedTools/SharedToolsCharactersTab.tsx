@@ -7,6 +7,8 @@ import { classLabel } from '../../../../domain/rules/constants';
 import { sceneTableService } from '../../../../services/serviceRegistry';
 import { CharacterBuilderModal } from '../../../characters/CharacterBuilderModal';
 import { CharacterEditor } from '../../../characters/CharacterEditor';
+import { Button } from '../../../components/common/Button';
+import { ChoiceCard } from '../../../components/common/ChoiceCard';
 
 export function SharedToolsCharactersTab({
   characterBuilderOpen,
@@ -40,9 +42,9 @@ export function SharedToolsCharactersTab({
     <section className="player-tools-section">
       <header>
         <strong>Персонажи</strong>
-        <button className="dh-button dh-variant-primary" type="button" onClick={onCharacterBuilderOpen}>
-          <Plus size={15} /> Создать героя
-        </button>
+        <Button variant="primary" size="sm" type="button" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={onCharacterBuilderOpen}>
+          Создать героя
+        </Button>
       </header>
       <div className="player-tools-character-workspace">
         <aside className="player-tools-character-roster" aria-label="Ростер персонажей">
@@ -53,12 +55,12 @@ export function SharedToolsCharactersTab({
             const sceneToken = activeScene?.tokens.find((token) => token.actor.kind === 'character' && token.actor.id === character.id) ?? null;
             const isOnScene = Boolean(sceneToken);
             return (
-              <article className={`player-tools-character-card ${isSelected ? 'dh-is-selected' : ''}`} key={character.id}>
-                <button className="player-tools-character-card__select" type="button" onClick={() => setSelectedCharacterId(character.id)}>
-                  <span>{classLabel(character.className)} · уровень {character.level}</span>
-                  <strong>{character.name || 'Без имени'}</strong>
-                  <small>{assignedSeat ? assignedSeatName || 'Игрок без имени' : 'Игрок не назначен'}</small>
-                </button>
+              <div className="player-tools-character-card" key={character.id}>
+                <ChoiceCard selected={isSelected} type="button" onClick={() => setSelectedCharacterId(character.id)}>
+                  <span className="cinematic-card-meta">{classLabel(character.className)} · уровень {character.level}</span>
+                  <strong className="cinematic-card-title">{character.name || 'Без имени'}</strong>
+                  <small className="cinematic-card-body">{assignedSeat ? assignedSeatName || 'Игрок без имени' : 'Игрок не назначен'}</small>
+                </ChoiceCard>
                 <div className="player-tools-character-status">
                   <span className={assignedSeat ? 'dh-is-ready' : ''}>
                     {assignedSeat && <CheckCircle2 size={13} />} {assignedSeat ? assignedSeatName || 'Игрок без имени' : 'Без игрока'}
@@ -66,28 +68,30 @@ export function SharedToolsCharactersTab({
                 </div>
                 <div className="player-tools-character-actions">
                   {isOnScene ? (
-                    <button
-                      className="dh-is-danger"
+                    <Button
+                      variant="danger"
+                      size="sm"
                       type="button"
+                      iconBefore={<MinusCircle size={14} aria-hidden="true" />}
                       onClick={() => {
                         if (!sceneToken) return;
                         sceneTableService.removeTokenFromSceneInScene(sceneTable.activeSceneId, sceneToken.id);
                       }}
                     >
-                      <MinusCircle size={14} />
                       Убрать со сцены
-                    </button>
+                    </Button>
                   ) : (
-                    <button
+                    <Button
+                      size="sm"
                       type="button"
+                      iconBefore={<Plus size={14} aria-hidden="true" />}
                       onClick={() => sceneTableService.addActorTokenToScene(sceneTable.activeSceneId, { kind: 'character', id: character.id })}
                     >
-                      <Plus size={14} />
                       На сцену
-                    </button>
+                    </Button>
                   )}
                 </div>
-              </article>
+              </div>
             );
           })}
           {characterOptions.length === 0 && <p className="player-tools-empty">Персонажей пока нет.</p>}
@@ -98,9 +102,9 @@ export function SharedToolsCharactersTab({
           ) : (
             <div className="player-tools-character-editor-empty">
               <strong>Персонаж не выбран</strong>
-              <button className="dh-button dh-variant-primary" type="button" onClick={onCharacterBuilderOpen}>
-                <Plus size={15} /> Создать героя
-              </button>
+              <Button variant="primary" type="button" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={onCharacterBuilderOpen}>
+                Создать героя
+              </Button>
             </div>
           )}
         </section>

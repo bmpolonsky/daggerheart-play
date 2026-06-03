@@ -3,6 +3,7 @@ import type { JSX } from 'preact';
 import { useRef, useState } from 'preact/hooks';
 import { X } from 'lucide-react';
 import { clampRollConfirmPosition } from './helpers';
+import { IconButton } from '../../components/common/IconButton';
 
 export function useRollConfirmDrag() {
   const panelRef = useRef<HTMLElement | null>(null);
@@ -66,7 +67,9 @@ export function RollConfirmHeader({
   return (
     <header className="player-roll-confirm__header" {...dragHandlers}>
       <span>{label}</span>
-      <button type="button" title="Закрыть" onClick={onClose}><X size={15} /></button>
+      <IconButton variant="ghost" size="sm" type="button" title="Закрыть" aria-label="Закрыть" onClick={onClose}>
+        <X size={15} aria-hidden="true" />
+      </IconButton>
     </header>
   );
 }

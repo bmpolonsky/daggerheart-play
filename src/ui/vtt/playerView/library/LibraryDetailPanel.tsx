@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { cssImageUrl } from '../helpers';
+import { Button } from '../../../components/common/Button';
 import type { LibraryEntry } from './libraryDetailTypes';
 import { RichText } from './RichText';
 
@@ -44,10 +45,10 @@ export function LibraryDetailPanel({
         {entry.actions.length > 0 && (
           <div className="player-library-detail__actions">
             {entry.actions.map((action) => (
-              <button type="button" key={action.label} onClick={() => {
+              <Button size="sm" variant="secondary" type="button" key={action.label} onClick={() => {
                 const message = action.onClick();
                 if (message) onAction(message);
-              }}>{action.label}</button>
+              }}>{action.label}</Button>
             ))}
           </div>
         )}

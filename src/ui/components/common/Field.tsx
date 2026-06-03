@@ -1,72 +1,105 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
+import styles from './Field.module.css';
+
+type UiNode = any;
+type ControlTone = 'default' | 'plain';
 
 interface BaseProps {
   label: string;
-  hint?: ReactNode;
-  children: ReactNode;
+  hint?: UiNode;
+  children: UiNode;
+  className?: string;
 }
 
-export function Field({ label, hint, children }: BaseProps) {
+export function Field({ label, hint, children, className = '' }: BaseProps) {
   return (
-    <label className="field">
-      <span className="field-label">{label}</span>
+    <label className={`dh-label ${styles.label} ${className}`.trim()}>
+      <span className={styles.caption}>{label}</span>
       {children}
-      {hint && <span className="field-hint">{hint}</span>}
+      {hint && <span className={styles.hint}>{hint}</span>}
     </label>
   );
 }
 
-interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string;
-  hint?: ReactNode;
+function controlClass(className = '', extra = '', tone: ControlTone = 'default'): string {
+  return `dh-field ${styles.control} ${tone === 'plain' ? styles.plain : ''} ${extra} ${className}`.trim();
 }
 
-export function TextField({ label, hint, ...props }: TextFieldProps) {
+interface ControlToneProps {
+  tone?: ControlTone;
+}
+
+interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement>, ControlToneProps {
+  label: string;
+  hint?: UiNode;
+}
+
+export function TextField({ label, hint, className = '', tone = 'default', ...props }: TextFieldProps) {
   return (
-    <Field label={label} hint={hint}>
-      <input className="input" {...props} />
+    <Field className={className} label={label} hint={hint}>
+      <input className={controlClass('', '', tone)} {...props} />
     </Field>
   );
 }
 
-interface NumberFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+interface NumberFieldProps extends InputHTMLAttributes<HTMLInputElement>, ControlToneProps {
   label: string;
-  hint?: ReactNode;
+  hint?: UiNode;
 }
 
-export function NumberField({ label, hint, ...props }: NumberFieldProps) {
+export function NumberField({ label, hint, className = '', tone = 'default', ...props }: NumberFieldProps) {
   return (
-    <Field label={label} hint={hint}>
-      <input className="input" type="number" {...props} />
+    <Field className={className} label={label} hint={hint}>
+      <input className={controlClass('', '', tone)} type="number" {...props} />
     </Field>
   );
 }
 
 interface TextAreaFieldProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: string;
-  hint?: ReactNode;
+  hint?: UiNode;
 }
 
-export function TextAreaField({ label, hint, ...props }: TextAreaFieldProps) {
+export function TextAreaField({ label, hint, className = '', ...props }: TextAreaFieldProps) {
   return (
-    <Field label={label} hint={hint}>
-      <textarea className="input textarea" {...props} />
+    <Field className={className} label={label} hint={hint}>
+      <textarea className={`dh-textarea ${styles.control} ${styles.textarea}`} {...props} />
     </Field>
   );
 }
 
-interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
   label: string;
-  hint?: ReactNode;
-  children: ReactNode;
+  hint?: UiNode;
+  children: UiNode;
 }
 
-export function SelectField({ label, hint, children, ...props }: SelectFieldProps) {
+export function SelectField({ label, hint, children, className = '', ...props }: SelectFieldProps) {
   return (
-    <Field label={label} hint={hint}>
-      <select className="input" {...props}>
+    <Field className={className} label={label} hint={hint}>
+      <select className={`dh-select ${styles.control}`} {...props}>
         {children}
       </select>
     </Field>
+  );
+}
+
+export function TextControl({ className = '', tone = 'default', ...props }: InputHTMLAttributes<HTMLInputElement> & ControlToneProps) {
+  return <input className={controlClass(className, '', tone)} {...props} />;
+}
+
+export function NumberControl({ className = '', tone = 'default', ...props }: InputHTMLAttributes<HTMLInputElement> & ControlToneProps) {
+  return <input className={controlClass(className, '', tone)} type="number" {...props} />;
+}
+
+export function TextAreaControl({ className = '', ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={`dh-textarea ${styles.control} ${styles.textarea} ${className}`.trim()} {...props} />;
+}
+
+export function SelectControl({ children, className = '', ...props }: Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> & { children: UiNode }) {
+  return (
+    <select className={`dh-select ${styles.control} ${className}`.trim()} {...props}>
+      {children}
+    </select>
   );
 }

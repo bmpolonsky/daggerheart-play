@@ -1,0 +1,99 @@
+.root {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--dh-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-control);
+  color: rgba(255, 247, 231, 0.9);
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
+}
+
+.root:hover:not(:disabled) {
+  border-color: var(--dh-border-strong);
+  background: var(--dh-control-hover);
+  color: #fff7e7;
+}
+
+.root:focus-visible {
+  border-color: rgba(240, 201, 106, 0.72);
+  box-shadow: var(--dh-focus);
+  outline: none;
+}
+
+.root:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.primary {
+  border-color: var(--dh-border-gold);
+  background: var(--dh-control-active);
+  color: #fff7e7;
+}
+
+.primary:hover:not(:disabled) {
+  border-color: rgba(240, 201, 106, 0.64);
+  background: rgba(216, 173, 83, 0.24);
+}
+
+.secondary {
+  border-color: var(--dh-border);
+}
+
+.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.danger {
+  border-color: rgba(214, 91, 91, 0.44);
+  background: var(--dh-danger-soft);
+  color: #ffd8cf;
+}
+
+.xs {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+}
+
+.sm {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+.md {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+
+.lg {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+}
+
+.xl {
+  width: 58px;
+  min-width: 58px;
+  height: 48px;
+  min-height: 48px;
+}

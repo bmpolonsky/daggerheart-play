@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+type UiNode = any;
 
-export function InlineStat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
+export function InlineStat({ label, value, hint }: { label: string; value: UiNode; hint?: UiNode }) {
   return (
     <div className="inline-stat">
       <span>{label}</span>

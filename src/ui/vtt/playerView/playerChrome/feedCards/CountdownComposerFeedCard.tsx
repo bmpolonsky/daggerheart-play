@@ -2,6 +2,8 @@
 import { useState } from 'preact/hooks';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { encounterService } from '../../../../../services/serviceRegistry';
+import { Button } from '../../../../components/common/Button';
+import { NumberControl, TextControl } from '../../../../components/common/Field';
 import { playerViewUiActions } from '../../playerViewUiState';
 import { FeedCardHeader } from './RollFeedCard';
 
@@ -34,16 +36,16 @@ export function CountdownComposerFeedCard({ item }: { item: TableFeedItem }) {
         <strong>Новый отсчет</strong>
         <label>
           <span>Название</span>
-          <input value={name} placeholder="Опасность нарастает" onInput={(event) => setName(event.currentTarget.value)} />
+          <TextControl value={name} placeholder="Опасность нарастает" onInput={(event) => setName(event.currentTarget.value)} />
         </label>
         <div className="player-countdown-composer__grid">
           <label>
             <span>Текущее</span>
-            <input type="number" min={0} max={safeMax} value={current} onInput={(event) => setCurrent(Number(event.currentTarget.value))} />
+            <NumberControl min={0} max={safeMax} value={current} onInput={(event) => setCurrent(Number(event.currentTarget.value))} />
           </label>
           <label>
             <span>Макс</span>
-            <input type="number" min={1} max={20} value={max} onInput={(event) => setMax(Number(event.currentTarget.value))} />
+            <NumberControl min={1} max={20} value={max} onInput={(event) => setMax(Number(event.currentTarget.value))} />
           </label>
         </div>
         <footer className="player-countdown-composer__footer">
@@ -51,14 +53,16 @@ export function CountdownComposerFeedCard({ item }: { item: TableFeedItem }) {
             <input checked={privateToGm} type="checkbox" onChange={(event) => setPrivateToGm(event.currentTarget.checked)} />
             <span>Приватно</span>
           </label>
-          <button
-            className="feed-rest-card__resolve"
+          <Button
+            fullWidth
+            size="lg"
+            variant="primary"
             type="button"
             onClick={launch}
             disabled={!name.trim()}
           >
             Запустить
-          </button>
+          </Button>
         </footer>
       </section>
     </>

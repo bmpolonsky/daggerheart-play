@@ -87,44 +87,6 @@
   pointer-events: none;
 }
 
-.player-scene-mode-toggle {
-  position: absolute;
-  top: 96px;
-  left: 50%;
-  z-index: 4;
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid rgba(243, 234, 216, 0.14);
-  border-radius: 999px;
-  background: rgba(7, 9, 12, 0.54);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(243, 234, 216, 0.08);
-  backdrop-filter: blur(14px) saturate(1.08);
-  pointer-events: auto;
-  transform: translateX(-50%);
-}
-
-.player-scene-mode-toggle button {
-  min-width: 74px;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  color: rgba(243, 234, 216, 0.7);
-  font-size: 0.68rem;
-  font-weight: 950;
-  text-transform: uppercase;
-}
-
-.player-scene-mode-toggle button:hover,
-.player-scene-mode-toggle button:focus-visible,
-.player-scene-mode-toggle button.dh-is-active {
-  border-color: rgba(240, 201, 106, 0.44);
-  background: rgba(240, 201, 106, 0.16);
-  color: #fff7e7;
-}
-
 .player-tactical-layer {
   position: absolute;
   inset: 0;
@@ -289,17 +251,6 @@
     --player-board-center-offset: 0px;
     --player-board-viewport-height: 100svh;
     --player-board-size: min(calc(100vw - 16px), max(220px, calc(100svh - 180px)));
-  }
-
-  .player-scene-mode-toggle {
-    top: 102px;
-  }
-
-  .player-scene-mode-toggle button {
-    min-width: 66px;
-    min-height: 26px;
-    padding-inline: 8px;
-    font-size: 0.62rem;
   }
 
   .player-token footer {

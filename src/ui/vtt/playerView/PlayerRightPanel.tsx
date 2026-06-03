@@ -6,6 +6,7 @@ import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import { inferBasePathFromWorkspacePath } from "../../../domain/p2p/sessionLinks";
 import { CharacterSheet } from "./CharacterSheet";
 import type { PlayerViewDomainCard } from "./domainCards/types";
+import { Button } from "../../components/common/Button";
 
 export function PlayerRightPanel({
   character,
@@ -34,10 +35,9 @@ export function PlayerRightPanel({
       <UserRound size={22} />
       <strong>{emptyState.title}</strong>
       <p>{emptyState.description}</p>
-      <button className="dh-button dh-variant-primary player-character-panel__cta" type="button" onClick={onEmptyAction ?? openLobby}>
-        <LayoutDashboard size={16} />
+      <Button className="player-character-panel__cta" variant="primary" type="button" iconBefore={<LayoutDashboard size={16} aria-hidden="true" />} onClick={onEmptyAction ?? openLobby}>
         {emptyActionLabel ?? emptyState.actionLabel}
-      </button>
+      </Button>
     </aside>
   );
 }

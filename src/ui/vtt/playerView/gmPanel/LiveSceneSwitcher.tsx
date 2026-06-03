@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import type { SceneTableState } from "../../../../domain/rules/types";
 import { gameService, sceneTableService } from "../../../../services/serviceRegistry";
+import { ChoiceCard } from "../../../components/common/ChoiceCard";
 
 export function LiveSceneSwitcher({ sceneTable }: { sceneTable: SceneTableState }) {
   const scenes = sceneTable.sceneOrder.map((id) => sceneTable.scenes[id]).filter(Boolean);
@@ -8,10 +9,9 @@ export function LiveSceneSwitcher({ sceneTable }: { sceneTable: SceneTableState 
   return (
     <section className="player-scene-switcher" aria-label="Смена сцены">
       {scenes.map((scene) => (
-        <button
-          className={sceneTable.liveSceneId === scene.id ? 'dh-is-active' : ''}
+        <ChoiceCard
+          selected={sceneTable.liveSceneId === scene.id}
           key={scene.id}
-          type="button"
           onClick={() => {
             if (sceneTableService.publishScene(scene.id)) gameService.startScene(scene.name);
           }}
@@ -19,7 +19,7 @@ export function LiveSceneSwitcher({ sceneTable }: { sceneTable: SceneTableState 
           <span>
             <strong>{scene.name}</strong>
           </span>
-        </button>
+        </ChoiceCard>
       ))}
     </section>
   );

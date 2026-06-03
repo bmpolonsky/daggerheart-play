@@ -9,7 +9,13 @@ import {
 import { CLASS_LABELS, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { Character, DaggerheartClass } from '../../domain/rules/types';
 import { formatWealthSummary } from '../../domain/rules/wealthPresentation';
+import { Button } from '../components/common/Button';
+import { ChoiceCard } from '../components/common/ChoiceCard';
+import { SelectField, TextAreaField, TextField } from '../components/common/Field';
+import { IconButton } from '../components/common/IconButton';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
+import { Surface } from '../components/common/Surface';
+import { WizardStepButton } from '../components/common/WizardStepButton';
 import { BuilderChoiceDetail } from './builder/BuilderChoiceDetail';
 import { BuilderLivePreview } from './builder/BuilderLivePreview';
 import { EditableBuilderStat } from './builder/EditableBuilderStat';
@@ -75,15 +81,19 @@ export function CharacterBuilderModal({
         <nav className="cinematic-builder-nav" aria-label="Шаги создания">
           <div className="cinematic-builder-header">
             <h2 className="cinematic-builder-title">Новый герой</h2>
-            <button className="dh-icon-button" type="button" onClick={onCancel} aria-label="Закрыть">
-              <X size={18} />
-            </button>
+            <IconButton variant="ghost" type="button" onClick={onCancel} aria-label="Закрыть">
+              <X size={18} aria-hidden="true" />
+            </IconButton>
           </div>
           <div className="cinematic-builder-stepper">
             {steps.map((item, index) => (
-              <button className={`cinematic-builder-step-tab ${step === item.id ? 'dh-is-active' : ''}`} key={item.id} type="button" onClick={() => handlers.goToStep(item.id)}>
-                <span className="dh-hex">{index + 1}</span><span>{item.label}</span>
-              </button>
+              <WizardStepButton
+                key={item.id}
+                active={step === item.id}
+                index={index + 1}
+                label={item.label}
+                onClick={() => handlers.goToStep(item.id)}
+              />
             ))}
           </div>
         </nav>
@@ -104,9 +114,9 @@ export function CharacterBuilderModal({
                 <span style={{ width: `${progress}%` }} />
               </div>
             </div>
-            <button className="dh-button dh-variant-primary cinematic-builder-quickstart" type="button" onClick={handlers.quickStart}>
-              <Sparkles size={16} /> Быстрый старт
-            </button>
+            <Button className="cinematic-builder-quickstart" variant="primary" type="button" iconBefore={<Sparkles size={16} aria-hidden="true" />} onClick={handlers.quickStart}>
+              Быстрый старт
+            </Button>
           </header>
 
           <div className={`cinematic-builder-workspace ${choicePreview ? 'dh-has-choice-detail' : ''}`}>
@@ -118,12 +128,12 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid cinematic-builder-choice-area dh-scroll">
                   {options.classOptions.map((item) => (
-                    <button className={`cinematic-card dh-class-choice ${fields.className === item.className ? 'dh-is-selected' : ''}`} key={item.className} type="button" onClick={() => handlers.selectClass(item.className)}>
-                      {item.imageUrl && <img className="dh-library-thumb" src={item.imageUrl} alt="" />}
+                    <ChoiceCard layout="class" selected={fields.className === item.className} key={item.className} type="button" onClick={() => handlers.selectClass(item.className)}>
+                      {item.imageUrl && <img src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-meta">{item.domains.map(domainLabel).join(' + ')}</span>
                       {item.body && <span className="cinematic-card-body">{cleanRulesText(item.body)}</span>}
-                    </button>
+                    </ChoiceCard>
                   ))}
                 </div>
               </section>
@@ -136,11 +146,11 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.builderContent.ancestries.slice(0, 36).map((item) => (
-                    <button className={`cinematic-card dh-media-choice ${selectedAncestry?.id === item.id ? 'dh-is-selected' : ''}`} key={item.id} type="button" onClick={() => handlers.selectAncestry(item.id)}>
+                    <ChoiceCard layout="media" selected={selectedAncestry?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectAncestry(item.id)}>
                       {item.imageUrl && <img src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-body">{featureListText(item) || cleanRulesText(item.body)}</span>
-                    </button>
+                    </ChoiceCard>
                   ))}
                 </div>
               </section>
@@ -153,11 +163,11 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.builderContent.communities.map((item) => (
-                    <button className={`cinematic-card dh-media-choice ${selectedCommunity?.id === item.id ? 'dh-is-selected' : ''}`} key={item.id} type="button" onClick={() => handlers.selectCommunity(item.id)}>
+                    <ChoiceCard layout="media" selected={selectedCommunity?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectCommunity(item.id)}>
                       {item.imageUrl && <img src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-body">{featureListText(item) || cleanRulesText(item.body)}</span>
-                    </button>
+                    </ChoiceCard>
                   ))}
                 </div>
               </section>
@@ -170,12 +180,12 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.classSubclasses.map((item) => (
-                    <button className={`cinematic-card dh-media-choice ${selectedSubclass?.id === item.id ? 'dh-is-selected' : ''}`} key={item.id} type="button" onClick={() => handlers.selectSubclass(item.id)}>
+                    <ChoiceCard layout="media" selected={selectedSubclass?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectSubclass(item.id)}>
                       {item.imageUrl && <img src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-meta">{item.subtitle}</span>
                       <span className="cinematic-card-body">{firstFeatureText(item) || cleanRulesText(item.body)}</span>
-                    </button>
+                    </ChoiceCard>
                   ))}
                 </div>
               </section>
@@ -200,8 +210,8 @@ export function CharacterBuilderModal({
                   <h3 className="cinematic-builder-title">Личность</h3>
                 </header>
                 <div className="cinematic-builder-form cinematic-builder-identity-form cinematic-builder-choice-area dh-scroll">
-                  <label className="dh-label character-builder-name-field"><span>Имя</span><input className="dh-field" value={fields.name} onChange={(event) => handlers.setName(event.currentTarget.value)} /></label>
-                  <label className="dh-label character-builder-pronouns-field"><span>Местоимения</span><input className="dh-field" value={fields.pronouns} onChange={(event) => handlers.setPronouns(event.currentTarget.value)} /></label>
+                  <TextField className="character-builder-name-field" label="Имя" value={fields.name} onChange={(event) => handlers.setName(event.currentTarget.value)} />
+                  <TextField className="character-builder-pronouns-field" label="Местоимения" value={fields.pronouns} onChange={(event) => handlers.setPronouns(event.currentTarget.value)} />
                   <ImageFilePicker
                     className="character-builder-portrait-picker"
                     label="Портрет"
@@ -210,9 +220,9 @@ export function CharacterBuilderModal({
                     onFileSelect={handlePortraitUpload}
                     onClear={() => handlers.setPortraitUrl('')}
                   />
-                  <label className="dh-label character-builder-appearance-field"><span>Внешность</span><textarea className="dh-textarea" value={fields.appearance} onChange={(event) => handlers.setAppearance(event.currentTarget.value)} /></label>
-                  <label className="dh-label character-builder-experience-one-field"><span>Опыт 1</span><input className="dh-field" value={fields.experienceOne} onChange={(event) => handlers.setExperienceOne(event.currentTarget.value)} /></label>
-                  <label className="dh-label character-builder-experience-two-field"><span>Опыт 2</span><input className="dh-field" value={fields.experienceTwo} onChange={(event) => handlers.setExperienceTwo(event.currentTarget.value)} /></label>
+                  <TextAreaField className="character-builder-appearance-field" label="Внешность" value={fields.appearance} onChange={(event) => handlers.setAppearance(event.currentTarget.value)} />
+                  <TextField className="character-builder-experience-one-field" label="Опыт 1" value={fields.experienceOne} onChange={(event) => handlers.setExperienceOne(event.currentTarget.value)} />
+                  <TextField className="character-builder-experience-two-field" label="Опыт 2" value={fields.experienceTwo} onChange={(event) => handlers.setExperienceTwo(event.currentTarget.value)} />
                 </div>
               </section>
             )}
@@ -224,14 +234,14 @@ export function CharacterBuilderModal({
                   <p className="cinematic-builder-copy">Вопросы берутся из выбранного класса и сохраняются в лист персонажа.</p>
                 </header>
                 <div className="cinematic-builder-form cinematic-builder-choice-area dh-scroll">
-                  <label className="dh-label dh-label--wide"><span>Краткая предыстория</span><textarea className="dh-textarea" value={fields.backstory} onChange={(event) => handlers.setBackstory(event.currentTarget.value)} /></label>
+                  <TextAreaField className="dh-label--wide" label="Краткая предыстория" value={fields.backstory} onChange={(event) => handlers.setBackstory(event.currentTarget.value)} />
                   <div className="cinematic-card-list dh-label--wide">
                     {options.backgroundQuestions.map((question, index) => (
-                      <label className="cinematic-card" key={question}>
+                      <Surface as="label" tone="subtle" className="cinematic-card" key={question}>
                         <span className="cinematic-card-meta">Вопрос {index + 1}</span>
                         <strong className="cinematic-card-title">{question}</strong>
-                        <textarea className="dh-textarea" value={fields.backgroundAnswers[index] ?? ''} onChange={(event) => handlers.setBackgroundAnswer(index, event.currentTarget.value)} />
-                      </label>
+                        <TextAreaField label="Ответ" value={fields.backgroundAnswers[index] ?? ''} onChange={(event) => handlers.setBackgroundAnswer(index, event.currentTarget.value)} />
+                      </Surface>
                     ))}
                   </div>
                 </div>
@@ -246,12 +256,12 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="cinematic-card-list cinematic-builder-choice-area dh-scroll">
                   {options.connectionQuestions.map((question, index) => (
-                    <article className="cinematic-card" key={question}>
+                    <Surface as="article" tone="subtle" className="cinematic-card" key={question}>
                       <span className="cinematic-card-meta">Связь {index + 1}</span>
                       <strong className="cinematic-card-title">{question}</strong>
-                      <label className="dh-label"><span>Персонаж</span><input className="dh-field" value={fields.connectionAnswers[index]?.targetName ?? ''} onChange={(event) => handlers.setConnectionTarget(index, event.currentTarget.value)} /></label>
-                      <label className="dh-label"><span>Ответ</span><textarea className="dh-textarea" value={fields.connectionAnswers[index]?.answer ?? ''} onChange={(event) => handlers.setConnectionAnswer(index, event.currentTarget.value)} /></label>
-                    </article>
+                      <TextField label="Персонаж" value={fields.connectionAnswers[index]?.targetName ?? ''} onChange={(event) => handlers.setConnectionTarget(index, event.currentTarget.value)} />
+                      <TextAreaField label="Ответ" value={fields.connectionAnswers[index]?.answer ?? ''} onChange={(event) => handlers.setConnectionAnswer(index, event.currentTarget.value)} />
+                    </Surface>
                   ))}
                 </div>
               </section>
@@ -265,28 +275,22 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-equipment-grid cinematic-builder-choice-area dh-scroll">
                   <div className="dh-equipment-row">
-                    <label className="dh-label">
-                      <span>Предмет класса</span>
-                      <select className="dh-field" value={fields.classItem || options.classItems[0]} onChange={(event) => handlers.selectClassItem(event.currentTarget.value)}>
-                        {options.classItems.map((item) => <option key={item} value={item}>{item}</option>)}
-                      </select>
-                    </label>
-                    <label className="dh-label">
-                      <span>Расходник</span>
-                      <select className="dh-field" value={fields.consumableId} onChange={(event) => handlers.selectConsumable(event.currentTarget.value)}>
-                        {options.consumables.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                      </select>
-                    </label>
+                    <SelectField label="Предмет класса" value={fields.classItem || options.classItems[0]} onChange={(event) => handlers.selectClassItem(event.currentTarget.value)}>
+                      {options.classItems.map((item) => <option key={item} value={item}>{item}</option>)}
+                    </SelectField>
+                    <SelectField label="Расходник" value={fields.consumableId} onChange={(event) => handlers.selectConsumable(event.currentTarget.value)}>
+                      {options.consumables.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </SelectField>
                   </div>
                   <div className="dh-equipment-column">
                     <h4 className="cinematic-panel-title">Броня</h4>
                     <div className="dh-choice-grid dh-choice-grid--equipment">
                       {options.armor.map((armor) => (
-                        <button className={`cinematic-card ${fields.armorId === armor.id ? 'dh-is-selected' : ''}`} key={armor.id} type="button" onClick={() => handlers.selectArmor(armor.id)}>
+                        <ChoiceCard selected={fields.armorId === armor.id} key={armor.id} type="button" onClick={() => handlers.selectArmor(armor.id)}>
                           <strong className="cinematic-card-title">{armor.name}</strong>
                           <span className="cinematic-card-meta">Пороги {armor.baseMajor}/{armor.baseSevere} · Броня {armor.score}</span>
                           {armor.feature && <span className="cinematic-card-body">{cleanRulesText(armor.feature)}</span>}
-                        </button>
+                        </ChoiceCard>
                       ))}
                     </div>
                   </div>
@@ -294,11 +298,11 @@ export function CharacterBuilderModal({
                     <h4 className="cinematic-panel-title">Оружие</h4>
                     <div className="dh-choice-grid dh-choice-grid--equipment">
                       {options.primaryWeapons.map((weapon) => (
-                        <button className={`cinematic-card ${fields.primaryWeaponId === weapon.id ? 'dh-is-selected' : ''}`} key={weapon.id} type="button" onClick={() => handlers.selectPrimaryWeapon(weapon.id)}>
+                        <ChoiceCard selected={fields.primaryWeaponId === weapon.id} key={weapon.id} type="button" onClick={() => handlers.selectPrimaryWeapon(weapon.id)}>
                           <strong className="cinematic-card-title">{weapon.name}</strong>
                           <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} · {weapon.range} · {weapon.damageFormula}</span>
                           <span className="cinematic-card-body">{cleanRulesText(`${weapon.burden === 'two-handed' ? 'Двуручное' : 'Одноручное'}${weapon.feature ? ` · ${weapon.feature}` : ''}`)}</span>
-                        </button>
+                        </ChoiceCard>
                       ))}
                     </div>
                   </div>
@@ -307,11 +311,11 @@ export function CharacterBuilderModal({
                       <h4 className="cinematic-panel-title">Вторая рука</h4>
                       <div className="dh-choice-grid dh-choice-grid--equipment">
                         {options.secondaryWeapons.map((weapon) => (
-                          <button className={`cinematic-card ${fields.secondaryWeaponId === weapon.id ? 'dh-is-selected' : ''}`} key={weapon.id} type="button" onClick={() => handlers.selectSecondaryWeapon(weapon.id)}>
+                          <ChoiceCard selected={fields.secondaryWeaponId === weapon.id} key={weapon.id} type="button" onClick={() => handlers.selectSecondaryWeapon(weapon.id)}>
                             <strong className="cinematic-card-title">{weapon.name}</strong>
                             <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} · {weapon.range} · {weapon.damageFormula}</span>
                             {weapon.feature && <span className="cinematic-card-body">{cleanRulesText(weapon.feature)}</span>}
-                          </button>
+                          </ChoiceCard>
                         ))}
                       </div>
                     </div>
@@ -328,12 +332,12 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--cards cinematic-builder-choice-area dh-scroll">
                   {options.availableDomainCards.map((item) => (
-                    <button className={`cinematic-card dh-domain-choice ${fields.selectedCardIds.includes(item.id) ? 'dh-is-selected' : ''}`} key={item.id} type="button" onClick={() => handlers.toggleCard(item.id)}>
+                    <ChoiceCard layout="domain" selected={fields.selectedCardIds.includes(item.id)} key={item.id} type="button" onClick={() => handlers.toggleCard(item.id)}>
                       {item.imageUrl && <img src={item.imageUrl} alt="" />}
                       <span className="cinematic-card-meta">{item.subtitle}</span>
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-body">{firstFeatureText(item) || cleanRulesText(item.body)}</span>
-                    </button>
+                    </ChoiceCard>
                   ))}
                 </div>
               </section>
@@ -381,11 +385,11 @@ export function CharacterBuilderModal({
           </div>
 
           <div className="cinematic-builder-actions">
-            <button className="dh-button" type="button" onClick={handlers.goBack}>Назад</button>
+            <Button type="button" onClick={handlers.goBack}>Назад</Button>
             {step !== 'loadout' ? (
-              <button className="dh-button dh-variant-primary" type="button" onClick={handlers.goNext}>Дальше</button>
+              <Button variant="primary" type="button" onClick={handlers.goNext}>Дальше</Button>
             ) : (
-              <button className="dh-button dh-variant-primary" type="button" disabled={!builder.canCreate} onClick={createFromWizard}>Создать</button>
+              <Button variant="primary" type="button" disabled={!builder.canCreate} onClick={createFromWizard}>Создать</Button>
             )}
           </div>
         </div>

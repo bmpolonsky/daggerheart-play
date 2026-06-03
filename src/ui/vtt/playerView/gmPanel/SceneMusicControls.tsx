@@ -3,6 +3,7 @@ import { FileAudio, Pause, Play, Radio, Square, Volume2 } from "lucide-react";
 import { useStream } from "../../../../core/hooks/useStream";
 import type { SceneTableState } from "../../../../domain/rules/types";
 import { audioService, sceneAudioBroadcastService, sceneTableService } from "../../../../services/serviceRegistry";
+import { Button } from "../../../components/common/Button";
 
 export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState }) {
   const broadcastState = useStream(sceneAudioBroadcastService.broadcast$);
@@ -38,17 +39,15 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
           </div>
         </div>
         <div className="player-scene-audio__controls" aria-label="Управление файлом сцены">
-          <button type="button" disabled={!hasMusicFile} title={scene.music.playing ? 'Pause' : 'Play'} onClick={toggleSceneMusic}>
-            {scene.music.playing ? <Pause size={14} /> : <Play size={14} />}
-            <span>{scene.music.playing ? 'Pause' : 'Play'}</span>
-          </button>
-          <button type="button" disabled={!hasMusicFile} title="Stop" onClick={() => {
+          <Button size="sm" variant="secondary" type="button" disabled={!hasMusicFile} title={scene.music.playing ? 'Pause' : 'Play'} onClick={toggleSceneMusic} iconBefore={scene.music.playing ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}>
+            {scene.music.playing ? 'Pause' : 'Play'}
+          </Button>
+          <Button size="sm" variant="ghost" type="button" disabled={!hasMusicFile} title="Stop" onClick={() => {
             sceneTableService.stopSceneMusic(scene.id);
             sceneAudioBroadcastService.stopBroadcast();
-          }}>
-            <Square size={14} />
-            <span>Stop</span>
-          </button>
+          }} iconBefore={<Square size={14} aria-hidden="true" />}>
+            Stop
+          </Button>
           <label className="player-scene-audio__volume" title="Громкость файла сцены">
             <Volume2 size={13} />
             <input
@@ -69,7 +68,9 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
         </div>
         <p className="player-scene-audio__status">{musicStatus}</p>
         <div className="player-scene-audio__stream" aria-label="Управление стримом">
-          <button
+          <Button
+            size="sm"
+            variant={broadcastLive || broadcastStarting ? 'danger' : 'secondary'}
             type="button"
             title={broadcastLive || broadcastStarting ? 'Остановить стрим' : 'Транслировать системный звук/вкладку'}
             onClick={() => {
@@ -77,12 +78,12 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
                 sceneAudioBroadcastService.stopBroadcast();
                 return;
               }
-              void sceneAudioBroadcastService.startDisplayAudioBroadcast('Стрим');
-            }}
+                void sceneAudioBroadcastService.startDisplayAudioBroadcast('Стрим');
+              }}
+            iconBefore={broadcastLive || broadcastStarting ? <Square size={14} aria-hidden="true" /> : <Radio size={14} aria-hidden="true" />}
           >
-            {broadcastLive || broadcastStarting ? <Square size={14} /> : <Radio size={14} />}
-            <span>{broadcastLive || broadcastStarting ? 'Stop' : 'Стрим'}</span>
-          </button>
+            {broadcastLive || broadcastStarting ? 'Stop' : 'Стрим'}
+          </Button>
         </div>
       </div>
     </section>

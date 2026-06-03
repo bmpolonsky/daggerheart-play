@@ -1,26 +1,28 @@
-import type { ReactNode } from 'react';
+import styles from './Card.module.css';
+
+type UiNode = any;
 
 interface CardProps {
-  title?: ReactNode;
-  subtitle?: ReactNode;
-  actions?: ReactNode;
-  children: ReactNode;
+  title?: UiNode;
+  subtitle?: UiNode;
+  actions?: UiNode;
+  children: UiNode;
   className?: string;
 }
 
 export function Card({ title, subtitle, actions, children, className = '' }: CardProps) {
   return (
-    <section className={`card ${className}`.trim()}>
+    <section className={`dh-card ${styles.root} ${className}`.trim()}>
       {(title || actions || subtitle) && (
-        <header className="card-header">
+        <header className={`dh-section-header ${styles.header}`}>
           <div>
             {title && <h2>{title}</h2>}
             {subtitle && <p>{subtitle}</p>}
           </div>
-          {actions && <div className="card-actions">{actions}</div>}
+          {actions && <div className={`dh-section-header__actions ${styles.actions}`}>{actions}</div>}
         </header>
       )}
-      <div className="card-body">{children}</div>
+      <div className={styles.body}>{children}</div>
     </section>
   );
 }

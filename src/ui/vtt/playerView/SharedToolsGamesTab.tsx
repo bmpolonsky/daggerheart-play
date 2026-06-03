@@ -8,6 +8,9 @@ import {
   importExportService,
   persistenceService
 } from '../../../services/serviceRegistry';
+import { Button } from '../../components/common/Button';
+import { IconButton } from '../../components/common/IconButton';
+import { Surface } from '../../components/common/Surface';
 
 export function SharedToolsGamesTab() {
   const games = useStream(persistenceService.storedGames$);
@@ -65,38 +68,34 @@ export function SharedToolsGamesTab() {
       <header>
         <strong>Игры проекта</strong>
         <div className="player-tools-actions">
-          <button className="dh-button" type="button" disabled={busyGameId === 'new'} onClick={() => void createGame()}>
-            <Plus size={15} />
+          <Button size="sm" type="button" disabled={busyGameId === 'new'} iconBefore={<Plus size={15} aria-hidden="true" />} onClick={() => void createGame()}>
             Новая
-          </button>
-          <button className="dh-button" type="button" onClick={() => importFileRef.current?.click()}>
-            <Upload size={15} />
+          </Button>
+          <Button size="sm" type="button" iconBefore={<Upload size={15} aria-hidden="true" />} onClick={() => importFileRef.current?.click()}>
             Импорт
-          </button>
-          <button className="dh-button dh-variant-primary" type="button" onClick={() => void importExportService.downloadArchive()}>
-            <Download size={15} />
+          </Button>
+          <Button variant="primary" size="sm" type="button" iconBefore={<Download size={15} aria-hidden="true" />} onClick={() => void importExportService.downloadArchive()}>
             Экспорт
-          </button>
+          </Button>
         </div>
       </header>
 
       <div className="player-tools-game-list">
         {games.map((storedGame) => (
-          <article className={storedGame.active ? 'player-tools-game-row dh-is-active' : 'player-tools-game-row'} key={storedGame.id}>
+          <Surface as="article" tone="subtle" className={storedGame.active ? 'player-tools-game-row dh-is-active' : 'player-tools-game-row'} key={storedGame.id}>
             <div>
               <strong>{storedGame.name || 'Без названия'}</strong>
               <span>{storedGame.updatedAt ? formatDateTime(storedGame.updatedAt) : 'Без сохранения'}</span>
             </div>
             <div className="player-tools-game-row__actions">
-              <button type="button" disabled={storedGame.active || busyGameId === storedGame.id} onClick={() => void openGame(storedGame.id)}>
-                <FolderOpen size={15} />
+              <Button size="sm" type="button" disabled={storedGame.active || busyGameId === storedGame.id} iconBefore={<FolderOpen size={15} aria-hidden="true" />} onClick={() => void openGame(storedGame.id)}>
                 {storedGame.active ? 'Открыта' : 'Открыть'}
-              </button>
-              <button type="button" title="Удалить игру" disabled={busyGameId === storedGame.id} onClick={() => void removeGame(storedGame)}>
-                <Trash2 size={15} />
-              </button>
+              </Button>
+              <IconButton variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${storedGame.name || 'Без названия'}`} disabled={busyGameId === storedGame.id} onClick={() => void removeGame(storedGame)}>
+                <Trash2 size={15} aria-hidden="true" />
+              </IconButton>
             </div>
-          </article>
+          </Surface>
         ))}
         {games.length === 0 && <p className="player-tools-empty">Сохраненные игры появятся здесь после первого изменения.</p>}
       </div>

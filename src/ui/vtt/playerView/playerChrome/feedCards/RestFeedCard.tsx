@@ -3,6 +3,8 @@ import { Bed, CheckSquare, Coffee, RotateCcw } from 'lucide-react';
 import { canApplyRestChoice, canSelectRestChoices } from '../../../../../domain/rules/rest';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { feedService, p2pSessionService, tabletopService } from '../../../../../services/serviceRegistry';
+import { Button } from '../../../../components/common/Button';
+import { IconButton } from '../../../../components/common/IconButton';
 import { renderRulesText } from '../../sheetText';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
@@ -75,14 +77,16 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
                     <strong>{participant.actorName}</strong>
                     <span>{participant.ready ? 'готов' : `${selectedCount}/${rest.maxChoicesPerParticipant}`}</span>
                     {canSelectChoices && selectedCount > 0 && (
-                      <button
+                      <IconButton
                         className="feed-rest-participant__reset"
+                        variant="ghost"
+                        size="xs"
                         type="button"
                         aria-label={`Сбросить выбор отдыха: ${participant.actorName}`}
                         onClick={() => updateChoices([])}
                       >
-                        <RotateCcw size={12} />
-                      </button>
+                        <RotateCcw size={12} aria-hidden="true" />
+                      </IconButton>
                     )}
                   </div>
                   <RestMoveList
@@ -109,9 +113,9 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
           </p>
         )}
         {canResolve && (
-          <button className="feed-rest-card__resolve" type="button" onClick={completeRest}>
+          <Button fullWidth size="lg" variant="primary" type="button" onClick={completeRest}>
             Получить страх и завершить
-          </button>
+          </Button>
         )}
       </div>
     </>
@@ -153,9 +157,11 @@ function RestMoveList({
           const pendingChoice = choices.find((choice) => choice.label === label && choice.status !== 'resolved');
           const canAdd = canSelect && selectedCount < maxChoices;
           return (
-            <div className={`feed-rest-move ${count > 0 ? 'dh-is-selected' : ''}`} key={label}>
-              <button
+            <div className="feed-rest-move" key={label}>
+              <Button
                 className="feed-rest-move__select"
+                variant={count > 0 ? 'primary' : 'ghost'}
+                size="sm"
                 disabled={!canAdd && count === 0}
                 type="button"
                 onClick={() => {
@@ -165,21 +171,23 @@ function RestMoveList({
               >
                 <span>{label}</span>
                 {count > 0 && <b>×{count}</b>}
-              </button>
+              </Button>
               {canSelect && count > 0 && (
-                <button
+                <IconButton
                   className="feed-rest-move__remove"
+                  variant="ghost"
+                  size="xs"
                   type="button"
                   aria-label={`Убрать ${label}`}
                   onClick={() => onChange(removeOneRestChoice(selectedLabels, label))}
                 >
                   ×
-                </button>
+                </IconButton>
               )}
               {canApply && pendingChoice && (
-                <button className="feed-rest-move__apply" type="button" onClick={() => onApply(pendingChoice.id)}>
+                <Button className="feed-rest-move__apply" variant="primary" size="sm" type="button" onClick={() => onApply(pendingChoice.id)}>
                   {pendingChoice.label.includes('1d4') ? 'Бросить' : 'Применить'}
-                </button>
+                </Button>
               )}
               {selectedChoice?.result && <small>{selectedChoice.result.note}</small>}
             </div>

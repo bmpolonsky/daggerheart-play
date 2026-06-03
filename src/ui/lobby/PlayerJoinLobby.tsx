@@ -6,6 +6,9 @@ import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2
 import type { Character } from '../../domain/rules/types';
 import type { TableParticipant } from '../../domain/tabletop/types';
 import { audioService, characterService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
+import { Button } from '../components/common/Button';
+import { ChoiceCard } from '../components/common/ChoiceCard';
+import { Surface } from '../components/common/Surface';
 
 interface PlayerJoinLobbyProps {
   password?: string;
@@ -106,7 +109,7 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
           <h1>Выберите игрока</h1>
         </div>
         <div className="player-join-lobby">
-          <section className="role-entry__card player-join-lobby__seats" aria-label="Игроки комнаты">
+          <Surface className="role-entry__card player-join-lobby__seats" aria-label="Игроки комнаты">
             <header>
               <MonitorPlay size={20} />
               <div>
@@ -118,29 +121,29 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
               {playerSeats.map((seat) => {
                 const character = characterForSeat(seat, characterEntities);
                 return (
-                  <button
-                    className={selectedSeatId === seat.id ? 'dh-is-active' : ''}
+                  <ChoiceCard
+                    selected={selectedSeatId === seat.id}
                     key={seat.id}
                     type="button"
                     onClick={() => setSelectedSeatId(seat.id)}
                   >
                     <strong>{seat.name}</strong>
                     <span>{character ? `${character.name} / ${character.className} ${character.level}` : 'Персонаж не назначен'}</span>
-                  </button>
+                  </ChoiceCard>
                 );
               })}
               {playerSeats.length === 0 && <p>{joining || connectedToRoom ? 'Ждем список игроков от мастера.' : session.message}</p>}
             </div>
             <div className="role-entry__inline-actions">
-              <button className="dh-button" type="button" onClick={onBackToLobby}>
+              <Button type="button" onClick={onBackToLobby}>
                 Сменить комнату
-              </button>
-              <button className="dh-button dh-variant-primary" type="button" disabled={!selectedSeat} onClick={enterPlayerTable}>
+              </Button>
+              <Button variant="primary" type="button" disabled={!selectedSeat} onClick={enterPlayerTable}>
                 Войти за игрока
-              </button>
+              </Button>
             </div>
-          </section>
-          <section className="role-entry__card player-join-lobby__media" aria-label="Аудио и видео">
+          </Surface>
+          <Surface className="role-entry__card player-join-lobby__media" aria-label="Аудио и видео">
             <header>
               <Mic size={20} />
               <div>
@@ -153,16 +156,14 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
             </div>
             <span className="player-join-lobby__media-status">{videoMessage}</span>
             <div className="role-entry__inline-actions">
-              <button className="dh-button" type="button" disabled={!connectedToRoom && !joining} onClick={() => void audioService.toggleVoiceChat(selectedSeat?.name.trim() || undefined)}>
-                {audioState.voiceStatus === 'live' ? <Mic size={15} /> : <MicOff size={15} />}
+              <Button type="button" disabled={!connectedToRoom && !joining} iconBefore={audioState.voiceStatus === 'live' ? <Mic size={15} aria-hidden="true" /> : <MicOff size={15} aria-hidden="true" />} onClick={() => void audioService.toggleVoiceChat(selectedSeat?.name.trim() || undefined)}>
                 {audioState.voiceStatus === 'live' ? 'Микрофон включен' : 'Проверить микрофон'}
-              </button>
-              <button className="dh-button" type="button" onClick={() => void toggleCamera()}>
-                {videoStream ? <Video size={15} /> : <VideoOff size={15} />}
+              </Button>
+              <Button type="button" iconBefore={videoStream ? <Video size={15} aria-hidden="true" /> : <VideoOff size={15} aria-hidden="true" />} onClick={() => void toggleCamera()}>
                 {videoStream ? 'Камера включена' : 'Проверить камеру'}
-              </button>
+              </Button>
             </div>
-          </section>
+          </Surface>
         </div>
         <p className="role-entry__message">{session.message}</p>
       </div>

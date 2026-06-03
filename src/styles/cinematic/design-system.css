@@ -1,0 +1,120 @@
+/* Dark-glass foundation tokens plus temporary legacy bridges. Component
+   primitives own their styles in src/ui/components/common/*.module.css. */
+.cinematic-vtt,
+.role-entry,
+.player-view,
+.tool-viewport {
+  --dh-ink-950: #07090c;
+  --dh-ink-900: #0d1218;
+  --dh-ink-800: #141b22;
+  --dh-glass: rgba(10, 13, 17, 0.62);
+  --dh-glass-strong: rgba(9, 11, 15, 0.84);
+  --dh-glass-subtle: rgba(243, 234, 216, 0.045);
+  --dh-control: rgba(3, 5, 7, 0.46);
+  --dh-control-hover: rgba(243, 234, 216, 0.08);
+  --dh-control-active: rgba(216, 173, 83, 0.15);
+  --dh-border: rgba(243, 234, 216, 0.12);
+  --dh-border-strong: rgba(243, 234, 216, 0.22);
+  --dh-border-gold: rgba(240, 201, 106, 0.44);
+  --dh-gold-500: #d8ad53;
+  --dh-gold-400: #f0c96a;
+  --dh-gold-soft: rgba(216, 173, 83, 0.16);
+  --dh-danger-500: #d65b5b;
+  --dh-danger-soft: rgba(214, 91, 91, 0.16);
+  --dh-paper-100: #f3ead8;
+  --dh-paper-200: #d9ccb5;
+  --dh-paper-muted: rgba(243, 234, 216, 0.68);
+  --dh-paper-faint: rgba(243, 234, 216, 0.48);
+  --dh-radius-sm: 8px;
+  --dh-radius: 10px;
+  --dh-radius-lg: 12px;
+  --dh-blur: blur(18px) saturate(1.1);
+  --dh-shadow: 0 24px 72px rgba(0, 0, 0, 0.46);
+  --dh-shadow-soft: 0 14px 38px rgba(0, 0, 0, 0.28);
+  --dh-focus: 0 0 0 2px rgba(240, 201, 106, 0.2);
+  --dh-z-modal: 120;
+}
+
+.dh-label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dh-label > span,
+.cinematic-card-meta {
+  color: var(--dh-paper-muted);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.player-tools-modal__panel,
+.cinematic-builder,
+.cinematic-drawer,
+.role-entry__card {
+  border-radius: var(--dh-radius-lg);
+  border: 1px solid var(--dh-border);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.76), rgba(7, 9, 12, 0.58)),
+    var(--dh-glass);
+  box-shadow: var(--dh-shadow), inset 0 1px 0 rgba(243, 234, 216, 0.07);
+  backdrop-filter: var(--dh-blur);
+}
+
+.role-entry__players,
+.role-entry__games,
+.player-tools-row,
+.player-tools-grid > *,
+.player-sheet-row,
+.player-activity-card,
+.cinematic-sidecar-section,
+.cinematic-builder-step,
+.cinematic-sheet-section {
+  border-color: rgba(243, 234, 216, 0.08);
+  background: var(--dh-glass-subtle);
+  box-shadow: none;
+}
+
+.cinematic-builder-preview {
+  border-color: rgba(243, 234, 216, 0.12);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.74), rgba(7, 9, 12, 0.62)),
+    rgba(7, 9, 12, 0.48);
+  color: var(--dh-paper-100);
+  box-shadow: inset 0 1px 0 rgba(243, 234, 216, 0.08);
+}
+
+.cinematic-builder-preview-art,
+.cinematic-builder-preview-line,
+.cinematic-builder-preview-cards,
+.cinematic-builder-readiness,
+.cinematic-builder-preview .dh-stat,
+.cinematic-builder-preview-traits span {
+  border-color: rgba(243, 234, 216, 0.1);
+  background: rgba(243, 234, 216, 0.045);
+  color: var(--dh-paper-muted);
+}
+
+.cinematic-builder-preview-art div,
+.cinematic-builder-preview-art strong,
+.cinematic-builder-preview-line span,
+.cinematic-builder-preview-cards span,
+.cinematic-builder-preview .dh-stat strong,
+.cinematic-builder-preview-traits span,
+.cinematic-builder-preview-cards strong,
+.cinematic-builder-readiness strong {
+  color: var(--dh-paper-100);
+}
+
+.cinematic-builder-preview-art > span,
+.cinematic-builder-preview-art span,
+.cinematic-builder-preview .dh-stat span {
+  color: var(--dh-paper-muted);
+}
+
+.cinematic-card-rail .cinematic-card {
+  background:
+    linear-gradient(180deg, rgba(255, 249, 232, 0.92), rgba(220, 204, 170, 0.92)),
+    var(--dh-paper-100);
+}

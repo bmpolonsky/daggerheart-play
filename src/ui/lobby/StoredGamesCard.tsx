@@ -4,6 +4,9 @@ import { Download, Trash2, Upload } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
 import { importExportService, persistenceService } from '../../services/serviceRegistry';
+import { Button } from '../components/common/Button';
+import { IconButton } from '../components/common/IconButton';
+import { Surface } from '../components/common/Surface';
 import type { StoredGameSummary } from '../../core/persistence/gameDocumentStore';
 
 export function StoredGamesCard() {
@@ -53,25 +56,23 @@ export function StoredGamesCard() {
 
   return (
     <>
-      <section className="role-entry__card role-entry__games-card" aria-label="Управление сохранениями">
+      <Surface className="role-entry__card role-entry__games-card" aria-label="Управление сохранениями">
         <header>
           <Download size={20} />
           <div>
             <strong>Сохранения</strong>
           </div>
           <div className="role-entry__storage-tools">
-            <button className="dh-button" type="button" onClick={() => void createStoredGame()}>
+            <Button size="sm" type="button" onClick={() => void createStoredGame()}>
               Новая
-            </button>
-            <button className="dh-button" type="button" title={activeStoredGame ? 'Импорт заменит текущую открытую игру' : 'Импортировать игру'} onClick={() => importFileRef.current?.click()}>
-              <Upload size={15} />
+            </Button>
+            <Button size="sm" type="button" title={activeStoredGame ? 'Импорт заменит текущую открытую игру' : 'Импортировать игру'} iconBefore={<Upload size={15} aria-hidden="true" />} onClick={() => importFileRef.current?.click()}>
               Импорт
-            </button>
+            </Button>
             {activeStoredGame && (
-              <button className="dh-button" type="button" onClick={() => void importExportService.downloadArchive()}>
-                <Download size={15} />
+              <Button size="sm" type="button" iconBefore={<Download size={15} aria-hidden="true" />} onClick={() => void importExportService.downloadArchive()}>
                 Экспорт
-              </button>
+              </Button>
             )}
           </div>
         </header>
@@ -84,13 +85,13 @@ export function StoredGamesCard() {
               </div>
               <div className="role-entry__game-actions">
                 {!game.active && (
-                  <button type="button" onClick={() => void switchStoredGame(game.id)}>
+                  <Button size="sm" type="button" onClick={() => void switchStoredGame(game.id)}>
                     Открыть
-                  </button>
+                  </Button>
                 )}
-                <button className="role-entry__icon-action" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => void removeStoredGame(game)}>
+                <IconButton className="role-entry__icon-action" variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => void removeStoredGame(game)}>
                   <Trash2 size={14} aria-hidden="true" />
-                </button>
+                </IconButton>
               </div>
             </article>
           ))}
@@ -103,7 +104,7 @@ export function StoredGamesCard() {
           accept="application/json,application/zip,.json,.zip,.dhgame"
           onChange={importGameFile}
         />
-      </section>
+      </Surface>
     </>
   );
 }

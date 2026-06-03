@@ -620,8 +620,6 @@
   overflow: visible;
 }
 
-.cinematic-builder .dh-media-choice,
-.cinematic-builder .dh-domain-choice,
 .cinematic-builder .dh-choice-grid > .cinematic-card {
   min-height: 0;
   align-content: start;
@@ -636,69 +634,6 @@
   align-content: start;
   gap: 7px;
   padding: 12px;
-}
-
-.cinematic-builder .dh-media-choice {
-  height: auto;
-  min-height: 126px;
-  max-height: 164px;
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 5px;
-}
-
-.cinematic-builder .dh-domain-choice {
-  height: auto;
-  min-height: 152px;
-  max-height: 206px;
-  display: grid;
-  grid-template-columns: 82px minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 5px;
-}
-
-.cinematic-builder .dh-class-choice {
-  grid-template-columns: 76px minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 5px;
-}
-
-.cinematic-builder .dh-choice-grid > .dh-class-choice {
-  min-height: 112px;
-  max-height: 164px;
-}
-
-.cinematic-builder .dh-media-choice img,
-.cinematic-builder .dh-domain-choice img,
-.cinematic-builder .dh-library-thumb {
-  width: 100%;
-  height: 76px;
-  grid-row: 1 / -1;
-  object-fit: cover;
-  border: 1px solid rgba(240, 201, 106, 0.16);
-  border-radius: 8px;
-}
-
-.cinematic-builder .dh-domain-choice img {
-  height: 112px;
-  object-fit: contain;
-  background: rgba(7, 9, 12, 0.38);
-}
-
-.cinematic-builder .dh-media-choice .cinematic-card-title,
-.cinematic-builder .dh-domain-choice .cinematic-card-title,
-.cinematic-builder .dh-class-choice .cinematic-card-title,
-.cinematic-builder .dh-media-choice .cinematic-card-meta,
-.cinematic-builder .dh-domain-choice .cinematic-card-meta,
-.cinematic-builder .dh-class-choice .cinematic-card-meta,
-.cinematic-builder .dh-media-choice .cinematic-card-body,
-.cinematic-builder .dh-domain-choice .cinematic-card-body,
-.cinematic-builder .dh-class-choice .cinematic-card-body {
-  min-width: 0;
 }
 
 .cinematic-builder .cinematic-card-body {
@@ -873,27 +808,6 @@
 .cinematic-builder-stepper {
   display: grid;
   gap: 6px;
-}
-
-.cinematic-builder-step-tab {
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 9px;
-  border: 1px solid var(--dh-border);
-  border-radius: 8px;
-  background: rgba(7, 9, 12, 0.32);
-  color: var(--dh-paper-muted);
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-align: left;
-}
-
-.cinematic-builder-step-tab.dh-is-active {
-  border-color: rgba(240, 201, 106, 0.62);
-  background: var(--dh-gold-soft);
-  color: var(--dh-paper-100);
 }
 
 .cinematic-sheet-tabs {

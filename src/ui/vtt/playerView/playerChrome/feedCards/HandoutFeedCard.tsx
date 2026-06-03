@@ -2,6 +2,7 @@
 import { Eye } from 'lucide-react';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { feedService } from '../../../../../services/serviceRegistry';
+import { Button } from '../../../../components/common/Button';
 import { cssImageUrl } from '../../helpers';
 import { playerViewUiActions } from '../../playerViewUiState';
 import { renderRulesText } from '../../sheetText';
@@ -19,16 +20,18 @@ export function HandoutFeedCard({ item }: { item: TableFeedItem }) {
     <>
       <FeedCardHeader item={item} label={item.kicker || 'Материал'}>
         {canPublish && (
-          <button
+          <Button
             className="feed-card-action"
+            variant="ghost"
+            size="xs"
             type="button"
             aria-label={`Показать раздатку ${handout?.title || item.title}`}
             title="Показать игрокам"
             onClick={publish}
+            iconBefore={<Eye size={13} aria-hidden="true" />}
           >
-            <Eye size={13} />
-            <span>Показать</span>
-          </button>
+            Показать
+          </Button>
         )}
       </FeedCardHeader>
       <div className="feed-handout-card">

@@ -14,6 +14,9 @@ import { useStream } from "../../../../core/hooks/useStream";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";
 import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";
+import { Button } from "../../../../ui/components/common/Button";
+import { IconButton } from "../../../../ui/components/common/IconButton";
+import { SelectControl, TextControl } from "../../../../ui/components/common/Field";
 
 type CatalogNotice = {
   tone: "info" | "error";
@@ -81,26 +84,29 @@ export function SidebarContainer() {
 
         <div className="flex w-full flex-wrap items-center justify-end gap-3 md:w-auto md:flex-nowrap">
           <div className="flex w-full items-center gap-2 md:w-auto">
-            <button
+            <Button
               type="button"
-              className="flex h-9 items-center justify-center gap-2 rounded border border-dagger-gold/30 bg-slate-800 px-3 text-xs font-bold uppercase tracking-wide text-dagger-gold transition-colors hover:border-dagger-gold/60 hover:bg-slate-700"
+              size="sm"
+              variant="primary"
               onClick={() => {
                 setCatalogNotice(null);
                 customAdversaryEditorService.openCreate();
               }}
               title="Создать кастомного противника"
+              iconBefore={<IconPlus size={14} aria-hidden="true" />}
             >
-              <IconPlus size={14} />
               Создать
-            </button>
-            <button
+            </Button>
+            <IconButton
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
+              size="sm"
+              variant="secondary"
               onClick={() => importInputRef.current?.click()}
               title="Импорт кастомных противников"
+              aria-label="Импорт кастомных противников"
             >
-              <IconUpload size={15} />
-            </button>
+              <IconUpload size={15} aria-hidden="true" />
+            </IconButton>
             <input
               ref={importInputRef}
               type="file"
@@ -108,15 +114,17 @@ export function SidebarContainer() {
               onChange={handleImportCustom}
               hidden
             />
-            <button
+            <IconButton
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded border border-slate-700 bg-slate-800 text-slate-300 transition-colors hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              size="sm"
+              variant="secondary"
               onClick={handleExportCustom}
               disabled={customItemsCount === 0}
               title="Экспорт кастомных противников"
+              aria-label="Экспорт кастомных противников"
             >
-              <IconDownload size={15} />
-            </button>
+              <IconDownload size={15} aria-hidden="true" />
+            </IconButton>
           </div>
 
           <div className="relative w-full flex-grow md:w-64 md:flex-grow-0">
@@ -124,10 +132,10 @@ export function SidebarContainer() {
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
               size={16}
             />
-            <input
+            <TextControl
               type="text"
               placeholder="Поиск..."
-              className="w-full rounded-md border border-slate-700 bg-slate-900 py-2 pl-9 pr-4 text-sm text-slate-200 outline-none transition-all placeholder:text-slate-600 focus:border-dagger-gold focus:ring-1 focus:ring-dagger-gold"
+              className="combat-search-input"
               value={searchTerm}
               onInput={(event) => adversariesService.setSearchTerm(event.currentTarget.value)}
             />
@@ -137,8 +145,8 @@ export function SidebarContainer() {
             <span className="whitespace-nowrap text-xs text-slate-500 md:mr-1">
               {filteredItems.length} результатов
             </span>
-            <select
-              className="flex-1 cursor-pointer rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300 outline-none focus:border-dagger-gold md:flex-none"
+            <SelectControl
+              className="combat-filter-select"
               value={String(tierFilter)}
               onChange={(event) => {
                 const value = event.currentTarget.value;
@@ -151,10 +159,10 @@ export function SidebarContainer() {
                   Ранг {tier}
                 </option>
               ))}
-            </select>
+            </SelectControl>
 
-            <select
-              className="max-w-[140px] flex-1 cursor-pointer rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300 outline-none focus:border-dagger-gold md:flex-none"
+            <SelectControl
+              className="combat-filter-select combat-filter-select--role"
               value={roleFilter}
               onChange={(event) => adversariesService.setRoleFilter(event.currentTarget.value)}
             >
@@ -164,16 +172,19 @@ export function SidebarContainer() {
                   {role.name}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
 
-          <button
+          <IconButton
             type="button"
-            className="rounded border border-dagger-gold/30 bg-slate-800 p-2 text-dagger-gold lg:hidden"
+            className="combat-sidebar-toggle lg:hidden"
+            variant="secondary"
+            size="lg"
             onClick={() => encounterService.setSidebarOpen(!isSidebarOpen)}
+            aria-label={isSidebarOpen ? "Закрыть каталог" : "Открыть каталог"}
           >
-            {isSidebarOpen ? <IconClose size={20} /> : <IconMenu size={20} />}
-          </button>
+            {isSidebarOpen ? <IconClose size={20} aria-hidden="true" /> : <IconMenu size={20} aria-hidden="true" />}
+          </IconButton>
         </div>
       </header>
 

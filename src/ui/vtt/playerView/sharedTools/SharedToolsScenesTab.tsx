@@ -2,6 +2,7 @@
 import { Plus } from 'lucide-react';
 import type { Character, EncounterState, SceneTableState } from '../../../../domain/rules/types';
 import { sceneTableService } from '../../../../services/serviceRegistry';
+import { Button } from '../../../components/common/Button';
 import { SceneEditorRow } from './SceneEditorRow';
 
 export function SharedToolsScenesTab({
@@ -16,9 +17,9 @@ export function SharedToolsScenesTab({
       <header>
         <strong>Сцены</strong>
         <div className="player-tools-actions">
-          <button className="dh-button dh-variant-primary" type="button" onClick={() => sceneTableService.createScene({ name: `Сцена ${scenes.length + 1}` })}>
-            <Plus size={15} /> Новая
-          </button>
+          <Button variant="primary" size="sm" type="button" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={() => sceneTableService.createScene({ name: `Сцена ${scenes.length + 1}` })}>
+            Новая
+          </Button>
         </div>
       </header>
       <div className="player-tools-list player-tools-scene-grid">

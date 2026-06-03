@@ -6,6 +6,9 @@ import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
 import type { TableFeedItem } from '../../../../domain/tabletop/feed';
 import { gameService, diceService, encounterService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
+import { Button } from '../../../components/common/Button';
+import { IconButton } from '../../../components/common/IconButton';
+import { TextControl } from '../../../components/common/Field';
 import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS } from '../constants';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainCards/types';
@@ -167,20 +170,21 @@ export function PlayerLeftRail({
       )}
       <section className={`player-activity-card player-activity-card--airy ${role === 'gm' ? 'player-activity-card--gm' : ''}`}>
         <header className="player-activity-header">
-          <MessageCircle size={16} />
+          <MessageCircle size={16} aria-hidden="true" />
           <span>Игра</span>
+          <span className="player-activity-header__spacer" aria-hidden="true" />
           {role === 'gm' && hasClearableActivity ? (
-            <button className="player-activity-clear" type="button" onClick={() => { feedService.clear(); playerViewUiActions.setEphemeralFeedItem(null); }}>Очистить</button>
+            <Button size="sm" variant="ghost" type="button" onClick={() => { feedService.clear(); playerViewUiActions.setEphemeralFeedItem(null); }}>Очистить</Button>
           ) : (
-            <span className="player-activity-clear player-activity-clear--placeholder" aria-hidden="true">Очистить</span>
+            <span className="player-activity-header__placeholder" aria-hidden="true">Очистить</span>
           )}
         </header>
         {role === 'gm' && (
           <div className="player-activity-session">
             <span>{gmSessionText}</span>
-            <button type="button" disabled={!p2pSession.roomId} onClick={() => void copyInvite()}>
+            <Button size="sm" variant="secondary" noWrap type="button" disabled={!p2pSession.roomId} onClick={() => void copyInvite()}>
               {inviteCopied ? 'Скопировано' : 'Ссылка'}
-            </button>
+            </Button>
           </div>
         )}
         {visibleCountdowns.length > 0 && (
@@ -206,15 +210,17 @@ export function PlayerLeftRail({
             return (
               <article className={eventClassName} key={event.id}>
                 {canRemoveEvent && (
-                  <button
+                  <IconButton
                     className="player-activity-event__delete"
+                    variant="ghost"
+                    size="xs"
                     type="button"
                     aria-label={event.ephemeral ? `Закрыть ${event.title}` : `Удалить событие ${event.title}`}
                     title={event.ephemeral ? 'Закрыть' : 'Удалить'}
                     onClick={() => event.ephemeral ? playerViewUiActions.setEphemeralFeedItem(null) : feedService.remove(event.id)}
                   >
-                    ×
-                  </button>
+                    <X size={12} aria-hidden="true" />
+                  </IconButton>
                 )}
                 <FeedCard
                   item={event}
@@ -229,10 +235,10 @@ export function PlayerLeftRail({
           })}
         </div>
         <form className="player-chat-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
-          <input aria-label="Сообщение игрока" value={message} onInput={(event) => setMessage(event.currentTarget.value)} placeholder={`Сообщение от ${model.character?.name ?? (role === 'gm' ? 'Мастера' : 'игрока')}`} />
-          <button type="submit" disabled={!message.trim()} aria-label="Отправить сообщение" title="Отправить сообщение">
-            <SendHorizontal size={15} />
-          </button>
+          <TextControl tone="plain" aria-label="Сообщение игрока" value={message} onInput={(event) => setMessage(event.currentTarget.value)} placeholder={`Сообщение от ${model.character?.name ?? (role === 'gm' ? 'Мастера' : 'игрока')}`} />
+          <IconButton variant="primary" size="sm" type="submit" disabled={!message.trim()} aria-label="Отправить сообщение" title="Отправить сообщение">
+            <SendHorizontal size={15} aria-hidden="true" />
+          </IconButton>
         </form>
       </section>
     </aside>
@@ -251,7 +257,9 @@ function CountdownCard({ countdown, role }: { countdown: Countdown; role: TableV
     <article className={`player-countdown-card ${countdown.visibility === 'gm' ? 'dh-is-private' : ''}`}>
       <header>
         {role === 'gm' ? (
-          <input
+          <TextControl
+            className="player-countdown-card__name"
+            tone="plain"
             aria-label="Название отсчета"
             value={countdown.name}
             onInput={(event) => encounterService.updateCountdown(countdown.id, { name: event.currentTarget.value })}
@@ -260,9 +268,9 @@ function CountdownCard({ countdown, role }: { countdown: Countdown; role: TableV
           <strong>{countdown.name}</strong>
         )}
         {role === 'gm' && (
-          <button type="button" title="Удалить отсчет" aria-label={`Удалить отсчет ${countdown.name}`} onClick={() => encounterService.removeCountdown(countdown.id)}>
+          <IconButton variant="ghost" size="xs" type="button" title="Удалить отсчет" aria-label={`Удалить отсчет ${countdown.name}`} onClick={() => encounterService.removeCountdown(countdown.id)}>
             <X size={14} aria-hidden="true" />
-          </button>
+          </IconButton>
         )}
       </header>
       <div className="player-countdown-card__pips" aria-label={`${filled} из ${countdown.max}`}>
@@ -274,19 +282,22 @@ function CountdownCard({ countdown, role }: { countdown: Countdown; role: TableV
         <span>{countdown.current}/{countdown.max}</span>
         {role === 'gm' && (
           <div className="player-countdown-card__controls">
-            <button type="button" title="Назад" onClick={() => encounterService.tickCountdown(countdown.id, -1)}>
+            <IconButton variant="ghost" size="xs" type="button" title="Назад" aria-label="Назад" onClick={() => encounterService.tickCountdown(countdown.id, -1)}>
               <Minus size={13} aria-hidden="true" />
-            </button>
-            <button type="button" title="Вперед" onClick={() => encounterService.tickCountdown(countdown.id, 1)}>
+            </IconButton>
+            <IconButton variant="ghost" size="xs" type="button" title="Вперед" aria-label="Вперед" onClick={() => encounterService.tickCountdown(countdown.id, 1)}>
               <Plus size={13} aria-hidden="true" />
-            </button>
-            <button
+            </IconButton>
+            <IconButton
+              variant="ghost"
+              size="xs"
               type="button"
               title={countdown.visibility === 'public' ? 'Скрыть от игроков' : 'Показать игрокам'}
+              aria-label={countdown.visibility === 'public' ? 'Скрыть от игроков' : 'Показать игрокам'}
               onClick={() => encounterService.updateCountdown(countdown.id, { visibility: countdown.visibility === 'public' ? 'gm' : 'public' })}
             >
               {countdown.visibility === 'public' ? <Eye size={13} aria-hidden="true" /> : <EyeOff size={13} aria-hidden="true" />}
-            </button>
+            </IconButton>
           </div>
         )}
       </footer>

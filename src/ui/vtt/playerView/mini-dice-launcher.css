@@ -47,73 +47,25 @@
   overflow-wrap: anywhere;
 }
 
-.scene-audio-runtime button {
-  flex: 0 0 auto;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(240, 201, 106, 0.14);
-  color: #fff7e7;
-  font-size: 0.68rem;
-  font-weight: 950;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 .mini-dice-launcher__quick,
 .mini-dice-launcher__tools,
 .mini-dice-launcher__voice,
-.mini-dice-launcher__hand,
-.mini-dice-launcher__panel button,
-.mini-dice-launcher__bonus button,
-.mini-dice-launcher__private,
-.mini-dice-launcher__segmented button,
-.mini-stepper button {
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(7, 9, 12, 0.58);
-  color: rgba(243, 234, 216, 0.78);
-  font-size: 0.68rem;
-  font-weight: 950;
-  text-transform: none;
+.mini-dice-launcher__hand {
+  flex: 0 0 auto;
 }
 
 .mini-dice-launcher__quick {
   position: relative;
-  width: 58px;
-  min-width: 58px;
-  min-height: 48px;
   gap: 0;
   overflow: hidden;
-  padding: 0;
-  background: rgba(10, 13, 16, 0.58);
-  color: #fff7e7;
-  box-shadow: none;
-  text-transform: uppercase;
 }
 
 .mini-dice-launcher__quick::after {
   content: none;
 }
 
-.mini-dice-launcher__quick:hover,
-.mini-dice-launcher__quick:focus-visible {
-  background: rgba(28, 31, 29, 0.72);
-}
-
 .mini-dice-launcher__quick--d20 {
-  min-width: 58px;
-  background: rgba(9, 14, 19, 0.62);
+  color: rgba(217, 239, 255, 0.92);
 }
 
 .mini-dice-launcher__quick-icons {
@@ -144,7 +96,6 @@
 .mini-dice-launcher__tools,
 .mini-dice-launcher__voice,
 .mini-dice-launcher__hand {
-  width: 32px;
   padding: 0;
 }
 
@@ -153,46 +104,6 @@
   align-items: center;
   justify-content: flex-end;
   gap: 7px;
-}
-
-.mini-dice-launcher__tools {
-  border-color: rgba(240, 201, 106, 0.28);
-  color: #fff1c8;
-}
-
-.mini-dice-launcher__tools:hover {
-  background: rgba(240, 201, 106, 0.16);
-}
-
-.mini-dice-launcher__voice {
-  border-color: rgba(91, 159, 218, 0.28);
-  color: #d9efff;
-}
-
-.mini-dice-launcher__voice.dh-is-live {
-  background: rgba(105, 214, 145, 0.16);
-  color: #edfff4;
-}
-
-.mini-dice-launcher__voice.dh-needs-attention {
-  background: rgba(214, 91, 91, 0.14);
-  color: #ffe8e8;
-}
-
-.mini-dice-launcher__hand {
-  border-color: rgba(240, 201, 106, 0.3);
-  color: #fff1c8;
-}
-
-.mini-dice-launcher__hand.dh-is-raised {
-  background: rgba(240, 201, 106, 0.2);
-  color: #fff7e7;
-  box-shadow: none;
-}
-
-.mini-dice-launcher__hand:disabled {
-  cursor: default;
-  opacity: 0.42;
 }
 
 .mini-dice-launcher__panel {
@@ -246,16 +157,9 @@
 
 .mini-dice-launcher__panel-head .mini-dice-launcher__close {
   width: 28px;
+  min-width: 28px;
+  height: 28px;
   min-height: 28px;
-  padding: 0;
-  background: rgba(7, 9, 12, 0.36);
-  color: rgba(243, 234, 216, 0.68);
-}
-
-.mini-dice-launcher__panel-head .mini-dice-launcher__close:hover,
-.mini-dice-launcher__panel-head .mini-dice-launcher__close:focus-visible {
-  background: rgba(243, 234, 216, 0.08);
-  color: #fff7e7;
 }
 
 .mini-dice-launcher.dh-is-open .mini-dice-launcher__panel {
@@ -298,13 +202,11 @@
   font-weight: 850;
 }
 
-.mini-dice-launcher__tray button {
+.mini-dice-launcher__tray-button {
   width: 36px;
   min-width: 36px;
+  height: 36px;
   min-height: 36px;
-  padding: 0;
-  border-radius: 8px;
-  background: rgba(7, 9, 12, 0.46);
 }
 
 .mini-dice-launcher__tray .mini-dice-launcher__duality,
@@ -340,11 +242,12 @@
   flex-wrap: wrap;
 }
 
-.mini-dice-launcher__dice button {
+.mini-dice-launcher__die-button,
+.mini-dice-launcher__duality {
   width: 100%;
   min-width: 0;
+  height: 30px;
   min-height: 30px;
-  padding: 0;
 }
 
 .mini-dice-launcher__dice .feed-die-icon-wrap {
@@ -356,30 +259,19 @@
   font-size: 0.54rem;
 }
 
-.mini-dice-launcher__dice button:hover .feed-die-icon-wrap--neutral .feed-die-icon {
+.mini-dice-launcher__die-button:hover .feed-die-icon-wrap--neutral .feed-die-icon {
   filter: sepia(0.72) saturate(2.6) hue-rotate(344deg) brightness(1.18) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.48));
 }
 
 .mini-dice-launcher__dice .mini-dice-launcher__duality {
   width: 100%;
   min-width: 0;
-  border-color: rgba(91, 159, 218, 0.38);
   color: #eef6ff;
 }
 
 .mini-dice-launcher__dice .mini-dice-launcher__duality .feed-die-icon-wrap {
   width: 26px;
   height: 23px;
-}
-
-.mini-dice-launcher__panel button.dh-is-active,
-.mini-dice-launcher__panel button:hover,
-.mini-dice-launcher__bonus button.dh-is-active,
-.mini-dice-launcher__segmented button.dh-is-active,
-.mini-dice-launcher__segmented button:hover,
-.mini-stepper button:hover {
-  background: rgba(240, 201, 106, 0.14);
-  color: #fff7e7;
 }
 
 .mini-dice-launcher__bonus {
@@ -394,30 +286,8 @@
   background: rgba(243, 234, 216, 0.04);
 }
 
-.mini-dice-launcher__bonus button {
-  flex: 1 1 0;
-  min-width: 70px;
-  min-height: 26px;
-  padding: 0 9px;
-  background: transparent;
-}
-
-.mini-dice-launcher__bonus button.dh-is-danger {
-  background: rgba(151, 103, 240, 0.14);
-}
-
 .mini-dice-launcher__segmented {
   flex: 1 1 auto;
-  padding: 3px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(7, 9, 12, 0.42);
-}
-
-.mini-dice-launcher__segmented button {
-  flex: 1 1 0;
-  min-width: 0;
-  background: transparent;
 }
 
 .mini-dice-launcher__footer {
@@ -430,12 +300,14 @@
 .mini-dice-launcher__private {
   min-width: 0;
   min-height: 24px;
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-start;
   gap: 8px;
   padding: 0 2px;
-  border: 0;
-  background: transparent;
   color: rgba(243, 234, 216, 0.74);
+  font-size: 0.68rem;
+  font-weight: 950;
 }
 
 .mini-dice-launcher__private input {
@@ -457,35 +329,13 @@
   right: 6px;
   width: 24px;
   min-width: 24px;
+  height: 24px;
   min-height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(7, 9, 12, 0.48);
-  color: rgba(243, 234, 216, 0.62);
-}
-
-.mini-dice-launcher__reset:hover,
-.mini-dice-launcher__reset:focus-visible {
-  background: rgba(240, 201, 106, 0.12);
-  color: #fff7e7;
 }
 
 .mini-dice-launcher__roll {
   flex: 0 0 min(100%, 190px);
   min-width: 160px;
-  min-height: 46px;
-  padding: 0 18px;
-  background: rgba(240, 201, 106, 0.18);
-  color: #fff7e7;
-  box-shadow: none;
-  font-size: 0.82rem;
-  text-transform: uppercase;
-}
-
-.mini-dice-launcher__roll:disabled {
-  cursor: default;
-  opacity: 0.46;
 }
 
 .mini-stepper {
@@ -520,12 +370,6 @@
   text-align: center;
 }
 
-.mini-stepper button {
-  width: 26px;
-  min-height: 26px;
-  padding: 0;
-}
-
 @media (max-width: 920px) {
   .mini-dice-launcher {
     right: auto;
@@ -550,11 +394,6 @@
     justify-self: start;
     max-width: 100%;
     gap: 5px;
-  }
-
-  .mini-dice-launcher__voice,
-  .mini-dice-launcher__hand {
-    width: 30px;
   }
 
   .mini-dice-launcher__panel {

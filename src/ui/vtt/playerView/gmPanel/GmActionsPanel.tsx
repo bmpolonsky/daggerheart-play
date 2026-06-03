@@ -3,6 +3,7 @@ import { Bed, Coffee, Hourglass, Swords, Users } from "lucide-react";
 import { useStream } from "../../../../core/hooks/useStream";
 import type { RestType } from "../../../../domain/rules/rest";
 import { characterService, feedService } from "../../../../services/serviceRegistry";
+import { ChoiceCard } from "../../../components/common/ChoiceCard";
 import { playerViewUiActions } from "../playerViewUiState";
 
 export function GmActionsPanel() {
@@ -36,12 +37,12 @@ export function GmActionsPanel() {
         <RestRow restType="long" onRequest={() => requestRest('long')} />
         <TeamworkRow kind="groupAction" onRequest={() => requestTeamwork('groupAction')} />
         <TeamworkRow kind="tagTeam" onRequest={() => requestTeamwork('tagTeam')} />
-        <button className="player-gm-actions__rest-row" type="button" onClick={() => playerViewUiActions.openCountdownComposer()}>
+        <ChoiceCard className="player-gm-actions__rest-row" type="button" onClick={() => playerViewUiActions.openCountdownComposer()}>
           <Hourglass size={16} aria-hidden="true" />
           <span>
             <strong>Создать отсчет</strong>
           </span>
-        </button>
+        </ChoiceCard>
       </div>
     </section>
   );
@@ -56,12 +57,12 @@ function RestRow({
 }) {
   const Icon = restType === 'short' ? Coffee : Bed;
   return (
-    <button className="player-gm-actions__rest-row" type="button" onClick={onRequest}>
+    <ChoiceCard className="player-gm-actions__rest-row" type="button" onClick={onRequest}>
       <Icon size={16} aria-hidden="true" />
       <span>
         <strong>{restType === 'short' ? 'Короткий отдых' : 'Продолжительный отдых'}</strong>
       </span>
-    </button>
+    </ChoiceCard>
   );
 }
 
@@ -74,11 +75,11 @@ function TeamworkRow({
 }) {
   const Icon = kind === 'groupAction' ? Users : Swords;
   return (
-    <button className="player-gm-actions__rest-row" type="button" onClick={onRequest}>
+    <ChoiceCard className="player-gm-actions__rest-row" type="button" onClick={onRequest}>
       <Icon size={16} aria-hidden="true" />
       <span>
         <strong>{kind === 'groupAction' ? 'Групповой бросок' : 'Командный бросок'}</strong>
       </span>
-    </button>
+    </ChoiceCard>
   );
 }

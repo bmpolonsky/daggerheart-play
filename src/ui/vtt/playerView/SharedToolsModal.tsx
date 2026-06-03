@@ -4,6 +4,10 @@ import { ChevronDown, ExternalLink, X } from 'lucide-react';
 import { useStream } from '../../../core/hooks/useStream';
 import type { Character, DaggerheartClass } from '../../../domain/rules/types';
 import { characterService, contentService, encounterService, gameService, sceneTableService, tabletopService } from '../../../services/serviceRegistry';
+import { IconButton } from '../../components/common/IconButton';
+import { NavButton } from '../../components/common/NavButton';
+import { Surface } from '../../components/common/Surface';
+import { TabButton, Tabs } from '../../components/common/Tabs';
 import { openWorkspaceInNewTab, toolTabLabel } from './helpers';
 import { COMPENDIUM_COLLECTIONS } from './library/compendiumCollections';
 import { SharedToolsLibraryTab } from './library/SharedToolsLibraryTab';
@@ -87,40 +91,40 @@ export function SharedToolsModal({
   return (
     <section className="player-tools-modal" role="dialog" aria-modal="true" aria-label="Библиотека">
       <div className="player-tools-modal__backdrop" onClick={onClose} />
-      <div className="player-tools-modal__panel">
+      <Surface as="div" className="player-tools-modal__panel" padding="none">
         <header className="player-tools-modal__header">
           <div>
             <span>Библиотека</span>
           </div>
-          <button type="button" title="Закрыть" onClick={onClose}><X size={18} /></button>
+          <IconButton variant="ghost" type="button" title="Закрыть" aria-label="Закрыть" onClick={onClose}>
+            <X size={18} aria-hidden="true" />
+          </IconButton>
         </header>
         <nav className="player-tools-modal__nav" aria-label="Разделы инструментов">
           <div className="player-tools-modal__nav-stack">
             <div className="player-tools-modal__nav-group">
-              <button
+              <NavButton
                 aria-expanded={!gameNavCollapsed}
-                className={[
-                  'player-tools-modal__nav-label',
-                  gameLibraryTabs.includes(activeTab) ? 'dh-is-active' : '',
-                  gameNavCollapsed ? 'dh-is-collapsed' : ''
-                ].filter(Boolean).join(' ')}
+                active={gameLibraryTabs.includes(activeTab)}
+                className="player-tools-modal__nav-label"
+                collapsed={gameNavCollapsed}
                 type="button"
                 onClick={() => setGameNavCollapsed((current) => !current)}
               >
                 <span>Игра</span>
                 <ChevronDown className="player-tools-modal__nav-chevron" size={14} aria-hidden="true" />
-              </button>
+              </NavButton>
               {!gameNavCollapsed && (
                 <div className="player-tools-modal__subnav" aria-label="Разделы игры">
                   {gameLibraryTabs.map((item) => (
-                    <button
-                      className={activeTab === item ? 'dh-is-active' : ''}
+                    <NavButton
+                      active={activeTab === item}
                       key={item}
                       type="button"
                       onClick={() => onTabChange(item)}
                     >
                       <span>{toolTabLabel(item)}</span>
-                    </button>
+                    </NavButton>
                   ))}
                 </div>
               )}
@@ -146,30 +150,30 @@ export function SharedToolsModal({
             </div>
           )}
         </nav>
-        <nav className="player-tools-modal__mobile-tabs" aria-label="Разделы библиотеки">
+        <Tabs className="player-tools-modal__mobile-tabs" label="Разделы библиотеки">
           {gameLibraryTabs.map((item) => (
-            <button
-              className={activeTab === item ? 'dh-is-active' : ''}
+            <TabButton
+              active={activeTab === item}
               key={item}
               type="button"
               onClick={() => onTabChange(item)}
             >
               {toolTabLabel(item)}
-            </button>
+            </TabButton>
           ))}
           {standaloneTabs.filter((item) => item !== 'library' && item !== 'settings').map((item) => (
-            <button
-              className={activeTab === item ? 'dh-is-active' : ''}
+            <TabButton
+              active={activeTab === item}
               key={item}
               type="button"
               onClick={() => onTabChange(item)}
             >
               {toolTabLabel(item)}
-            </button>
+            </TabButton>
           ))}
           {compendiumCollections.map((collection) => (
-            <button
-              className={activeTab === 'library' && libraryView.selectedCollection === collection.key ? 'dh-is-active' : ''}
+            <TabButton
+              active={activeTab === 'library' && libraryView.selectedCollection === collection.key}
               key={`library-${collection.key}`}
               type="button"
               onClick={() => {
@@ -178,11 +182,11 @@ export function SharedToolsModal({
               }}
             >
               {collection.shortLabel}
-            </button>
+            </TabButton>
           ))}
           {settingsSections.map((section) => (
-            <button
-              className={activeTab === 'settings' && normalizedSettingsSection === section ? 'dh-is-active' : ''}
+            <TabButton
+              active={activeTab === 'settings' && normalizedSettingsSection === section}
               key={`settings-${section}`}
               type="button"
               onClick={() => {
@@ -191,10 +195,10 @@ export function SharedToolsModal({
               }}
             >
               {settingsSectionLabel(section)}
-            </button>
+            </TabButton>
           ))}
           {specialTabs.map((item) => (
-            <button
+            <TabButton
               key={`external-${item}`}
               type="button"
               onClick={() => {
@@ -202,9 +206,9 @@ export function SharedToolsModal({
               }}
             >
               {toolTabLabel(item)}
-            </button>
+            </TabButton>
           ))}
-        </nav>
+        </Tabs>
         <div className="player-tools-modal__body">
           {activeTab === 'scenes' && (
             <SharedToolsScenesTab
@@ -244,7 +248,7 @@ export function SharedToolsModal({
             />
           )}
         </div>
-      </div>
+      </Surface>
     </section>
   );
 }
@@ -262,24 +266,22 @@ function renderSettingsNavItem(
   const isActive = activeTab === item;
   return (
     <div className="player-tools-modal__nav-group" key={item}>
-      <button
+      <NavButton
         aria-expanded={!collapsed}
-        className={[
-          'player-tools-modal__nav-label',
-          isActive ? 'dh-is-active' : '',
-          collapsed ? 'dh-is-collapsed' : ''
-        ].filter(Boolean).join(' ')}
+        active={isActive}
+        className="player-tools-modal__nav-label"
+        collapsed={collapsed}
         type="button"
         onClick={onToggle}
       >
         <span>{toolTabLabel(item)}</span>
         <ChevronDown className="player-tools-modal__nav-chevron" size={14} aria-hidden="true" />
-      </button>
+      </NavButton>
       {!collapsed && (
         <div className="player-tools-modal__subnav" aria-label="Разделы настроек">
           {settingsSections.map((section) => (
-            <button
-              className={isActive && activeSettingsSection === section ? 'dh-is-active' : ''}
+            <NavButton
+              active={isActive && activeSettingsSection === section}
               key={section}
               type="button"
               onClick={() => {
@@ -288,7 +290,7 @@ function renderSettingsNavItem(
               }}
             >
               <span>{settingsSectionLabel(section)}</span>
-            </button>
+            </NavButton>
           ))}
         </div>
       )}
@@ -308,24 +310,22 @@ function renderLibraryNavItem(
   const isActive = activeTab === item;
   return (
     <div className="player-tools-modal__nav-group" key={item}>
-      <button
+      <NavButton
         aria-expanded={!collapsed}
-        className={[
-          'player-tools-modal__nav-label',
-          isActive ? 'dh-is-active' : '',
-          collapsed ? 'dh-is-collapsed' : ''
-        ].filter(Boolean).join(' ')}
+        active={isActive}
+        className="player-tools-modal__nav-label"
+        collapsed={collapsed}
         type="button"
         onClick={onToggle}
       >
         <span>{toolTabLabel(item)}</span>
         <ChevronDown className="player-tools-modal__nav-chevron" size={14} aria-hidden="true" />
-      </button>
+      </NavButton>
       {!collapsed && (
         <div className="player-tools-modal__subnav" aria-label="Разделы компендиума">
           {compendiumCollections.map((collection) => (
-            <button
-              className={libraryView.selectedCollection === collection.key ? 'dh-is-active' : ''}
+            <NavButton
+              active={libraryView.selectedCollection === collection.key}
               key={collection.key}
               type="button"
               onClick={() => {
@@ -335,7 +335,7 @@ function renderLibraryNavItem(
             >
               <span>{collection.shortLabel}</span>
               <small>{libraryView.collectionCounts[collection.key] ?? 0}</small>
-            </button>
+            </NavButton>
           ))}
         </div>
       )}
@@ -351,8 +351,8 @@ function renderNavItem(
 ) {
   return (
     <div className="player-tools-modal__nav-group" key={item}>
-      <button
-        className={!external && activeTab === item ? 'dh-is-active' : ''}
+      <NavButton
+        active={!external && activeTab === item}
         type="button"
         onClick={() => {
           if (external && (item === 'combat' || item === 'cards')) {
@@ -364,7 +364,7 @@ function renderNavItem(
       >
         <span>{toolTabLabel(item)}</span>
         {external && <ExternalLink size={14} aria-hidden="true" />}
-      </button>
+      </NavButton>
     </div>
   );
 }

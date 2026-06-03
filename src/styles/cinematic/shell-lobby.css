@@ -311,11 +311,6 @@
   padding-top: 2px;
 }
 
-.role-entry__file-actions .dh-button {
-  min-height: 34px;
-  padding: 0 10px;
-}
-
 .role-entry__file-actions > div {
   display: flex;
   gap: 8px;
@@ -443,10 +438,6 @@
   background: rgba(7, 9, 12, 0.54);
 }
 
-.role-entry__join-card .dh-button {
-  width: 100%;
-}
-
 .role-entry__games-card {
   gap: 10px;
   padding: 16px 18px;
@@ -460,59 +451,6 @@
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.role-entry__storage-tools .dh-button {
-  min-height: 34px;
-  padding: 0 10px;
-}
-
-.role-entry .dh-button,
-.role-entry__game-list article button,
-.role-entry__player-row button,
-.role-entry__icon-action {
-  min-height: 36px;
-  border: 1px solid var(--role-control-border);
-  border-radius: 8px;
-  background: var(--role-control);
-  color: rgba(255, 247, 231, 0.9);
-  box-shadow: none;
-  font-weight: 750;
-}
-
-.role-entry .dh-button {
-  padding: 0 12px;
-}
-
-.role-entry .dh-button:hover,
-.role-entry__game-list article button:hover,
-.role-entry__player-row button:hover,
-.role-entry__icon-action:hover {
-  border-color: var(--role-control-border-strong);
-  background: var(--role-control-hover);
-  color: #fff7e7;
-}
-
-.role-entry .dh-button:focus-visible,
-.role-entry__game-list article button:focus-visible,
-.role-entry__player-row button:focus-visible,
-.role-entry__icon-action:focus-visible,
-.role-entry__card input:focus,
-.role-entry__card select:focus {
-  border-color: var(--role-accent-border);
-  box-shadow: 0 0 0 2px rgba(240, 201, 106, 0.14);
-  outline: none;
-}
-
-.role-entry .dh-button.dh-variant-primary {
-  border-color: var(--role-accent-border);
-  background: var(--role-accent-fill);
-  color: #fff7e7;
-}
-
-.role-entry .dh-button.dh-variant-primary:hover {
-  border-color: rgba(240, 201, 106, 0.6);
-  background: rgba(216, 173, 83, 0.24);
 }
 
 .role-entry__card header span,
@@ -543,14 +481,7 @@
 .role-entry__card select {
   width: 100%;
   min-width: 0;
-  min-height: 38px;
   overflow: hidden;
-  padding: 0 10px;
-  border: 1px solid var(--role-control-border);
-  border-radius: 8px;
-  background: var(--role-control);
-  color: #fff4d6;
-  font: inherit;
   text-overflow: ellipsis;
 }
 
@@ -621,11 +552,6 @@
   font-size: 0.72rem;
 }
 
-.role-entry__game-list article button {
-  min-height: 32px;
-  padding: 0 10px;
-}
-
 .role-entry__game-actions {
   display: inline-flex;
   align-items: center;
@@ -660,7 +586,6 @@
 }
 
 .role-entry__invite-line button {
-  min-height: 38px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -670,11 +595,6 @@
   display: grid;
   grid-template-columns: minmax(90px, 1fr) minmax(130px, 1.3fr) 38px;
   gap: 8px;
-}
-
-.role-entry__player-row button {
-  min-height: 38px;
-  padding: 0 10px;
 }
 
 .role-entry__icon-action {

@@ -5,6 +5,8 @@ import { useState } from 'preact/hooks';
 import { TRAIT_LABELS } from '../../../../../domain/rules/constants';
 import type { TraitId } from '../../../../../domain/rules/types';
 import type { TableFeedDiceSummary, TableFeedItem } from '../../../../../domain/tabletop/feed';
+import { Button } from '../../../../components/common/Button';
+import { IconButton } from '../../../../components/common/IconButton';
 import { compactDamageTypeLabel } from '../../helpers';
 import type { TableViewRole } from '../../types';
 import { DiceIcon } from './DiceIcon';
@@ -27,16 +29,18 @@ export function RollFeedCard({
     <>
       <FeedCardHeader item={item} label={item.kicker}>
         {canReveal && (
-          <button
+          <Button
             className="feed-card-action"
+            variant="ghost"
+            size="xs"
             type="button"
             aria-label={`Показать всем бросок ${item.title}`}
             title="Показать всем"
             onClick={() => onRevealToPublic(item)}
+            iconBefore={<Eye size={13} aria-hidden="true" />}
           >
-            <Eye size={13} />
-            <span>Всем</span>
-          </button>
+            Всем
+          </Button>
         )}
       </FeedCardHeader>
       <div className="feed-roll-card">
@@ -85,16 +89,18 @@ function RollDetails({ rows }: { rows: Array<{ label: string; value: string }> }
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        className={`feed-roll-details-toggle ${open ? 'dh-is-open' : ''}`}
+      <IconButton
+        className="feed-roll-details-toggle"
+        variant={open ? 'primary' : 'ghost'}
+        size="xs"
         type="button"
         aria-expanded={open}
         aria-label="Подробности броска"
         title="Подробности броска"
         onClick={() => setOpen((current) => !current)}
       >
-        <Info size={13} />
-      </button>
+        <Info size={13} aria-hidden="true" />
+      </IconButton>
       {open && (
         <dl className="feed-roll-details-panel">
           {rows.map((row) => (

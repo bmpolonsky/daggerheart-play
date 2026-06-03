@@ -16,6 +16,7 @@ import { RosterGmDock } from "./gmPanel/RosterGmDock";
 import { SceneMusicControls } from "./gmPanel/SceneMusicControls";
 import { SectionTitle } from "./gmPanel/SectionTitle";
 import type { GmDockTab } from "./gmPanel/types";
+import { TabButton, Tabs } from "../../components/common/Tabs";
 
 export function GmRightPanel({
   activeAdversaryId,
@@ -72,14 +73,14 @@ export function GmRightPanel({
     <aside className="player-character-panel player-character-panel--gm-overview" aria-label="Инструменты сцены">
       <section className="player-gm-overview__actors" aria-label="Персонажи">
         <SectionTitle>Персонажи</SectionTitle>
-        <nav className="player-roster-tabs" aria-label="Типы участников">
-          <button className={activeRosterTab === 'players' ? 'dh-is-active' : ''} type="button" onClick={() => setActiveRosterTab('players')}>
+        <Tabs className="player-roster-tabs" label="Типы участников">
+          <TabButton active={activeRosterTab === 'players'} onClick={() => setActiveRosterTab('players')}>
             Игроки
-          </button>
-          <button className={activeRosterTab === 'scene' ? 'dh-is-active' : ''} type="button" onClick={() => setActiveRosterTab('scene')}>
+          </TabButton>
+          <TabButton active={activeRosterTab === 'scene'} onClick={() => setActiveRosterTab('scene')}>
             Сцена
-          </button>
-        </nav>
+          </TabButton>
+        </Tabs>
         {visibleRosterActors.length > 0 ? (
           <PlayerRoster
             actors={visibleRosterActors}

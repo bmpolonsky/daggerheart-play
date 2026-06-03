@@ -3,8 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { NumberField, SelectField, TextAreaField, TextField } from '../components/common/Field';
+import { IconButton } from '../components/common/IconButton';
 import { InlineStat } from '../components/common/InlineStat';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
+import { WizardStepButton } from '../components/common/WizardStepButton';
 import { CLASS_LABELS, DAGGERHEART_CLASSES, DOMAIN_LABELS, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
 import { classDomainsFor, domainCardFromLibrary, filterBuilderContent, isDomainCardForDomains, isSubclassForClass } from '../../domain/characterBuilder';
@@ -316,15 +318,19 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
         <nav className="cinematic-builder-nav" aria-label="Шаги повышения уровня">
           <div className="cinematic-builder-header">
             <h2 className="cinematic-builder-title">Повышение уровня</h2>
-            <button className="dh-icon-button" type="button" onClick={onClose} aria-label="Закрыть">
-              <X size={18} />
-            </button>
+            <IconButton variant="ghost" type="button" onClick={onClose} aria-label="Закрыть">
+              <X size={18} aria-hidden="true" />
+            </IconButton>
           </div>
           <div className="cinematic-builder-stepper">
             {steps.map((item, index) => (
-              <button className={`cinematic-builder-step-tab ${step === item.id ? 'dh-is-active' : ''}`} key={item.id} type="button" onClick={() => setStep(item.id)}>
-                <span className="dh-hex">{index + 1}</span><span>{item.label}</span>
-              </button>
+              <WizardStepButton
+                key={item.id}
+                active={step === item.id}
+                index={index + 1}
+                label={item.label}
+                onClick={() => setStep(item.id)}
+              />
             ))}
           </div>
         </nav>

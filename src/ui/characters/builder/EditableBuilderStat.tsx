@@ -1,4 +1,5 @@
 import type { TraitId } from '../../../domain/rules/types';
+import { SelectControl } from '../../components/common/Field';
 import { formatTraitValue, traitOptionsFor, type TraitDraft } from '../traitDistribution';
 
 export function EditableBuilderStat({
@@ -16,10 +17,10 @@ export function EditableBuilderStat({
   return (
     <label className="dh-stat">
       <span className="dh-stat-label">{label}</span>
-      <select className="dh-field" value={value ?? ''} onChange={(event) => onChange(event.currentTarget.value === '' ? null : Number(event.currentTarget.value))}>
+      <SelectControl value={value ?? ''} onChange={(event) => onChange(event.currentTarget.value === '' ? null : Number(event.currentTarget.value))}>
         <option value="">-</option>
         {traitOptionsFor(values, trait).map((option) => <option key={option} value={option}>{formatTraitValue(option)}</option>)}
-      </select>
+      </SelectControl>
     </label>
   );
 }

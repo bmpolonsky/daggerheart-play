@@ -13,20 +13,22 @@ import {
   currentSettingsInviteContext,
   p2pStatusLabel
 } from './helpers';
+import { Button } from '../../components/common/Button';
+import { SelectControl, TextControl, TextField } from '../../components/common/Field';
+import { Surface } from '../../components/common/Surface';
 import type { TableViewRole } from './types';
 
 export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
   return (
     <section className="player-tools-settings-panel">
       <header><strong>Игра</strong></header>
-      <label className="player-tools-field player-tools-game-name">
-        <span>Название игры</span>
-        <input
-          value={game.name}
-          onInput={(event) => gameService.updateGame({ name: event.currentTarget.value })}
-          placeholder="Без названия"
-        />
-      </label>
+      <TextField
+        className="player-tools-field player-tools-game-name"
+        label="Название игры"
+        value={game.name}
+        onInput={(event) => gameService.updateGame({ name: event.currentTarget.value })}
+        placeholder="Без названия"
+      />
       <label className="player-tools-toggle">
         <input
           type="checkbox"
@@ -58,28 +60,25 @@ export function SharedToolsPlayersSettingsPanel({
     <section className="player-tools-settings-panel">
       <header>
         <strong>Игроки</strong>
-        <button className="dh-button" type="button" onClick={() => sceneTableService.createPlayerSeat({ name: `Игрок ${playerSeats.length + 1}`, characterId: characterOptions[playerSeats.length]?.id })}>
+        <Button size="sm" type="button" onClick={() => sceneTableService.createPlayerSeat({ name: `Игрок ${playerSeats.length + 1}`, characterId: characterOptions[playerSeats.length]?.id })}>
           Добавить игрока
-        </button>
+        </Button>
       </header>
       <div className="player-tools-player-list">
         {playerSeats.map((seat) => (
-          <article className="player-tools-player-row" key={seat.id}>
-            <label>
-              <span>Имя</span>
-              <input value={seat.name} onInput={(event) => sceneTableService.updatePlayerSeat(seat.id, { name: event.currentTarget.value })} />
-            </label>
-            <label>
+          <Surface as="article" tone="subtle" className="player-tools-player-row" key={seat.id}>
+            <TextField label="Имя" value={seat.name} onInput={(event) => sceneTableService.updatePlayerSeat(seat.id, { name: event.currentTarget.value })} />
+            <label className="dh-label">
               <span>Персонаж</span>
-              <select value={seat.actorIds[0] ?? ''} onChange={(event) => sceneTableService.updatePlayerSeat(seat.id, { characterId: event.currentTarget.value || null })}>
+              <SelectControl value={seat.actorIds[0] ?? ''} onChange={(event) => sceneTableService.updatePlayerSeat(seat.id, { characterId: event.currentTarget.value || null })}>
                 <option value="">Не назначен</option>
                 {characterOptions.map((character) => (
                   <option key={character.id} value={character.id}>{character.name}</option>
                 ))}
-              </select>
+              </SelectControl>
             </label>
-            <button type="button" onClick={() => sceneTableService.removePlayerSeat(seat.id)}>Удалить</button>
-          </article>
+            <Button variant="danger" size="sm" type="button" onClick={() => sceneTableService.removePlayerSeat(seat.id)}>Удалить</Button>
+          </Surface>
         ))}
         {playerSeats.length === 0 && <p className="player-tools-empty">Игроки еще не созданы.</p>}
       </div>
@@ -152,34 +151,30 @@ export function SharedToolsConnectionSettingsPanel({
             <span>{inviteMessage || 'Ссылка открывает игру игрока и подключает его к комнате.'}</span>
           </header>
           <div className="player-tools-actions">
-            <button className="dh-button dh-variant-primary" type="button" onClick={() => void createInvite()}>
+            <Button variant="primary" size="sm" type="button" onClick={() => void createInvite()}>
               Создать ссылку
-            </button>
-            <button className="dh-button" type="button" disabled={!displayedInviteLink} onClick={() => void copyInvite()}>
+            </Button>
+            <Button size="sm" type="button" disabled={!displayedInviteLink} onClick={() => void copyInvite()}>
               Скопировать
-            </button>
+            </Button>
           </div>
-          <input readOnly aria-label="Ссылка приглашения" value={displayedInviteLink} placeholder="Ссылка появится после открытия комнаты" />
+          <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteLink} placeholder="Ссылка появится после открытия комнаты" />
         </div>
       )}
       {role === 'player' && (
         <div className="player-tools-edit-grid">
-          <label>
-            <span>Комната</span>
-            <input
-              value={syncRoomId}
-              onInput={(event) => setPlayerRoomId(event.currentTarget.value)}
-            />
-          </label>
-          <label>
-            <span>Пароль</span>
-            <input
-              type="password"
-              value={playerPassword}
-              onInput={(event) => setPlayerPassword(event.currentTarget.value)}
-              placeholder="Опционально"
-            />
-          </label>
+          <TextField
+            label="Комната"
+            value={syncRoomId}
+            onInput={(event) => setPlayerRoomId(event.currentTarget.value)}
+          />
+          <TextField
+            label="Пароль"
+            type="password"
+            value={playerPassword}
+            onInput={(event) => setPlayerPassword(event.currentTarget.value)}
+            placeholder="Опционально"
+          />
         </div>
       )}
       <div className="player-tools-sync__summary">
@@ -198,24 +193,23 @@ export function SharedToolsConnectionSettingsPanel({
       </div>
       <div className="player-tools-actions">
         {role === 'player' && (
-          <button className="dh-button dh-variant-primary" type="button" onClick={() => void p2pSessionService.startPlayerRoom({ roomId: playerRoomId, password: playerPassword })}>
+          <Button variant="primary" type="button" onClick={() => void p2pSessionService.startPlayerRoom({ roomId: playerRoomId, password: playerPassword })}>
             Подключиться
-          </button>
+          </Button>
         )}
         {role === 'gm' && (
-          <button className="dh-button" type="button" disabled={!canPublishSnapshot} title={!hasConnectedPlayers ? 'Сначала должен подключиться игрок.' : undefined} onClick={() => void p2pSessionService.publishSnapshot({ requirePeers: true })}>
+          <Button type="button" disabled={!canPublishSnapshot} title={!hasConnectedPlayers ? 'Сначала должен подключиться игрок.' : undefined} onClick={() => void p2pSessionService.publishSnapshot({ requirePeers: true })}>
             Обновить игроков
-          </button>
+          </Button>
         )}
         {role === 'player' && (
-          <button
-            className="dh-button"
+          <Button
             type="button"
             disabled={!canDisconnectP2P}
             onClick={() => void p2pSessionService.stop()}
           >
             Отключиться
-          </button>
+          </Button>
         )}
       </div>
     </section>

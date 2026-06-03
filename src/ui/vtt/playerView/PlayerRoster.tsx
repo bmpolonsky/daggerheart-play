@@ -1,5 +1,7 @@
 /** @jsxImportSource preact */
 import { Hand, Mic, MicOff, Plus } from 'lucide-react';
+import { ChoiceCard } from '../../components/common/ChoiceCard';
+import { IconButton } from '../../components/common/IconButton';
 import { cssImageUrl, initials } from './helpers';
 import type { PlayerRosterActor, PlayerViewedActor, TableViewRole } from './types';
 
@@ -36,14 +38,14 @@ export function PlayerRoster({
         const activationRequest = actor.activationRequest;
         return (
           <article
-            className={`player-roster__row ${active ? 'dh-is-active' : ''} ${locked ? 'dh-is-locked' : ''} ${activationRequest ? 'dh-has-activation' : ''} ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
+            className={`player-roster__row ${locked ? 'dh-is-locked' : ''} ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
             key={`${actor.kind}:${actor.actorId}`}
           >
-            <button
+            <ChoiceCard
               className="player-roster__open"
+              selected={active || Boolean(activationRequest)}
               disabled={locked}
               title={opensSheet ? actor.name : 'Детали скрыты от игроков'}
-              type="button"
               onClick={() => {
                 if (opensSheet) onOpenActor({ kind: actor.kind, actorId: actor.actorId });
               }}
@@ -63,13 +65,15 @@ export function PlayerRoster({
                 <strong>{actor.name}</strong>
                 <small>{actor.kind === 'character' ? actor.subtitle : actor.kind === 'environment' ? actor.subtitle || 'Окружение' : 'НПС'}</small>
               </span>
-            </button>
+            </ChoiceCard>
             {role === 'gm' && (
               <div className="player-roster__actions">
                 {actor.kind === 'character' && (
-                  <button
+                  <IconButton
                     aria-label={`Микрофон ${actor.name}`}
-                    className={`player-roster__mic ${actor.presence?.voiceLive && !actor.presence.voiceMuted ? 'dh-is-live' : ''}`}
+                    className="player-roster__mic"
+                    variant={actor.presence?.voiceLive && !actor.presence.voiceMuted ? 'primary' : 'ghost'}
+                    size="sm"
                     disabled={!actor.presence?.connected}
                     title={actor.presence?.connected ? 'Заглушить микрофон игрока' : 'Игрок не подключен'}
                     type="button"
@@ -79,12 +83,14 @@ export function PlayerRoster({
                     }}
                   >
                     {actor.presence?.voiceLive && !actor.presence.voiceMuted ? <Mic size={15} aria-hidden="true" /> : <MicOff size={15} aria-hidden="true" />}
-                  </button>
+                  </IconButton>
                 )}
                 {activationRequest && (
-                  <button
+                  <IconButton
                     aria-label={`Дать активацию ${actor.name}`}
                     className="player-roster__activation"
+                    variant="primary"
+                    size="sm"
                     title="Дать активацию и убрать из очереди"
                     type="button"
                     onClick={(event) => {
@@ -93,11 +99,13 @@ export function PlayerRoster({
                     }}
                   >
                     <Hand size={15} aria-hidden="true" />
-                  </button>
+                  </IconButton>
                 )}
-                <button
+                <IconButton
                   aria-label={`Добавить ${actor.name} на сцену${actor.isOnScene ? ' (уже на сцене)' : ''}`}
                   className="player-roster__add"
+                  variant="secondary"
+                  size="sm"
                   disabled={actor.isOnScene}
                   title={actor.isOnScene ? 'Уже на сцене' : 'Добавить на сцену'}
                   type="button"
@@ -107,7 +115,7 @@ export function PlayerRoster({
                   }}
                 >
                   <Plus size={15} aria-hidden="true" />
-                </button>
+                </IconButton>
               </div>
             )}
           </article>

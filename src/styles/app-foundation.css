@@ -1,0 +1,55 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0b0e10;
+  color: #edf2ef;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #0b0e10;
+  color: #edf2ef;
+}
+
+.app-loading {
+  width: 100vw;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  color: rgba(243, 234, 216, 0.78);
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.superapp-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  display: grid;
+  overflow: hidden;
+}
+
+.superapp-content {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.tool-viewport {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}

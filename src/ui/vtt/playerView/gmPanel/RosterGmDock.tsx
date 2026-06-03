@@ -4,6 +4,7 @@ import { GmActionsPanel } from "./GmActionsPanel";
 import { GmHandoutsPanel } from "./GmHandoutsPanel";
 import { LiveSceneSwitcher } from "./LiveSceneSwitcher";
 import type { GmDockTab } from "./types";
+import { TabButton, Tabs } from "../../../components/common/Tabs";
 
 export function RosterGmDock({
   activeTab,
@@ -18,17 +19,17 @@ export function RosterGmDock({
 }) {
   return (
     <section className="player-roster-gm-dock" aria-label="Библиотека">
-      <nav className="player-roster-gm-dock__tabs" aria-label="Разделы мастера">
-        <button className={activeTab === 'scenes' ? 'dh-is-active' : ''} type="button" onClick={() => onTabChange('scenes')}>
+      <Tabs className="player-roster-gm-dock__tabs" label="Разделы мастера">
+        <TabButton active={activeTab === 'scenes'} onClick={() => onTabChange('scenes')}>
           Сцены
-        </button>
-        <button className={activeTab === 'actions' ? 'dh-is-active' : ''} type="button" onClick={() => onTabChange('actions')}>
+        </TabButton>
+        <TabButton active={activeTab === 'actions'} onClick={() => onTabChange('actions')}>
           Действия
-        </button>
-        <button className={activeTab === 'handouts' ? 'dh-is-active' : ''} type="button" onClick={() => onTabChange('handouts')}>
+        </TabButton>
+        <TabButton active={activeTab === 'handouts'} onClick={() => onTabChange('handouts')}>
           Раздатка
-        </button>
-      </nav>
+        </TabButton>
+      </Tabs>
       {activeTab === 'scenes' ? (
         <LiveSceneSwitcher sceneTable={sceneTable} />
       ) : activeTab === 'actions' ? (

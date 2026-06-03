@@ -13,6 +13,8 @@ import {
   IconSword,
   IconZap,
 } from "@combat/components/icons";
+import { Button } from "../../../../ui/components/common/Button";
+import { IconButton } from "../../../../ui/components/common/IconButton";
 
 interface AdversaryDetailsModalProps {
   adversary: Adversary;
@@ -126,34 +128,37 @@ export function AdversaryDetailsModal({
               </div>
             <div className="flex shrink-0 items-center gap-1.5">
               {adversary.isCustom && onEdit && (
-                <button
+                <IconButton
                   type="button"
                   onClick={onEdit}
-                  className="rounded-sm bg-black/20 p-2 text-blue-200 transition-colors hover:bg-black/40 hover:text-blue-100 backdrop-blur-xs"
+                  variant="secondary"
+                  size="sm"
                   title="Редактировать"
                   aria-label="Редактировать"
                 >
                   <IconEdit size={19} />
-                </button>
+                </IconButton>
               )}
-              <button
+              <IconButton
                 type="button"
                 onClick={onDuplicate}
-                className="rounded-sm bg-black/20 p-2 text-dagger-gold transition-colors hover:bg-black/40 hover:text-yellow-300 backdrop-blur-xs"
+                variant="secondary"
+                size="sm"
                 title="Создать копию"
                 aria-label="Создать копию"
               >
                 <IconCopy size={19} />
-              </button>
-              <button
+              </IconButton>
+              <IconButton
                 type="button"
                 onClick={onClose}
-                className="rounded-full bg-black/20 p-2 text-slate-400 transition-colors hover:bg-black/40 hover:text-white backdrop-blur-xs"
+                variant="ghost"
+                size="sm"
                 title="Закрыть"
                 aria-label="Закрыть"
               >
                 <IconClose size={24} />
-              </button>
+              </IconButton>
             </div>
           </div>
 
@@ -288,24 +293,28 @@ export function AdversaryDetailsModal({
 
       <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-700 bg-slate-900 p-4">
         <div className="flex w-full gap-3 md:w-auto">
-          <button
+          <Button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-sm border border-transparent px-4 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-white md:flex-none"
+            variant="ghost"
+            grow
+            className="md:flex-none"
           >
             Закрыть
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => {
               onAdd();
               onClose();
             }}
-            className="flex flex-1 items-center justify-center gap-2 rounded-sm bg-dagger-gold px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-dagger-dark shadow-lg transition-all hover:bg-yellow-500 hover:shadow-dagger-gold/20 md:flex-none"
+            variant="primary"
+            grow
+            iconBefore={<IconSword size={16} />}
+            className="md:flex-none"
           >
-            <IconSword size={16} />
             Добавить в бой
-          </button>
+          </Button>
         </div>
       </div>
     </aside>
