@@ -8,6 +8,11 @@ import { snapshotPersistedState } from "../../src/stores/persistedState";
 import { gameService, importExportService, sceneTableService } from "../../src/services/serviceRegistry";
 import { AssetService } from "../../src/services/AssetService";
 import { ImportExportService } from "../../src/services/ImportExportService";
+import { PersistenceService } from "../../src/services/PersistenceService";
+
+function createMemoryImportExportService(assetService: AssetService): ImportExportService {
+  return new ImportExportService(assetService, new PersistenceService(null, assetService));
+}
 
 test('game bundles are real zip folders and legacy JSON remains importable', async () => {
   resetAllStores();
@@ -21,7 +26,7 @@ test('game bundles are real zip folders and legacy JSON remains importable', asy
       assetBlobs.delete(id);
     }
   });
-  const bundleImportExportService = new ImportExportService(memoryAssetService);
+  const bundleImportExportService = createMemoryImportExportService(memoryAssetService);
   gameService.updateGame({ name: 'Zip Game' });
   await memoryAssetService.putAssetBlob({
     id: 'asset-bundle',
@@ -61,7 +66,7 @@ test('game bundle export extracts embedded scene data URLs into resource files',
       assetBlobs.delete(id);
     }
   });
-  const bundleImportExportService = new ImportExportService(memoryAssetService);
+  const bundleImportExportService = createMemoryImportExportService(memoryAssetService);
   const sceneId = sceneTableStore.get().activeSceneId;
   sceneTableService.updateScene(sceneId, { backgroundUrl: 'data:image/png;base64,AQIDBA==' });
   sceneTableService.setSceneMusicTrack(sceneId, { sourceUrl: 'data:audio/mpeg;base64,BQYH', title: 'battle.mp3' });

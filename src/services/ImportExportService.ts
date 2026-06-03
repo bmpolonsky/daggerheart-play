@@ -1,18 +1,18 @@
-import { applyBrowserCustomContent, loadBrowserCustomContent, readBrowserCustomContent } from '../core/persistence/browserProjectContent';
+import { loadBrowserCustomContent, readBrowserCustomContent } from '../core/persistence/browserProjectContent';
 import { readZipEntries, writeZip, zipTextEntry, type ZipEntry, type ZipFileEntry } from '../core/archive/zip';
-import { hydratePersistedState, isPersistedState, normalizePersistedState, snapshotPersistedState } from '../stores/persistedState';
+import { isPersistedState, normalizePersistedState, snapshotPersistedState } from '../stores/persistedState';
 import {
   assetResourcePath,
   createGameDocument,
   isGameDocument,
   isLegacyGameArchive,
-  gameDocumentCustomContent,
   gameDocumentToPersistedState,
   type GameDocument
 } from '../domain/game/gameDocument';
 import type { MapAsset } from '../domain/tabletop/types';
 import type { PersistedState } from '../domain/rules/types';
 import type { AssetService } from './AssetService';
+import type { PersistenceService } from './PersistenceService';
 
 export interface GameImportPreview {
   ok: boolean;
@@ -28,8 +28,12 @@ export interface GameImportPreview {
   };
 }
 
+export type GameDocumentReadResult =
+  | { ok: true; document: GameDocument; entries: ZipEntry[] }
+  | { ok: false; message: string };
+
 export class ImportExportService {
-  constructor(private assetService?: AssetService) {}
+  constructor(private assetService: AssetService | undefined, private persistenceService: Pick<PersistenceService, 'importGameDocument'>) {}
 
   exportJson(pretty = true): string {
     return this.exportGameJson(pretty);
@@ -54,6 +58,16 @@ export class ImportExportService {
     anchor.download = filename;
     anchor.click();
     window.URL.revokeObjectURL(url);
+  }
+
+  async importFile(file: Blob): Promise<{ ok: true } | { ok: false; message: string }> {
+    const result = await this.readGameDocumentFromFile(file);
+    if (!result.ok) {
+      return result;
+    }
+    await this.importGameAssets(result.document, result.entries);
+    await this.persistenceService.importGameDocument(result.document);
+    return { ok: true };
   }
 
   async exportGameBundle(): Promise<Blob> {
@@ -85,24 +99,18 @@ export class ImportExportService {
     window.URL.revokeObjectURL(url);
   }
 
-  importJson(json: string): { ok: true } | { ok: false; message: string } {
-    try {
-      const parsed = JSON.parse(json) as unknown;
-      const document = parseImportPayload(parsed);
-      if (!document) {
-        return { ok: false, message: 'Файл не похож на экспорт Daggerheart Play.' };
-      }
-      hydratePersistedState(gameDocumentToPersistedState(document));
-      applyBrowserCustomContent(gameDocumentCustomContent(document));
-      return { ok: true };
-    } catch (error) {
-      return { ok: false, message: error instanceof Error ? error.message : 'Не удалось прочитать JSON.' };
+  async importJson(json: string): Promise<{ ok: true } | { ok: false; message: string }> {
+    const result = this.readGameDocumentFromJson(json);
+    if (!result.ok) {
+      return result;
     }
+    await this.persistenceService.importGameDocument(result.document);
+    return { ok: true };
   }
 
-  async importFile(file: Blob): Promise<{ ok: true } | { ok: false; message: string }> {
+  async readGameDocumentFromFile(file: Blob): Promise<GameDocumentReadResult> {
     if (!looksLikeJsonFile(file)) {
-      const bundleResult = await this.importGameBundle(file).catch((error: unknown) => ({
+      const bundleResult = await this.readGameBundleDocument(file).catch((error: unknown) => ({
         ok: false as const,
         message: error instanceof Error ? error.message : 'Не удалось прочитать архив игры.'
       }));
@@ -111,12 +119,12 @@ export class ImportExportService {
       }
     }
     const text = await file.text();
-    const jsonResult = this.importJson(text);
+    const jsonResult = this.readGameDocumentFromJson(text);
     if (jsonResult.ok || looksLikeJson(text)) {
       return jsonResult;
     }
     try {
-      return await this.importGameBundle(file);
+      return await this.readGameBundleDocument(file);
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : 'Не удалось прочитать архив игры.' };
     }
@@ -128,9 +136,8 @@ export class ImportExportService {
     if (!document) {
       return { ok: false, message: 'Архив не похож на папку игры Daggerheart Play.' };
     }
-    hydratePersistedState(gameDocumentToPersistedState(document));
-    applyBrowserCustomContent(gameDocumentCustomContent(document));
     await this.importGameAssets(document, entries);
+    await this.persistenceService.importGameDocument(document);
     return { ok: true };
   }
 
@@ -151,15 +158,37 @@ export class ImportExportService {
     return createGameDocument(snapshotPersistedState(), readBrowserCustomContent());
   }
 
-  private async importGameAssets(document: GameDocument, entries: ZipEntry[]): Promise<void> {
+  async importGameAssets(document: GameDocument, entries: ZipEntry[] = []): Promise<void> {
     if (!this.assetService) return;
     for (const asset of document.files['resources/assets.json']) {
       if (asset.storage !== 'indexeddb') continue;
       const path = assetResourcePath(asset);
       const entry = entries.find((item) => item.path === path);
       if (!entry) continue;
-      await this.assetService.putAssetBlob(asset, new Blob([bytesToBlobPart(entry.bytes)], { type: asset.mimeType || 'application/octet-stream' }));
+      await this.assetService.putAssetBlob(asset, new Blob([bytesToBlobPart(entry.bytes)], { type: asset.mimeType || 'application/octet-stream' }), { updateSceneTable: false });
     }
+  }
+
+  private readGameDocumentFromJson(json: string): GameDocumentReadResult {
+    try {
+      const parsed = JSON.parse(json) as unknown;
+      const document = parseImportPayload(parsed);
+      if (!document) {
+        return { ok: false, message: 'Файл не похож на экспорт Daggerheart Play.' };
+      }
+      return { ok: true, document, entries: [] };
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : 'Не удалось прочитать JSON.' };
+    }
+  }
+
+  private async readGameBundleDocument(file: Blob): Promise<GameDocumentReadResult> {
+    const entries = await readZipEntries(file);
+    const document = gameDocumentFromZipEntries(entries);
+    if (!document) {
+      return { ok: false, message: 'Архив не похож на папку игры Daggerheart Play.' };
+    }
+    return { ok: true, document, entries };
   }
 }
 

@@ -1,7 +1,7 @@
 import { createGameDocumentStore, type GameDocumentStore } from '../core/persistence/gameDocumentStore';
-import { loadBrowserCustomContent, readBrowserCustomContent } from '../core/persistence/browserProjectContent';
+import { applyBrowserCustomContent, loadBrowserCustomContent, readBrowserCustomContent } from '../core/persistence/browserProjectContent';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../domain/p2p/sessionLinks';
-import { createGameDocument, isGameDocument, gameDocumentToPersistedState } from '../domain/game/gameDocument';
+import { createGameDocument, isGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState } from '../domain/game/gameDocument';
 import type { GameDocument } from '../domain/game/gameDocument';
 import { createGameState, createEncounterState, createSceneTableState, createUiState } from '../domain/rules/factories';
 import { resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
@@ -124,6 +124,27 @@ export class PersistenceService {
     this.applyStoredDocument(document);
     await loadBrowserCustomContent();
     return true;
+  }
+
+  async importGameDocument(document: GameDocument): Promise<void> {
+    await this.flushPersistNow();
+    if (!this.documentStore || typeof window === 'undefined' || isRemotePlayerJoin()) {
+      applyBrowserCustomContent(gameDocumentCustomContent(document));
+      this.applyStoredDocument(document);
+      return;
+    }
+
+    this.isApplyingStoredDocument = true;
+    try {
+      await this.documentStore.save(document);
+      const storedDocument = storedDocumentToGameDocument(await this.documentStore.load());
+      const appliedDocument = storedDocument ?? document;
+      applyBrowserCustomContent(gameDocumentCustomContent(appliedDocument));
+      this.applyStoredDocument(appliedDocument);
+      void this.refreshStoredGames();
+    } finally {
+      this.isApplyingStoredDocument = false;
+    }
   }
 
   async removeStoredGame(id: string): Promise<boolean> {

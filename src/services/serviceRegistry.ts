@@ -61,7 +61,7 @@ export const tabletopService = new TabletopService({
   sceneTableService
 });
 export const persistenceService = new PersistenceService(undefined, assetService);
-export const importExportService = new ImportExportService(assetService);
+export const importExportService = new ImportExportService(assetService, persistenceService);
 export const uiService = new UiService();
 
 export async function bootServices(): Promise<void> {

@@ -54,6 +54,12 @@ class DelayedMemoryGameDocumentStore extends MemoryGameDocumentStore {
   }
 }
 
+class FailingSaveMemoryGameDocumentStore extends MemoryGameDocumentStore {
+  async save(_document: GameDocument): Promise<void> {
+    throw new Error('save failed');
+  }
+}
+
 test('persistence mirrors the exported game document into IndexedDB with custom tool content', async () => {
   resetAllStores();
   const originalWindow = globalThis.window;
@@ -197,6 +203,69 @@ test('persistence autosaves newly created characters across reloads', async () =
     await service.whenReady();
 
     assert.equal(characterService.getCharacter(character.id)?.name, 'Автосохраненный герой');
+  } finally {
+    service?.stop();
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});
+
+test('persistence imports a game document atomically with shared characters', async () => {
+  resetAllStores();
+  const originalWindow = globalThis.window;
+  const documentStore = new MemoryGameDocumentStore();
+  const importedHero = characterService.createCharacter({ name: 'Импортированный герой' });
+  gameService.updateGame({ name: 'Импортированная игра' });
+  gameService.setFear(8);
+  sceneTableService.updateScene(sceneTableStore.get().activeSceneId, { backgroundUrl: 'https://example.test/imported-scene.webp' });
+  const importedDocument = JSON.parse(importExportService.exportGameJson(false)) as GameDocument;
+  resetAllStores();
+  Object.defineProperty(globalThis, 'window', {
+    value: createFakeWindow(),
+    configurable: true
+  });
+  let service: PersistenceService | null = null;
+
+  try {
+    service = new PersistenceService(documentStore);
+    service.start();
+    await service.whenReady();
+    await service.importGameDocument(importedDocument);
+
+    assert.equal(gameService.game$.get().name, 'Импортированная игра');
+    assert.equal(gameService.game$.get().fear, 8);
+    assert.equal(characterService.getCharacter(importedHero.id)?.name, 'Импортированный герой');
+    assert.equal(sceneTableStore.get().scenes[sceneTableStore.get().activeSceneId].backgroundUrl, 'https://example.test/imported-scene.webp');
+    assert.equal(documentStore.state?.files['data/characters.json'].entities[importedHero.id]?.name, 'Импортированный герой');
+  } finally {
+    service?.stop();
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});
+
+test('persistence does not apply imported game when saving the document fails', async () => {
+  resetAllStores();
+  const originalWindow = globalThis.window;
+  gameService.updateGame({ name: 'Текущая игра' });
+  const importedHero = characterService.createCharacter({ name: 'Не должен появиться' });
+  gameService.updateGame({ name: 'Несохраненный импорт' });
+  const importedDocument = JSON.parse(importExportService.exportGameJson(false)) as GameDocument;
+  resetAllStores();
+  gameService.updateGame({ name: 'Текущая игра' });
+  const documentStore = new FailingSaveMemoryGameDocumentStore();
+  Object.defineProperty(globalThis, 'window', {
+    value: createFakeWindow(),
+    configurable: true
+  });
+  let service: PersistenceService | null = null;
+
+  try {
+    service = new PersistenceService(documentStore);
+    service.start();
+    await service.whenReady();
+
+    await assert.rejects(() => service!.importGameDocument(importedDocument), /save failed/);
+    assert.equal(gameService.game$.get().name, 'Текущая игра');
+    assert.equal(characterService.getCharacter(importedHero.id), null);
   } finally {
     service?.stop();
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });

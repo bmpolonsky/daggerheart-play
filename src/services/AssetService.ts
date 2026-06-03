@@ -4,6 +4,10 @@ import { assetResourcePath } from '../domain/game/gameDocument';
 import { sceneTableStore } from '../stores/gameStores';
 import { createAssetBlobStore, type AssetBlobStore } from '../core/persistence/assetBlobStore';
 
+interface PutAssetBlobOptions {
+  updateSceneTable?: boolean;
+}
+
 export class AssetService {
   constructor(private blobStore: AssetBlobStore | null = createAssetBlobStore()) {}
 
@@ -119,7 +123,7 @@ export class AssetService {
     };
   }
 
-  async putAssetBlob(asset: MapAsset, blob: Blob): Promise<void> {
+  async putAssetBlob(asset: MapAsset, blob: Blob, options: PutAssetBlobOptions = {}): Promise<void> {
     const normalized: MapAsset = {
       ...asset,
       storage: 'indexeddb',
@@ -128,6 +132,9 @@ export class AssetService {
       resourcePath: assetResourcePath(asset)
     };
     await this.putBlob(normalized.id, blob);
+    if (options.updateSceneTable === false) {
+      return;
+    }
     sceneTableStore.update((state) => ({
       ...state,
       assets: { ...state.assets, [normalized.id]: normalized }

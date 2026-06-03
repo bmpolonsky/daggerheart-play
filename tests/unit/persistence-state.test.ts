@@ -6,7 +6,7 @@ import { snapshotPersistedState, hydratePersistedState } from "../../src/stores/
 import { characterService, encounterService, importExportService, sceneTableService } from "../../src/services/serviceRegistry";
 import type { GameDocument } from "../../src/domain/game/gameDocument";
 
-test('persistence v4 includes table scenes and import/export hydrates them', () => {
+test('persistence v4 includes table scenes and import/export hydrates them', async () => {
   resetAllStores();
   sceneTableService.updateSceneTokens([{
     id: 'character:test',
@@ -45,7 +45,7 @@ test('persistence v4 includes table scenes and import/export hydrates them', () 
   hydratePersistedState({ ...snapshot, sceneTable: createSceneTableState() });
   assert.equal(sceneTableStore.get().scenes[sceneTableStore.get().activeSceneId].tokens.length, 0);
 
-  const result = importExportService.importJson(JSON.stringify(snapshot));
+  const result = await importExportService.importJson(JSON.stringify(snapshot));
   assert.deepEqual(result, { ok: true });
   const importedSceneTable = sceneTableStore.get();
   assert.equal(importedSceneTable.scenes[importedSceneTable.activeSceneId].tokens[0]?.id, 'character:test');
@@ -62,7 +62,7 @@ test('persistence v4 includes table scenes and import/export hydrates them', () 
   assert.equal(document.files['resources/assets.json'].length, 1);
   assert.equal(document.files['data/scene-table.json'].assets['asset-map']?.name, 'Карта руин');
   assert.equal(importExportService.previewImportJson(JSON.stringify(document)).ok, true);
-  assert.deepEqual(importExportService.importJson(JSON.stringify(document)), { ok: true });
+  assert.deepEqual(await importExportService.importJson(JSON.stringify(document)), { ok: true });
 
   const legacyArchive = {
     kind: 'daggerheart-play:game-archive',
@@ -123,7 +123,7 @@ test('persistence normalizes countdown visibility and encounter environments', (
   assert.equal(encounter.environments[environment.id]?.name, 'Затопленный рынок');
 });
 
-test('v3 persistence snapshots are rejected after the migration cutoff', () => {
+test('v3 persistence snapshots are rejected after the migration cutoff', async () => {
   resetAllStores();
   const snapshot = snapshotPersistedState();
   const legacy = {
@@ -150,7 +150,7 @@ test('v3 persistence snapshots are rejected after the migration cutoff', () => {
     }
   };
 
-  const result = importExportService.importJson(JSON.stringify(legacy));
+  const result = await importExportService.importJson(JSON.stringify(legacy));
   assert.equal(result.ok, false);
   const state = sceneTableStore.get();
   assert.equal(state.schemaVersion, 4);
