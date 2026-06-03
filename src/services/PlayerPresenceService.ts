@@ -22,7 +22,8 @@ export interface PlayerVoiceControlMessage {
 }
 
 export class PlayerPresenceService {
-  readonly presenceStore = new Store<Record<string, PlayerPresence>>({});
+  private presenceStore = new Store<Record<string, PlayerPresence>>({});
+  readonly presence$ = this.presenceStore.toStream();
 
   upsert(presence: PlayerPresence): void {
     if (!isPlayerPresence(presence)) return;

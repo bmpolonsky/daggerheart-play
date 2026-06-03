@@ -78,11 +78,11 @@ export interface ManualDiceRollRequest {
 type ManualDiceRollResult = ReturnType<typeof rollFormula> & { diceTones?: DiceVisualTone[] };
 
 export class DiceService {
-  readonly rollLogStore = rollLogStore;
-  private readonly feedService = new FeedService();
+  readonly rollLog$ = rollLogStore.toStream();
+  private feedService = new FeedService();
 
   rollAction(request: ActionRollRequest): ActionRollEntry {
-    const charactersState = charactersStore.getSnapshot();
+    const charactersState = charactersStore.get();
     const actor = request.actorId ? charactersState.entities[request.actorId] : null;
     const difficulty = Math.max(0, toSafeInteger(request.difficulty, 12));
     const hopeDie = rollDie(12);
@@ -182,7 +182,7 @@ export class DiceService {
   }
 
   rollReaction(request: ReactionRollRequest): ReactionRollEntry {
-    const charactersState = charactersStore.getSnapshot();
+    const charactersState = charactersStore.get();
     const actor = request.actorId ? charactersState.entities[request.actorId] : null;
     const difficulty = Math.max(0, toSafeInteger(request.difficulty, 12));
     const hopeDie = rollDie(12);
@@ -277,7 +277,7 @@ export class DiceService {
   }
 
   rollDamage(request: DamageRollRequest): DamageRollEntry {
-    const actor = request.actorId ? charactersStore.getSnapshot().entities[request.actorId] : null;
+    const actor = request.actorId ? charactersStore.get().entities[request.actorId] : null;
     const damageType = request.damageType ?? 'physical';
     const rolled = rollFormula(request.formula, { critical: request.critical });
     const entry: DamageRollEntry = {
@@ -302,7 +302,7 @@ export class DiceService {
 
   rollManualDice(request: ManualDiceRollRequest): ManualDiceRollEntry {
     this.assertManualDiceFormula(request.formula);
-    const actor = request.actorId ? charactersStore.getSnapshot().entities[request.actorId] : null;
+    const actor = request.actorId ? charactersStore.get().entities[request.actorId] : null;
     const rolled = this.rollManualDiceFormula(request);
     const label = request.label?.trim() || undefined;
     const actorName = actor?.name ?? request.actorName?.trim() ?? 'Бросок';
@@ -391,7 +391,7 @@ export class DiceService {
   }
 
   rollGmAttackCheck(request: GmAttackCheckRequest): ManualDiceRollEntry | null {
-    const encounter = encounterStore.getSnapshot();
+    const encounter = encounterStore.get();
     const adversary = encounter.adversaries[request.adversaryId];
     if (!adversary) return null;
 
@@ -400,7 +400,7 @@ export class DiceService {
     const selectedExperiences = adversary.experiences.filter((experience) => selectedExperienceIds.has(experience.id));
     if (selectedExperiences.length > 0) {
       if (request.spendFearForExperiences !== false) {
-        const game = gameStore.getSnapshot();
+        const game = gameStore.get();
         if (game.fear >= selectedExperiences.length) {
           gameStore.update((state) => ({ ...state, fear: Math.max(0, state.fear - selectedExperiences.length), updatedAt: nowIso() }));
           selectedExperiences.forEach((experience) => modifiers.push({ label: `Опыт: ${experience.name}`, value: experience.modifier }));

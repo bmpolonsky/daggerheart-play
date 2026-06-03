@@ -28,17 +28,17 @@ test('death move feed request is created for any service HP transition to last s
   characterService.updateResourceMax(character.id, 'hp', 2);
   characterService.markSlots(character.id, 'hp', 2);
 
-  assert.equal(feedStore.getSnapshot().filter((entry) => entry.type === 'deathMove' && entry.deathMove.actor.actorId === character.id).length, 1);
+  assert.equal(feedStore.get().filter((entry) => entry.type === 'deathMove' && entry.deathMove.actor.actorId === character.id).length, 1);
 
   characterService.markSlots(character.id, 'hp', 1);
-  assert.equal(feedStore.getSnapshot().filter((entry) => entry.type === 'deathMove' && entry.deathMove.actor.actorId === character.id).length, 1);
+  assert.equal(feedStore.get().filter((entry) => entry.type === 'deathMove' && entry.deathMove.actor.actorId === character.id).length, 1);
 
   resetAllStores();
   const maxReduced = firstCharacter();
   characterService.markSlots(maxReduced.id, 'hp', 2);
   characterService.updateResourceMax(maxReduced.id, 'hp', 2);
 
-  assert.equal(feedStore.getSnapshot().filter((entry) => entry.type === 'deathMove' && entry.deathMove.actor.actorId === maxReduced.id).length, 1);
+  assert.equal(feedStore.get().filter((entry) => entry.type === 'deathMove' && entry.deathMove.actor.actorId === maxReduced.id).length, 1);
 });
 
 test('defeated status transition creates a fresh death move card even when an old one is open', () => {
@@ -146,13 +146,13 @@ test('death move feed cards are actor scoped and avoid duplicate open cards', ()
   const otherCharacter = characterService.createCharacter({ name: 'Другой персонаж' });
   const first = feedService.requestDeathMove({ actor: { actorId: character.id, actorName: character.name, actorType: 'character' }, publication: 'public' });
   const second = feedService.requestDeathMove({ actor: { actorId: character.id, actorName: character.name, actorType: 'character' }, publication: 'public' });
-  const item = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'player', actorId: character.id })[0];
+  const item = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'player', actorId: character.id })[0];
 
   assert.equal(first.id, second.id);
   assert.equal(item?.kind, 'deathMove');
   assert.equal(item?.deathMove?.actor.actorId, character.id);
   assert.equal(feedService.updateDeathMove(first.id, { choice: 'avoidDeath' }, { actorId: otherCharacter.id }), null);
-  const afterWrongActor = feedStore.getSnapshot().find((entry) => entry.id === first.id);
+  const afterWrongActor = feedStore.get().find((entry) => entry.id === first.id);
   assert.equal(afterWrongActor?.type === 'deathMove' ? afterWrongActor.deathMove.choice : undefined, undefined);
 
   const risk = feedService.updateDeathMove(first.id, {
@@ -165,7 +165,7 @@ test('death move feed cards are actor scoped and avoid duplicate open cards', ()
 });
 
 function deathMoveCardsForActor(actorId: string): DeathMoveFeedEntry[] {
-  return feedStore.getSnapshot()
+  return feedStore.get()
     .filter(isDeathMoveFeedEntry)
     .filter((entry) => entry.deathMove.actor.actorId === actorId);
 }

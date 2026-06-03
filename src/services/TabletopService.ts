@@ -63,10 +63,10 @@ export type EncounterFlowDispatchResult =
   | { kind: 'openDrawer'; tab: 'gm' | 'log' };
 
 export class TabletopService {
-  constructor(private readonly dependencies: TabletopServiceDependencies) {}
+  constructor(private dependencies: TabletopServiceDependencies) {}
 
   createCharacterOnActiveScene(input?: Partial<Character> & { className?: Character['className'] }): CreatedTableCharacter {
-    const existingCharacters = this.dependencies.characterService.charactersStore.getSnapshot();
+    const existingCharacters = this.dependencies.characterService.characters$.get();
     const character = this.dependencies.characterService.createCharacter({
       name: input?.name ?? `Герой ${existingCharacters.order.length + 1}`,
       playerName: input?.playerName ?? '',
@@ -86,9 +86,9 @@ export class TabletopService {
     return this.placeActorOnScene({ kind: 'adversary', id: adversaryId }) ?? tokenIdFor('adversary', adversaryId);
   }
 
-  placeActorOnScene(actor: ActorRef, sceneId = this.dependencies.sceneTableService.sceneTableStore.getSnapshot().activeSceneId): string | null {
+  placeActorOnScene(actor: ActorRef, sceneId = this.dependencies.sceneTableService.sceneTable$.get().activeSceneId): string | null {
     const token = this.dependencies.sceneTableService.addActorTokenToScene(sceneId, actor);
-    if (token && this.dependencies.sceneTableService.sceneTableStore.getSnapshot().activeSceneId === sceneId) {
+    if (token && this.dependencies.sceneTableService.sceneTable$.get().activeSceneId === sceneId) {
       this.dependencies.sceneTableService.selectToken(token.id);
     }
     return token?.id ?? null;
@@ -210,7 +210,7 @@ export class TabletopService {
       actorName: actor?.name ?? 'Бросок',
       trait,
       difficulty,
-      applyConsequences: this.dependencies.gameService.gameStore.getSnapshot().autoApplyRollConsequences
+      applyConsequences: this.dependencies.gameService.game$.get().autoApplyRollConsequences
     });
   }
 
@@ -234,7 +234,7 @@ export class TabletopService {
   }
 
   conductRest(restType: RestType, options: ConductRestOptions = {}): RestFearPlan {
-    const pcCount = options.pcCount ?? this.dependencies.characterService.charactersStore.getSnapshot().order.length;
+    const pcCount = options.pcCount ?? this.dependencies.characterService.characters$.get().order.length;
     const plan = rollRestFear(restType, pcCount, options.rng);
     this.dependencies.gameService.gainFear(plan.total);
     const restTitle = restType === 'short' ? 'Короткий отдых' : 'Продолжительный отдых';
@@ -259,7 +259,7 @@ export class TabletopService {
   }
 
   resolveRestMove(restEntryId: string, actorId: string, choiceId: string): ResolveRestMoveResult {
-    const restEntry = this.dependencies.feedService.feedStore.getSnapshot().find((entry) => (
+    const restEntry = this.dependencies.feedService.feed$.get().find((entry) => (
       entry.type === 'rest' && (entry.id === restEntryId || entry.rest.id === restEntryId)
     ));
     if (!restEntry || restEntry.type !== 'rest') return { applied: false, message: 'Отдых не найден.' };

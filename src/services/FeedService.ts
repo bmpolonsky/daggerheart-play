@@ -66,7 +66,7 @@ interface UpdateDeathMoveInput {
 }
 
 export class FeedService {
-  readonly feedStore = feedStore;
+  readonly feed$ = feedStore.toStream();
 
   append(entry: FeedEntry): void {
     feedStore.update((feed) => [entry, ...feed].slice(0, MAX_FEED_ENTRIES));
@@ -516,7 +516,7 @@ export class FeedService {
 
   private findOpenDeathMove(actorId: string | undefined): DeathMoveFeedEntry | null {
     if (!actorId) return null;
-    return feedStore.getSnapshot().find((entry): entry is DeathMoveFeedEntry => (
+    return feedStore.get().find((entry): entry is DeathMoveFeedEntry => (
       entry.type === 'deathMove' &&
       entry.deathMove.actor.actorId === actorId &&
       entry.deathMove.status !== 'resolved' &&
@@ -548,8 +548,8 @@ function updateRollLogEntryPublication(entry: RollLogEntry, publication: RollPub
 
 function linkedRollIdsForReveal(entryId: string): Set<string> {
   const rollIds = new Set<string>();
-  const feed = feedStore.getSnapshot();
-  const rollLog = rollLogStore.getSnapshot();
+  const feed = feedStore.get();
+  const rollLog = rollLogStore.get();
   const seedFeedEntry = feed.find((entry) => entry.id === entryId || (entry.type === 'roll' && entry.roll.id === entryId));
   if (seedFeedEntry?.type === 'roll') {
     rollIds.add(seedFeedEntry.roll.id);

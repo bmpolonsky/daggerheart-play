@@ -71,7 +71,7 @@ export interface CharacterLevelUpInput {
 }
 
 export class CharacterService {
-  readonly charactersStore = charactersStore;
+  readonly characters$ = charactersStore.toStream();
   private deathMoveRequestHandler: DeathMoveRequestHandler | null = null;
 
   setDeathMoveRequestHandler(handler: DeathMoveRequestHandler | null): void {
@@ -756,11 +756,11 @@ export class CharacterService {
     if (!id) {
       return null;
     }
-    return charactersStore.getSnapshot().entities[id] ?? null;
+    return charactersStore.get().entities[id] ?? null;
   }
 
   getSelectedCharacter(): Character | null {
-    return this.getCharacter(charactersStore.getSnapshot().selectedId);
+    return this.getCharacter(charactersStore.get().selectedId);
   }
 
   private patchCharacter(id: string, updater: (character: Character) => Character): { previous: Character; current: Character } | null {

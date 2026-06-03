@@ -204,7 +204,7 @@ test('domain card resource macros apply obvious source costs and log them', () =
     openRollDraft: () => undefined
   });
   assert.equal(characterService.getCharacter(character.id)?.hope.value, 1);
-  assert.equal(feedStore.getSnapshot()[0]?.body, 'Confirm Card · -2 Надежды');
+  assert.equal(feedStore.get()[0]?.body, 'Confirm Card · -2 Надежды');
 });
 
 test('domain card resource actions use cleaned markdown text for GM feed previews', () => {
@@ -229,7 +229,7 @@ test('domain card resource actions use cleaned markdown text for GM feed preview
   });
 
   assert.equal(characterService.getCharacter(character.id)?.stress.marked, 1);
-  assert.equal(feedStore.getSnapshot()[0]?.body, 'Markdown Card · +1 Стресс');
+  assert.equal(feedStore.get()[0]?.body, 'Markdown Card · +1 Стресс');
 });
 
 test('domain card dice macros scale implicit damage dice by character proficiency when rolled from a card', () => {
@@ -252,7 +252,7 @@ test('domain card dice macros scale implicit damage dice by character proficienc
     openRollDraft: () => undefined
   });
 
-  const roll = diceService.rollLogStore.getSnapshot()[0];
+  const roll = diceService.rollLog$.get()[0];
   assert.equal(roll.type, 'manual');
   assert.equal('formula' in roll ? roll.formula : null, '3d4');
 });

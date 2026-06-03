@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { useStore } from '../../../../../core/hooks/useStore';
+import { useStream } from '../../../../../core/hooks/useStream';
 import type { CharacterWealth } from '../../../../../domain/rules/types';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { characterService, gameService } from '../../../../../services/serviceRegistry';
@@ -16,8 +16,8 @@ const WEALTH_FIELDS: Array<{ kind: WealthFieldKind; label: string }> = [
 
 export function WealthFeedCard({ item }: { item: TableFeedItem }) {
   const editor = item.wealthEditor;
-  const game = useStore(gameService.gameStore);
-  const characters = useStore(characterService.charactersStore);
+  const game = useStream(gameService.game$);
+  const characters = useStream(characterService.characters$);
   const character = editor ? characters.entities[editor.characterId] : null;
   const visibleFields = WEALTH_FIELDS.filter((field) => field.kind !== 'coins' || game.showCoins);
   if (!character) return null;

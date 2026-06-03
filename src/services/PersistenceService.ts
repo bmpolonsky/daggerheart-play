@@ -14,20 +14,21 @@ import { Store } from '../core/store/Store';
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
 
 export class PersistenceService {
-  readonly storedGamesStore = new Store<StoredGameSummary[]>([]);
+  private storedGamesStore = new Store<StoredGameSummary[]>([]);
+  readonly storedGames$ = this.storedGamesStore.toStream();
 
   private started = false;
   private unsubscribeCallbacks: Array<() => void> = [];
   private unsubscribeDocumentChanges: (() => void) | null = null;
-  private readonly documentStore: GameDocumentStore | null;
+  private documentStore: GameDocumentStore | null;
   private readyPromise: Promise<void> = Promise.resolve();
   private isApplyingStoredDocument = false;
   private lastDocumentSignature: string | null = null;
   private queuedPersistSnapshot: ReturnType<typeof snapshotPersistedState> | null = null;
   private persistQueuePromise: Promise<void> | null = null;
-  private readonly flushPendingPersist = () => this.flushPersistNow();
+  private flushPendingPersist = () => this.flushPersistNow();
 
-  constructor(documentStore: GameDocumentStore | null = createGameDocumentStore(), private readonly assetService?: AssetService) {
+  constructor(documentStore: GameDocumentStore | null = createGameDocumentStore(), private assetService?: AssetService) {
     this.documentStore = documentStore;
   }
 

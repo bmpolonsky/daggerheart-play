@@ -60,7 +60,7 @@ test('action rolls do not apply Hope/Fear consequences unless explicitly enabled
   assert.equal(roll.consequenceApplied, false);
   assert.equal(characterService.getCharacter(character.id)?.hope.value, 1);
   assert.equal(characterService.getCharacter(character.id)?.stress.marked, 1);
-  assert.equal(gameService.gameStore.getSnapshot().fear, 0);
+  assert.equal(gameService.game$.get().fear, 0);
 });
 
 test('SRD resource caps clamp Hope, HP, Stress, Fear, and starting Fear by party size', () => {
@@ -86,8 +86,8 @@ test('SRD resource caps clamp Hope, HP, Stress, Fear, and starting Fear by party
 
   gameService.setMaxFear(99);
   gameService.setFear(99);
-  assert.equal(gameService.gameStore.getSnapshot().maxFear, 12);
-  assert.equal(gameService.gameStore.getSnapshot().fear, 12);
+  assert.equal(gameService.game$.get().maxFear, 12);
+  assert.equal(gameService.game$.get().fear, 12);
   gameService.setStartingFearForPlayerCount(3);
-  assert.equal(gameService.gameStore.getSnapshot().fear, 3);
+  assert.equal(gameService.game$.get().fear, 3);
 });

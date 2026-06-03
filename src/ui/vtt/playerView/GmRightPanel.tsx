@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useState } from "preact/hooks";
-import { useStore } from "../../../core/hooks/useStore";
+import { useStream } from "../../../core/hooks/useStream";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewAdversarySummary, PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
@@ -52,7 +52,7 @@ export function GmRightPanel({
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
-  const { handouts } = useStore(gameService.gameStore);
+  const { handouts } = useStream(gameService.game$);
   const [activeGmPanelTab, setActiveGmPanelTab] = useState<GmDockTab>('scenes');
   const [activeRosterTab, setActiveRosterTab] = useState<'players' | 'scene'>('players');
   if (adversary) {

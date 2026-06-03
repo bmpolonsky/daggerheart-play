@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useState } from 'preact/hooks';
-import { useStore } from '../../../core/hooks/useStore';
+import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
 import type { Character, GameState } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
@@ -101,8 +101,8 @@ export function SharedToolsConnectionSettingsPanel({
     peers: p2pPeers,
     roomId: p2pActiveRoomId,
     status: p2pStatus
-  } = useStore(p2pSessionService.sessionStore);
-  const { message: inviteMessage } = useStore(p2pSessionService.inviteStore);
+  } = useStream(p2pSessionService.session$);
+  const { message: inviteMessage } = useStream(p2pSessionService.invite$);
   const [playerRoomId, setPlayerRoomId] = useState(() => initialPlayerRoomId());
   const [playerPassword, setPlayerPassword] = useState(() => initialPlayerPassword());
   const settingsInviteContext = currentSettingsInviteContext();
@@ -232,7 +232,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ role }: { role: TableViewR
     role: p2pRole,
     roomId: p2pActiveRoomId,
     status: p2pStatus
-  } = useStore(p2pSessionService.sessionStore);
+  } = useStream(p2pSessionService.session$);
   const hasConnectedPlayers = role !== 'gm' || p2pSessionService.hasConnectedPlayers();
   const displayedP2PStatus = role === 'gm' && p2pConnected && !hasConnectedPlayers ? 'Ожидает игроков' : p2pStatusLabel(p2pStatus);
 

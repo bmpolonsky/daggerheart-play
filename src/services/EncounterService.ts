@@ -14,7 +14,7 @@ export interface CombatBuilderEncounterImportReport {
 }
 
 export class EncounterService {
-  readonly encounterStore = encounterStore;
+  readonly encounter$ = encounterStore.toStream();
 
   updateEncounter(patch: Partial<Pick<EncounterState, 'name' | 'status' | 'battlePointBudget' | 'environmentNotes'>>): void {
     encounterStore.update((state) => ({ ...state, ...patch, updatedAt: nowIso() }));
@@ -244,7 +244,7 @@ export class EncounterService {
 
   spotlightAdversary(id: string, spendFear = false): boolean {
     if (spendFear) {
-      const game = gameStore.getSnapshot();
+      const game = gameStore.get();
       if (game.fear <= 0) {
         return false;
       }
@@ -298,7 +298,7 @@ export class EncounterService {
     if (!id) {
       return null;
     }
-    return encounterStore.getSnapshot().adversaries[id] ?? null;
+    return encounterStore.get().adversaries[id] ?? null;
   }
 
   private patchAdversary(id: string, updater: (adversary: Adversary) => Adversary): void {

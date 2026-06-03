@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useCallback } from 'preact/hooks';
-import { useStore } from '../../../core/hooks/useStore';
+import { useStream } from '../../../core/hooks/useStream';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { audioService, diceService, gameService, p2pSessionService, playerActivationQueueService } from '../../../services/serviceRegistry';
 import { MiniDiceLauncher } from '../MiniDiceLauncher';
@@ -32,9 +32,9 @@ export function PlayerActionDock({
   selectedPlayerName,
   selectedPlayerSeatId
 }: PlayerActionDockProps) {
-  const audioState = useStore(audioService.audioStore);
-  const localActivation = useStore(playerActivationQueueService.localStore);
-  const p2pSession = useStore(p2pSessionService.sessionStore);
+  const audioState = useStream(audioService.audio$);
+  const localActivation = useStream(playerActivationQueueService.local$);
+  const p2pSession = useStream(p2pSessionService.session$);
 
   const toggleActivationRequest = useCallback(() => {
     if (role !== 'player' || !displayedCharacter?.id) return;
@@ -122,7 +122,7 @@ export function PlayerActionDock({
         } else {
           diceService.rollAction({
             ...rollRequest,
-            applyConsequences: gameService.gameStore.getSnapshot().autoApplyRollConsequences
+            applyConsequences: gameService.game$.get().autoApplyRollConsequences
           });
         }
       }}

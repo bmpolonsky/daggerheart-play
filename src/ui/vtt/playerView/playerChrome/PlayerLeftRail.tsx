@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Eye, EyeOff, MessageCircle, Minus, Plus, SendHorizontal, X } from 'lucide-react';
-import { useStore } from '../../../../core/hooks/useStore';
+import { useStream } from '../../../../core/hooks/useStream';
 import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
 import type { TableFeedItem } from '../../../../domain/tabletop/feed';
@@ -10,7 +10,7 @@ import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS } from '../constants';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainCards/types';
 import { currentSettingsInviteContext, feedRollRevealId, revealedRollIdsFromActivity } from '../helpers';
-import { playerViewUiActions, playerViewUiStore } from '../playerViewUiState';
+import { playerViewUi$, playerViewUiActions } from '../playerViewUiState';
 import { PlayerRollConfirm } from '../PlayerRollConfirm';
 import type { PlayerRollDraft, TableViewRole } from '../types';
 import {
@@ -40,9 +40,9 @@ export function PlayerLeftRail({
   const [message, setMessage] = useState('');
   const [rollDraftState, setRollDraftState] = useState<FeedCardRollDraftState | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
-  const p2pSession = useStore(p2pSessionService.sessionStore);
-  const encounter = useStore(encounterService.encounterStore);
-  const { completedDiceRollIds, ephemeralFeedItem } = useStore(playerViewUiStore);
+  const p2pSession = useStream(p2pSessionService.session$);
+  const encounter = useStream(encounterService.encounter$);
+  const { completedDiceRollIds, ephemeralFeedItem } = useStream(playerViewUi$);
   const [revealedRollIds, setRevealedRollIds] = useState<Set<string>>(() => revealedRollIdsFromActivity(model.activity));
   const mountedAtRef = useRef(Date.now());
   const activityRef = useRef<HTMLDivElement>(null);
@@ -158,7 +158,7 @@ export function PlayerLeftRail({
             } else {
               diceService.rollAction({
                 ...rollRequest,
-                applyConsequences: gameService.gameStore.getSnapshot().autoApplyRollConsequences
+                applyConsequences: gameService.game$.get().autoApplyRollConsequences
               });
             }
             setRollDraftState(null);

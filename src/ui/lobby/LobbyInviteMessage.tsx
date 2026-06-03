@@ -1,8 +1,8 @@
 /** @jsxImportSource preact */
-import { useStore } from '../../core/hooks/useStore';
+import { useStream } from '../../core/hooks/useStream';
 import { p2pSessionService } from '../../services/serviceRegistry';
 
 export function LobbyInviteMessage() {
-  const { message } = useStore(p2pSessionService.inviteStore);
+  const { message } = useStream(p2pSessionService.invite$);
   return message ? <p className="role-entry__message">{message}</p> : null;
 }

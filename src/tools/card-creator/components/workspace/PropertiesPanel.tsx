@@ -8,8 +8,8 @@ import { Input } from "@cards/components/ui/input";
 import { Button } from "@cards/components/ui/button";
 import type { JSX } from "preact";
 import { normalizeFeatureName } from "@cards/lib/templateUtils";
-import { useStore } from "../../../../core/hooks/useStore";
-import { domainStore } from "@cards/stores/domains";
+import { useStream } from "../../../../core/hooks/useStream";
+import { domainService } from "@cards/services/domainService";
 
 type CardFieldInputFactory = <
   Element extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
@@ -56,7 +56,7 @@ export function PropertiesPanel({
   onRequestDomainManager,
 }: PropertiesPanelProps) {
   const typeOptions = CARD_TYPE_LIST;
-  const { domains } = useStore(domainStore);
+  const { domains } = useStream(domainService.domains$);
   const domainOptions = [...domains].sort((a, b) => a.name.localeCompare(b.name, "ru"));
   const isDomainCard = selectedTypeId === "domain-card";
   const fontSizeOptions = [

@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Download, FolderOpen, Plus, Trash2, Upload } from 'lucide-react';
-import { useStore } from '../../../core/hooks/useStore';
+import { useStream } from '../../../core/hooks/useStream';
 import { formatDateTime } from '../../../core/utils/date';
 import type { StoredGameSummary } from '../../../core/persistence/gameDocumentStore';
 import {
@@ -10,7 +10,7 @@ import {
 } from '../../../services/serviceRegistry';
 
 export function SharedToolsGamesTab() {
-  const games = useStore(persistenceService.storedGamesStore);
+  const games = useStream(persistenceService.storedGames$);
   const [message, setMessage] = useState('');
   const [busyGameId, setBusyGameId] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement | null>(null);

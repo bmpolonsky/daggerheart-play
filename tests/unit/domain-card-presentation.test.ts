@@ -74,7 +74,7 @@ test('domain card ephemeral previews use raw card text and inline macros without
     }
   });
 
-  assert.equal(feedService.feedStore.getSnapshot().length, 0);
+  assert.equal(feedService.feed$.get().length, 0);
   assert.equal(preview.kind, 'card');
   assert.equal(preview.ephemeral, true);
   assert.equal(preview.publication, 'private');
@@ -101,13 +101,13 @@ test('ephemeral feed items cover countdown composers and character features with
   assert.equal(composer.publication, 'private');
   assert.equal(composer.countdownComposer?.name, '');
   assert.equal(composer.countdownComposer?.max, 4);
-  assert.equal(encounterService.encounterStore.getSnapshot().countdowns.length, 0);
+  assert.equal(encounterService.encounter$.get().countdowns.length, 0);
 
   playerViewUiActions.openCountdownComposer();
-  const active = playerViewUiStore.getSnapshot().ephemeralFeedItem;
+  const active = playerViewUiStore.get().ephemeralFeedItem;
   assert.equal(active?.kind, 'countdownComposer');
-  assert.equal(feedService.feedStore.getSnapshot().length, 0);
-  assert.equal(encounterService.encounterStore.getSnapshot().countdowns.length, 0);
+  assert.equal(feedService.feed$.get().length, 0);
+  assert.equal(encounterService.encounter$.get().countdowns.length, 0);
 
   const feature = buildCharacterFeaturePreviewFeedItem({
     id: 'ephemeral-feature',
@@ -133,7 +133,7 @@ test('ephemeral feed items cover countdown composers and character features with
   assert.equal(feature.feature?.sourceLabel, 'Инвентарь');
   assert.equal(feature.actor?.actorId, character.id);
   assert.equal(feature.body, 'Потратьте Надежду. Бросок Действия (12).');
-  assert.equal(feedService.feedStore.getSnapshot().length, 0);
+  assert.equal(feedService.feed$.get().length, 0);
 });
 
 test('handout drafts stay ephemeral until the GM publishes them', () => {
@@ -158,10 +158,10 @@ test('handout drafts stay ephemeral until the GM publishes them', () => {
   assert.equal(draft.handout?.id, handout.id);
 
   playerViewUiActions.openHandoutDraft(handout);
-  const active = playerViewUiStore.getSnapshot().ephemeralFeedItem;
+  const active = playerViewUiStore.get().ephemeralFeedItem;
   assert.equal(active?.kind, 'handout');
   assert.equal(active?.ephemeral, true);
-  assert.equal(feedStore.getSnapshot().length, 0);
+  assert.equal(feedStore.get().length, 0);
 });
 
 test('character sidecar model separates loadout cards and feature sections outside UI', () => {

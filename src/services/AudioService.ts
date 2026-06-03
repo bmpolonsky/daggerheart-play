@@ -33,7 +33,8 @@ const initialAudioLayerState: AudioLayerState = {
 };
 
 export class AudioService {
-  readonly audioStore = new Store<AudioLayerState>(initialAudioLayerState);
+  private audioStore = new Store<AudioLayerState>(initialAudioLayerState);
+  readonly audio$ = this.audioStore.toStream();
 
   private sceneAudioElement: HTMLAudioElement | null = null;
   private lastSceneMusic: SceneMusicState | null = null;
@@ -167,7 +168,7 @@ export class AudioService {
   }
 
   async toggleVoiceChat(label = 'Игрок'): Promise<void> {
-    const state = this.audioStore.getSnapshot();
+    const state = this.audio$.get();
     if (state.voiceStatus === 'live' || state.voiceStatus === 'connecting') {
       this.muteVoiceChat();
       return;
@@ -301,16 +302,16 @@ export class AudioService {
     }
   }
 
-  private readonly handleScenePlaying = () => {
+  private handleScenePlaying = () => {
     this.patchAudio({ sceneAudioStatus: 'playing' });
   };
 
-  private readonly handleScenePause = () => {
+  private handleScenePause = () => {
     if (this.lastSceneMusic?.playing) return;
     this.patchAudio({ sceneAudioStatus: this.lastSceneMusic?.sourceUrl ? 'paused' : 'idle' });
   };
 
-  private readonly handleSceneError = () => {
+  private handleSceneError = () => {
     this.patchAudio({ sceneAudioStatus: 'error', sceneAudioMessage: 'Не удалось загрузить музыку сцены.' });
   };
 

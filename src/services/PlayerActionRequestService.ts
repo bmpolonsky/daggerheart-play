@@ -44,9 +44,10 @@ export interface SubmitPlayerActionRequestInput {
 type RequestDiceService = Pick<DiceService, 'rollAction' | 'rollManualDice' | 'rollDamage'>;
 
 export class PlayerActionRequestService {
-  readonly requestsStore = new Store<PlayerActionRequest[]>([]);
+  private requestsStore = new Store<PlayerActionRequest[]>([]);
+  readonly requests$ = this.requestsStore.toStream();
 
-  constructor(private readonly diceService: RequestDiceService | null = null) {}
+  constructor(private diceService: RequestDiceService | null = null) {}
 
   submit(input: SubmitPlayerActionRequestInput): PlayerActionRequest {
     const request: PlayerActionRequest = {
@@ -69,7 +70,7 @@ export class PlayerActionRequestService {
     if (!isPlayerActionRequest(request)) {
       return null;
     }
-    const exists = this.requestsStore.getSnapshot().some((item) => item.id === request.id);
+    const exists = this.requestsStore.get().some((item) => item.id === request.id);
     if (exists) {
       this.replaceRequest(request);
       return request;
@@ -79,7 +80,7 @@ export class PlayerActionRequestService {
   }
 
   approve(id: string, reviewerId: string, options: { apply?: boolean } = {}): PlayerActionRequest | null {
-    const current = this.requestsStore.getSnapshot().find((request) => request.id === id);
+    const current = this.requestsStore.get().find((request) => request.id === id);
     if (!current || current.status !== 'pending') {
       return null;
     }
@@ -96,7 +97,7 @@ export class PlayerActionRequestService {
   }
 
   reject(id: string, reviewerId: string, reason?: string): PlayerActionRequest | null {
-    const current = this.requestsStore.getSnapshot().find((request) => request.id === id);
+    const current = this.requestsStore.get().find((request) => request.id === id);
     if (!current || current.status !== 'pending') {
       return null;
     }

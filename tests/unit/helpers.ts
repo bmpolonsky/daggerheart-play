@@ -360,7 +360,7 @@ export function createFakeSceneAudioElement(playResults: Array<Error | DOMExcept
 }
 
 export function firstCharacter() {
-  const state = charactersStore.getSnapshot();
+  const state = charactersStore.get();
   const character = state.entities[state.order[0]] ?? characterService.createCharacter({ name: 'Ари, демо-герой', playerName: 'Игрок' });
   assert.ok(character);
   return character;

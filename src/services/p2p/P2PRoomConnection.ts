@@ -27,15 +27,15 @@ export class P2PRoomConnection implements SyncTransport {
 
   private roomId = '';
   private role: P2PWireRole | null = null;
-  private readonly peerIds = new Set<string>();
-  private readonly peerSignals = new Map<string, number>();
-  private readonly peerRoles = new Map<string, P2PWireRole>();
-  private readonly dataListeners = new Set<(event: SyncEvent, context?: SyncEventContext) => void>();
-  private readonly binaryListeners = new Set<(data: ArrayBuffer, peerId: string, metadata?: unknown) => void>();
-  private readonly binaryProgressListeners = new Set<P2PBinaryProgressHandler>();
-  private readonly mediaStreamListeners = new Set<(stream: MediaStream, peerId: string, metadata?: unknown) => void>();
-  private readonly roomEventListeners = new Set<(event: P2PRoomConnectionEvent) => void>();
-  private readonly unsubscribeAdapter: Array<() => void> = [];
+  private peerIds = new Set<string>();
+  private peerSignals = new Map<string, number>();
+  private peerRoles = new Map<string, P2PWireRole>();
+  private dataListeners = new Set<(event: SyncEvent, context?: SyncEventContext) => void>();
+  private binaryListeners = new Set<(data: ArrayBuffer, peerId: string, metadata?: unknown) => void>();
+  private binaryProgressListeners = new Set<P2PBinaryProgressHandler>();
+  private mediaStreamListeners = new Set<(stream: MediaStream, peerId: string, metadata?: unknown) => void>();
+  private roomEventListeners = new Set<(event: P2PRoomConnectionEvent) => void>();
+  private unsubscribeAdapter: Array<() => void> = [];
   private heartbeatTimer: number | undefined;
   private lastGmSignalAt = 0;
   private startedAt = 0;
@@ -44,8 +44,8 @@ export class P2PRoomConnection implements SyncTransport {
   private status: P2PRoomConnectionStatus = 'connected';
 
   constructor(
-    private readonly adapter: P2PTransportAdapter,
-    private readonly config: P2PRoomConnectionConfig = {}
+    private adapter: P2PTransportAdapter,
+    private config: P2PRoomConnectionConfig = {}
   ) {
     this.id = adapter.id;
     this.label = adapter.label;

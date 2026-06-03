@@ -16,15 +16,15 @@ test('session presentation state tracks live scene and presented handout', () =>
   resetAllStores();
   const scene = sceneTableService.createScene({ name: 'Сцена в таверне' });
   assert.equal(sceneTableService.publishScene(scene.id), true);
-  assert.equal(sceneTableStore.getSnapshot().liveSceneId, scene.id);
+  assert.equal(sceneTableStore.get().liveSceneId, scene.id);
 
   const handout = gameService.addHandout({ title: 'Письмо', visibleToPlayers: false });
   assert.equal(gameService.presentHandout(handout.id), true);
-  assert.equal(gameService.gameStore.getSnapshot().presentedHandoutId, handout.id);
-  assert.equal(gameService.gameStore.getSnapshot().handouts.find((item) => item.id === handout.id)?.visibleToPlayers, true);
+  assert.equal(gameService.game$.get().presentedHandoutId, handout.id);
+  assert.equal(gameService.game$.get().handouts.find((item) => item.id === handout.id)?.visibleToPlayers, true);
 
   gameService.updateHandout(handout.id, { visibleToPlayers: false });
-  assert.equal(gameService.gameStore.getSnapshot().presentedHandoutId, null);
+  assert.equal(gameService.game$.get().presentedHandoutId, null);
 });
 
 test('handout presentation selector exposes only player-visible live handouts', () => {
@@ -78,8 +78,8 @@ test('player view model exposes only public live scene state', () => {
 
   const model = buildPlayerViewModel({
     game,
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},
@@ -134,19 +134,19 @@ test('player view model exposes only public live scene state', () => {
     conditions: [{ id: 'condition-hidden', name: ActorStatus.Hidden, notes: 'Hard to spot.' }]
   });
   sceneTableService.assignLocalPlayerCharacter(assigned.id);
-  assert.deepEqual(sceneTableStore.getSnapshot().participants['local-player']?.actorIds, [assigned.id]);
+  assert.deepEqual(sceneTableStore.get().participants['local-player']?.actorIds, [assigned.id]);
   const seat = sceneTableService.createPlayerSeat({ name: 'Лея', characterId: assigned.id });
-  assert.equal(sceneTableStore.getSnapshot().participants[seat.id]?.name, 'Лея');
-  assert.deepEqual(sceneTableStore.getSnapshot().participants[seat.id]?.actorIds, [assigned.id]);
+  assert.equal(sceneTableStore.get().participants[seat.id]?.name, 'Лея');
+  assert.deepEqual(sceneTableStore.get().participants[seat.id]?.actorIds, [assigned.id]);
   sceneTableService.updatePlayerSeat(seat.id, { name: 'Лея Шторм', characterId: null });
-  assert.equal(sceneTableStore.getSnapshot().participants[seat.id]?.name, 'Лея Шторм');
-  assert.deepEqual(sceneTableStore.getSnapshot().participants[seat.id]?.actorIds, []);
+  assert.equal(sceneTableStore.get().participants[seat.id]?.name, 'Лея Шторм');
+  assert.deepEqual(sceneTableStore.get().participants[seat.id]?.actorIds, []);
   sceneTableService.removePlayerSeat(seat.id);
-  assert.equal(sceneTableStore.getSnapshot().participants[seat.id], undefined);
+  assert.equal(sceneTableStore.get().participants[seat.id], undefined);
   const assignedModel = buildPlayerViewModel({
     game,
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},
@@ -196,8 +196,8 @@ test('default table art varies by scene context and character ancestry', () => {
 
   const model = buildPlayerViewModel({
     game: createGameState(),
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: createTableScene({
       name: 'Лесная засада',
       backgroundUrl: '',
@@ -236,8 +236,8 @@ test('player view model does not fall back to GM-selected or unassigned characte
 
   const model = buildPlayerViewModel({
     game,
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},
@@ -250,8 +250,8 @@ test('player view model does not fall back to GM-selected or unassigned characte
 
   const assignedModel = buildPlayerViewModel({
     game,
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},
@@ -274,8 +274,8 @@ test('player session roster exposes only the assigned character', () => {
   });
   const model = buildPlayerViewModel({
     game: createGameState(),
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},
@@ -287,8 +287,8 @@ test('player session roster exposes only the assigned character', () => {
   assert.deepEqual(model.tokens.map((token) => token.id), ['own-token', 'other-token']);
   const playerRoster = buildSessionRosterActors({
     tokens: model.tokens,
-    characters: charactersStore.getSnapshot(),
-    adversaries: encounterService.encounterStore.getSnapshot().adversaries,
+    characters: charactersStore.get(),
+    adversaries: encounterService.encounter$.get().adversaries,
     role: 'player',
     playerCharacterId: own.id,
     activationQueue: [],
@@ -298,8 +298,8 @@ test('player session roster exposes only the assigned character', () => {
 
   const gmRoster = buildSessionRosterActors({
     tokens: model.tokens,
-    characters: charactersStore.getSnapshot(),
-    adversaries: encounterService.encounterStore.getSnapshot().adversaries,
+    characters: charactersStore.get(),
+    adversaries: encounterService.encounter$.get().adversaries,
     role: 'gm',
     playerCharacterId: own.id,
     activationQueue: [],
@@ -331,8 +331,8 @@ test('player view model exposes adversary details only to GM role', () => {
   });
   const baseInput = {
     game: createGameState(),
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},
@@ -368,8 +368,8 @@ test('player view model exposes environment tokens but keeps environment details
   });
   const baseInput = {
     game: createGameState(),
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},
@@ -379,7 +379,7 @@ test('player view model exposes environment tokens but keeps environment details
   const playerModel = buildPlayerViewModel({ ...baseInput, role: 'player' });
 
   assert.deepEqual(playerModel.tokens.map((token) => `${token.kind}:${token.name}`), ['environment:Штормовой мост']);
-  assert.equal(encounterService.encounterStore.getSnapshot().environments[environment.id]?.featureText, '**Потратьте Страх**, чтобы сорвать крепление.');
+  assert.equal(encounterService.encounter$.get().environments[environment.id]?.featureText, '**Потратьте Страх**, чтобы сорвать крепление.');
 });
 
 test('player view model leaves adversary portrait empty when library art is missing', () => {
@@ -396,8 +396,8 @@ test('player view model leaves adversary portrait empty when library art is miss
 
   const model = buildPlayerViewModel({
     game: createGameState(),
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},

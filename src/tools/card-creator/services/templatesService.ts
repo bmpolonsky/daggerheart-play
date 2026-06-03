@@ -31,6 +31,7 @@ function applyTemplatePayload({ templateGroups, fetchedAt }: TemplateCollectionR
 }
 
 export class TemplatesService {
+  readonly templates$ = templatesStore.toStream();
   private currentRequestId = 0;
   private bootstrapped = false;
 

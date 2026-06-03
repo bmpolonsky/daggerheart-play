@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import { MessageCircle, ScrollText, Swords } from 'lucide-react';
-import { useStore } from '../../core/hooks/useStore';
+import { useStream } from '../../core/hooks/useStream';
 import {
   buildCharacterSummary,
   buildPlayerViewModel,
@@ -39,13 +39,13 @@ import type { PlayerMobileLayer, PlayerViewedActor, SharedToolsTab, TableViewRol
 import './playerView/player-view.css';
 
 export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
-  const game = useStore(gameService.gameStore);
-  const characters = useStore(characterService.charactersStore);
-  const encounter = useStore(encounterService.encounterStore);
-  const content = useStore(contentService.contentStore);
-  const sceneTable = useStore(sceneTableService.sceneTableStore);
-  const rollLog = useStore(rollLogService.rollLogStore);
-  const feed = useStore(feedService.feedStore);
+  const game = useStream(gameService.game$);
+  const characters = useStream(characterService.characters$);
+  const encounter = useStream(encounterService.encounter$);
+  const content = useStream(contentService.content$);
+  const sceneTable = useStream(sceneTableService.sceneTable$);
+  const rollLog = useStream(rollLogService.rollLog$);
+  const feed = useStream(feedService.feed$);
   const liveScene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
   const sessionParams = typeof window === 'undefined' ? null : parsePlayerSessionLocation(window.location.pathname, inferBasePathFromWorkspacePath(window.location.pathname));
   const [selectedPlayerSeatId, setSelectedPlayerSeatId] = useState(() => sessionParams?.roomId ? readStoredPlayerSeatId(sessionParams.roomId) : null);

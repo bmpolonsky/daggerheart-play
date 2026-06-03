@@ -6,13 +6,13 @@ import { syncedGameStores } from './gameStores';
 export function snapshotPersistedState(): PersistedState {
   return {
     schemaVersion: 4,
-    game: syncedGameStores.game.getSnapshot(),
-    characters: syncedGameStores.characters.getSnapshot(),
-    encounter: syncedGameStores.encounter.getSnapshot(),
-    rollLog: syncedGameStores.rollLog.getSnapshot(),
-    feed: syncedGameStores.feed.getSnapshot(),
-    ui: syncedGameStores.ui.getSnapshot(),
-    sceneTable: syncedGameStores.sceneTable.getSnapshot()
+    game: syncedGameStores.game.get(),
+    characters: syncedGameStores.characters.get(),
+    encounter: syncedGameStores.encounter.get(),
+    rollLog: syncedGameStores.rollLog.get(),
+    feed: syncedGameStores.feed.get(),
+    ui: syncedGameStores.ui.get(),
+    sceneTable: syncedGameStores.sceneTable.get()
   };
 }
 

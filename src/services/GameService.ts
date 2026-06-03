@@ -6,7 +6,7 @@ import { DEFAULT_MAX_FEAR } from '../domain/rules/constants';
 import { gameStore } from '../stores/gameStores';
 
 export class GameService {
-  readonly gameStore = gameStore;
+  readonly game$ = gameStore.toStream();
 
   updateGame(patch: Partial<Pick<GameState, 'name' | 'gmName' | 'sessionTitle' | 'sceneTitle' | 'safetyNotes' | 'tableNotes'>>): void {
     gameStore.update((state) => ({ ...state, ...patch, updatedAt: nowIso() }));
@@ -43,7 +43,7 @@ export class GameService {
   }
 
   presentHandout(id: string): boolean {
-    const handout = gameStore.getSnapshot().handouts.find((item) => item.id === id);
+    const handout = gameStore.get().handouts.find((item) => item.id === id);
     if (!handout) return false;
     gameStore.update((state) => ({
       ...state,
@@ -82,7 +82,7 @@ export class GameService {
 
   spendFear(amount = 1): boolean {
     const safeAmount = Math.max(0, toSafeInteger(amount, 0));
-    const state = gameStore.getSnapshot();
+    const state = gameStore.get();
     if (state.fear < safeAmount) {
       return false;
     }

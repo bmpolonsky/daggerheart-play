@@ -14,6 +14,8 @@ export const playerViewUiStore = new Store<PlayerViewUiState>({
   ephemeralFeedItem: null
 });
 
+export const playerViewUi$ = playerViewUiStore.toStream();
+
 export const playerViewUiActions = {
   reset(): void {
     playerViewUiStore.set({

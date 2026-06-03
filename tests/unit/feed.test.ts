@@ -15,11 +15,11 @@ test('feed service keeps player chat separate from technical roll log and filter
   feedService.addMessage('Мастер', 'Дверь открывается.', { visibility: 'public' });
   feedService.addMessage('Мастер', 'Скрытая ловушка активна.', { visibility: 'gm' });
 
-  assert.equal(rollLogService.rollLogStore.getSnapshot().length, 0);
-  assert.equal(feedStore.getSnapshot().length, 2);
+  assert.equal(rollLogService.rollLog$.get().length, 0);
+  assert.equal(feedStore.get().length, 2);
 
-  const playerFeed = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'player' });
-  const gmFeed = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' });
+  const playerFeed = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'player' });
+  const gmFeed = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' });
 
   assert.deepEqual(playerFeed.map((entry) => entry.body), ['Дверь открывается.']);
   assert.deepEqual(gmFeed.map((entry) => entry.body), ['Скрытая ловушка активна.', 'Дверь открывается.']);
@@ -31,11 +31,11 @@ test('dice rolls append public feed roll entries without replacing roll log hist
   Math.random = () => 0;
   try {
     const entry = diceService.rollManualDice({ formula: '1d20', label: 'Проверка', visibility: 'gm' });
-    assert.equal(rollLogService.rollLogStore.getSnapshot()[0], entry);
-    assert.equal(feedStore.getSnapshot()[0]?.type, 'roll');
-    assert.equal(feedStore.getSnapshot()[0]?.visibility, 'gm');
-    assert.equal(buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'player' }).length, 0);
-    assert.equal(buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' })[0].kind, 'roll');
+    assert.equal(rollLogService.rollLog$.get()[0], entry);
+    assert.equal(feedStore.get()[0]?.type, 'roll');
+    assert.equal(feedStore.get()[0]?.visibility, 'gm');
+    assert.equal(buildTableFeedFromEntries({ feed: feedStore.get(), role: 'player' }).length, 0);
+    assert.equal(buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' })[0].kind, 'roll');
   } finally {
     Math.random = originalRandom;
   }
@@ -117,23 +117,23 @@ test('private feed roll reveal promotes feed copy and roll log copy to public', 
       label: 'Скрытая проверка',
       publication: 'private'
     });
-    const feedEntry = feedStore.getSnapshot()[0];
+    const feedEntry = feedStore.get()[0];
     assert.equal(feedEntry?.type, 'roll');
     assert.equal(feedEntry?.publication, 'private');
-    assert.equal(buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'player' }).length, 0);
+    assert.equal(buildTableFeedFromEntries({ feed: feedStore.get(), role: 'player' }).length, 0);
 
     const revealed = feedService.revealToPublic(feedEntry.id);
     assert.equal(revealed?.publication, 'public');
 
-    const updatedFeedEntry = feedStore.getSnapshot()[0];
+    const updatedFeedEntry = feedStore.get()[0];
     assert.equal(updatedFeedEntry?.publication, 'public');
     assert.equal(updatedFeedEntry?.visibility, 'public');
     assert.equal(updatedFeedEntry?.type === 'roll' && 'publication' in updatedFeedEntry.roll ? updatedFeedEntry.roll.publication : null, 'public');
     assert.equal(updatedFeedEntry?.type === 'roll' && 'visibility' in updatedFeedEntry.roll ? updatedFeedEntry.roll.visibility : null, 'public');
-    const updatedRoll = rollLogService.rollLogStore.getSnapshot().find((entry) => entry.id === roll.id);
+    const updatedRoll = rollLogService.rollLog$.get().find((entry) => entry.id === roll.id);
     assert.equal(updatedRoll && 'publication' in updatedRoll ? updatedRoll.publication : null, 'public');
     assert.equal(updatedRoll && 'visibility' in updatedRoll ? updatedRoll.visibility : null, 'public');
-    assert.equal(buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'player' })[0].rollId, roll.id);
+    assert.equal(buildTableFeedFromEntries({ feed: feedStore.get(), role: 'player' })[0].rollId, roll.id);
   } finally {
     Math.random = originalRandom;
   }
@@ -235,7 +235,7 @@ test('player latest roll ignores another actor private roll for overlay summary'
 
   const model = buildPlayerViewModel({
     game: createGameState(),
-    characters: charactersStore.getSnapshot(),
+    characters: charactersStore.get(),
     encounter: createEncounterState(),
     liveScene: createTableScene(),
     assets: {},
@@ -257,7 +257,7 @@ test('fixed damage feed entries do not wait for dice animation', () => {
   try {
     const fixed = diceService.rollDamage({ formula: '1', actorName: 'Giant Rat' });
     const rolled = diceService.rollDamage({ formula: '1d8+2', actorName: 'Blade' });
-    const feed = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' });
+    const feed = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' });
 
     assert.equal(feed.find((entry) => entry.rollId === fixed.id)?.roll?.hasAnimatedDice, false);
     assert.equal(feed.find((entry) => entry.rollId === rolled.id)?.roll?.hasAnimatedDice, true);
@@ -272,7 +272,7 @@ test('manual dice feed avoids repeating actor and formula labels', () => {
   Math.random = () => 0;
   try {
     diceService.rollManualDice({ formula: '1d20', actorName: 'Ари, демо-герой', label: 'Ари, демо-герой: d20' });
-    const item = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' })[0];
+    const item = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' })[0];
 
     assert.equal(item.kind, 'roll');
     assert.equal(item.kicker, 'Ари, демо-герой');
@@ -297,13 +297,13 @@ test('handout feed entries persist presented handouts without duplicate live pre
 
   const model = buildPlayerViewModel({
     game,
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: createTableScene(),
     assets: {},
     assetUrls: {},
     rollLog: [],
-    feed: feedStore.getSnapshot()
+    feed: feedStore.get()
   });
 
   const handoutEntries = model.activity.filter((entry) => entry.kind === 'handout' && entry.handout?.id === handout.id);

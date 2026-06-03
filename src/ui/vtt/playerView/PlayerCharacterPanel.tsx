@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useMemo } from "preact/hooks";
-import { useStore } from "../../../core/hooks/useStore";
+import { useStream } from "../../../core/hooks/useStream";
 import { buildPlayerTokens, type PlayerViewAdversarySummary, type PlayerViewCharacterSummary, type PlayerViewEmptyCharacterState } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
@@ -50,11 +50,11 @@ export function PlayerCharacterPanel({
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
-  const characters = useStore(characterService.charactersStore);
-  const { beastforms } = useStore(contentService.contentStore);
-  const encounter = useStore(encounterService.encounterStore);
-  const activationQueue = useStore(playerActivationQueueService.queueStore);
-  const playerPresence = useStore(playerPresenceService.presenceStore);
+  const characters = useStream(characterService.characters$);
+  const { beastforms } = useStream(contentService.content$);
+  const encounter = useStream(encounterService.encounter$);
+  const activationQueue = useStream(playerActivationQueueService.queue$);
+  const playerPresence = useStream(playerPresenceService.presence$);
   const scene = sceneTable.scenes[sceneId] ?? sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
   const tokens = useMemo(() => scene ? buildPlayerTokens(scene.tokens, characters.entities, encounter, role) : [], [characters.entities, encounter, role, scene, scene?.tokens]);
   const actors = useMemo(() => role === 'gm'

@@ -1,11 +1,11 @@
 /** @jsxImportSource preact */
 import { FileAudio, Pause, Play, Radio, Square, Volume2 } from "lucide-react";
-import { useStore } from "../../../../core/hooks/useStore";
+import { useStream } from "../../../../core/hooks/useStream";
 import type { SceneTableState } from "../../../../domain/rules/types";
 import { audioService, sceneAudioBroadcastService, sceneTableService } from "../../../../services/serviceRegistry";
 
 export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState }) {
-  const broadcastState = useStore(sceneAudioBroadcastService.broadcastStore);
+  const broadcastState = useStream(sceneAudioBroadcastService.broadcast$);
   const scene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? null;
   const broadcastStarting = broadcastState.status === 'starting';
   const broadcastLive = broadcastState.status === 'live';

@@ -5,11 +5,11 @@ import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../
 import { domainCardFromLibrary, isDomainCardForDomains } from '../../domain/characterBuilder';
 import { buildEquipmentAttachmentPlan } from '../../domain/rules/equipment';
 import type { Character, DamageType, TraitId } from '../../domain/rules/types';
-import { useStore } from '../../core/hooks/useStore';
+import { useStream } from '../../core/hooks/useStream';
 import { characterService, gameService } from '../../services/serviceRegistry';
 
 export function LoadoutPanel({ character, content }: { character: Character; content?: ContentState }) {
-  const game = useStore(gameService.gameStore);
+  const game = useStream(gameService.game$);
   const weaponOptions = content?.equipment.filter((item) => item.type === 'primary-weapon' || item.type === 'secondary-weapon') ?? [];
   const inventoryOptions = content?.equipment.filter((item) => item.type === 'consumable' || item.type === 'item' || item.type === 'combat-wheelchair') ?? [];
   const domainCardOptions = (content?.generic.domainCards ?? [])

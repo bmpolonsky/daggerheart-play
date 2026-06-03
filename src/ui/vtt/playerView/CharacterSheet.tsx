@@ -2,7 +2,7 @@
 import type { JSX } from "preact";
 import { useMemo, useRef, useState } from "preact/hooks";
 import { ChevronLeft, Crosshair, Heart, PawPrint, Shield, Swords, Zap } from "lucide-react";
-import { useStore } from "../../../core/hooks/useStore";
+import { useStream } from "../../../core/hooks/useStream";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
@@ -44,7 +44,7 @@ export function CharacterSheet({
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
 }) {
-  const game = useStore(gameService.gameStore);
+  const game = useStream(gameService.game$);
   const panelRef = useRef<HTMLElement>(null);
   const [activeSheetSection, setActiveSheetSection] = useState<PlayerSheetSectionId>('overview');
   const [rollDraft, setRollDraft] = useState<PlayerRollDraft | null>(null);
@@ -173,7 +173,7 @@ export function CharacterSheet({
             } else {
               diceService.rollAction({
                 ...rollRequest,
-                applyConsequences: gameService.gameStore.getSnapshot().autoApplyRollConsequences
+                applyConsequences: gameService.game$.get().autoApplyRollConsequences
               });
             }
             setRollDraft(null);
@@ -361,7 +361,7 @@ export function CharacterSheet({
                         trait: character.spellcastTrait ?? 'instinct',
                         difficulty: 0,
                         notes: `Команда компаньону: ${character.companion?.name ?? 'Компаньон'}`,
-                        applyConsequences: gameService.gameStore.getSnapshot().autoApplyRollConsequences
+                        applyConsequences: gameService.game$.get().autoApplyRollConsequences
                       });
                     }}
                   >

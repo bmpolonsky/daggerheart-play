@@ -1,13 +1,12 @@
 /** @jsxImportSource preact */
 import { CustomAdversaryModal } from "@combat/components/adversaries/CustomAdversaryModal";
 import type { Adversary } from "@combat/lib/api";
-import { useStore } from "../../../../core/hooks/useStore";
+import { useStream } from "../../../../core/hooks/useStream";
 import { adversariesService } from "@combat/services/adversariesService";
 import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";
-import { customAdversaryEditorStore } from "@combat/stores/customAdversaryEditor";
 
 export function CustomAdversaryEditorHost() {
-  const editor = useStore(customAdversaryEditorStore);
+  const editor = useStream(customAdversaryEditorService.editor$);
 
   if (!editor) return null;
 

@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef } from 'preact/hooks';
 import { Crown, Link2, Trash2 } from 'lucide-react';
-import { useStore } from '../../core/hooks/useStore';
+import { useStream } from '../../core/hooks/useStream';
 import { characterService, gameService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
 import type { LobbyInviteContext } from './SessionLobby';
 
@@ -11,10 +11,10 @@ interface GmLobbyCardProps {
 }
 
 export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
-  const { gmName } = useStore(gameService.gameStore);
-  const { entities: characterEntities, order: characterOrder } = useStore(characterService.charactersStore);
-  const { participants } = useStore(sceneTableService.sceneTableStore);
-  useStore(p2pSessionService.sessionStore);
+  const { gmName } = useStream(gameService.game$);
+  const { entities: characterEntities, order: characterOrder } = useStream(characterService.characters$);
+  const { participants } = useStream(sceneTableService.sceneTable$);
+  useStream(p2pSessionService.session$);
   const restoreAttempted = useRef(false);
   const characterOptions = characterOrder.map((id) => characterEntities[id]).filter(Boolean);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');

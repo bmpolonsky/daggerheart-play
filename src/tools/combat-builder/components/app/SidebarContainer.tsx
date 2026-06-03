@@ -10,12 +10,10 @@ import {
   IconSearch,
   IconUpload,
 } from "@combat/components/icons";
-import { useStore } from "../../../../core/hooks/useStore";
+import { useStream } from "../../../../core/hooks/useStream";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";
 import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";
-import { adversariesStore } from "@combat/stores/adversaries";
-import { encounterStore } from "@combat/stores/encounter";
 
 type CatalogNotice = {
   tone: "info" | "error";
@@ -23,8 +21,8 @@ type CatalogNotice = {
 } | null;
 
 export function SidebarContainer() {
-  const { searchTerm, tierFilter, roleFilter, items, isLoading, error } = useStore(adversariesStore);
-  const { isSidebarOpen } = useStore(encounterStore);
+  const { searchTerm, tierFilter, roleFilter, items, isLoading, error } = useStream(adversariesService.adversaries$);
+  const { isSidebarOpen } = useStream(encounterService.encounter$);
   const [catalogNotice, setCatalogNotice] = useState<CatalogNotice>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { filteredItems, roleOptions } = adversariesService.buildBrowserView();

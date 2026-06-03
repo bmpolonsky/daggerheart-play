@@ -5,7 +5,7 @@ import { sceneTableStore } from '../stores/gameStores';
 import { createAssetBlobStore, type AssetBlobStore } from '../core/persistence/assetBlobStore';
 
 export class AssetService {
-  constructor(private readonly blobStore: AssetBlobStore | null = createAssetBlobStore()) {}
+  constructor(private blobStore: AssetBlobStore | null = createAssetBlobStore()) {}
 
   async saveFile(file: File): Promise<MapAsset> {
     const asset = createMapAsset({
@@ -27,7 +27,7 @@ export class AssetService {
     return blob ? URL.createObjectURL(blob) : null;
   }
 
-  async exportAssetFiles(assets: MapAsset[] = Object.values(sceneTableStore.getSnapshot().assets)): Promise<Array<{ asset: MapAsset; path: string; blob: Blob }>> {
+  async exportAssetFiles(assets: MapAsset[] = Object.values(sceneTableStore.get().assets)): Promise<Array<{ asset: MapAsset; path: string; blob: Blob }>> {
     const files: Array<{ asset: MapAsset; path: string; blob: Blob }> = [];
     for (const asset of assets) {
       if (asset.storage !== 'indexeddb') continue;
@@ -44,7 +44,7 @@ export class AssetService {
 
   async normalizeEmbeddedSceneAssets(): Promise<boolean> {
     if (!this.blobStore) return false;
-    const state = sceneTableStore.getSnapshot();
+    const state = sceneTableStore.get();
     const assets = { ...state.assets };
     const scenes = { ...state.scenes };
     let changed = false;

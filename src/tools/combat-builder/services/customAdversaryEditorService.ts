@@ -3,6 +3,8 @@ import { buildDuplicateTemplate } from "@combat/lib/customAdversaries";
 import { customAdversaryEditorStore } from "@combat/stores/customAdversaryEditor";
 
 export class CustomAdversaryEditorService {
+  readonly editor$ = customAdversaryEditorStore.toStream();
+
   openCreate() {
     customAdversaryEditorStore.update(() => ({
       mode: "create",

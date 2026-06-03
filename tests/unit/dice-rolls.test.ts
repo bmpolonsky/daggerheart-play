@@ -63,7 +63,7 @@ test('manual dice rolls support launcher formulas and reject unsupported dice', 
     assert.equal(entry.total, 6);
     assert.equal(entry.visibility, 'gm');
     assert.deepEqual(entry.terms.filter((term) => 'rolls' in term).map((term) => term.sides), [6, 20]);
-    assert.equal(diceService.rollLogStore.getSnapshot()[0], entry);
+    assert.equal(diceService.rollLog$.get()[0], entry);
     assert.throws(() => diceService.rollManualDice({ formula: '1d100' }), /Unsupported manual die/);
   } finally {
     Math.random = originalRandom;
@@ -181,7 +181,7 @@ test('reaction rolls use Duality dice without Hope/Fear consequences', () => {
     assert.equal(entry.consequenceApplied, false);
     assert.equal(updated?.hope.value, 1);
     assert.equal(updated?.stress.marked, 2);
-    assert.equal(gameService.gameStore.getSnapshot().fear, 0);
+    assert.equal(gameService.game$.get().fear, 0);
   } finally {
     Math.random = originalRandom;
   }
@@ -203,13 +203,13 @@ test('GM attack check rolls without target or automatic damage', () => {
       experienceIds: ['sharp'],
       advantageCount: 1
     });
-    const rollLog = diceService.rollLogStore.getSnapshot();
+    const rollLog = diceService.rollLog$.get();
     assert.equal(entry?.type, 'manual');
     assert.equal(entry?.label, 'Атака');
     assert.equal(entry?.actorName, adversary.name);
     assert.equal(entry?.total, 23);
     assert.equal(entry?.text.includes('d20[5,20] -> 20'), true);
-    assert.equal(gameService.gameStore.getSnapshot().fear, 0);
+    assert.equal(gameService.game$.get().fear, 0);
     assert.equal(rollLog.length, 1);
     assert.equal(rollLog[0].type, 'manual');
   } finally {

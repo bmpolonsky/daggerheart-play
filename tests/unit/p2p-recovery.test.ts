@@ -36,8 +36,8 @@ test('P2P snapshot polling resends requests when early join packets are lost', a
     await player.startPlayerRoom({ roomId: 'sync-room', participantName: 'Player' });
 
     await waitFor(() => {
-      assert.equal(player.sessionStore.getSnapshot().role, 'player');
-      assert.equal(player.sessionStore.getSnapshot().lastSnapshotAt !== null, true);
+      assert.equal(player.session$.get().role, 'player');
+      assert.equal(player.session$.get().lastSnapshotAt !== null, true);
       assert.equal(network.deliveredSnapshots, 1);
       assert.equal(network.droppedSnapshots, 1);
       assert.equal(network.droppedSnapshotRequests, 1);
@@ -82,9 +82,9 @@ test('P2P player polling recovers when player opens room before GM and peer-join
     await gm.startGmRoom({ roomId: 'early-room', participantName: 'GM' });
 
     await waitFor(() => {
-      assert.equal(player.sessionStore.getSnapshot().lastSnapshotAt !== null, true);
-      assert.equal(player.sessionStore.getSnapshot().peers.length, 1);
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
+      assert.equal(player.session$.get().lastSnapshotAt !== null, true);
+      assert.equal(player.session$.get().peers.length, 1);
+      assert.equal(gm.session$.get().peers.length, 1);
     }, 15_000);
     const snapshotRequestsAfterSync = network.snapshotRequests;
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -109,25 +109,25 @@ test('P2P player marks a silent GM disconnect as degraded and recovers when GM r
     await player.startPlayerRoom({ roomId: 'reopen-room', participantName: 'Player' });
 
     await waitFor(() => {
-      assert.equal(player.sessionStore.getSnapshot().status, 'connected');
-      assert.equal(player.sessionStore.getSnapshot().lastSnapshotAt !== null, true);
-      assert.equal(player.sessionStore.getSnapshot().peers.length > 0, true);
+      assert.equal(player.session$.get().status, 'connected');
+      assert.equal(player.session$.get().lastSnapshotAt !== null, true);
+      assert.equal(player.session$.get().peers.length > 0, true);
     }, 15_000);
 
-    const gmPeerId = gm.sessionStore.getSnapshot().peerId;
+    const gmPeerId = gm.session$.get().peerId;
     assert.ok(gmPeerId);
     assert.equal(network.disconnectPeer(gmPeerId, { notify: false }), true);
 
     await waitFor(() => {
-      assert.equal(player.sessionStore.getSnapshot().status, 'degraded');
-      assert.equal(player.sessionStore.getSnapshot().message, 'Мастер не отвечает. Пытаемся переподключиться.');
+      assert.equal(player.session$.get().status, 'degraded');
+      assert.equal(player.session$.get().message, 'Мастер не отвечает. Пытаемся переподключиться.');
     }, 2_000);
 
     await reopenedGm.startGmRoom({ roomId: 'reopen-room', participantName: 'GM' });
     await waitFor(() => {
-      assert.equal(player.sessionStore.getSnapshot().status, 'connected');
-      assert.equal(player.sessionStore.getSnapshot().lastSnapshotAt !== null, true);
-      assert.equal(player.sessionStore.getSnapshot().peers.length > 0, true);
+      assert.equal(player.session$.get().status, 'connected');
+      assert.equal(player.session$.get().lastSnapshotAt !== null, true);
+      assert.equal(player.session$.get().peers.length > 0, true);
     }, 15_000);
   } finally {
     await reopenedGm.stop().catch(() => undefined);

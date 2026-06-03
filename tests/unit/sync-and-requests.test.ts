@@ -89,7 +89,7 @@ test('player action requests stay pending until GM approval or rejection', () =>
   assert.equal(request.status, 'pending');
   assert.equal(appliedActionDifficulty, null);
   assert.equal(requestService.receiveRemote(request), request);
-  assert.equal(requestService.requestsStore.getSnapshot().filter((item) => item.id === request.id).length, 1);
+  assert.equal(requestService.requests$.get().filter((item) => item.id === request.id).length, 1);
 
   const approved = requestService.approve(request.id, 'gm-1');
   assert.equal(approved?.status, 'approved');
@@ -98,7 +98,7 @@ test('player action requests stay pending until GM approval or rejection', () =>
   const playerMirror = new PlayerActionRequestService();
   playerMirror.receiveRemote(request);
   playerMirror.receiveRemote(approved!);
-  assert.equal(playerMirror.requestsStore.getSnapshot()[0]?.status, 'approved');
+  assert.equal(playerMirror.requests$.get()[0]?.status, 'approved');
 
   const rejectedRequest = requestService.submit({
     requesterId: 'player-1',
@@ -137,11 +137,11 @@ test('player activation queue keeps raised hands in request order and syncs mess
 
   assert.equal(first.type, 'raise');
   assert.equal(second.type, 'raise');
-  assert.deepEqual(queue.queueStore.getSnapshot().map((item) => item.actorId), ['hero-1', 'hero-2']);
-  assert.deepEqual(queue.localStore.getSnapshot(), { raised: true, actorId: 'hero-2' });
+  assert.deepEqual(queue.queue$.get().map((item) => item.actorId), ['hero-1', 'hero-2']);
+  assert.deepEqual(queue.local$.get(), { raised: true, actorId: 'hero-2' });
 
   queue.receiveRemote({ type: 'clear', actorId: 'hero-1', requesterId: 'peer-1', updatedAt: '2026-01-01T00:00:00.000Z' });
-  assert.deepEqual(queue.queueStore.getSnapshot().map((item) => item.actorId), ['hero-2']);
+  assert.deepEqual(queue.queue$.get().map((item) => item.actorId), ['hero-2']);
 
   const received: unknown[] = [];
   const sync = new SyncService();

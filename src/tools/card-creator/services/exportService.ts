@@ -3,7 +3,7 @@ import { editorStore } from "@cards/stores/editor";
 import { exportStore } from "@cards/stores/export";
 
 export class ExportService {
-  readonly store = exportStore;
+  readonly exportState$ = exportStore.toStream();
 
   async exportCurrentCard(cardElement: HTMLElement) {
     exportStore.update((state) => ({
@@ -13,7 +13,7 @@ export class ExportService {
     }));
 
     try {
-      const { cardFields } = editorStore.getState();
+      const { cardFields } = editorStore.get();
       await exportCardAsPng(cardElement, cardFields.title || "карта");
     } catch (err) {
       console.error("PNG export failed", err);

@@ -60,7 +60,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
       ? diceService.rollReaction(request)
       : diceService.rollAction({
         ...request,
-        applyConsequences: gameService.gameStore.getSnapshot().autoApplyRollConsequences
+        applyConsequences: gameService.game$.get().autoApplyRollConsequences
       });
     feedService.recordTeamworkParticipantResult(item.id, participant.actorId, {
       rollId: roll.id,

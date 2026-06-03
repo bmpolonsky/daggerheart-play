@@ -124,7 +124,7 @@ test('persistence hydrates current v4 IndexedDB game documents', async () => {
     service.start();
     await service.whenReady();
 
-    const state = sceneTableStore.getSnapshot();
+    const state = sceneTableStore.get();
     assert.equal(state.schemaVersion, 4);
     assert.equal(state.scenes[state.activeSceneId].tokens[0]?.id, 'character:idb');
     assert.equal(state.scenes[state.activeSceneId].backgroundUrl, 'https://example.test/idb.webp');
@@ -162,7 +162,7 @@ test('persistence applies live IndexedDB game document updates', async () => {
     await documentStore.save(nextDocument);
     await Promise.resolve();
 
-    assert.equal(syncedGameStores.game.getSnapshot().name, 'Синхронная игра');
+    assert.equal(syncedGameStores.game.get().name, 'Синхронная игра');
   } finally {
     service?.stop();
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
@@ -244,16 +244,16 @@ test('persistence keeps multiple local games and switches the active one', async
     sceneTableService.createPlayerSeat({ name: 'Общий игрок', characterId: hero.id });
     gameService.updateGame({ name: 'Длинная игра' });
     gameService.setFear(4);
-    sceneTableService.updateScene(sceneTableStore.getSnapshot().activeSceneId, { backgroundUrl: 'https://example.test/long-game.webp' });
+    sceneTableService.updateScene(sceneTableStore.get().activeSceneId, { backgroundUrl: 'https://example.test/long-game.webp' });
     service.persistNow();
     await Promise.resolve();
     const [first] = await service.listStoredGames();
     assert.ok(first);
 
     await service.createStoredGame();
-    assert.equal(characterService.charactersStore.getSnapshot().entities[hero.id]?.name, 'Общий герой');
-    assert.equal(Object.values(sceneTableStore.getSnapshot().participants).some((seat) => seat.actorIds.includes(hero.id)), true);
-    assert.equal(gameService.gameStore.getSnapshot().fear, 0);
+    assert.equal(characterService.characters$.get().entities[hero.id]?.name, 'Общий герой');
+    assert.equal(Object.values(sceneTableStore.get().participants).some((seat) => seat.actorIds.includes(hero.id)), true);
+    assert.equal(gameService.game$.get().fear, 0);
     gameService.updateGame({ name: 'Ваншот' });
     gameService.setFear(1);
     service.persistNow();
@@ -264,23 +264,23 @@ test('persistence keeps multiple local games and switches the active one', async
     assert.equal(games.find((game) => game.name === 'Ваншот')?.active, true);
 
     assert.equal(await service.switchStoredGame(first.id), true);
-    assert.equal(gameService.gameStore.getSnapshot().name, 'Длинная игра');
-    assert.equal(gameService.gameStore.getSnapshot().fear, 4);
-    assert.equal(characterService.charactersStore.getSnapshot().entities[hero.id]?.name, 'Общий герой');
-    assert.equal(Object.values(sceneTableStore.getSnapshot().participants).some((seat) => seat.actorIds.includes(hero.id)), true);
-    assert.equal(sceneTableStore.getSnapshot().scenes[sceneTableStore.getSnapshot().activeSceneId].backgroundUrl, 'https://example.test/long-game.webp');
+    assert.equal(gameService.game$.get().name, 'Длинная игра');
+    assert.equal(gameService.game$.get().fear, 4);
+    assert.equal(characterService.characters$.get().entities[hero.id]?.name, 'Общий герой');
+    assert.equal(Object.values(sceneTableStore.get().participants).some((seat) => seat.actorIds.includes(hero.id)), true);
+    assert.equal(sceneTableStore.get().scenes[sceneTableStore.get().activeSceneId].backgroundUrl, 'https://example.test/long-game.webp');
 
     const oneShot = (await service.listStoredGames()).find((game) => game.name === 'Ваншот');
     assert.ok(oneShot);
     assert.equal(await service.removeStoredGame(oneShot.id), true);
-    assert.equal(gameService.gameStore.getSnapshot().name, 'Длинная игра');
+    assert.equal(gameService.game$.get().name, 'Длинная игра');
     assert.deepEqual((await service.listStoredGames()).map((game) => game.name), ['Длинная игра']);
 
     assert.equal(await service.removeStoredGame(first.id), true);
-    assert.equal(gameService.gameStore.getSnapshot().name, '');
-    assert.equal(gameService.gameStore.getSnapshot().fear, 0);
-    assert.equal(characterService.charactersStore.getSnapshot().entities[hero.id]?.name, 'Общий герой');
-    assert.equal(Object.values(sceneTableStore.getSnapshot().participants).some((seat) => seat.actorIds.includes(hero.id)), true);
+    assert.equal(gameService.game$.get().name, '');
+    assert.equal(gameService.game$.get().fear, 0);
+    assert.equal(characterService.characters$.get().entities[hero.id]?.name, 'Общий герой');
+    assert.equal(Object.values(sceneTableStore.get().participants).some((seat) => seat.actorIds.includes(hero.id)), true);
   } finally {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }

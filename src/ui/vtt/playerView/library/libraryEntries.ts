@@ -242,7 +242,7 @@ function equipmentAction(item: LibraryEquipmentItem, targetCharacterId?: string 
   return {
     label: equipmentActionLabel(item),
     onClick: () => {
-      const characters = characterService.charactersStore.getSnapshot();
+      const characters = characterService.characters$.get();
       const characterId = targetCharacterId && characters.entities[targetCharacterId] ? targetCharacterId : null;
       const character = characterId ? characters.entities[characterId] : null;
       if (!character) return 'Выберите персонажа';

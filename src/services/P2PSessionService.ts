@@ -97,7 +97,7 @@ const AUTO_SNAPSHOT_DELAY_MS = 350;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
 
 export class P2PSessionService {
-  readonly sessionStore = new Store<P2PSessionState>({
+  private sessionStore = new Store<P2PSessionState>({
     connected: false,
     status: 'disconnected',
     role: null,
@@ -108,39 +108,41 @@ export class P2PSessionService {
     lastRequestAt: null,
     message: 'Связь с сервером мастера не подключена.'
   });
-  readonly inviteStore = new Store<P2PInviteDraftState>(initialInviteDraftState());
+  readonly session$ = this.sessionStore.toStream();
+  private inviteStore = new Store<P2PInviteDraftState>(initialInviteDraftState());
+  readonly invite$ = this.inviteStore.toStream();
 
   private snapshotTimer: number | undefined;
   private productRecoveryTimer: number | undefined;
   private activeRoomConnection: P2PRoomConnection | null = null;
-  private readonly assetTransferService: P2PAssetTransferService;
-  private readonly publishedPlayerFeedEntrySignatures = new Map<string, string>();
-  private readonly publishingPlayerFeedEntryIds = new Set<string>();
-  private readonly playerCharacterResourceSignatures = new Map<string, string>();
-  private readonly processedPlayerCharacterCreateIds = new Set<string>();
-  private readonly subscriptions = new SubscriptionBag();
+  private assetTransferService: P2PAssetTransferService;
+  private publishedPlayerFeedEntrySignatures = new Map<string, string>();
+  private publishingPlayerFeedEntryIds = new Set<string>();
+  private playerCharacterResourceSignatures = new Map<string, string>();
+  private processedPlayerCharacterCreateIds = new Set<string>();
+  private subscriptions = new SubscriptionBag();
   private suppressPlayerStoreForwarding = false;
   private playerActorContext: PlayerActorContext = {};
 
   constructor(
-    private readonly syncService: SyncService,
-    private readonly playerActionRequestService: PlayerActionRequestService,
-    private readonly playerActivationQueueService: PlayerActivationQueueService,
-    private readonly playerPresenceService: PlayerPresenceService,
-    private readonly feedService: FeedService,
-    private readonly sceneTableService: SceneTableService,
-    private readonly diceService: DiceService | undefined,
+    private syncService: SyncService,
+    private playerActionRequestService: PlayerActionRequestService,
+    private playerActivationQueueService: PlayerActivationQueueService,
+    private playerPresenceService: PlayerPresenceService,
+    private feedService: FeedService,
+    private sceneTableService: SceneTableService,
+    private diceService: DiceService | undefined,
     assetService: AssetService,
-    private readonly audioService?: AudioService,
-    private readonly sceneAudioBroadcastService?: SceneAudioBroadcastService,
-    private readonly transportFactory: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter = (options) => new TrysteroP2PTransport(options),
-    private readonly roomConnectionConfig: P2PRoomConnectionConfig = {}
+    private audioService?: AudioService,
+    private sceneAudioBroadcastService?: SceneAudioBroadcastService,
+    private transportFactory: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter = (options) => new TrysteroP2PTransport(options),
+    private roomConnectionConfig: P2PRoomConnectionConfig = {}
   ) {
     this.assetTransferService = new P2PAssetTransferService(
       syncService,
       assetService,
       sceneTableService,
-      () => this.sessionStore.getSnapshot(),
+      () => this.sessionStore.get(),
       () => this.activeRoomConnection,
       (patch) => this.patchSession(patch)
     );
@@ -172,7 +174,7 @@ export class P2PSessionService {
   }
 
   previewInviteUrl(context: P2PInviteContext): string {
-    const draft = this.inviteStore.getSnapshot();
+    const draft = this.inviteStore.get();
     const roomId = this.getGmRoomId();
     if (!roomId) return '';
     if (draft.inviteUrl && draft.roomId === roomId) {
@@ -186,20 +188,20 @@ export class P2PSessionService {
   }
 
   getGmRoomId(): string {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.role === 'gm' && session.roomId) {
       return session.roomId;
     }
-    return this.inviteStore.getSnapshot().roomId;
+    return this.inviteStore.get().roomId;
   }
 
   hasConnectedPlayers(): boolean {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     return session.role === 'gm' && session.peers.length > 0;
   }
 
   canPublishSnapshotToPlayers(): boolean {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     return session.role === 'gm' && session.connected && session.peers.length > 0;
   }
 
@@ -212,15 +214,15 @@ export class P2PSessionService {
   }
 
   isConnectedPlayerSession(): boolean {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     return session.role === 'player' && session.connected;
   }
 
   async createGmInviteFromDraft(input: P2PInviteContext & { participantName?: string }): Promise<P2PSessionInvite> {
-    const draft = this.inviteStore.getSnapshot();
+    const draft = this.inviteStore.get();
     this.setInviteMessage('Готовим ссылку...');
     try {
-      const active = this.sessionStore.getSnapshot();
+      const active = this.sessionStore.get();
       const hasActiveGmRoom = active.role === 'gm' && (active.connected || active.status === 'connecting') && Boolean(active.roomId);
       const roomId = hasActiveGmRoom ? active.roomId : normalizeSessionRoomId(draft.roomId);
       const password = '';
@@ -256,7 +258,7 @@ export class P2PSessionService {
   }
 
   async ensureGmRoom(participantName?: string): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.role === 'gm' && (session.connected || session.status === 'connecting')) {
       return true;
     }
@@ -264,7 +266,7 @@ export class P2PSessionService {
       return true;
     }
 
-    const draft = this.inviteStore.getSnapshot();
+    const draft = this.inviteStore.get();
     const roomId = normalizeSessionRoomId(draft.roomId, createShortRoomCode());
     this.inviteStore.update((state) => ({
       ...state,
@@ -288,7 +290,7 @@ export class P2PSessionService {
     const transport = this.createTransport(password);
     this.audioService?.setVoiceTransport(transport);
     this.sceneAudioBroadcastService?.setTransport(transport);
-    this.sceneTableService.ensurePlayerSeatsForCharacters(Object.values(charactersStore.getSnapshot().entities));
+    this.sceneTableService.ensurePlayerSeatsForCharacters(Object.values(charactersStore.get().entities));
     this.syncService.setTransport(transport);
     this.subscriptions.add(this.syncService.subscribeSnapshotRequests((_request, _event, context) => {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Игрок запрашивает данные игры.' });
@@ -415,7 +417,7 @@ export class P2PSessionService {
       });
       this.assetTransferService.subscribePlayer(transport).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
       this.capturePlayerForwardingBaseline();
-      this.subscriptions.add(this.feedService.feedStore.subscribe(() => {
+      this.subscriptions.add(this.feedService.feed$.subscribe(() => {
         void this.forwardPlayerFeedEntries();
       }));
       this.subscriptions.add(charactersStore.subscribe(() => {
@@ -510,7 +512,7 @@ export class P2PSessionService {
     if (!saved || saved.role !== role || !saved.roomId) {
       return false;
     }
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.connected && session.role === role && session.roomId === saved.roomId) {
       return true;
     }
@@ -529,7 +531,7 @@ export class P2PSessionService {
   }
 
   async publishSnapshot(options: { requirePeers?: boolean; targetPeer?: SyncTargetPeer } = {}): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.role === 'gm' && session.peers.length === 0) {
       if (options.requirePeers) {
         this.patchSession({ message: 'Некому отправлять обновление: подключенных игроков нет.' });
@@ -555,7 +557,7 @@ export class P2PSessionService {
   }
 
   async sendChatMessage(authorName: string, body: string): Promise<void> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     this.feedService.addMessage(authorName, body);
     if (session.role !== 'player' || !session.connected) {
       return;
@@ -564,7 +566,7 @@ export class P2PSessionService {
   }
 
   async publishPlayerTokenMove(move: PlayerTokenMoveMessage): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.role !== 'player' || !session.connected) {
       return false;
     }
@@ -580,7 +582,7 @@ export class P2PSessionService {
   }
 
   async updateRestParticipantChoices(restEntryId: string, actorId: string, choices: string[]): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.role === 'player' && session.connected) {
       const context = this.requirePlayerActorContext(actorId);
       if (!context) {
@@ -612,7 +614,7 @@ export class P2PSessionService {
   }
 
   async submitPlayerRollIntent(input: { actorId: string; actorName?: string; publication?: PlayerRollIntentMessage['publication']; intent: PlayerRollIntent; resourcePatch?: PlayerCharacterResourcePatch; teamworkEntryId?: string }): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.role !== 'player' || !session.connected) {
       return false;
     }
@@ -644,7 +646,7 @@ export class P2PSessionService {
   }
 
   async submitPlayerDecision(input: { actorId: string; actorName?: string; decision: PlayerDecision }): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.role !== 'player' || !session.connected) {
       return false;
     }
@@ -673,7 +675,7 @@ export class P2PSessionService {
   }
 
   async submitPlayerCharacterCreate(input: { draft: Partial<Character>; participantName?: string }): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.sessionStore.get();
     if (session.role !== 'player' || !session.connected) {
       return false;
     }
@@ -701,7 +703,7 @@ export class P2PSessionService {
   }
 
   async raiseHand(input: PlayerActivationInput): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.session$.get();
     if (session.role !== 'player' || !session.connected) {
       this.patchSession({ message: 'Подключитесь к комнате, чтобы поднять руку.' });
       return false;
@@ -719,7 +721,7 @@ export class P2PSessionService {
   }
 
   async lowerHand(input: Pick<PlayerActivationInput, 'requesterId' | 'actorId'>): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.session$.get();
     if (session.role !== 'player' || !session.connected) {
       this.playerActivationQueueService.lower(input);
       return false;
@@ -737,7 +739,7 @@ export class P2PSessionService {
   }
 
   async clearRaisedHand(item: Pick<PlayerActivationQueueItem, 'requesterId' | 'actorId'>): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.session$.get();
     if (session.role !== 'gm' || !session.connected) {
       return false;
     }
@@ -754,7 +756,7 @@ export class P2PSessionService {
   }
 
   async publishPresence(input: Omit<PlayerPresence, 'peerId' | 'updatedAt'>): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.session$.get();
     if (session.role !== 'player' || !session.connected || !session.peerId) {
       return false;
     }
@@ -776,7 +778,7 @@ export class P2PSessionService {
   }
 
   async forceMutePlayer(input: { actorId: string; peerId?: string }): Promise<boolean> {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.session$.get();
     if (session.role !== 'gm' || !session.connected) {
       return false;
     }
@@ -792,10 +794,10 @@ export class P2PSessionService {
   }
 
   private capturePlayerForwardingBaseline(): void {
-    for (const entry of this.feedService.feedStore.getSnapshot()) {
+    for (const entry of this.feedService.feed$.get()) {
       this.publishedPlayerFeedEntrySignatures.set(entry.id, playerFeedEntrySignature(entry));
     }
-    for (const character of Object.values(charactersStore.getSnapshot().entities)) {
+    for (const character of Object.values(charactersStore.get().entities)) {
       this.playerCharacterResourceSignatures.set(character.id, playerCharacterResourceSignature(character));
     }
   }
@@ -804,11 +806,11 @@ export class P2PSessionService {
     if (this.suppressPlayerStoreForwarding) {
       return;
     }
-    const session = this.sessionStore.getSnapshot();
+    const session = this.session$.get();
     if (session.role !== 'player' || !session.connected) {
       return;
     }
-    const entries = [...this.feedService.feedStore.getSnapshot()].reverse();
+    const entries = [...this.feedService.feed$.get()].reverse();
     for (const entry of entries) {
       if (entry.type !== 'message') {
         this.publishedPlayerFeedEntrySignatures.set(entry.id, playerFeedEntrySignature(entry));
@@ -840,7 +842,7 @@ export class P2PSessionService {
     if (this.suppressPlayerStoreForwarding) {
       return;
     }
-    const session = this.sessionStore.getSnapshot();
+    const session = this.session$.get();
     if (session.role !== 'player' || !session.connected) {
       return;
     }
@@ -848,7 +850,7 @@ export class P2PSessionService {
     if (!context) {
       return;
     }
-    const character = charactersStore.getSnapshot().entities[context.actorId];
+    const character = charactersStore.get().entities[context.actorId];
     if (!character) {
       return;
     }
@@ -965,9 +967,9 @@ export class P2PSessionService {
     if (!participantId) {
       return false;
     }
-    const sceneTable = this.sceneTableService.sceneTableStore.getSnapshot();
+    const sceneTable = this.sceneTableService.sceneTable$.get();
     const currentParticipant = sceneTable.participants[participantId];
-    if (currentParticipant?.role === 'player' && currentParticipant.actorIds.some((actorId) => charactersStore.getSnapshot().entities[actorId])) {
+    if (currentParticipant?.role === 'player' && currentParticipant.actorIds.some((actorId) => charactersStore.get().entities[actorId])) {
       this.processedPlayerCharacterCreateIds.add(message.requestId);
       return true;
     }
@@ -1050,7 +1052,7 @@ export class P2PSessionService {
             spendHopeForExperiences: message.intent.spendHopeForExperiences,
             publication: message.publication,
             notes: message.intent.notes,
-            applyConsequences: gameStore.getSnapshot().autoApplyRollConsequences
+            applyConsequences: gameStore.get().autoApplyRollConsequences
           };
           const roll = message.intent.rollType === 'reaction'
             ? this.diceService.rollReaction(request)
@@ -1118,7 +1120,7 @@ export class P2PSessionService {
   }
 
   private scheduleSnapshot(): void {
-    const session = this.sessionStore.getSnapshot();
+    const session = this.session$.get();
     if (session.role !== 'gm' || session.peers.length === 0) {
       return;
     }
@@ -1131,7 +1133,7 @@ export class P2PSessionService {
   private startPlayerProductRecoveryPolling(): void {
     this.stopPlayerProductRecoveryPolling();
     this.productRecoveryTimer = window.setInterval(() => {
-      const session = this.sessionStore.getSnapshot();
+      const session = this.session$.get();
       if (session.role !== 'player' || !session.connected) {
         this.stopPlayerProductRecoveryPolling();
         return;
@@ -1160,7 +1162,7 @@ export class P2PSessionService {
       return;
     }
     if (event.type === 'peer-joined') {
-      const session = this.sessionStore.getSnapshot();
+      const session = this.session$.get();
       const isGmRestored = session.role === 'player' && event.role === 'gm';
       this.patchSession({
         peers: event.peers,
@@ -1223,7 +1225,7 @@ export class P2PSessionService {
   }
 
   private async republishPendingRequests(): Promise<void> {
-    const pending = this.playerActionRequestService.requestsStore.getSnapshot().filter((request) => request.status === 'pending');
+    const pending = this.playerActionRequestService.requests$.get().filter((request) => request.status === 'pending');
     for (const request of pending) {
       await this.syncService.publishPlayerRequest(request);
     }
@@ -1233,11 +1235,11 @@ export class P2PSessionService {
   }
 
   private async republishRaisedHand(): Promise<void> {
-    const local = this.playerActivationQueueService.localStore.getSnapshot();
+    const local = this.playerActivationQueueService.local$.get();
     if (!local.raised || !local.actorId) {
       return;
     }
-    const current = this.playerActivationQueueService.queueStore.getSnapshot().find((item) => item.actorId === local.actorId);
+    const current = this.playerActivationQueueService.queue$.get().find((item) => item.actorId === local.actorId);
     if (!current) {
       return;
     }
@@ -1263,7 +1265,7 @@ export class P2PSessionService {
   }
 
   private persistInviteDraft(): void {
-    persistInviteDraft(this.inviteStore.getSnapshot());
+    persistInviteDraft(this.inviteStore.get());
   }
 
   private requirePlayerActorContext(actorId?: string): { participantId: string; actorId: string; actorName?: string } | null {
@@ -1283,7 +1285,7 @@ export class P2PSessionService {
   }
 
   private participantOwnsActor(participantId: string, actorId: string): boolean {
-    const participant = this.sceneTableService.sceneTableStore.getSnapshot().participants[participantId];
+    const participant = this.sceneTableService.sceneTable$.get().participants[participantId];
     return participant?.role === 'player' && participant.actorIds.includes(actorId);
   }
 
@@ -1298,7 +1300,7 @@ export class P2PSessionService {
   }
 
   private ownerParticipantIdForActor(actorId: string): string | null {
-    const participant = Object.values(this.sceneTableService.sceneTableStore.getSnapshot().participants)
+    const participant = Object.values(this.sceneTableService.sceneTable$.get().participants)
       .find((item) => item.role === 'player' && item.actorIds.includes(actorId));
     return participant?.id ?? null;
   }

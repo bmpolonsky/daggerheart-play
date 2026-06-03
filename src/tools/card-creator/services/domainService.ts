@@ -88,6 +88,7 @@ function writeStorage(domains: DomainTheme[]) {
 }
 
 export class DomainService {
+  readonly domains$ = domainStore.toStream();
   private bootstrapped = false;
   private loadRevision = 0;
 
@@ -124,7 +125,7 @@ export class DomainService {
   getTheme(id: string | null | undefined) {
     if (!id) return null;
     const normalized = normalizeDomainId(id);
-    const { domains } = domainStore.getState();
+    const { domains } = domainStore.get();
     const direct = domains.find((theme) => theme.id === normalized);
     if (direct) return direct;
     const trimmed = normalized.replace(/^playtest-/, "");
@@ -182,7 +183,7 @@ export class DomainService {
   }
 
   exportDomains() {
-    const { domains } = domainStore.getState();
+    const { domains } = domainStore.get();
     return JSON.stringify(filterCustomDomains(domains), null, 2);
   }
 

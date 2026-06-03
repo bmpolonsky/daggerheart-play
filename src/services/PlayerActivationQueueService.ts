@@ -29,8 +29,10 @@ export interface LocalActivationState {
 }
 
 export class PlayerActivationQueueService {
-  readonly queueStore = new Store<PlayerActivationQueueItem[]>([]);
-  readonly localStore = new Store<LocalActivationState>({ raised: false, actorId: null });
+  private queueStore = new Store<PlayerActivationQueueItem[]>([]);
+  readonly queue$ = this.queueStore.toStream();
+  private localStore = new Store<LocalActivationState>({ raised: false, actorId: null });
+  readonly local$ = this.localStore.toStream();
 
   raise(input: PlayerActivationInput): PlayerActivationQueueMessage {
     const request: PlayerActivationQueueItem = {
@@ -102,7 +104,7 @@ export class PlayerActivationQueueService {
   }
 
   private clearLocalIfMatches(actorId: string): void {
-    const local = this.localStore.getSnapshot();
+    const local = this.localStore.get();
     if (local.actorId === actorId) {
       this.localStore.set({ raised: false, actorId: null });
     }

@@ -1,11 +1,11 @@
 /** @jsxImportSource preact */
-import { useStore } from '../../../core/hooks/useStore';
+import { useStream } from '../../../core/hooks/useStream';
 import { p2pSessionService } from '../../../services/serviceRegistry';
 import type { P2PSessionState } from '../../../services/P2PSessionService';
 import type { TableViewRole } from './types';
 
 export function PlayerConnectionStatus({ hasCharacter, hasSessionRoom, role }: { hasCharacter: boolean; hasSessionRoom: boolean; role: TableViewRole }) {
-  const p2pSession = useStore(p2pSessionService.sessionStore);
+  const p2pSession = useStream(p2pSessionService.session$);
   const showConnectionOverlay = role === 'player' && hasSessionRoom && hasCharacter && (
     !p2pSession.connected ||
     p2pSession.status === 'connecting' ||

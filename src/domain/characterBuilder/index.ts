@@ -249,7 +249,9 @@ export function buildCharacterBuilderChoicePreview(input: {
       const cardIds = input.selectedCardIds ?? [];
       const activeId = cardIds[cardIds.length - 1];
       const card = input.selectedCards?.find((item) => item.id === activeId) ??
-        input.availableDomainCards?.find((item) => item.id === activeId);
+        input.availableDomainCards?.find((item) => item.id === activeId) ??
+        input.selectedCards?.[0] ??
+        input.availableDomainCards?.[0];
       if (!card) return null;
       return {
         kicker: 'Карта домена',

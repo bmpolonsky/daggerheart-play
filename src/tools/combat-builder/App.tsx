@@ -4,19 +4,17 @@ import { SidebarContainer } from "@combat/components/app/SidebarContainer";
 import { WorkspaceContainer } from "@combat/components/app/WorkspaceContainer";
 import { AdversaryDetailsModal } from "@combat/components/adversaries/AdversaryDetailsModal";
 import { CustomAdversaryEditorHost } from "@combat/components/adversaries/CustomAdversaryEditorHost";
-import { useStore } from "../../core/hooks/useStore";
+import { useStream } from "../../core/hooks/useStream";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";
 import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";
-import { adversariesStore } from "@combat/stores/adversaries";
-import { encounterStore } from "@combat/stores/encounter";
 
 export default function App({ embedded = false }: { embedded?: boolean }) {
   adversariesService.ensureLoaded();
   encounterService.ensureHydrated();
 
-  const { items, selectedAdversaryId } = useStore(adversariesStore);
-  const { entries } = useStore(encounterStore);
+  const { items, selectedAdversaryId } = useStream(adversariesService.adversaries$);
+  const { entries } = useStream(encounterService.encounter$);
   const selectedAdversary = useMemo(
     () =>
       items.find((item) => item.id === selectedAdversaryId) ??

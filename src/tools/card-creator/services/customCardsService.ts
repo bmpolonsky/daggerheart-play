@@ -33,6 +33,7 @@ const TYPE_BY_COLLECTION: Record<CustomCardCollectionKey, CardTypeId> = {
 };
 
 class CustomCardsService {
+  readonly customCards$ = customCardsStore.toStream();
   private cache = new Map<string, CustomCardRecord>();
   private loaded = false;
   private loadingPromise: Promise<void> | null = null;

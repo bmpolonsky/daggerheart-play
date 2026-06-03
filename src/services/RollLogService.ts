@@ -18,8 +18,8 @@ interface ManualLogOptions {
 }
 
 export class RollLogService {
-  readonly rollLogStore = rollLogStore;
-  private readonly feedService = new FeedService();
+  readonly rollLog$ = rollLogStore.toStream();
+  private feedService = new FeedService();
 
   append(entry: RollLogEntry): void {
     rollLogStore.update((log) => [entry, ...log].slice(0, MAX_LOG_ENTRIES));

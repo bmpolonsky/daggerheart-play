@@ -3,10 +3,10 @@ import { ResourcePips } from '../components/common/ResourcePips';
 import { buildEffectiveCharacterStats } from '../../domain/rules/effects';
 import type { Character } from '../../domain/rules/types';
 import { gameService, characterService } from '../../services/serviceRegistry';
-import { useStore } from '../../core/hooks/useStore';
+import { useStream } from '../../core/hooks/useStream';
 
 export function ResourcePanel({ character }: { character: Character }) {
-  const game = useStore(gameService.gameStore);
+  const game = useStream(gameService.game$);
   const effective = buildEffectiveCharacterStats(character);
   return (
     <div className="stack gap-lg">

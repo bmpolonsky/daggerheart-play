@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { useStore } from '../../../core/hooks/useStore';
+import { useStream } from '../../../core/hooks/useStream';
 import type { MapAsset, TableScene } from '../../../domain/tabletop/types';
 import { assetService, p2pSessionService } from '../../../services/serviceRegistry';
 import type { TableViewRole } from './types';
 
 export function useLiveSceneAssetUrls(liveScene: TableScene, sceneAssets: Record<string, MapAsset>, role: TableViewRole): Record<string, string> {
-  const p2pSession = useStore(p2pSessionService.sessionStore);
+  const p2pSession = useStream(p2pSessionService.session$);
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({});
   const pendingAssetRequests = useRef<Set<string>>(new Set());
   const objectUrls = useRef<Record<string, string>>({});

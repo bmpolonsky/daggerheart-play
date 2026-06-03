@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Mic, MicOff, MonitorPlay, Video, VideoOff } from 'lucide-react';
-import { useStore } from '../../core/hooks/useStore';
+import { useStream } from '../../core/hooks/useStream';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import type { Character } from '../../domain/rules/types';
 import type { TableParticipant } from '../../domain/tabletop/types';
@@ -15,10 +15,10 @@ interface PlayerJoinLobbyProps {
 }
 
 export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '', roomId }: PlayerJoinLobbyProps) {
-  const { entities: characterEntities } = useStore(characterService.charactersStore);
-  const { participants } = useStore(sceneTableService.sceneTableStore);
-  const session = useStore(p2pSessionService.sessionStore);
-  const audioState = useStore(audioService.audioStore);
+  const { entities: characterEntities } = useStream(characterService.characters$);
+  const { participants } = useStream(sceneTableService.sceneTable$);
+  const session = useStream(p2pSessionService.session$);
+  const audioState = useStream(audioService.audio$);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');
   const [selectedSeatId, setSelectedSeatId] = useState(() => readStoredPlayerSeatId(roomId));
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);

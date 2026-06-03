@@ -85,6 +85,6 @@ test('adversary feature costs are parsed for display but not applied automatical
   assert.deepEqual(inferExplicitAdversaryFeatureCost('Цена: Страх, чтобы открыть портал.'), { kind: 'fear', cost: 'Страх 1' });
   assert.deepEqual(inferExplicitAdversaryFeatureCost('Страх окружает цель, но цена не указана.'), { cost: '' });
 
-  assert.equal(gameService.gameStore.getSnapshot().fear, 2);
+  assert.equal(gameService.game$.get().fear, 2);
   assert.equal(encounterService.getAdversary(adversary.id)?.stress.marked, 0);
 });

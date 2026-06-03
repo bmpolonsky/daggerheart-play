@@ -43,7 +43,7 @@ test('game bundles are real zip folders and legacy JSON remains importable', asy
   assert.equal(JSON.parse(zipTextEntry(entries, 'manifest.json') ?? '{}').name, 'Zip Game');
   assert.equal(JSON.parse(zipTextEntry(entries, 'resources/assets.json') ?? '[]')[0]?.resourcePath, 'resources/images/asset-bundle.png');
   assert.deepEqual(await bundleImportExportService.importFile(bundle), { ok: true });
-  assert.equal(gameService.gameStore.getSnapshot().name, 'Zip Game');
+  assert.equal(gameService.game$.get().name, 'Zip Game');
 
   const legacyJson = JSON.stringify(snapshotPersistedState());
   assert.deepEqual(await importExportService.importFile(new Blob([legacyJson], { type: 'application/json' })), { ok: true });
@@ -62,7 +62,7 @@ test('game bundle export extracts embedded scene data URLs into resource files',
     }
   });
   const bundleImportExportService = new ImportExportService(memoryAssetService);
-  const sceneId = sceneTableStore.getSnapshot().activeSceneId;
+  const sceneId = sceneTableStore.get().activeSceneId;
   sceneTableService.updateScene(sceneId, { backgroundUrl: 'data:image/png;base64,AQIDBA==' });
   sceneTableService.setSceneMusicTrack(sceneId, { sourceUrl: 'data:audio/mpeg;base64,BQYH', title: 'battle.mp3' });
 

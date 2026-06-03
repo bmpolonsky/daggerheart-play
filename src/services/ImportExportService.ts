@@ -29,7 +29,7 @@ export interface GameImportPreview {
 }
 
 export class ImportExportService {
-  constructor(private readonly assetService?: AssetService) {}
+  constructor(private assetService?: AssetService) {}
 
   exportJson(pretty = true): string {
     return this.exportGameJson(pretty);

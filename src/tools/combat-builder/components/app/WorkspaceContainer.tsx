@@ -1,10 +1,9 @@
 /** @jsxImportSource preact */
 import { EncounterPanel } from "@combat/components/encounter/EncounterPanel";
-import { useStore } from "../../../../core/hooks/useStore";
+import { useStream } from "../../../../core/hooks/useStream";
 import { buildEncounterSummary } from "@combat/lib/mechanics";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";
-import { encounterStore } from "@combat/stores/encounter";
 
 export function WorkspaceContainer() {
   const {
@@ -14,7 +13,7 @@ export function WorkspaceContainer() {
     isDamageBoosted,
     isLowerTierUsed,
     isSidebarOpen,
-  } = useStore(encounterStore);
+  } = useStream(encounterService.encounter$);
 
   const summary = buildEncounterSummary(entries, {
     playerCount,

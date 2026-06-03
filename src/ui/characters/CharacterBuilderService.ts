@@ -53,7 +53,8 @@ interface CharacterBuilderModelInput {
 }
 
 export class CharacterBuilderService {
-  readonly draftStore = new Store<CharacterBuilderDraftState>(createDefaultCharacterBuilderDraft());
+  private draftStore = new Store<CharacterBuilderDraftState>(createDefaultCharacterBuilderDraft());
+  readonly draft$ = this.draftStore.toStream();
 
   buildModel({ content, classes, equipment, draft }: CharacterBuilderModelInput) {
     const {

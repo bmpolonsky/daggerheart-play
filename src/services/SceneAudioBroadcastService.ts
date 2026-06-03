@@ -27,7 +27,8 @@ const initialBroadcastState: SceneAudioBroadcastState = {
 };
 
 export class SceneAudioBroadcastService {
-  readonly broadcastStore = new Store<SceneAudioBroadcastState>(initialBroadcastState);
+  private broadcastStore = new Store<SceneAudioBroadcastState>(initialBroadcastState);
+  readonly broadcast$ = this.broadcastStore.toStream();
 
   private sceneAudioElement: HTMLAudioElement | null = null;
   private sceneMusic: SceneMusicState | null = null;
@@ -234,7 +235,7 @@ export class SceneAudioBroadcastService {
     });
   }
 
-  private async publishLocalStream(label = this.broadcastStore.getSnapshot().sourceLabel || 'Музыка сцены'): Promise<void> {
+  private async publishLocalStream(label = this.broadcastStore.get().sourceLabel || 'Музыка сцены'): Promise<void> {
     if (!this.transport || !this.localBroadcastStream) return;
     await this.transport.publishMediaStream(this.localBroadcastStream, { kind: 'scene-audio', label });
   }
@@ -330,7 +331,7 @@ export class SceneAudioBroadcastService {
       const source = context.createMediaStreamSource(sourceStream);
       const gain = context.createGain();
       const destination = context.createMediaStreamDestination();
-      gain.gain.value = this.broadcastStore.getSnapshot().volume;
+      gain.gain.value = this.broadcastStore.get().volume;
       source.connect(gain);
       gain.connect(destination);
       this.broadcastAudioContext = context;

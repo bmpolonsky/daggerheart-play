@@ -32,15 +32,15 @@ interface AssetBinaryMetadata {
 }
 
 export class P2PAssetTransferService {
-  private readonly pending = new Map<string, PendingAssetRequest>();
+  private pending = new Map<string, PendingAssetRequest>();
 
   constructor(
-    private readonly syncService: SyncService,
-    private readonly assetService: AssetService,
-    private readonly sceneTableService: SceneTableService,
-    private readonly getSession: () => AssetSessionState,
-    private readonly getConnection: () => P2PRoomConnection | null,
-    private readonly patchSession: (patch: AssetSessionPatch) => void
+    private syncService: SyncService,
+    private assetService: AssetService,
+    private sceneTableService: SceneTableService,
+    private getSession: () => AssetSessionState,
+    private getConnection: () => P2PRoomConnection | null,
+    private patchSession: (patch: AssetSessionPatch) => void
   ) {}
 
   subscribeGm(): () => void {
@@ -121,7 +121,7 @@ export class P2PAssetTransferService {
       reason
     }, requesterPeerId);
 
-    const asset = this.sceneTableService.sceneTableStore.getSnapshot().assets[message.assetId];
+    const asset = this.sceneTableService.sceneTable$.get().assets[message.assetId];
     if (!asset || asset.storage !== 'indexeddb') {
       await unavailable('asset-not-found');
       return;

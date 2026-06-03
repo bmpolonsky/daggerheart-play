@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useEffect, useState } from 'preact/hooks';
 import { ChevronDown, ExternalLink, X } from 'lucide-react';
-import { useStore } from '../../../core/hooks/useStore';
+import { useStream } from '../../../core/hooks/useStream';
 import type { Character, DaggerheartClass } from '../../../domain/rules/types';
 import { characterService, contentService, encounterService, gameService, sceneTableService, tabletopService } from '../../../services/serviceRegistry';
 import { openWorkspaceInNewTab, toolTabLabel } from './helpers';
@@ -45,11 +45,11 @@ export function SharedToolsModal({
   const specialTabs: SharedToolsTab[] = role === 'gm' ? ['combat', 'cards'] : [];
   const gameLibraryTabs = role === 'gm' ? GM_GAME_LIBRARY_TABS : PLAYER_GAME_LIBRARY_TABS;
   const standaloneTabs = tabs.filter((item) => !gameLibraryTabs.includes(item));
-  const game = useStore(gameService.gameStore);
-  const characters = useStore(characterService.charactersStore);
-  const encounter = useStore(encounterService.encounterStore);
-  const sceneTable = useStore(sceneTableService.sceneTableStore);
-  const content = useStore(contentService.contentStore);
+  const game = useStream(gameService.game$);
+  const characters = useStream(characterService.characters$);
+  const encounter = useStream(encounterService.encounter$);
+  const sceneTable = useStream(sceneTableService.sceneTable$);
+  const content = useStream(contentService.content$);
   const libraryView = contentService.buildLibraryView(content);
   const compendiumCollections = role === 'player' ? PLAYER_COMPENDIUM_COLLECTIONS : COMPENDIUM_COLLECTIONS;
   const activeTab = tabs.includes(tab) ? tab : tabs[0];

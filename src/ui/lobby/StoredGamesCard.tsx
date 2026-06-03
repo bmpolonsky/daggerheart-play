@@ -1,13 +1,13 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef } from 'preact/hooks';
 import { Download, Trash2, Upload } from 'lucide-react';
-import { useStore } from '../../core/hooks/useStore';
+import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
 import { importExportService, persistenceService } from '../../services/serviceRegistry';
 import type { StoredGameSummary } from '../../core/persistence/gameDocumentStore';
 
 export function StoredGamesCard() {
-  const storedGames = useStore(persistenceService.storedGamesStore);
+  const storedGames = useStream(persistenceService.storedGames$);
   const importFileRef = useRef<HTMLInputElement | null>(null);
   const activeStoredGame = storedGames.find((game) => game.active) ?? null;
 

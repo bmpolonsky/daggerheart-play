@@ -182,7 +182,7 @@ test('content service normalizes custom tool content into library collections du
   try {
     await service.reload();
     service.setSelectedCollection('domainCards');
-    const buildView = () => service.buildLibraryView(service.contentStore.getSnapshot());
+    const buildView = () => service.buildLibraryView(service.content$.get());
     const view = buildView();
     assert.equal(view.genericItems.some((item) => item.id === 'domain-card:custom-library-card'), true);
     assert.equal(view.collectionCounts.domainCards >= view.genericItems.length, true);

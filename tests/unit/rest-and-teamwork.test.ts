@@ -39,7 +39,7 @@ test('tabletop rest flow grants Fear and explicit long rest recovery clears grou
 
   const rest = tabletopService.conductRest('long', { pcCount: 2, rng: () => 0.5 });
   assert.equal(rest.total, 5);
-  assert.equal(gameService.gameStore.getSnapshot().fear, 5);
+  assert.equal(gameService.game$.get().fear, 5);
 
   assert.equal(tabletopService.applyLongRestGroupRecovery('clearHp'), 2);
   assert.equal(tabletopService.applyLongRestGroupRecovery('clearStress'), 2);
@@ -94,9 +94,9 @@ test('rest request feed entry carries participant choices and respects publicati
   assert.equal(entry.rest.participants[0]?.choices[0]?.status, 'selected');
   assert.equal(entry.rest.participants[0]?.choices[0]?.count, 2);
 
-  const ownerFeed = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'player', actorId: actor.id });
-  const strangerFeed = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'player', actorId: stranger.id });
-  const gmFeed = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' });
+  const ownerFeed = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'player', actorId: actor.id });
+  const strangerFeed = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'player', actorId: stranger.id });
+  const gmFeed = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' });
   assert.equal(ownerFeed[0].kind, 'rest');
   assert.equal(ownerFeed[0].rest?.participants[0]?.ready, true);
   assert.equal(strangerFeed.length, 0);
@@ -133,7 +133,7 @@ test('rest feed choices update by participant slots and completion stores fear p
   assert.equal(completed?.rest.status, 'resolved');
   assert.equal(completed?.rest.fearPlan?.total, 1);
   assert.equal(completed?.rest.participants[0]?.choices[0]?.status, 'resolved');
-  assert.equal(gameService.gameStore.getSnapshot().fear, 1);
+  assert.equal(gameService.game$.get().fear, 1);
 });
 
 test('teamwork feed cards track GM participant selection, roles, and roll results', () => {
@@ -152,7 +152,7 @@ test('teamwork feed cards track GM participant selection, roles, and roll result
     availableActors: actors
   });
   assert.equal(entry.type, 'teamwork');
-  assert.equal(buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' })[0]?.kind, 'teamwork');
+  assert.equal(buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' })[0]?.kind, 'teamwork');
 
   const selected = feedService.updateTeamworkRollParticipants(entry.id, actors);
   assert.deepEqual(selected?.teamwork.participants.map((participant) => [participant.actorName, participant.role]), [
@@ -189,7 +189,7 @@ test('teamwork feed cards track GM participant selection, roles, and roll result
   });
   assert.equal(recorded?.teamwork.participants.find((participant) => participant.actorId === leader.id)?.result?.success, true);
   assert.equal(recorded?.teamwork.participants.find((participant) => participant.actorId === leader.id)?.pendingRoll, undefined);
-  assert.match(buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' })[0]?.body ?? '', /1\/2 участников бросили/);
+  assert.match(buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' })[0]?.body ?? '', /1\/2 участников бросили/);
 
   feedService.completeTeamworkRoll(entry.id);
   assert.equal(feedService.requestTeamworkParticipantRoll(entry.id, support.id, 'strength'), null);
@@ -232,7 +232,7 @@ test('player rest choice sync applies to GM feed and completion preserves choice
   });
   const firstMove = entry.rest.availableMoves[0] ?? '';
   const secondMove = entry.rest.availableMoves[1] ?? '';
-  const initialGmFeed = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' });
+  const initialGmFeed = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' });
   assert.equal(initialGmFeed[0].rest?.participants.filter((participant) => participant.ready).length, 0);
 
   const transport = new LocalSyncTransport();
@@ -270,7 +270,7 @@ test('player rest choice sync applies to GM feed and completion preserves choice
   unsubscribe();
 
   assert.equal(applied, true);
-  const gmFeed = buildTableFeedFromEntries({ feed: feedStore.getSnapshot(), role: 'gm' });
+  const gmFeed = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'gm' });
   const participant = gmFeed[0].rest?.participants[0];
   assert.equal(gmFeed[0].body, '1/3 участников готовы. Каждый выбирает 2.');
   assert.equal(participant?.ready, true);

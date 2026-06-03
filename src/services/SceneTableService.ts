@@ -21,7 +21,7 @@ export interface SceneImportReport {
 }
 
 export class SceneTableService {
-  readonly sceneTableStore = sceneTableStore;
+  readonly sceneTable$ = sceneTableStore.toStream();
 
   assignLocalPlayerCharacter(characterId: string | null): void {
     let nextParticipants: SceneTableState['participants'] | null = null;
@@ -48,7 +48,7 @@ export class SceneTableService {
 
   createPlayerSeat(input: { id?: string; name?: string; characterId?: string | null } = {}): TableParticipant {
     const id = input.id?.trim() || `player-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    const currentParticipants = sceneTableStore.getSnapshot().participants;
+    const currentParticipants = sceneTableStore.get().participants;
     const participant = createLocalParticipant({
       id,
       name: input.name?.trim() || nextPlayerSeatName(currentParticipants),
@@ -222,7 +222,7 @@ export class SceneTableService {
   }
 
   removeTokenFromScene(tokenId: string): boolean {
-    const sceneId = sceneTableStore.getSnapshot().activeSceneId;
+    const sceneId = sceneTableStore.get().activeSceneId;
     return this.removeTokenFromSceneInScene(sceneId, tokenId);
   }
 
@@ -261,7 +261,7 @@ export class SceneTableService {
   }
 
   getActiveScene(): TableScene {
-    const state = sceneTableStore.getSnapshot();
+    const state = sceneTableStore.get();
     return state.scenes[state.activeSceneId] ?? state.scenes[state.sceneOrder[0]] ?? createTableScene();
   }
 
@@ -331,7 +331,7 @@ export class SceneTableService {
   }
 
   duplicateScene(id: string): TableScene | null {
-    const state = sceneTableStore.getSnapshot();
+    const state = sceneTableStore.get();
     const source = state.scenes[id];
     if (!source) return null;
     const scene = createTableScene({
@@ -362,7 +362,7 @@ export class SceneTableService {
   }
 
   deleteScene(id: string): boolean {
-    const state = sceneTableStore.getSnapshot();
+    const state = sceneTableStore.get();
     if (!state.scenes[id] || state.sceneOrder.length <= 1) return false;
     const sceneOrder = state.sceneOrder.filter((sceneId) => sceneId !== id);
     const nextActiveSceneId = state.activeSceneId === id ? sceneOrder[0] : state.activeSceneId;
@@ -384,7 +384,7 @@ export class SceneTableService {
   }
 
   moveScene(id: string, direction: 'up' | 'down'): boolean {
-    const state = sceneTableStore.getSnapshot();
+    const state = sceneTableStore.get();
     const index = state.sceneOrder.indexOf(id);
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (index < 0 || targetIndex < 0 || targetIndex >= state.sceneOrder.length) return false;
@@ -427,7 +427,7 @@ export class SceneTableService {
   }
 
   publishScene(id: string): boolean {
-    const state = sceneTableStore.getSnapshot();
+    const state = sceneTableStore.get();
     if (!state.scenes[id]) return false;
     sceneTableStore.update((current) => ({
       ...current,

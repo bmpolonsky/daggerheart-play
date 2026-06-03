@@ -62,12 +62,12 @@ export interface ContentLibraryView {
 }
 
 export class ContentService {
-  readonly contentStore = contentStore;
+  readonly content$ = contentStore.toStream();
   private bootstrapped = false;
   private currentRequestId = 0;
-  private readonly contentSource = normalizeContentSourceUrl(import.meta.env?.VITE_CONTENT_SOURCE);
-  private readonly contentLanguage = normalizeContentLanguage(import.meta.env?.VITE_CONTENT_LANG);
-  private readonly fetchTimeoutMs = Number(import.meta.env?.VITE_CONTENT_TIMEOUT_MS ?? 4500);
+  private contentSource = normalizeContentSourceUrl(import.meta.env?.VITE_CONTENT_SOURCE);
+  private contentLanguage = normalizeContentLanguage(import.meta.env?.VITE_CONTENT_LANG);
+  private fetchTimeoutMs = Number(import.meta.env?.VITE_CONTENT_TIMEOUT_MS ?? 4500);
   private unsubscribeCustomContentChanges: (() => void) | null = null;
 
   ensureLoaded(): void {
@@ -166,7 +166,7 @@ export class ContentService {
   }
 
   addAdversaryToEncounter(libraryAdversaryId: string): boolean {
-    const item = contentStore.getSnapshot().adversaries.find((adversary) => adversary.id === libraryAdversaryId);
+    const item = contentStore.get().adversaries.find((adversary) => adversary.id === libraryAdversaryId);
     if (!item) return false;
 
     const adversary = createAdversaryFromLibrary(item);
@@ -181,7 +181,7 @@ export class ContentService {
   }
 
   addEnvironmentToEncounter(libraryEnvironmentId: string): boolean {
-    const item = contentStore.getSnapshot().environments.find((environment) => environment.id === libraryEnvironmentId);
+    const item = contentStore.get().environments.find((environment) => environment.id === libraryEnvironmentId);
     if (!item) return false;
 
     const environment = createEnvironmentFromLibrary(item);

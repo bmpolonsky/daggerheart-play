@@ -12,18 +12,18 @@ test('scene table service manages scene deck actions', () => {
 
   assert.ok(duplicated);
   assert.equal(duplicated?.name, 'Вторая сцена копия');
-  assert.equal(sceneTableService.sceneTableStore.getSnapshot().activeSceneId, duplicated?.id);
+  assert.equal(sceneTableService.sceneTable$.get().activeSceneId, duplicated?.id);
 
   assert.equal(sceneTableService.moveScene(duplicated!.id, 'up'), true);
-  const reordered = sceneTableService.sceneTableStore.getSnapshot().sceneOrder;
+  const reordered = sceneTableService.sceneTable$.get().sceneOrder;
   assert.equal(reordered[1], duplicated?.id);
 
   assert.equal(sceneTableService.deleteScene(firstScene.id), true);
-  const state = sceneTableService.sceneTableStore.getSnapshot();
+  const state = sceneTableService.sceneTable$.get();
   assert.equal(state.scenes[firstScene.id], undefined);
   assert.equal(state.sceneOrder.includes(firstScene.id), false);
   assert.equal(sceneTableService.deleteScene(state.sceneOrder[0]), true);
-  assert.equal(sceneTableService.deleteScene(sceneTableService.sceneTableStore.getSnapshot().sceneOrder[0]), false);
+  assert.equal(sceneTableService.deleteScene(sceneTableService.sceneTable$.get().sceneOrder[0]), false);
 });
 
 test('player seat assignments sync character player names', () => {
@@ -66,8 +66,8 @@ test('services import old combat builder and map scene JSON exports', () => {
   }));
 
   assert.equal(combatReport.imported, 1);
-  assert.equal(encounterService.encounterStore.getSnapshot().order.length, 1);
-  assert.equal(encounterService.encounterStore.getSnapshot().battlePointBudget, 4);
+  assert.equal(encounterService.encounter$.get().order.length, 1);
+  assert.equal(encounterService.encounter$.get().battlePointBudget, 4);
 
   const character = firstCharacter();
   const sceneReport = sceneTableService.importLegacySceneJson(JSON.stringify({
@@ -104,7 +104,7 @@ test('resolveRestMove rolls and applies selected short rest recovery once', () =
 
   const result = tabletopService.resolveRestMove(rest.id, character.id, 'heal');
   const updatedCharacter = characterService.getCharacter(character.id);
-  const updatedRest = feedStore.getSnapshot().find((entry) => entry.id === rest.id && entry.type === 'rest');
+  const updatedRest = feedStore.get().find((entry) => entry.id === rest.id && entry.type === 'rest');
   const choice = updatedRest?.type === 'rest' ? updatedRest.rest.participants[0]?.choices[0] : null;
 
   assert.equal(result.applied, true);

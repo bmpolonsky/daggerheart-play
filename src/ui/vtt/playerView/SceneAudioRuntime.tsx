@@ -1,13 +1,13 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef } from 'preact/hooks';
 import { Volume2 } from 'lucide-react';
-import { useStore } from '../../../core/hooks/useStore';
+import { useStream } from '../../../core/hooks/useStream';
 import type { SceneMusicState } from '../../../domain/audio/sceneAudio';
 import { audioService, sceneAudioBroadcastService } from '../../../services/serviceRegistry';
 
 export function SceneAudioRuntime({ music }: { music: SceneMusicState }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const audioState = useStore(audioService.audioStore);
+  const audioState = useStream(audioService.audio$);
 
   useEffect(() => {
     const detachAudio = audioService.attachSceneAudioElement(audioRef.current);

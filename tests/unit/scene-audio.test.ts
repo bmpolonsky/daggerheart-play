@@ -59,7 +59,7 @@ test('scene table factory backfills scene music for older snapshots', () => {
 
 test('publishing a scene carries active scene music playback to the next scene track', () => {
   resetAllStores();
-  const firstSceneId = sceneTableStore.getSnapshot().liveSceneId;
+  const firstSceneId = sceneTableStore.get().liveSceneId;
   sceneTableService.setSceneMusicTrack(firstSceneId, { sourceUrl: 'https://cdn.example.com/first.mp3', title: 'First' });
   sceneTableService.playSceneMusic(firstSceneId);
 
@@ -69,7 +69,7 @@ test('publishing a scene carries active scene music playback to the next scene t
   });
 
   assert.equal(sceneTableService.publishScene(secondScene.id), true);
-  assert.equal(sceneTableStore.getSnapshot().scenes[secondScene.id].music.playing, true);
+  assert.equal(sceneTableStore.get().scenes[secondScene.id].music.playing, true);
 
   sceneTableService.stopSceneMusic(secondScene.id);
   const thirdScene = sceneTableService.createScene({
@@ -78,7 +78,7 @@ test('publishing a scene carries active scene music playback to the next scene t
   });
 
   assert.equal(sceneTableService.publishScene(thirdScene.id), true);
-  assert.equal(sceneTableStore.getSnapshot().scenes[thirdScene.id].music.playing, false);
+  assert.equal(sceneTableStore.get().scenes[thirdScene.id].music.playing, false);
 });
 
 test('audio service attempts scene music playback and exposes autoplay block for retry', async () => {
@@ -97,13 +97,13 @@ test('audio service attempts scene music playback and exposes autoplay block for
 
   assert.equal(fakeAudio.playCalls(), 1);
   assert.equal(fakeAudio.element.getAttribute('src'), 'https://cdn.example.com/battle.mp3');
-  assert.equal(audio.audioStore.getSnapshot().sceneAudioStatus, 'blocked');
+  assert.equal(audio.audio$.get().sceneAudioStatus, 'blocked');
 
   await audio.unlockSceneAudio();
 
   assert.equal(fakeAudio.playCalls(), 2);
-  assert.equal(audio.audioStore.getSnapshot().sceneAudioStatus, 'playing');
-  assert.equal(audio.audioStore.getSnapshot().sceneAudioUnlocked, true);
+  assert.equal(audio.audio$.get().sceneAudioStatus, 'playing');
+  assert.equal(audio.audio$.get().sceneAudioUnlocked, true);
 
   await audio.syncSceneMusic(createSceneMusicState({
     sourceUrl: 'https://cdn.example.com/battle.mp3',
@@ -159,15 +159,15 @@ test('audio service stops local voice stream when transport is detached', async 
     audio.setVoiceTransport(fakeTransport);
     await audio.startVoiceChat('Ари');
 
-    assert.equal(audio.audioStore.getSnapshot().voiceStatus, 'live');
+    assert.equal(audio.audio$.get().voiceStatus, 'live');
     assert.deepEqual(published, [fakeStream]);
 
     audio.setVoiceTransport(null);
 
     assert.deepEqual(removed, [fakeStream]);
     assert.deepEqual(stoppedTracks, ['audio']);
-    assert.equal(audio.audioStore.getSnapshot().voiceStatus, 'idle');
-    assert.equal(audio.audioStore.getSnapshot().voiceMuted, true);
+    assert.equal(audio.audio$.get().voiceStatus, 'idle');
+    assert.equal(audio.audio$.get().voiceMuted, true);
   } finally {
     if (originalNavigator) {
       Object.defineProperty(globalThis, 'navigator', originalNavigator);
@@ -246,12 +246,12 @@ test('audio service retries blocked remote voice playback from mic click', async
     await Promise.resolve();
 
     assert.deepEqual(playCalls, ['blocked']);
-    assert.equal(audio.audioStore.getSnapshot().voiceMessage, 'Нажмите микрофон, чтобы разблокировать входящий голос.');
+    assert.equal(audio.audio$.get().voiceMessage, 'Нажмите микрофон, чтобы разблокировать входящий голос.');
 
     await audio.toggleVoiceChat('Ари');
 
     assert.deepEqual(playCalls, ['blocked', 'played']);
-    assert.equal(audio.audioStore.getSnapshot().voiceStatus, 'live');
+    assert.equal(audio.audio$.get().voiceStatus, 'live');
   } finally {
     globalThis.Audio = OriginalAudio;
     if (originalNavigator) {

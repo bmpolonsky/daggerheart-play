@@ -24,7 +24,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
   private mediaStreamListeners = new Set<(stream: MediaStream, peerId: string, metadata?: JsonValue) => void>();
   private publishedMediaStreams = new Map<MediaStream, JsonValue | undefined>();
 
-  constructor(private readonly options: TrysteroP2PTransportOptions = {}) {}
+  constructor(private options: TrysteroP2PTransportOptions = {}) {}
 
   async connect(roomId: string): Promise<void> {
     this.room?.leave();

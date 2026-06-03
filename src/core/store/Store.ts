@@ -1,29 +1,23 @@
+import { Stream } from './Stream';
+
 export type StoreListener<T> = (state: T) => void;
 export type StoreUpdater<T> = T | ((current: T) => T);
 
-export interface ReadableStore<T> {
-  getSnapshot(): T;
-  subscribe(listener: StoreListener<T>): () => void;
-}
-
-export interface WritableStore<T> extends ReadableStore<T> {
-  getState(): T;
-  set(next: T): void;
-  update(updater: StoreUpdater<T>): void;
-  reset(next: T): void;
-}
-
-export class Store<T> implements WritableStore<T> {
+export class Store<T> {
   private value: T;
-  private readonly listeners = new Set<StoreListener<T>>();
+  private listeners = new Set<StoreListener<T>>();
+  private stream: Stream<T> | null = null;
 
   constructor(initialValue: T) {
     this.value = initialValue;
   }
 
-  getSnapshot = (): T => this.value;
+  get = (): T => this.value;
 
-  getState = (): T => this.value;
+  toStream(): Stream<T> {
+    this.stream ??= Stream.from(this);
+    return this.stream;
+  }
 
   subscribe = (listener: StoreListener<T>): (() => void) => {
     this.listeners.add(listener);

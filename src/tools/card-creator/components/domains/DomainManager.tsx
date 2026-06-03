@@ -1,8 +1,8 @@
 /** @jsxImportSource preact */
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
-import { useStore } from "../../../../core/hooks/useStore";
-import { domainStore, type DomainTheme } from "@cards/stores/domains";
+import { useStream } from "../../../../core/hooks/useStream";
+import type { DomainTheme } from "@cards/stores/domains";
 import { domainService } from "@cards/services/domainService";
 import { Button } from "@cards/components/ui/button";
 import { Input } from "@cards/components/ui/input";
@@ -25,7 +25,7 @@ function normalizeSlug(value: string) {
 }
 
 export function DomainManager({ onClose }: DomainManagerProps) {
-  const { domains } = useStore(domainStore);
+  const { domains } = useStream(domainService.domains$);
   const [filter, setFilter] = useState("");
   const [showCustomOnly, setShowCustomOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);

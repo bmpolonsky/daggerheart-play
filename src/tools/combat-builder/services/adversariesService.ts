@@ -25,6 +25,7 @@ function sortAdversaries(items: Adversary[]) {
 }
 
 export class AdversariesService {
+  readonly adversaries$ = adversariesStore.toStream();
   private bootstrapped = false;
   private currentRequestId = 0;
   private customLoaded = false;
@@ -169,12 +170,12 @@ export class AdversariesService {
 
   getById(id: number | null) {
     if (!id) return null;
-    return adversariesStore.getState().items.find((item) => item.id === id) ?? null;
+    return adversariesStore.get().items.find((item) => item.id === id) ?? null;
   }
 
   createCustomAdversary(payload: Partial<Adversary>) {
     this.ensureCustomLoaded();
-    const existingIds = new Set(adversariesStore.getState().items.map((item) => item.id));
+    const existingIds = new Set(adversariesStore.get().items.map((item) => item.id));
     const adversary = normalizeCustomAdversary(
       {
         ...payload,
@@ -201,7 +202,7 @@ export class AdversariesService {
 
     const existingIds = new Set(
       adversariesStore
-        .getState()
+        .get()
         .items.map((item) => item.id)
         .filter((itemId) => itemId !== id)
     );
@@ -275,7 +276,7 @@ export class AdversariesService {
   }
 
   buildBrowserView() {
-    const { items, searchTerm, tierFilter, roleFilter } = adversariesStore.getState();
+    const { items, searchTerm, tierFilter, roleFilter } = adversariesStore.get();
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
     const filteredItems = sortAdversaries(

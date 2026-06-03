@@ -4,16 +4,14 @@ import type { JSX } from "preact";
 import { Button } from "@cards/components/ui/button";
 import { IconClose } from "@cards/components/icons";
 import { CardWorkspace } from "@cards/components/workspace/CardWorkspace";
-import { useStore } from "../../../../core/hooks/useStore";
-import { customCardsStore } from "@cards/stores/customCards";
-import { editorStore } from "@cards/stores/editor";
-import { exportStore } from "@cards/stores/export";
+import { useStream } from "../../../../core/hooks/useStream";
 import { CARD_TYPE_CONFIG, type CardFields, type CardTypeId } from "@cards/lib/cardTypes";
 import { renderMarkdown } from "@cards/lib/markdown";
 import { stripMarkdownLinks } from "@cards/lib/templateUtils";
 import { stripInlineMarkers } from "@cards/lib/text";
 import { editorService } from "@cards/services/editorService";
 import { exportService } from "@cards/services/exportService";
+import { customCardsService } from "@cards/services/customCardsService";
 
 type CardFieldInputFactory = <
   Element extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
@@ -30,9 +28,9 @@ export function WorkspaceContainer({ onOpenDomainManager }: WorkspaceContainerPr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const { selectedCard, selectedTypeId, cardFields, customImage, selectedFeatureIndex, customCardId } = useStore(editorStore);
-  const { isExporting, exportError } = useStore(exportStore);
-  const { items: customCards, lastUpdatedAt } = useStore(customCardsStore);
+  const { selectedCard, selectedTypeId, cardFields, customImage, selectedFeatureIndex, customCardId } = useStream(editorService.editor$);
+  const { isExporting, exportError } = useStream(exportService.exportState$);
+  const { items: customCards, lastUpdatedAt } = useStream(customCardsService.customCards$);
 
   const handleCloseEditor = () => {
     editorService.closeEditor();

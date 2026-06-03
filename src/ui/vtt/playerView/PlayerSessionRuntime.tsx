@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef } from 'preact/hooks';
-import { useStore } from '../../../core/hooks/useStore';
+import { useStream } from '../../../core/hooks/useStream';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { audioService, p2pSessionService } from '../../../services/serviceRegistry';
 import type { TableViewRole } from './types';
@@ -26,8 +26,8 @@ export function PlayerSessionRuntime({
   sessionPassword,
   sessionRoomId
 }: PlayerSessionRuntimeProps) {
-  const audioState = useStore(audioService.audioStore);
-  const p2pSession = useStore(p2pSessionService.sessionStore);
+  const audioState = useStream(audioService.audio$);
+  const p2pSession = useStream(p2pSessionService.session$);
   const autoP2PRestoreKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export function PlayerSessionRuntime({
       void p2pSessionService.restoreActiveSession('player', selectedPlayerName).catch(() => undefined);
       return;
     }
-    const session = p2pSessionService.sessionStore.getSnapshot();
+    const session = p2pSessionService.session$.get();
     if (session.connected && session.role === 'player' && session.roomId === sessionRoomId) {
       return;
     }

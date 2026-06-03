@@ -35,14 +35,14 @@ test('P2P GM does not publish snapshots with no connected peers', async () => {
 
   try {
     await gm.startGmRoom({ roomId: 'empty-room', participantName: 'GM' });
-    const sessionBeforePublish = gm.sessionStore.getSnapshot();
+    const sessionBeforePublish = gm.session$.get();
 
     assert.equal(await gm.publishSnapshot(), false);
     assert.equal(network.deliveredSnapshots, 0);
-    assert.equal(gm.sessionStore.getSnapshot().message, sessionBeforePublish.message);
+    assert.equal(gm.session$.get().message, sessionBeforePublish.message);
 
     assert.equal(await gm.publishSnapshot({ requirePeers: true }), false);
-    assert.equal(gm.sessionStore.getSnapshot().message, 'Некому отправлять обновление: подключенных игроков нет.');
+    assert.equal(gm.session$.get().message, 'Некому отправлять обновление: подключенных игроков нет.');
   } finally {
     await gm.stop().catch(() => undefined);
     restoreWindow();
@@ -68,7 +68,7 @@ test('P2P snapshot publishes asset metadata without pushing asset blobs', async 
       updatedAt: '2026-05-26T00:00:00.000Z'
     });
     await waitFor(() => {
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
+      assert.equal(gm.session$.get().peers.length, 1);
     });
     await assetService.saveFile(new File([new Uint8Array([1, 2, 3])], 'map.png', { type: 'image/png' }));
 
@@ -93,8 +93,8 @@ test('P2P player character create is applied by GM and bound to the player seat'
     await gm.startGmRoom({ roomId: 'character-create-room', participantName: 'GM' });
     await player.startPlayerRoom({ roomId: 'CHARACTER-CREATE-ROOM', participantId: 'player-seat-create', participantName: 'Игрок' });
     await waitFor(() => {
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
-      assert.equal(player.sessionStore.getSnapshot().connected, true);
+      assert.equal(gm.session$.get().peers.length, 1);
+      assert.equal(player.session$.get().connected, true);
     });
 
     assert.equal(await player.submitPlayerCharacterCreate({
@@ -103,11 +103,11 @@ test('P2P player character create is applied by GM and bound to the player seat'
     }), true);
 
     await waitFor(() => {
-      const state = charactersStore.getSnapshot();
+      const state = charactersStore.get();
       assert.equal(state.order.length, 1);
       const character = state.entities[state.order[0]];
       assert.equal(character?.name, 'Новый герой');
-      assert.deepEqual(sceneTableStore.getSnapshot().participants['player-seat-create']?.actorIds, [character.id]);
+      assert.deepEqual(sceneTableStore.get().participants['player-seat-create']?.actorIds, [character.id]);
     });
   } finally {
     await player.stop().catch(() => undefined);
@@ -129,8 +129,8 @@ test('P2P player lazily requests an existing image asset and stores its blob', a
     await gm.startGmRoom({ roomId: 'asset-pull-room', participantName: 'GM' });
     await player.startPlayerRoom({ roomId: 'ASSET-PULL-ROOM', participantName: 'Игрок' });
     await waitFor(() => {
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
-      assert.equal(player.sessionStore.getSnapshot().connected, true);
+      assert.equal(gm.session$.get().peers.length, 1);
+      assert.equal(player.session$.get().connected, true);
     });
     const asset = await gmAssets.assetService.saveFile(new File([new Uint8Array([1, 2, 3, 4, 5])], 'map.png', { type: 'image/png' }));
 
@@ -160,8 +160,8 @@ test('P2P asset request for missing asset resolves unavailable', async () => {
     await gm.startGmRoom({ roomId: 'missing-asset-room', participantName: 'GM' });
     await player.startPlayerRoom({ roomId: 'MISSING-ASSET-ROOM', participantName: 'Игрок' });
     await waitFor(() => {
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
-      assert.equal(player.sessionStore.getSnapshot().connected, true);
+      assert.equal(gm.session$.get().peers.length, 1);
+      assert.equal(player.session$.get().connected, true);
     });
 
     assert.equal(await player.requestAsset('missing-asset', 'scene-background'), false);
@@ -187,8 +187,8 @@ test('P2P direct asset request transfers audio blobs without mime-specific handl
     await gm.startGmRoom({ roomId: 'audio-asset-room', participantName: 'GM' });
     await player.startPlayerRoom({ roomId: 'AUDIO-ASSET-ROOM', participantName: 'Игрок' });
     await waitFor(() => {
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
-      assert.equal(player.sessionStore.getSnapshot().connected, true);
+      assert.equal(gm.session$.get().peers.length, 1);
+      assert.equal(player.session$.get().connected, true);
     });
     const asset = await gmAssets.assetService.saveFile(new File([new Uint8Array([4, 5, 6])], 'music.mp3', { type: 'audio/mpeg' }));
 
@@ -226,8 +226,8 @@ test('P2P binary assets requested by another peer are ignored', async () => {
       updatedAt: '2026-05-26T00:00:00.000Z'
     });
     await waitFor(() => {
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 2);
-      assert.equal(player.sessionStore.getSnapshot().connected, true);
+      assert.equal(gm.session$.get().peers.length, 2);
+      assert.equal(player.session$.get().connected, true);
     });
     const asset = await gmAssets.assetService.saveFile(new File([new Uint8Array([7, 8, 9])], 'map.png', { type: 'image/png' }));
 
@@ -265,7 +265,7 @@ test('P2P GM executes player roll intents authoritatively and rejects tampered a
 
   try {
     await gm.startGmRoom({ roomId: 'roll-room', participantName: 'GM' });
-    const participant = Object.values(sceneTableStore.getSnapshot().participants).find((seat) => seat.actorIds.includes(character.id));
+    const participant = Object.values(sceneTableStore.get().participants).find((seat) => seat.actorIds.includes(character.id));
     assert.ok(participant);
     await playerSync.connectReadOnly('ROLL-ROOM', {
       id: participant.id,
@@ -278,7 +278,7 @@ test('P2P GM executes player roll intents authoritatively and rejects tampered a
     assert.equal((playerSync.getTransport() as P2PRoomConnection).peerId !== '', true);
     await waitFor(() => {
       assert.equal((playerSync.getTransport() as P2PRoomConnection).peers().length, 1);
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
+      assert.equal(gm.session$.get().peers.length, 1);
     });
 
     const originalRandom = Math.random;
@@ -309,7 +309,7 @@ test('P2P GM executes player roll intents authoritatively and rejects tampered a
     }
 
     assert.equal(network.dataMessages.playerRollIntent, 1);
-    const rollLog = rollLogService.rollLogStore.getSnapshot();
+    const rollLog = rollLogService.rollLog$.get();
     assert.equal(rollLog.length, 1);
     assert.equal(rollLog[0]?.type, 'action');
     assert.equal(rollLog[0]?.actorId, character.id);
@@ -324,7 +324,7 @@ test('P2P GM executes player roll intents authoritatively and rejects tampered a
       createdAt: '2026-05-26T00:00:01.000Z',
       intent: { type: 'manualDice', formula: '1d20', label: 'Tampered actor' }
     }), true);
-    assert.equal(rollLogService.rollLogStore.getSnapshot().length, 1);
+    assert.equal(rollLogService.rollLog$.get().length, 1);
   } finally {
     await playerSync.disconnect().catch(() => undefined);
     await gm.stop().catch(() => undefined);
@@ -343,7 +343,7 @@ test('P2P GM clamps owned resource patches and rejects patches for another actor
 
   try {
     await gm.startGmRoom({ roomId: 'resource-room', participantName: 'GM' });
-    const participant = Object.values(sceneTableStore.getSnapshot().participants).find((seat) => seat.actorIds.includes(character.id));
+    const participant = Object.values(sceneTableStore.get().participants).find((seat) => seat.actorIds.includes(character.id));
     assert.ok(participant);
     await playerSync.connectReadOnly('RESOURCE-ROOM', {
       id: participant.id,
@@ -355,7 +355,7 @@ test('P2P GM clamps owned resource patches and rejects patches for another actor
     });
     await waitFor(() => {
       assert.equal((playerSync.getTransport() as P2PRoomConnection).peers().length, 1);
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
+      assert.equal(gm.session$.get().peers.length, 1);
     });
 
     assert.equal(await playerSync.publishPlayerCharacterResources({
@@ -413,7 +413,7 @@ test('P2P GM accepts player chat feed only and rejects player-generated roll fee
     });
     await waitFor(() => {
       assert.equal((playerSync.getTransport() as P2PRoomConnection).peers().length, 1);
-      assert.equal(gm.sessionStore.getSnapshot().peers.length, 1);
+      assert.equal(gm.session$.get().peers.length, 1);
     });
     const roll = diceService.rollManualDice({ actorId: character.id, actorName: character.name, formula: '1d20', label: 'Local roll' });
     feedService.clear();
@@ -443,7 +443,7 @@ test('P2P GM accepts player chat feed only and rejects player-generated roll fee
       roll
     }), true);
 
-    assert.deepEqual(feedStore.getSnapshot().map((entry) => entry.id), ['feed-chat']);
+    assert.deepEqual(feedStore.get().map((entry) => entry.id), ['feed-chat']);
   } finally {
     await playerSync.disconnect().catch(() => undefined);
     await gm.stop().catch(() => undefined);

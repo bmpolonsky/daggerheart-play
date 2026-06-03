@@ -1,18 +1,18 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react';
-import type { ReadableStore } from '../store/Store';
+import type { Stream } from '../store/Stream';
 
-type StoreField = string | symbol;
+type StreamField = string | symbol;
 
 interface TrackedSnapshot<T extends object> {
   proxy: T;
   source: T;
-  trackedFields: Set<StoreField>;
+  trackedFields: Set<StreamField>;
 }
 
-export function useStore<T>(store: ReadableStore<T>): T {
+export function useStream<T>(stream: Stream<T>): T {
   const trackedSnapshotRef = useRef<TrackedSnapshot<Extract<T, object>> | null>(null);
   const getSnapshot = useCallback(() => {
-    const next = store.getSnapshot();
+    const next = stream.get();
     if (!isTrackableSnapshot(next)) {
       return next;
     }
@@ -32,16 +32,17 @@ export function useStore<T>(store: ReadableStore<T>): T {
     const tracked = createTrackedSnapshot(next, current.trackedFields);
     trackedSnapshotRef.current = tracked;
     return tracked.proxy as T;
-  }, [store]);
+  }, [stream]);
+  const subscribe = useCallback((listener: () => void) => stream.subscribe(listener), [stream]);
 
-  return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 function isTrackableSnapshot<T>(snapshot: T): snapshot is Extract<T, object> {
   return (typeof snapshot === 'object' || typeof snapshot === 'function') && snapshot !== null;
 }
 
-function createTrackedSnapshot<T extends object>(source: T, trackedFields = new Set<StoreField>()): TrackedSnapshot<T> {
+function createTrackedSnapshot<T extends object>(source: T, trackedFields = new Set<StreamField>()): TrackedSnapshot<T> {
   const tracked: TrackedSnapshot<T> = {
     proxy: {} as T,
     source,
@@ -76,7 +77,7 @@ function createTrackedSnapshot<T extends object>(source: T, trackedFields = new 
   return tracked;
 }
 
-function trackedFieldsEqual<T extends object>(previous: T, next: T, fields: Set<StoreField>): boolean {
+function trackedFieldsEqual<T extends object>(previous: T, next: T, fields: Set<StreamField>): boolean {
   for (const field of fields) {
     if (!Object.is(Reflect.get(previous, field, previous), Reflect.get(next, field, next))) {
       return false;

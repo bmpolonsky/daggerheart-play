@@ -109,7 +109,7 @@ test('hiding a tabletop token clears selected state', () => {
   sceneTableService.selectToken('focus-token');
 
   const updated = sceneTableService.setTokenHidden('focus-token', true);
-  const state = sceneTableStore.getSnapshot();
+  const state = sceneTableStore.get();
 
   assert.equal(updated?.hidden, true);
   assert.equal(state.selectedTokenId, null);
@@ -127,8 +127,8 @@ test('GM visibility token flag hides the token from PlayerView', () => {
   const updated = tabletopService.setTokenVisibility('private-token', 'gm');
   const model = buildPlayerViewModel({
     game: createGameState(),
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: sceneTableService.getActiveScene(),
     assets: {},
     assetUrls: {},
@@ -158,8 +158,8 @@ test('player view token model marks zero-HP characters and defeated adversaries'
 
   const model = buildPlayerViewModel({
     game: createGameState(),
-    characters: charactersStore.getSnapshot(),
-    encounter: encounterService.encounterStore.getSnapshot(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
     liveScene: scene,
     assets: {},
     assetUrls: {},

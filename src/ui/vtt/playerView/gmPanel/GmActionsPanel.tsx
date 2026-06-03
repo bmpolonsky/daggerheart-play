@@ -1,12 +1,12 @@
 /** @jsxImportSource preact */
 import { Bed, Coffee, Hourglass, Swords, Users } from "lucide-react";
-import { useStore } from "../../../../core/hooks/useStore";
+import { useStream } from "../../../../core/hooks/useStream";
 import type { RestType } from "../../../../domain/rules/rest";
 import { characterService, feedService } from "../../../../services/serviceRegistry";
 import { playerViewUiActions } from "../playerViewUiState";
 
 export function GmActionsPanel() {
-  const charactersState = useStore(characterService.charactersStore);
+  const charactersState = useStream(characterService.characters$);
   const actorOptions = charactersState.order.flatMap((characterId) => {
     const character = charactersState.entities[characterId];
     if (!character) return [];

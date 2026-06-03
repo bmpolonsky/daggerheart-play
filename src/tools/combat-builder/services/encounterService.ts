@@ -138,7 +138,7 @@ function normalizeDifficultyMode(value: unknown): EncounterDifficultyMode {
 
 function builderSnapshotFromStore(): CombatBuilderEncounterSnapshot {
   const { entries, playerCount, difficultyMode, isDamageBoosted, isLowerTierUsed } =
-    encounterStore.getState();
+    encounterStore.get();
 
   return {
     entries,
@@ -164,6 +164,7 @@ function finalBudget(entries: EncounterBattleEntry[], settings: BuilderEncounter
 }
 
 export class EncounterService {
+  readonly encounter$ = encounterStore.toStream();
   private bootstrapped = false;
   private unsubscribeCoreEncounter: (() => void) | null = null;
 
@@ -181,7 +182,7 @@ export class EncounterService {
   }
 
   private applyCoreEncounter() {
-    const snapshot = buildCombatBuilderEncounterFromCoreEncounter(coreEncounterStore.getSnapshot());
+    const snapshot = buildCombatBuilderEncounterFromCoreEncounter(coreEncounterStore.get());
     const settings = builderSettingsFromSnapshot(snapshot);
     encounterStore.update((state) => ({
       ...state,

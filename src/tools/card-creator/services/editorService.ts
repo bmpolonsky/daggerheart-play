@@ -51,11 +51,11 @@ const buildHash = (target: HashTarget) => {
 };
 
 export class EditorService {
-  readonly store = editorStore;
+  readonly editor$ = editorStore.toStream();
   private hashBootstrapped = false;
   private pendingHash: HashTarget | null = null;
   private customImageObjectUrl: string | null = null;
-  private readonly assetService = new AssetService();
+  private assetService = new AssetService();
 
   constructor() {
     domainStore.subscribe(() => {
@@ -290,7 +290,7 @@ export class EditorService {
 
   private tryApplyHashTarget(target: HashTarget) {
     if (target.type === "card") {
-      const hasTemplates = templatesStore.getState().templateGroups.length > 0;
+      const hasTemplates = templatesStore.get().templateGroups.length > 0;
       if (!hasTemplates) return false;
       const card = this.findCardBySlug(target.value);
       if (!card) {
@@ -320,7 +320,7 @@ export class EditorService {
     const [prefix, ...rest] = value.split(":");
     if (!rest.length) return null;
     const slug = rest.join(":");
-    const { templateGroups } = templatesStore.getState();
+    const { templateGroups } = templatesStore.get();
     const group = templateGroups.find((item) => item.id === prefix);
     if (!group) return null;
     return group.items.find((item) => item.slug === slug || item.id === slug) ?? null;
@@ -357,7 +357,7 @@ export class EditorService {
   }
 
   private ensureCustomCardId() {
-    const state = editorStore.getState();
+    const state = editorStore.get();
     if (state.customCardId || !state.selectedCard) {
       return state.customCardId;
     }
@@ -370,7 +370,7 @@ export class EditorService {
   }
 
   private persistCustomCard() {
-    const state = editorStore.getState();
+    const state = editorStore.get();
     if (!state.customCardId) return;
 
     const raw = buildRawCustomCard(state.selectedTypeId, state.customCardId, state.cardFields, state.selectedCard, state.selectedFeatureIndex, state.customImageSource);
@@ -407,7 +407,7 @@ export class EditorService {
 
   removeCustomCard(id: string) {
     customCardsService.remove(id);
-    const state = editorStore.getState();
+    const state = editorStore.get();
     if (state.customCardId === id) {
       this.closeEditor();
     }

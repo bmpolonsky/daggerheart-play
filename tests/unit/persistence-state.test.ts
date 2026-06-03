@@ -21,7 +21,7 @@ test('persistence v4 includes table scenes and import/export hydrates them', () 
     ownership: { ownerId: null, editableBy: ['gm'], visibility: 'public' }
   }]);
   sceneTableService.selectToken('character:test');
-  sceneTableService.updateScene(sceneTableStore.getSnapshot().activeSceneId, { mode: 'scene', backgroundUrl: 'data:image/png;base64,abc' });
+  sceneTableService.updateScene(sceneTableStore.get().activeSceneId, { mode: 'scene', backgroundUrl: 'data:image/png;base64,abc' });
   sceneTableStore.update((state) => ({
     ...state,
     assets: {
@@ -43,11 +43,11 @@ test('persistence v4 includes table scenes and import/export hydrates them', () 
   assert.equal(snapshot.sceneTable.selectedTokenId, 'character:test');
 
   hydratePersistedState({ ...snapshot, sceneTable: createSceneTableState() });
-  assert.equal(sceneTableStore.getSnapshot().scenes[sceneTableStore.getSnapshot().activeSceneId].tokens.length, 0);
+  assert.equal(sceneTableStore.get().scenes[sceneTableStore.get().activeSceneId].tokens.length, 0);
 
   const result = importExportService.importJson(JSON.stringify(snapshot));
   assert.deepEqual(result, { ok: true });
-  const importedSceneTable = sceneTableStore.getSnapshot();
+  const importedSceneTable = sceneTableStore.get();
   assert.equal(importedSceneTable.scenes[importedSceneTable.activeSceneId].tokens[0]?.id, 'character:test');
   assert.equal(importedSceneTable.scenes[importedSceneTable.activeSceneId].mode, 'scene');
 
@@ -83,8 +83,8 @@ test('synced game store registry backs snapshots, hydration, and subscriptions',
   const unsubscribeCallbacks = subscribeToSyncedGameStores(() => {
     subscriptionCount += 1;
   });
-  for (const store of Object.values(syncedGameStores) as Array<{ getSnapshot(): unknown; reset(value: unknown): void }>) {
-    store.reset(store.getSnapshot());
+  for (const store of Object.values(syncedGameStores) as Array<{ get(): unknown; reset(value: unknown): void }>) {
+    store.reset(store.get());
   }
   unsubscribeCallbacks.forEach((unsubscribe) => unsubscribe());
   assert.equal(subscriptionCount, Object.keys(syncedGameStores).length);
@@ -117,7 +117,7 @@ test('persistence normalizes countdown visibility and encounter environments', (
 
   hydratePersistedState(snapshot);
 
-  const encounter = encounterService.encounterStore.getSnapshot();
+  const encounter = encounterService.encounter$.get();
   assert.equal(encounter.countdowns.find((item) => item.id === 'countdown-public')?.visibility, 'public');
   assert.equal(encounter.countdowns.find((item) => item.id === 'countdown-gm')?.visibility, 'gm');
   assert.equal(encounter.environments[environment.id]?.name, 'Затопленный рынок');
@@ -152,7 +152,7 @@ test('v3 persistence snapshots are rejected after the migration cutoff', () => {
 
   const result = importExportService.importJson(JSON.stringify(legacy));
   assert.equal(result.ok, false);
-  const state = sceneTableStore.getSnapshot();
+  const state = sceneTableStore.get();
   assert.equal(state.schemaVersion, 4);
   assert.notEqual(state.scenes[state.activeSceneId].tokens[0]?.id, 'character:legacy');
 });
