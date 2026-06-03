@@ -2,13 +2,14 @@ interface ResourcePipsProps {
   label: string;
   current: number;
   max: number;
+  tone?: 'hope' | 'hp' | 'stress' | 'armor';
   filledMeansMarked?: boolean;
   onChange?: (next: number) => void;
 }
 
-export function ResourcePips({ label, current, max, filledMeansMarked = true, onChange }: ResourcePipsProps) {
+export function ResourcePips({ label, current, max, tone = 'hp', filledMeansMarked = true, onChange }: ResourcePipsProps) {
   return (
-    <div className="resource-pips">
+    <div className={`resource-pips resource-pips--${tone}`}>
       <div className="resource-title">
         <span>{label}</span>
         <strong>

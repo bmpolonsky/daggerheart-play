@@ -1494,6 +1494,16 @@
   background: rgba(188, 65, 65, 0.8);
 }
 
+.player-tools-character-editor .resource-pips--stress .pip-active.pip-marked {
+  border-color: rgba(124, 58, 237, 0.7);
+  background: rgba(124, 58, 237, 0.86);
+}
+
+.player-tools-character-editor .resource-pips--armor .pip-active.pip-marked {
+  border-color: rgba(217, 119, 6, 0.72);
+  background: rgba(217, 119, 6, 0.88);
+}
+
 .player-tools-character-editor .inline-edit-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

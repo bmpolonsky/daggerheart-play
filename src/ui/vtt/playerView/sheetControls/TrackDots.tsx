@@ -1,5 +1,7 @@
 /** @jsxImportSource preact */
-export function TrackDots({ value, max, tone, onSet }: { value: number; max: number; tone: 'hope' | 'mark'; onSet?: (value: number) => void }) {
+export type TrackDotsTone = 'hope' | 'hp' | 'stress' | 'armor';
+
+export function TrackDots({ value, max, tone, onSet }: { value: number; max: number; tone: TrackDotsTone; onSet?: (value: number) => void }) {
   return (
     <div className={`player-track-dots player-track-dots--${tone}`}>
       {Array.from({ length: max }).map((_, index) => {

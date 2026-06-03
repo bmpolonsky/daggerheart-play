@@ -15,6 +15,7 @@ export function ResourcePanel({ character }: { character: Character }) {
           label="Надежда"
           current={effective.hope.value}
           max={effective.hope.max}
+          tone="hope"
           filledMeansMarked={false}
           onChange={(next) => characterService.setHope(character.id, next)}
         />
@@ -22,18 +23,21 @@ export function ResourcePanel({ character }: { character: Character }) {
           label="Отмеченные Раны"
           current={character.hp.marked}
           max={character.hp.max}
+          tone="hp"
           onChange={(next) => characterService.markSlots(character.id, 'hp', next - character.hp.marked)}
         />
         <ResourcePips
           label="Отмеченный Стресс"
           current={character.stress.marked}
           max={character.stress.max}
+          tone="stress"
           onChange={(next) => characterService.markSlots(character.id, 'stress', next - character.stress.marked)}
         />
         <ResourcePips
           label="Ячейки Брони"
           current={character.armor.markedSlots}
           max={character.armor.score}
+          tone="armor"
           onChange={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
         />
       </div>

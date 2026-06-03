@@ -239,6 +239,7 @@ export function CharacterSheet({
             label="Раны"
             value={character.hp.marked}
             max={character.hp.max}
+            tone="hp"
             onSet={setHpSlots}
           />
           <TrackRow
@@ -246,6 +247,7 @@ export function CharacterSheet({
             label="Стресс"
             value={character.stress.marked}
             max={character.stress.max}
+            tone="stress"
             onSet={(next) => characterService.markSlots(character.id, 'stress', next - character.stress.marked)}
           />
         </section>
@@ -276,7 +278,7 @@ export function CharacterSheet({
             <TrackDots
               value={character.armor.marked}
               max={character.armor.score}
-              tone="mark"
+              tone="armor"
               onSet={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
             />
           </div>
