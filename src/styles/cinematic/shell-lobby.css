@@ -383,7 +383,7 @@
   gap: 13px;
   overflow: hidden;
   padding: 18px;
-  border: 1px solid rgba(243, 234, 216, 0.1);
+  border: 0;
   border-radius: 8px;
   background: var(--role-glass);
   box-shadow: 0 22px 62px rgba(0, 0, 0, 0.32);
@@ -692,12 +692,12 @@
   .role-entry__content {
     width: 100%;
     margin: 0 auto;
-    padding: 24px 18px 28px;
-    gap: 14px;
+    padding: 16px 18px 24px;
+    gap: 10px;
   }
 
   .role-entry__title h1 {
-    font-size: 2.3rem;
+    font-size: 2.05rem;
   }
 
   .role-entry__title {
@@ -725,7 +725,26 @@
 
   .role-entry__lobby-shell {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .role-entry__card {
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .role-entry__games-card {
+    padding: 13px 14px;
+  }
+
+  .role-entry__card input,
+  .role-entry__card select {
+    min-height: 38px;
+  }
+
+  .role-entry__players {
+    min-height: 112px;
+    padding: 12px;
   }
 
   .role-entry__masthead {

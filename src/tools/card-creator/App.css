@@ -25,7 +25,7 @@
   background:
     linear-gradient(180deg, rgba(13, 18, 24, 0.78), rgba(7, 9, 12, 0.62)),
     var(--cards-panel);
-  border-right: 1px solid var(--cards-line);
+  border-right: 0;
   box-shadow: var(--dh-shadow-soft, 0 14px 38px rgba(0, 0, 0, 0.28));
   backdrop-filter: var(--dh-blur, blur(18px) saturate(1.1));
   display: flex;
@@ -53,6 +53,11 @@
 
 .tool-viewport--cards .sidebar__search-input {
   padding-left: 2rem;
+  border: 0 !important;
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.68), rgba(7, 9, 12, 0.48)),
+    rgba(7, 9, 12, 0.36) !important;
+  box-shadow: none !important;
 }
 
 .tool-viewport--cards .sidebar__domain-button {
@@ -216,6 +221,9 @@
 }
 
 .tool-viewport--cards .template-group__title {
+  margin: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -355,7 +363,7 @@
   height: 64px;
   background:
     linear-gradient(180deg, rgba(20, 22, 32, 0.96), rgba(9, 11, 17, 0.94));
-  border-bottom: 1px solid var(--cards-line);
+  border-bottom: 0;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
@@ -437,10 +445,10 @@
 
 .tool-viewport--cards .card-preview {
   padding: 32px;
-  border: 1px solid rgba(216, 173, 83, 0.14);
-  border-radius: 8px;
-  background: rgba(10, 12, 18, 0.48);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.42);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   display: flex;
   justify-content: center;
   max-width: 520px;
@@ -623,23 +631,25 @@
 .tool-viewport--cards .empty-state {
   margin: auto;
   max-width: 420px;
-  padding: 48px 32px;
-  border: 1px solid rgba(216, 173, 83, 0.16);
+  padding: 38px 30px;
+  border: 0;
   border-radius: 8px;
-  background-color: rgba(18, 20, 29, 0.82);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.66), rgba(7, 9, 12, 0.46)),
+    rgba(7, 9, 12, 0.32);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
   color: var(--cards-paper);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: none;
 }
 
 .tool-viewport--cards .empty-state__icon {
-  width: 72px;
-  height: 72px;
-  border: 1px solid rgba(216, 173, 83, 0.2);
+  width: 58px;
+  height: 58px;
+  border: 0;
   border-radius: 8px;
   background-color: rgba(216, 173, 83, 0.08);
   display: flex;
@@ -650,11 +660,14 @@
 
 .tool-viewport--cards .empty-state h2 {
   margin: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
   font-family: "DH Eveleth", "DH Overpass", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.5rem;
+  font-size: 1.28rem;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.05;
+  text-decoration: none;
 }
 
 .tool-viewport--cards .empty-state p {
@@ -913,9 +926,9 @@
 }
 
 .tool-viewport--cards .card-preview-wrapper {
-  border-color: rgba(243, 234, 216, 0.08);
-  border-radius: var(--dh-radius-lg, 12px);
-  background: rgba(243, 234, 216, 0.035);
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
 }
 
 .tool-viewport--cards .template-card:hover,
@@ -937,7 +950,7 @@
     min-height: 250px;
     max-height: 44dvh;
     border-right: 0;
-    border-bottom: 1px solid var(--cards-line);
+    border-bottom: 0;
   }
 
   .tool-viewport--cards .sidebar__search {
@@ -958,6 +971,7 @@
 
   .tool-viewport--cards .workspace {
     min-height: 56dvh;
+    background: rgba(7, 9, 12, 0.18);
   }
 
   .tool-viewport--cards .workspace__header {
@@ -983,8 +997,13 @@
   }
 
   .tool-viewport--cards .editor-panel {
-    padding: 22px 12px;
+    padding: 18px 12px;
     overflow: visible;
+  }
+
+  .tool-viewport--cards .empty-state {
+    margin: 28px auto 0;
+    padding: 30px 24px;
   }
 
   .tool-viewport--cards .editor-panel__headline h1 {

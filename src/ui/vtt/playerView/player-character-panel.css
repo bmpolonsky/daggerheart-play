@@ -22,7 +22,9 @@
   overflow: auto;
   border: 1px solid transparent;
   border-radius: 16px;
-  background: rgba(9, 10, 12, 0.3);
+  background:
+    linear-gradient(180deg, rgba(24, 31, 39, 0.22), rgba(7, 9, 12, 0.18)),
+    rgba(9, 10, 12, 0.22);
   padding: 10px;
   box-shadow: 0 24px 74px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(18px) saturate(1.18);
@@ -40,7 +42,9 @@
 
 .player-character-panel:focus-within,
 .player-character-panel:hover {
-  background: rgba(9, 10, 12, 0.38);
+  background:
+    linear-gradient(180deg, rgba(24, 31, 39, 0.28), rgba(7, 9, 12, 0.22)),
+    rgba(9, 10, 12, 0.28);
 }
 
 .player-character-panel--gm-overview {
@@ -419,7 +423,7 @@
   padding: 8px;
   border: 0;
   border-radius: 8px;
-  background: rgba(7, 9, 12, 0.2);
+  background: rgba(7, 9, 12, 0.12);
 }
 
 .player-scene-audio__row {
@@ -434,7 +438,7 @@
   gap: 4px 8px;
   padding: 7px 8px;
   border-radius: 7px;
-  background: rgba(243, 234, 216, 0.028);
+  background: var(--player-item-glass);
 }
 
 .player-scene-audio__header {

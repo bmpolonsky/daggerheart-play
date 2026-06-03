@@ -76,13 +76,7 @@ export function SidebarContainer() {
   return (
     <main className="relative flex h-full min-w-0 flex-1 flex-col">
       <header className="z-10 flex shrink-0 flex-col items-center justify-between gap-4 border-b border-slate-700 bg-dagger-dark p-4 shadow-md md:flex-row">
-        <div className="flex w-full items-center gap-3 md:w-auto">
-          <h1 className="whitespace-nowrap font-display text-2xl font-bold tracking-wide text-dagger-gold">
-            Daggerheart Combat
-          </h1>
-        </div>
-
-        <div className="flex w-full flex-wrap items-center justify-end gap-3 md:w-auto md:flex-nowrap">
+        <div className="flex w-full flex-wrap items-center gap-3 md:flex-nowrap">
           <div className="flex w-full items-center gap-2 md:w-auto">
             <Button
               type="button"
@@ -97,34 +91,6 @@ export function SidebarContainer() {
             >
               Создать
             </Button>
-            <IconButton
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => importInputRef.current?.click()}
-              title="Импорт кастомных противников"
-              aria-label="Импорт кастомных противников"
-            >
-              <IconUpload size={15} aria-hidden="true" />
-            </IconButton>
-            <input
-              ref={importInputRef}
-              type="file"
-              accept="application/json"
-              onChange={handleImportCustom}
-              hidden
-            />
-            <IconButton
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={handleExportCustom}
-              disabled={customItemsCount === 0}
-              title="Экспорт кастомных противников"
-              aria-label="Экспорт кастомных противников"
-            >
-              <IconDownload size={15} aria-hidden="true" />
-            </IconButton>
           </div>
 
           <div className="relative w-full flex-grow md:w-64 md:flex-grow-0">
@@ -173,6 +139,37 @@ export function SidebarContainer() {
                 </option>
               ))}
             </SelectControl>
+          </div>
+
+          <div className="flex w-full items-center justify-end gap-2 md:ml-auto md:w-auto">
+            <IconButton
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => importInputRef.current?.click()}
+              title="Импорт кастомных противников"
+              aria-label="Импорт кастомных противников"
+            >
+              <IconUpload size={15} aria-hidden="true" />
+            </IconButton>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json"
+              onChange={handleImportCustom}
+              hidden
+            />
+            <IconButton
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={handleExportCustom}
+              disabled={customItemsCount === 0}
+              title="Экспорт кастомных противников"
+              aria-label="Экспорт кастомных противников"
+            >
+              <IconDownload size={15} aria-hidden="true" />
+            </IconButton>
           </div>
 
           <IconButton

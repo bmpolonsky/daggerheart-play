@@ -308,7 +308,7 @@
   grid-template-columns: 190px minmax(0, 1fr) 270px;
   gap: 12px;
   padding: 12px;
-  border: 1px solid rgba(243, 234, 216, 0.07);
+  border: 0;
   border-radius: var(--dh-radius, 8px);
   background:
     linear-gradient(180deg, rgba(18, 23, 28, 0.96), rgba(7, 9, 12, 0.94)),
@@ -431,8 +431,8 @@
   border: 0;
   border-radius: 12px;
   background:
-    linear-gradient(180deg, rgba(255, 247, 231, 0.96), rgba(222, 210, 184, 0.9)),
-    var(--dh-paper-100);
+    linear-gradient(180deg, rgba(18, 24, 30, 0.72), rgba(7, 9, 12, 0.66)),
+    rgba(7, 9, 12, 0.34);
   box-shadow: none;
   overflow: auto;
 }
@@ -713,7 +713,9 @@
   padding: 10px;
   border: 0;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.34);
+  background:
+    linear-gradient(90deg, rgba(216, 173, 83, 0.12), rgba(7, 9, 12, 0.36)),
+    rgba(7, 9, 12, 0.28);
 }
 
 .cinematic-builder-preview-art img {
@@ -735,7 +737,7 @@
   z-index: 2;
   font-family: "DH Eveleth", Georgia, serif;
   font-size: 1.4rem;
-  color: rgba(26, 21, 16, 0.72);
+  color: rgba(255, 247, 231, 0.76);
 }
 
 .cinematic-builder-preview-art div {
@@ -745,7 +747,7 @@
   display: grid;
   gap: 4px;
   padding: 0;
-  color: #1a1510;
+  color: #fff7e7;
 }
 
 .cinematic-builder-preview-art strong {
@@ -759,7 +761,7 @@
 .cinematic-builder-preview-line,
 .cinematic-builder-preview-cards,
 .cinematic-builder-readiness {
-  color: rgba(26, 21, 16, 0.68);
+  color: rgba(243, 234, 216, 0.66);
   font-size: 0.76rem;
 }
 
@@ -771,12 +773,12 @@
   padding: 9px;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.32);
+  background: rgba(7, 9, 12, 0.24);
 }
 
 .cinematic-builder-preview-line span,
 .cinematic-builder-preview-cards span {
-  color: #1a1510;
+  color: rgba(255, 247, 231, 0.9);
 }
 
 .cinematic-builder-preview-stats {
@@ -786,15 +788,15 @@
 .cinematic-builder-preview .dh-stat {
   min-height: 46px;
   border-color: transparent;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(7, 9, 12, 0.24);
 }
 
 .cinematic-builder-preview .dh-stat strong {
-  color: #1a1510;
+  color: #fff7e7;
 }
 
 .cinematic-builder-preview .dh-stat span {
-  color: rgba(26, 21, 16, 0.64);
+  color: rgba(243, 234, 216, 0.62);
 }
 
 .cinematic-builder-preview-traits {
@@ -810,20 +812,20 @@
   padding: 7px 8px;
   border: 0;
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.32);
-  color: #1a1510;
+  background: rgba(7, 9, 12, 0.24);
+  color: rgba(255, 247, 231, 0.9);
   font-size: 0.72rem;
 }
 
 .cinematic-builder-preview-cards strong,
 .cinematic-builder-readiness strong {
-  color: #1a1510;
+  color: #fff7e7;
   text-transform: uppercase;
 }
 
 .cinematic-builder-readiness.dh-is-ready {
   border-color: transparent;
-  background: rgba(38, 105, 93, 0.12);
+  background: rgba(38, 105, 93, 0.22);
 }
 
 .cinematic-builder-stepper {

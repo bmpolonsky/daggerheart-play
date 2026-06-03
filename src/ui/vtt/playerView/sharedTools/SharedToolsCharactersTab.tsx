@@ -32,6 +32,7 @@ export function SharedToolsCharactersTab({
   const [selectedCharacterId, setSelectedCharacterId] = useState(characterOptions[0]?.id ?? '');
   const selectedCharacter = characterOptions.find((character) => character.id === selectedCharacterId) ?? characterOptions[0] ?? null;
   const activeScene = sceneTable.scenes[sceneTable.activeSceneId];
+  const hasCharacters = characterOptions.length > 0;
 
   useEffect(() => {
     if (selectedCharacterId && characterOptions.some((character) => character.id === selectedCharacterId)) return;
@@ -46,7 +47,7 @@ export function SharedToolsCharactersTab({
           Создать героя
         </Button>
       </header>
-      <div className="player-tools-character-workspace">
+      <div className={`player-tools-character-workspace ${hasCharacters ? '' : 'dh-is-empty'}`}>
         <aside className="player-tools-character-roster" aria-label="Ростер персонажей">
           {characterOptions.map((character) => {
             const assignedSeat = playerSeats.find((seat) => seat.actorIds.includes(character.id));
@@ -89,20 +90,20 @@ export function SharedToolsCharactersTab({
               </div>
             );
           })}
-          {characterOptions.length === 0 && <p className="player-tools-empty">Персонажей пока нет.</p>}
+          {!hasCharacters && <p className="player-tools-empty">Персонажей пока нет. Создайте первого героя кнопкой в заголовке.</p>}
         </aside>
-        <section className="player-tools-character-editor" aria-label="Редактор персонажа">
-          {selectedCharacter ? (
-            <CharacterEditor character={selectedCharacter} content={content} />
-          ) : (
-            <div className="player-tools-character-editor-empty">
-              <strong>Персонаж не выбран</strong>
-              <Button variant="primary" type="button" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={onCharacterBuilderOpen}>
-                Создать героя
-              </Button>
-            </div>
-          )}
-        </section>
+        {hasCharacters && (
+          <section className="player-tools-character-editor" aria-label="Редактор персонажа">
+            {selectedCharacter ? (
+              <CharacterEditor character={selectedCharacter} content={content} />
+            ) : (
+              <div className="player-tools-character-editor-empty">
+                <strong>Персонаж не выбран</strong>
+                <span>Выберите персонажа из списка или создайте нового.</span>
+              </div>
+            )}
+          </section>
+        )}
       </div>
       {characterBuilderOpen && (
         <CharacterBuilderModal

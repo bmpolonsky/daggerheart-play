@@ -975,6 +975,12 @@
   align-items: start;
 }
 
+.player-tools-character-workspace.dh-is-empty {
+  min-height: auto;
+  grid-template-columns: minmax(220px, 360px);
+  align-items: start;
+}
+
 .player-tools-character-roster {
   position: sticky;
   top: 0;
@@ -1347,14 +1353,28 @@
 }
 
 .player-tools-character-editor-empty {
-  min-height: 280px;
+  min-height: 190px;
   display: grid;
   place-content: center;
-  gap: 12px;
+  gap: 6px;
   justify-items: center;
   border: 0;
   border-radius: 8px;
-  background: rgba(243, 234, 216, 0.035);
+  background: rgba(7, 9, 12, 0.26);
+  color: rgba(243, 234, 216, 0.58);
+  text-align: center;
+}
+
+.player-tools-character-editor-empty strong {
+  color: #fff4d6;
+  font-size: 0.94rem;
+}
+
+.player-tools-character-editor-empty span {
+  max-width: 28ch;
+  color: rgba(243, 234, 216, 0.58);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .player-tools-modal__header,
