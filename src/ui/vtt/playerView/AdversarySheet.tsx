@@ -3,7 +3,7 @@ import { useState } from "preact/hooks";
 import { ChevronLeft, Heart, Zap } from "lucide-react";
 import type { PlayerViewAdversarySummary } from "../../../domain/tabletop/playerView";
 import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
-import { ACTOR_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
+import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import type { DamageType } from "../../../domain/rules/types";
 import { diceService, encounterService, feedService, gameService } from "../../../services/serviceRegistry";
 import { compactDamageTypeLabel, signed } from "./helpers";
@@ -11,8 +11,6 @@ import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
 import { SheetFeatureSection, SheetHero, SheetLeadBlock, type SheetFeatureView } from "./SheetContent";
 import { StatusChips } from "./StatusChips";
-
-const ADVERSARY_STATUS_OPTIONS = ACTOR_STATUS_TAGS;
 
 export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdversarySummary; onBack: () => void }) {
   const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
@@ -46,7 +44,7 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
           subtitle={adversary.subtitle}
         />
         <SheetLeadBlock text={adversary.notes} />
-        <SheetSection title="Статус">
+        <SheetSection title="Состояние">
           <section className="player-track-list">
             <TrackRow
               icon={<Heart size={16} />}
@@ -79,11 +77,11 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
           </section>
           <section className="player-sheet-status-block">
             <header>
-              <span>Статусы</span>
+              <span>Состояния</span>
             </header>
             <StatusChips
               conditions={adversary.conditions}
-              options={ADVERSARY_STATUS_OPTIONS}
+              options={CORE_STATUS_TAGS}
               onAdd={addStatus}
               onRemove={removeStatus}
             />

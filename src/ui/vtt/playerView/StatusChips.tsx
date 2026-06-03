@@ -10,7 +10,7 @@ export interface SheetStatus {
 }
 
 export function StatusChips({
-  addLabel = 'Добавить статус',
+  addLabel = 'Добавить состояние',
   conditions,
   onAdd,
   onRemove,
@@ -28,12 +28,12 @@ export function StatusChips({
   const availableStatuses = options.filter((status) => !activeNames.has(normalizeStatusTag(status)));
 
   return (
-    <section className="player-status-chips" aria-label="Статусы">
+    <section className="player-status-chips" aria-label="Состояния">
       <div className="player-status-chips__list">
         {visibleConditions.map((condition) => (
           <span className="player-status-chip" key={condition.id} title={condition.notes || condition.name}>
             <span>{statusLabel(condition.name)}</span>
-            <button type="button" aria-label={`Снять статус ${statusLabel(condition.name)}`} onClick={() => onRemove(condition.id)}>
+            <button type="button" aria-label={`Снять состояние ${statusLabel(condition.name)}`} onClick={() => onRemove(condition.id)}>
               <X size={13} />
             </button>
           </span>
@@ -65,7 +65,7 @@ export function StatusChips({
                   {statusLabel(status)}
                 </button>
               )) : (
-                <span>Все основные статусы уже добавлены</span>
+                <span>Все основные состояния уже добавлены</span>
               )}
             </div>
           )}

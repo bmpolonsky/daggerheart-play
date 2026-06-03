@@ -10,7 +10,7 @@ import { defaultCharacterPortraitUrl } from "../../../domain/tabletop/defaultArt
 import { scaleWeaponFormulaByProficiency } from "../../../domain/rules/diceFormula";
 import { characterLevelRank } from "../../../domain/rules/levelUp";
 import { companionDamageFormula } from "../../../domain/rules/rangerCompanion";
-import { ACTOR_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
+import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import type { DamageType, TraitId } from "../../../domain/rules/types";
 import { formatWealthSummary } from "../../../domain/rules/wealthPresentation";
 import { gameService, characterService, diceService, feedService, p2pSessionService } from "../../../services/serviceRegistry";
@@ -22,8 +22,6 @@ import { PlayerRollConfirm } from "./PlayerRollConfirm";
 import { PlayerSheetSectionRail, SheetSection, TrackDots, TrackRow } from "./PlayerSheetControls";
 import { StatusChips } from "./StatusChips";
 import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./types";
-
-const CHARACTER_STATUS_OPTIONS = ACTOR_STATUS_TAGS;
 
 export function CharacterSheet({
   character,
@@ -396,11 +394,11 @@ export function CharacterSheet({
         )}
         <section className="player-sheet-status-block">
           <header>
-            <span>Статус</span>
+            <span>Состояния</span>
           </header>
           <StatusChips
             conditions={character.conditions}
-            options={CHARACTER_STATUS_OPTIONS}
+            options={CORE_STATUS_TAGS}
             onAdd={addStatus}
             onRemove={removeStatus}
           />
