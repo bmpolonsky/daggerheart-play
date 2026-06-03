@@ -178,7 +178,8 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
       <div className="mini-dice-launcher__right-actions">
         <IconButton
           className="mini-dice-launcher__voice"
-          variant={voiceAttention ? 'danger' : voiceActive ? 'primary' : 'ghost'}
+          variant="ghost"
+          tone={voiceAttention ? 'danger' : voiceActive ? 'green' : 'blue'}
           size="sm"
           type="button"
           title={voiceTitle}
@@ -267,7 +268,7 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
         </div>
         <div className="mini-dice-launcher__controls">
           {isDualityRoll && (
-            <Tabs className="mini-dice-launcher__segmented" label="Тип броска Дуальности">
+            <Tabs className="mini-dice-launcher__segmented" label="Тип броска Дуальности" layout="equal">
               <TabButton active={dualityRollType === 'action'} onClick={() => setDualityRollType('action')}>
                 Действие
               </TabButton>

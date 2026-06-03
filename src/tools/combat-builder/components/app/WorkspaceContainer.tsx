@@ -26,14 +26,14 @@ export function WorkspaceContainer() {
     <>
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm sm:hidden"
           onClick={() => encounterService.setSidebarOpen(false)}
         />
       )}
 
       <aside
-        className={`combat-encounter-sheet fixed inset-y-0 right-0 z-30 flex h-full w-80 transform flex-col border-l border-slate-700 bg-dagger-panel shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:w-96 ${
-          isSidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+        className={`combat-encounter-sheet fixed inset-y-0 right-0 z-30 flex h-full w-80 transform flex-col border-l border-slate-700 bg-dagger-panel shadow-2xl transition-transform duration-300 ease-in-out sm:static sm:w-80 xl:w-96 ${
+          isSidebarOpen ? "translate-x-0" : "translate-x-full sm:translate-x-0"
         }`}
       >
         <EncounterPanel

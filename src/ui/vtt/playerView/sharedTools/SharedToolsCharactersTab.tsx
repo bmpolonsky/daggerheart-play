@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useState } from 'preact/hooks';
-import { CheckCircle2, MinusCircle, Plus } from 'lucide-react';
+import { MinusCircle, Plus } from 'lucide-react';
 import type { ContentState } from '../../../../domain/content/types';
 import type { Character, DaggerheartClass, SceneTableState } from '../../../../domain/rules/types';
 import { classLabel } from '../../../../domain/rules/constants';
@@ -61,11 +61,6 @@ export function SharedToolsCharactersTab({
                   <strong className="cinematic-card-title">{character.name || 'Без имени'}</strong>
                   <small className="cinematic-card-body">{assignedSeat ? assignedSeatName || 'Игрок без имени' : 'Игрок не назначен'}</small>
                 </ChoiceCard>
-                <div className="player-tools-character-status">
-                  <span className={assignedSeat ? 'dh-is-ready' : ''}>
-                    {assignedSeat && <CheckCircle2 size={13} />} {assignedSeat ? assignedSeatName || 'Игрок без имени' : 'Без игрока'}
-                  </span>
-                </div>
                 <div className="player-tools-character-actions">
                   {isOnScene ? (
                     <Button

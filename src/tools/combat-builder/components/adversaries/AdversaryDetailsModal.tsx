@@ -310,6 +310,8 @@ export function AdversaryDetailsModal({
             }}
             variant="primary"
             grow
+            noWrap
+            minWidth="lg"
             iconBefore={<IconSword size={16} />}
             className="md:flex-none"
           >

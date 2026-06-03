@@ -177,7 +177,7 @@ export function SidebarContainer() {
 
           <IconButton
             type="button"
-            className="combat-sidebar-toggle lg:hidden"
+            className="combat-sidebar-toggle"
             variant="secondary"
             size="lg"
             onClick={() => encounterService.setSidebarOpen(!isSidebarOpen)}

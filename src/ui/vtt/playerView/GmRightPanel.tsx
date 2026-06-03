@@ -73,7 +73,7 @@ export function GmRightPanel({
     <aside className="player-character-panel player-character-panel--gm-overview" aria-label="Инструменты сцены">
       <section className="player-gm-overview__actors" aria-label="Персонажи">
         <SectionTitle>Персонажи</SectionTitle>
-        <Tabs className="player-roster-tabs" label="Типы участников">
+        <Tabs className="player-roster-tabs" label="Типы участников" layout="equal">
           <TabButton active={activeRosterTab === 'players'} onClick={() => setActiveRosterTab('players')}>
             Игроки
           </TabButton>

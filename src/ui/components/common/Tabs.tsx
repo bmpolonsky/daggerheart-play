@@ -7,6 +7,7 @@ interface TabsProps {
   label: string;
   children: UiNode;
   className?: string;
+  layout?: 'auto' | 'equal';
 }
 
 interface TabButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
@@ -14,9 +15,9 @@ interface TabButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, '
   children: UiNode;
 }
 
-export function Tabs({ label, children, className = '' }: TabsProps) {
+export function Tabs({ label, children, className = '', layout = 'auto' }: TabsProps) {
   return (
-    <div className={`dh-tab-row ${styles.row} ${className}`.trim()} role="group" aria-label={label}>
+    <div className={`dh-tab-row ${styles.row} ${layout === 'equal' ? styles.equal : ''} ${className}`.trim()} role="group" aria-label={label}>
       {children}
     </div>
   );

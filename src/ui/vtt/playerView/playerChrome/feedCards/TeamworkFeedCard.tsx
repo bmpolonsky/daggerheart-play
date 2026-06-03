@@ -133,7 +133,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
             const selectedTrait = traitsByActor[participant.actorId] ?? participant.pendingRoll?.trait ?? 'agility';
             return (
               <div className={`feed-rest-participant ${canRoll ? 'feed-rest-participant--interactive' : ''}`} key={participant.actorId}>
-                <div>
+                <div className="feed-rest-participant__header">
                   <Users size={13} />
                   <strong>{participant.actorName}</strong>
                   <span>{participantRoleLabel(participant.role)}</span>
@@ -160,6 +160,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                     {canRoll && (
                       <>
                         <SelectControl
+                          className="feed-teamwork-card__trait-select"
                           value={selectedTrait}
                           onChange={(event) => setTraitsByActor((current) => ({
                             ...current,
@@ -168,7 +169,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                         >
                           {TRAITS.map((trait) => <option key={trait.id} value={trait.id}>{trait.label}</option>)}
                         </SelectControl>
-                        <Button size="sm" variant="primary" type="button" onClick={() => rollParticipant(participant)}>
+                        <Button className="feed-teamwork-card__roll-action" size="sm" variant="primary" type="button" onClick={() => rollParticipant(participant)}>
                           {participant.role === 'support' ? 'Бросок реакции' : 'Бросок действия'}
                         </Button>
                       </>
@@ -183,7 +184,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
           )}
         </div>
         {role === 'gm' && !isClosed && teamwork.participants.some((participant) => participant.result) && (
-          <Button fullWidth size="lg" variant="primary" type="button" onClick={() => feedService.completeTeamworkRoll(item.id)}>
+          <Button className="feed-teamwork-card__complete" fullWidth size="md" variant="secondary" type="button" onClick={() => feedService.completeTeamworkRoll(item.id)}>
             Завершить карточку
           </Button>
         )}

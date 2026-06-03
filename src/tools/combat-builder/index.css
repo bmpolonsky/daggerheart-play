@@ -64,16 +64,55 @@
 }
 
 .tool-viewport--combat .combat-filter-select {
-  flex: 1 1 0;
+  width: clamp(9rem, 14vw, 13rem);
+  min-width: 0;
+  flex: 0 1 clamp(9rem, 14vw, 13rem);
 }
 
 .tool-viewport--combat .combat-filter-select--role {
-  max-width: 140px;
+  width: clamp(9rem, 13vw, 12rem);
+  flex-basis: clamp(9rem, 13vw, 12rem);
+  max-width: 12rem;
+}
+
+.tool-viewport--combat .combat-sidebar-toggle {
+  display: none !important;
+}
+
+.tool-viewport--combat .combat-difficulty-tabs {
+  gap: 8px;
+}
+
+.tool-viewport--combat .combat-difficulty-tabs .dh-tab {
+  min-height: 34px;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(243, 234, 216, 0.7);
+  font-size: 0.72rem;
+  font-weight: 760;
+  text-transform: none;
+}
+
+.tool-viewport--combat .combat-difficulty-tabs .dh-tab.dh-is-active {
+  background: rgba(243, 234, 216, 0.13);
+  color: #fff7e7;
+}
+
+.tool-viewport--combat .combat-modifier-checkbox {
+  padding: 0;
+  color: rgba(243, 234, 216, 0.86);
+  font-size: 0.82rem;
 }
 
 @media (min-width: 768px) {
   .tool-viewport--combat .combat-filter-select {
     flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 639px) {
+  .tool-viewport--combat .combat-sidebar-toggle {
+    display: inline-flex !important;
   }
 }
 

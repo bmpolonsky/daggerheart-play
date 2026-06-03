@@ -73,7 +73,7 @@ export function AdversaryAttackConfirm({
         <strong>{adversary.standardAttack.name}</strong>
         <p>{signed(adversary.attackModifier)} / {adversary.standardAttack.range} / {adversary.standardAttack.damage} {compactDamageTypeLabel(adversary.standardAttack.damageType)}</p>
       </div>
-      <Tabs className="player-roll-confirm__segmented" label="Тип броска">
+      <Tabs className="player-roll-confirm__segmented" label="Тип броска" layout="equal">
         <TabButton className="player-roll-confirm__segmented-option" active={mode === 'attack'} onClick={() => setMode('attack')}>Атака</TabButton>
         <TabButton className="player-roll-confirm__segmented-option" active={mode === 'damage'} onClick={() => setMode('damage')}>Урон</TabButton>
       </Tabs>

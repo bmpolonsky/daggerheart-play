@@ -349,7 +349,7 @@ export function CharacterBuilderModal({
                   <h3 className="cinematic-builder-title">Готово к сцене</h3>
                 </header>
                 <div className="cinematic-builder-choice-area dh-scroll">
-                  <article className="dh-paper-summary">
+                  <article className="cinematic-builder-loadout-summary">
                     <strong>{fields.name}</strong>
                     <span>{CLASS_LABELS[fields.className]} / {selectedSubclass?.name ?? 'подкласс не выбран'}</span>
                     <span>{selectedAncestry?.name ?? 'родословная'} / {selectedCommunity?.name ?? 'сообщество'}</span>

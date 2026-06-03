@@ -4,13 +4,14 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--dh-border);
+  border: 1px solid transparent;
   border-radius: var(--dh-radius-sm);
   background: var(--dh-control);
   color: rgba(255, 247, 231, 0.9);
   box-shadow: none;
   padding: 0 12px;
   font: inherit;
+  font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0;
   cursor: pointer;
@@ -27,13 +28,13 @@
 }
 
 .root:hover:not(:disabled) {
-  border-color: var(--dh-border-strong);
+  border-color: transparent;
   background: var(--dh-control-hover);
   color: #fff7e7;
 }
 
 .root:focus-visible {
-  border-color: rgba(240, 201, 106, 0.72);
+  border-color: transparent;
   box-shadow: var(--dh-focus);
   outline: none;
 }
@@ -44,18 +45,26 @@
 }
 
 .primary {
-  border-color: var(--dh-border-gold);
+  border-color: transparent;
   background: var(--dh-control-active);
   color: #fff7e7;
 }
 
 .primary:hover:not(:disabled) {
-  border-color: rgba(240, 201, 106, 0.64);
+  border-color: transparent;
   background: rgba(216, 173, 83, 0.24);
 }
 
 .secondary {
-  border-color: var(--dh-border);
+  border-color: transparent;
+  background: rgba(220, 190, 141, 0.12);
+  color: rgba(255, 247, 231, 0.94);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: transparent;
+  background: rgba(229, 199, 150, 0.18);
+  color: #fff7e7;
 }
 
 .ghost {
@@ -64,7 +73,7 @@
 }
 
 .danger {
-  border-color: rgba(214, 91, 91, 0.44);
+  border-color: transparent;
   background: var(--dh-danger-soft);
   color: #ffd8cf;
 }
@@ -78,16 +87,18 @@
 .sm {
   min-height: 32px;
   padding-inline: 10px;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
 }
 
 .md {
   min-height: 36px;
+  font-size: 0.78rem;
 }
 
 .lg {
   min-height: 42px;
   padding-inline: 16px;
+  font-size: 0.82rem;
 }
 
 .icon {
@@ -103,6 +114,18 @@
   height: 28px;
   min-height: 28px;
   padding: 0;
+}
+
+.minSm {
+  min-width: 104px;
+}
+
+.minMd {
+  min-width: 136px;
+}
+
+.minLg {
+  min-width: 172px;
 }
 
 .fullWidth {

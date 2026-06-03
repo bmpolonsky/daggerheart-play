@@ -780,14 +780,18 @@
 .player-library-card__stats span {
   min-width: 0;
   max-width: 100%;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
   overflow: hidden;
-  padding: 3px 6px;
+  padding: 1px 8px 0;
   border: 0;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.22);
   color: rgba(243, 234, 216, 0.72);
   font-size: 0.68rem;
   font-weight: 760;
+  line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -981,30 +985,6 @@
 .player-tools-character-card {
   display: grid;
   gap: 8px;
-}
-
-.player-tools-character-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.player-tools-character-status span {
-  min-height: 24px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.22);
-  color: rgba(243, 234, 216, 0.64);
-  font-size: 0.7rem;
-}
-
-.player-tools-character-status span.dh-is-ready {
-  background: rgba(34, 116, 72, 0.18);
-  color: #c8f1d6;
 }
 
 .player-tools-character-actions {

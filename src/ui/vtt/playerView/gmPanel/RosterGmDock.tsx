@@ -19,7 +19,7 @@ export function RosterGmDock({
 }) {
   return (
     <section className="player-roster-gm-dock" aria-label="Библиотека">
-      <Tabs className="player-roster-gm-dock__tabs" label="Разделы мастера">
+      <Tabs className="player-roster-gm-dock__tabs" label="Разделы мастера" layout="equal">
         <TabButton active={activeTab === 'scenes'} onClick={() => onTabChange('scenes')}>
           Сцены
         </TabButton>

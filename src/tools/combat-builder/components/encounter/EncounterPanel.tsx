@@ -12,8 +12,10 @@ import {
   IconUsers,
 } from "@combat/components/icons";
 import { Button } from "../../../../ui/components/common/Button";
+import { Checkbox } from "../../../../ui/components/common/Checkbox";
 import { IconButton } from "../../../../ui/components/common/IconButton";
 import { Surface } from "../../../../ui/components/common/Surface";
+import { TabButton, Tabs } from "../../../../ui/components/common/Tabs";
 
 interface EncounterPanelProps {
   entries: EncounterBattleEntry[];
@@ -31,8 +33,6 @@ interface EncounterPanelProps {
   onSetDifficultyMode: (mode: DifficultyMode) => void;
   onToggleDamageBoosted: () => void;
   onToggleLowerTierUsed: () => void;
-  isOpen?: boolean;
-  onToggleOpen?: () => void;
 }
 
 function getDifficultyColor(tone: EncounterSummary["difficulty"]["tone"]) {
@@ -115,8 +115,6 @@ export function EncounterPanel({
   onSetDifficultyMode,
   onToggleDamageBoosted,
   onToggleLowerTierUsed,
-  isOpen = true,
-  onToggleOpen,
 }: EncounterPanelProps) {
   const [showModifiers, setShowModifiers] = useState(true);
   const totalEntries = entries.reduce((sum, entry) => sum + entry.count, 0);
@@ -135,23 +133,8 @@ export function EncounterPanel({
 
   return (
     <div className="combat-encounter-panel flex h-full w-full flex-col bg-dagger-panel">
-      <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-slate-900 p-4 shadow-xs">
-        <Button
-          type="button"
-          variant="ghost"
-          fullWidth
-          className="min-w-0 justify-start text-left lg:hidden"
-          onClick={onToggleOpen}
-          aria-expanded={isOpen}
-        >
-          <span className="block text-sm font-bold uppercase tracking-wider text-dagger-gold lg:text-slate-300">
-            Бой
-          </span>
-          <span className="block truncate text-xs text-slate-500">
-            {totalEntries} противников · {summary.totalCost}/{summary.finalBudget} ОБ
-          </span>
-        </Button>
-        <div className="hidden min-w-0 flex-1 lg:block">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 p-4 shadow-xs">
+        <div className="min-w-0 flex-1">
           <span className="block text-sm font-bold uppercase tracking-wider text-slate-300">
             Бой
           </span>
@@ -183,20 +166,6 @@ export function EncounterPanel({
               <IconRefresh size={18} />
             </IconButton>
           )}
-          {onToggleOpen && (
-            <IconButton
-              type="button"
-              onClick={onToggleOpen}
-              className="lg:hidden"
-              variant="ghost"
-              size="sm"
-              title={isOpen ? "Свернуть бой" : "Открыть бой"}
-              aria-label={isOpen ? "Свернуть бой" : "Открыть бой"}
-              aria-expanded={isOpen}
-            >
-              {isOpen ? <IconMinus size={18} /> : <IconPlus size={18} />}
-            </IconButton>
-          )}
         </div>
       </div>
 
@@ -206,38 +175,29 @@ export function EncounterPanel({
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Настройка сложности
             </span>
-            <div className="flex gap-1">
-              <Button
+            <Tabs className="combat-difficulty-tabs" layout="equal" label="Настройка сложности">
+              <TabButton
                 type="button"
                 onClick={() => onSetDifficultyMode("easy")}
-                variant={difficultyMode === "easy" ? "primary" : "ghost"}
-                size="xs"
-                grow
-                aria-pressed={difficultyMode === "easy"}
+                active={difficultyMode === "easy"}
               >
                 Легкий (-1)
-              </Button>
-              <Button
+              </TabButton>
+              <TabButton
                 type="button"
                 onClick={() => onSetDifficultyMode("standard")}
-                variant={difficultyMode === "standard" ? "primary" : "ghost"}
-                size="xs"
-                grow
-                aria-pressed={difficultyMode === "standard"}
+                active={difficultyMode === "standard"}
               >
                 Норма
-              </Button>
-              <Button
+              </TabButton>
+              <TabButton
                 type="button"
                 onClick={() => onSetDifficultyMode("hard")}
-                variant={difficultyMode === "hard" ? "primary" : "ghost"}
-                size="xs"
-                grow
-                aria-pressed={difficultyMode === "hard"}
+                active={difficultyMode === "hard"}
               >
                 Сложный (+2)
-              </Button>
-            </div>
+              </TabButton>
+            </Tabs>
           </div>
 
           <div>
@@ -245,40 +205,20 @@ export function EncounterPanel({
               Ручные модификаторы
             </span>
             <div className="space-y-2">
-              <Button
-                type="button"
-                fullWidth
-                variant={isDamageBoosted ? "primary" : "secondary"}
-                size="sm"
-                className="justify-between"
-                onClick={onToggleDamageBoosted}
-                aria-pressed={isDamageBoosted}
-              >
-                <span>
-                  Усиленный урон (+1d4 или +2)
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-red-400">-2 ОБ</span>
-                  <span>{isDamageBoosted ? "✓" : ""}</span>
-                </div>
-              </Button>
-              <Button
-                type="button"
-                fullWidth
-                variant={isLowerTierUsed ? "primary" : "secondary"}
-                size="sm"
-                className="justify-between"
-                onClick={onToggleLowerTierUsed}
-                aria-pressed={isLowerTierUsed}
-              >
-                <span>
-                  Враги низкого ранга
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-green-400">+1 ОБ</span>
-                  <span>{isLowerTierUsed ? "✓" : ""}</span>
-                </div>
-              </Button>
+              <Checkbox
+                className="combat-modifier-checkbox"
+                checked={isDamageBoosted}
+                onChange={onToggleDamageBoosted}
+                label="Усиленный урон (+1d4 или +2)"
+                meta={<span className="font-mono text-xs text-red-400">-2 ОБ</span>}
+              />
+              <Checkbox
+                className="combat-modifier-checkbox"
+                checked={isLowerTierUsed}
+                onChange={onToggleLowerTierUsed}
+                label="Враги низкого ранга"
+                meta={<span className="font-mono text-xs text-green-400">+1 ОБ</span>}
+              />
             </div>
           </div>
 

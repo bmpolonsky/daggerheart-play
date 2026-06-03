@@ -5,10 +5,12 @@ type UiNode = any;
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm';
+type ButtonMinWidth = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  minWidth?: ButtonMinWidth;
   fullWidth?: boolean;
   grow?: boolean;
   noWrap?: boolean;
@@ -31,10 +33,16 @@ const sizeClass: Record<ButtonSize, string> = {
   icon: styles.icon,
   iconSm: styles.iconSm
 };
+const minWidthClass: Record<ButtonMinWidth, string> = {
+  sm: styles.minSm,
+  md: styles.minMd,
+  lg: styles.minLg
+};
 
 export function Button({
   variant = 'secondary',
   size = 'md',
+  minWidth,
   fullWidth = false,
   grow = false,
   noWrap = false,
@@ -45,7 +53,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   return (
-    <button className={`dh-button ${styles.root} ${variantClass[variant]} ${sizeClass[size]} ${fullWidth ? styles.fullWidth : ''} ${grow ? styles.grow : ''} ${noWrap ? styles.noWrap : ''} ${className}`.trim()} {...props}>
+    <button className={`dh-button ${styles.root} ${variantClass[variant]} ${sizeClass[size]} ${minWidth ? minWidthClass[minWidth] : ''} ${fullWidth ? styles.fullWidth : ''} ${grow ? styles.grow : ''} ${noWrap ? styles.noWrap : ''} ${className}`.trim()} {...props}>
       {iconBefore}
       {children}
       {iconAfter}

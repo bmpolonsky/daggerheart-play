@@ -798,7 +798,7 @@
   display: grid;
   gap: 10px;
   padding: 10px;
-  border: 1px solid rgba(243, 234, 216, 0.1);
+  border: 1px solid transparent;
   border-radius: var(--dh-radius);
   background: rgba(7, 9, 12, 0.24);
 }
@@ -806,7 +806,7 @@
 .cinematic-sidecar-section:last-child,
 .cinematic-builder-step:last-child,
 .cinematic-sheet-section:last-child {
-  border-bottom: 1px solid rgba(243, 234, 216, 0.1);
+  border-bottom: 1px solid transparent;
 }
 
 .cinematic-sidecar-title,

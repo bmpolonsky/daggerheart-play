@@ -36,6 +36,8 @@ export function PlayerRoster({
           ? actor.actorId === activeCharacterId
           : actor.actorId === activeAdversaryId;
         const activationRequest = actor.activationRequest;
+        const voiceLive = Boolean(actor.presence?.voiceLive && !actor.presence.voiceMuted);
+        const voiceConnected = Boolean(actor.presence?.connected);
         return (
           <article
             className={`player-roster__row ${locked ? 'dh-is-locked' : ''} ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
@@ -72,17 +74,18 @@ export function PlayerRoster({
                   <IconButton
                     aria-label={`Микрофон ${actor.name}`}
                     className="player-roster__mic"
-                    variant={actor.presence?.voiceLive && !actor.presence.voiceMuted ? 'primary' : 'ghost'}
+                    variant="ghost"
+                    tone={voiceLive ? 'green' : voiceConnected ? 'blue' : 'neutral'}
                     size="sm"
-                    disabled={!actor.presence?.connected}
-                    title={actor.presence?.connected ? 'Заглушить микрофон игрока' : 'Игрок не подключен'}
+                    disabled={!voiceConnected}
+                    title={voiceConnected ? 'Заглушить микрофон игрока' : 'Игрок не подключен'}
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
                       onForceMutePlayer?.(actor);
                     }}
                   >
-                    {actor.presence?.voiceLive && !actor.presence.voiceMuted ? <Mic size={15} aria-hidden="true" /> : <MicOff size={15} aria-hidden="true" />}
+                    {voiceLive ? <Mic size={15} aria-hidden="true" /> : <MicOff size={15} aria-hidden="true" />}
                   </IconButton>
                 )}
                 {activationRequest && (

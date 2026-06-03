@@ -69,7 +69,7 @@ export function PlayerRollConfirm({
         <strong>{draft.title}</strong>
         <p>{draft.subtitle}</p>
       </div>
-      <Tabs className="player-roll-confirm__segmented" label="Тип броска">
+      <Tabs className="player-roll-confirm__segmented" label="Тип броска" layout="equal">
         {([
           ['action', 'Действие'],
           ['reaction', 'Реакция']

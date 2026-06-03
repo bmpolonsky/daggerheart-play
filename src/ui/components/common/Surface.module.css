@@ -1,6 +1,6 @@
 .root {
   min-width: 0;
-  border: 1px solid var(--dh-border);
+  border: 1px solid transparent;
   border-radius: var(--dh-radius);
   color: var(--dh-paper-100);
 }
@@ -19,7 +19,7 @@
 }
 
 .subtle {
-  border-color: rgba(243, 234, 216, 0.08);
+  border-color: transparent;
   background: var(--dh-glass-subtle);
   box-shadow: none;
 }

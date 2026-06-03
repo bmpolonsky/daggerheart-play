@@ -5,7 +5,7 @@
   min-height: 36px;
   display: inline-grid;
   place-items: center;
-  border: 1px solid var(--dh-border);
+  border: 1px solid transparent;
   border-radius: var(--dh-radius-sm);
   background: var(--dh-control);
   color: rgba(255, 247, 231, 0.9);
@@ -21,13 +21,13 @@
 }
 
 .root:hover:not(:disabled) {
-  border-color: var(--dh-border-strong);
+  border-color: transparent;
   background: var(--dh-control-hover);
   color: #fff7e7;
 }
 
 .root:focus-visible {
-  border-color: rgba(240, 201, 106, 0.72);
+  border-color: transparent;
   box-shadow: var(--dh-focus);
   outline: none;
 }
@@ -38,18 +38,26 @@
 }
 
 .primary {
-  border-color: var(--dh-border-gold);
+  border-color: transparent;
   background: var(--dh-control-active);
   color: #fff7e7;
 }
 
 .primary:hover:not(:disabled) {
-  border-color: rgba(240, 201, 106, 0.64);
+  border-color: transparent;
   background: rgba(216, 173, 83, 0.24);
 }
 
 .secondary {
-  border-color: var(--dh-border);
+  border-color: transparent;
+  background: rgba(220, 190, 141, 0.12);
+  color: rgba(255, 247, 231, 0.94);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: transparent;
+  background: rgba(229, 199, 150, 0.18);
+  color: #fff7e7;
 }
 
 .ghost {
@@ -58,9 +66,49 @@
 }
 
 .danger {
-  border-color: rgba(214, 91, 91, 0.44);
+  border-color: transparent;
   background: var(--dh-danger-soft);
   color: #ffd8cf;
+}
+
+.toneGold {
+  background: rgba(220, 190, 141, 0.12);
+  color: rgba(255, 247, 231, 0.94);
+}
+
+.toneGold:hover:not(:disabled) {
+  background: rgba(229, 199, 150, 0.18);
+  color: #fff7e7;
+}
+
+.toneBlue {
+  background: rgba(71, 123, 171, 0.2);
+  color: rgba(181, 218, 255, 0.88);
+}
+
+.toneBlue:hover:not(:disabled) {
+  background: rgba(78, 139, 194, 0.28);
+  color: rgba(223, 241, 255, 0.96);
+}
+
+.toneGreen {
+  background: rgba(61, 150, 116, 0.24);
+  color: rgba(191, 255, 225, 0.94);
+}
+
+.toneGreen:hover:not(:disabled) {
+  background: rgba(72, 177, 133, 0.32);
+  color: #e7fff2;
+}
+
+.toneDanger {
+  background: rgba(214, 91, 91, 0.18);
+  color: #ffd8cf;
+}
+
+.toneDanger:hover:not(:disabled) {
+  background: rgba(214, 91, 91, 0.26);
+  color: #fff0eb;
 }
 
 .xs {

@@ -57,7 +57,16 @@
 .mini-dice-launcher__quick {
   position: relative;
   gap: 0;
-  overflow: hidden;
+  overflow: visible;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.mini-dice-launcher__quick:hover:not(:disabled),
+.mini-dice-launcher__quick:focus-visible {
+  border-color: transparent;
+  background: transparent;
 }
 
 .mini-dice-launcher__quick::after {
@@ -78,8 +87,8 @@
 }
 
 .mini-dice-launcher__quick-icons .feed-die-icon-wrap {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   margin-right: 0;
 }
 
