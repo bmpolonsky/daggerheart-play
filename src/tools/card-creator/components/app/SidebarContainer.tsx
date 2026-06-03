@@ -13,9 +13,10 @@ interface SidebarContainerProps {
 }
 
 export function SidebarContainer({ onOpenDomainManager }: SidebarContainerProps) {
-  const { isLoading, error, searchTerm } = useStore(templatesStore);
+  const templatesState = useStore(templatesStore);
+  const { isLoading, error, searchTerm } = templatesState;
   const { items: customCards } = useStore(customCardsStore);
-  const configuredGroups = templatesService.buildGroupViews();
+  const configuredGroups = templatesService.buildGroupViews(templatesState);
 
   const handleSearchChange = (value: string) => {
     templatesService.setSearchTerm(value);

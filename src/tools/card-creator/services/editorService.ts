@@ -122,24 +122,21 @@ export class EditorService {
   }
 
   setCardType(nextType: CardTypeId) {
-    this.ensureCustomCardId();
     editorStore.update((prev) => {
       const nextConfig = CARD_TYPE_CONFIG[nextType];
       const nextFields = {
-        ...prev,
-        selectedTypeId: nextType,
-        cardFields: {
-          ...prev.cardFields,
-          label: prev.cardFields.label || nextConfig.cardLabel,
-          dividerImage: nextConfig.defaultDivider || "",
-        },
+        ...prev.cardFields,
+        label: prev.cardFields.label || nextConfig.cardLabel,
+        dividerImage: nextConfig.defaultDivider || "",
       };
 
       return {
-        ...nextFields,
-        cardFields: this.applyDomainAssets(nextFields.cardFields, nextType),
+        ...prev,
+        selectedTypeId: nextType,
+        cardFields: this.applyDomainAssets(nextFields, nextType),
       };
     });
+    this.ensureCustomCardId();
     this.persistCustomCard();
   }
 

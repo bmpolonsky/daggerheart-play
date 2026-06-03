@@ -52,5 +52,26 @@ test.describe('mobile card creator workspace', () => {
     await expect(preview).toBeVisible();
     await expect(properties).toBeVisible();
     await expectHorizontallyInsideViewport(page, selection);
+
+    const typeSelect = root.locator('#card-type');
+    await typeSelect.selectOption('community');
+    await expect(typeSelect).toHaveValue('community');
+    await expect(preview.locator('.card').first()).toHaveClass(/community/);
+  });
+
+  test('switches template category sections from the sidebar', async ({ page }) => {
+    await page.goto('/tools/cards');
+
+    const root = page.locator('.tool-viewport--cards');
+    const category = (title: string) => root.locator('.template-group').filter({ hasText: title }).first();
+
+    await expect(root).toBeVisible();
+    await expect(category('Родословная').locator('.template-card')).toHaveCount(0);
+
+    await category('Родословная').locator('.template-group__toggle').click();
+    await expect(category('Родословная').locator('.template-card').first()).toBeVisible();
+
+    await category('Сообщество').locator('.template-group__toggle').click();
+    await expect(category('Сообщество').locator('.template-card').first()).toBeVisible();
   });
 });

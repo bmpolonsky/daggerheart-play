@@ -1,12 +1,17 @@
 import type { TemplateCard, TemplateCollectionResponse, TemplateGroup } from "@cards/lib/api";
 import { fetchTemplateCollection } from "@cards/lib/api";
-import { templatesStore } from "@cards/stores/templates";
+import { templatesStore, type TemplatesState } from "@cards/stores/templates";
 
 export interface TemplateGroupView extends TemplateGroup {
   filteredItems: TemplateCard[];
   expanded: boolean;
   toggle: () => void;
 }
+
+type TemplateGroupViewState = Pick<
+  TemplatesState,
+  "templateGroups" | "expandedGroups" | "searchTerm"
+>;
 
 function applyTemplatePayload({ templateGroups, fetchedAt }: TemplateCollectionResponse) {
   templatesStore.update((prev) => {
@@ -52,8 +57,8 @@ export class TemplatesService {
     }));
   }
 
-  buildGroupViews(): TemplateGroupView[] {
-    const { templateGroups, expandedGroups, searchTerm } = templatesStore.getState();
+  buildGroupViews(state: TemplateGroupViewState): TemplateGroupView[] {
+    const { templateGroups, expandedGroups, searchTerm } = state;
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
     return templateGroups.map((group) => {
