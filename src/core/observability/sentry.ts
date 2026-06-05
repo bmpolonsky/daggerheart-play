@@ -6,9 +6,17 @@ export function initSentry() {
       Sentry.init({
         dsn: __SENTRY_DSN__,
         release: __APP_RELEASE__,
+        environment: 'production',
+        sendDefaultPii: true,
+        tracesSampleRate: 1.0,
         integrations: (integrations) => [
           ...integrations,
-          Sentry.browserTracingIntegration()
+          Sentry.browserTracingIntegration({
+            beforeStartSpan: (context) => ({
+              ...context,
+              name: context.name.replace(/\/(join|player)\/[^/?#]+/, '/$1/:roomCode')
+            })
+          })
         ]
       });
     })
