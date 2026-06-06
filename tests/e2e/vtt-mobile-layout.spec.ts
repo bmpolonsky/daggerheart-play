@@ -74,4 +74,20 @@ test.describe('mobile VTT composition', () => {
     await modal.getByTitle('Закрыть').click();
     await expect(modal).toHaveCount(0);
   });
+
+  test('GM tools mobile tabs expose character creation', async ({ page }) => {
+    await page.goto('/gm');
+
+    await page.locator('.mini-dice-launcher__tools').click();
+    const modal = page.locator('.player-tools-modal');
+    const mobileTabs = modal.locator('.player-tools-modal__mobile-tabs');
+    const charactersTab = mobileTabs.getByRole('button', { name: 'Персонажи' });
+
+    await expect(modal).toBeVisible();
+    await expectInsideViewport(page, mobileTabs);
+    await expect(charactersTab).toBeVisible();
+    await expectInsideViewport(page, charactersTab);
+    await charactersTab.click();
+    await expect(modal.getByRole('button', { name: 'Создать героя' })).toBeVisible();
+  });
 });

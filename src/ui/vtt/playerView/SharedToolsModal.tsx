@@ -151,51 +151,15 @@ export function SharedToolsModal({
           )}
         </nav>
         <Tabs className="player-tools-modal__mobile-tabs" label="Разделы библиотеки">
-          {gameLibraryTabs.map((item) => (
-            <TabButton
-              active={activeTab === item}
-              key={item}
-              type="button"
-              onClick={() => onTabChange(item)}
-            >
-              {toolTabLabel(item)}
-            </TabButton>
-          ))}
-          {standaloneTabs.filter((item) => item !== 'library' && item !== 'settings').map((item) => (
-            <TabButton
-              active={activeTab === item}
-              key={item}
-              type="button"
-              onClick={() => onTabChange(item)}
-            >
-              {toolTabLabel(item)}
-            </TabButton>
-          ))}
-          {compendiumCollections.map((collection) => (
-            <TabButton
-              active={activeTab === 'library' && libraryView.selectedCollection === collection.key}
-              key={`library-${collection.key}`}
-              type="button"
-              onClick={() => {
-                contentService.setSelectedCollection(collection.key);
-                onTabChange('library');
-              }}
-            >
-              {collection.shortLabel}
-            </TabButton>
-          ))}
-          {settingsSections.map((section) => (
-            <TabButton
-              active={activeTab === 'settings' && normalizedSettingsSection === section}
-              key={`settings-${section}`}
-              type="button"
-              onClick={() => {
-                setActiveSettingsSection(section);
-                onTabChange('settings');
-              }}
-            >
-              {settingsSectionLabel(section)}
-            </TabButton>
+          {tabs.map((item) => renderMobileTabItem(
+            item,
+            activeTab,
+            libraryView,
+            compendiumCollections,
+            settingsSections,
+            normalizedSettingsSection,
+            onTabChange,
+            setActiveSettingsSection
           ))}
           {specialTabs.map((item) => (
             <TabButton
@@ -250,6 +214,58 @@ export function SharedToolsModal({
         </div>
       </Surface>
     </section>
+  );
+}
+
+function renderMobileTabItem(
+  item: SharedToolsTab,
+  activeTab: SharedToolsTab,
+  libraryView: ReturnType<typeof contentService.buildLibraryView>,
+  compendiumCollections: typeof COMPENDIUM_COLLECTIONS,
+  settingsSections: SettingsSectionId[],
+  activeSettingsSection: SettingsSectionId,
+  onTabChange: (tab: SharedToolsTab) => void,
+  onSettingsSectionChange: (section: SettingsSectionId) => void
+) {
+  if (item === 'library') {
+    return compendiumCollections.map((collection) => (
+      <TabButton
+        active={activeTab === 'library' && libraryView.selectedCollection === collection.key}
+        key={`library-${collection.key}`}
+        type="button"
+        onClick={() => {
+          contentService.setSelectedCollection(collection.key);
+          onTabChange('library');
+        }}
+      >
+        {collection.shortLabel}
+      </TabButton>
+    ));
+  }
+  if (item === 'settings') {
+    return settingsSections.map((section) => (
+      <TabButton
+        active={activeTab === 'settings' && activeSettingsSection === section}
+        key={`settings-${section}`}
+        type="button"
+        onClick={() => {
+          onSettingsSectionChange(section);
+          onTabChange('settings');
+        }}
+      >
+        {settingsSectionLabel(section)}
+      </TabButton>
+    ));
+  }
+  return (
+    <TabButton
+      active={activeTab === item}
+      key={item}
+      type="button"
+      onClick={() => onTabChange(item)}
+    >
+      {toolTabLabel(item)}
+    </TabButton>
   );
 }
 
