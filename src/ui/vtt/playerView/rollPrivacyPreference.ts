@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-
-const PRIVATE_ROLL_STORAGE_KEY = 'daggerheart-play:private-rolls';
+import { localAppStorageStore } from '../../../core/persistence/appBrowserStorage';
 
 export function usePrivateRollPreference(): [boolean, (value: boolean) => void] {
   const [privateRoll, setPrivateRoll] = useState(() => readPrivateRollPreference());
@@ -13,19 +12,14 @@ export function usePrivateRollPreference(): [boolean, (value: boolean) => void] 
 }
 
 function readPrivateRollPreference(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    return window.localStorage.getItem(PRIVATE_ROLL_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return localAppStorageStore.getState().preferences?.privateRolls === true;
 }
 
 function writePrivateRollPreference(value: boolean): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(PRIVATE_ROLL_STORAGE_KEY, value ? '1' : '0');
-  } catch {
-    // localStorage is optional for player view preferences.
-  }
+  localAppStorageStore.update((state) => ({
+    preferences: {
+      ...state.preferences,
+      privateRolls: value
+    }
+  }));
 }

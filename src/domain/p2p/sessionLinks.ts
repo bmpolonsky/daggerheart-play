@@ -1,3 +1,5 @@
+import { sessionAppStorageStore } from '../../core/persistence/appBrowserStorage';
+
 export interface PlayerInviteUrlInput {
   origin: string;
   basePath?: string;
@@ -9,8 +11,6 @@ export interface PlayerSessionParams {
   roomId: string;
   password: string;
 }
-
-const PLAYER_SEAT_STORAGE_PREFIX = 'daggerheart-play:p2p-seat:';
 
 export function createShortRoomCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -47,21 +47,21 @@ export function inferBasePathFromWorkspacePath(pathname: string): string {
 }
 
 export function readStoredPlayerSeatId(roomId: string): string | null {
-  if (typeof window === 'undefined' || !roomId) return null;
-  try {
-    return window.sessionStorage.getItem(playerSeatStorageKey(roomId));
-  } catch {
-    return null;
-  }
+  if (!roomId) return null;
+  return sessionAppStorageStore.getState().p2p?.seats?.[roomId] ?? null;
 }
 
 export function writeStoredPlayerSeatId(roomId: string, seatId: string): void {
-  if (typeof window === 'undefined' || !roomId || !seatId) return;
-  try {
-    window.sessionStorage.setItem(playerSeatStorageKey(roomId), seatId);
-  } catch {
-    // Seat selection is local convenience state; the lobby can ask again.
-  }
+  if (!roomId || !seatId) return;
+  sessionAppStorageStore.update((state) => ({
+    p2p: {
+      ...state.p2p,
+      seats: {
+        ...state.p2p?.seats,
+        [roomId]: seatId
+      }
+    }
+  }));
 }
 
 function joinRoutePath(basePath = '', roomId: string): string {
@@ -75,8 +75,4 @@ function stripBasePath(pathname: string, basePath = ''): string {
   if (!normalizedBase || !pathname.startsWith(normalizedBase)) return pathname;
   const stripped = pathname.slice(normalizedBase.length);
   return stripped.startsWith('/') ? stripped : `/${stripped}`;
-}
-
-function playerSeatStorageKey(roomId: string): string {
-  return `${PLAYER_SEAT_STORAGE_PREFIX}${roomId}`;
 }
