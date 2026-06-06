@@ -40,6 +40,7 @@ import {
   initialInviteDraftState,
   persistActiveSession,
   persistInviteDraft,
+  persistRoomCodeRefreshBlockedUntil,
   readActiveSession
 } from './p2p/P2PSessionPersistence';
 import { P2PRoomConnection, type P2PRoomConnectionConfig, type P2PRoomConnectionEvent } from './p2p/P2PRoomConnection';
@@ -80,6 +81,7 @@ export interface P2PInviteDraftState {
   password: string;
   inviteUrl: string;
   message: string;
+  roomCodeRefreshBlockedUntil: number;
 }
 
 export interface P2PInviteContext {
@@ -95,6 +97,7 @@ export interface PlayerActorContext {
 
 const AUTO_SNAPSHOT_DELAY_MS = 350;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
+const ROOM_CODE_REFRESH_COOLDOWN_MS = 30_000;
 
 export class P2PSessionService {
   private sessionStore = new Store<P2PSessionState>({
@@ -114,6 +117,7 @@ export class P2PSessionService {
 
   private snapshotTimer: number | undefined;
   private productRecoveryTimer: number | undefined;
+  private roomCodeRefreshTimer: number | undefined;
   private activeRoomConnection: P2PRoomConnection | null = null;
   private assetTransferService: P2PAssetTransferService;
   private publishedPlayerFeedEntrySignatures = new Map<string, string>();
@@ -146,6 +150,7 @@ export class P2PSessionService {
       () => this.activeRoomConnection,
       (patch) => this.patchSession(patch)
     );
+    this.scheduleRoomCodeRefreshCooldown(this.inviteStore.get().roomCodeRefreshBlockedUntil);
   }
 
   setInviteRoomId(roomId: string): void {
@@ -171,6 +176,20 @@ export class P2PSessionService {
       ...state,
       message
     }));
+  }
+
+  async refreshGmRoomCode(): Promise<void> {
+    const draft = this.inviteStore.get();
+    if (draft.roomCodeRefreshBlockedUntil > Date.now()) return;
+
+    const session = this.sessionStore.get();
+    const hasActiveGmRoom = session.role === 'gm' && (session.connected || session.status === 'connecting') && Boolean(session.roomId);
+    this.setRoomCodeRefreshBlockedUntil(Date.now() + ROOM_CODE_REFRESH_COOLDOWN_MS);
+    if (hasActiveGmRoom) {
+      await this.stop();
+    }
+    this.setInviteRoomId(createShortRoomCode());
+    this.setInviteMessage(hasActiveGmRoom ? 'Старая комната закрыта. Новая ссылка готова.' : 'Код комнаты обновлен. Новая ссылка готова.');
   }
 
   previewInviteUrl(context: P2PInviteContext): string {
@@ -247,7 +266,8 @@ export class P2PSessionService {
         roomId: invite.roomId,
         password: invite.password,
         inviteUrl: invite.inviteUrl,
-        message: 'Ссылка готова. Игрок подключится автоматически.'
+        message: 'Ссылка готова. Игрок подключится автоматически.',
+        roomCodeRefreshBlockedUntil: draft.roomCodeRefreshBlockedUntil
       });
       this.persistInviteDraft();
       return invite;
@@ -1266,6 +1286,20 @@ export class P2PSessionService {
 
   private persistInviteDraft(): void {
     persistInviteDraft(this.inviteStore.get());
+  }
+
+  private setRoomCodeRefreshBlockedUntil(value: number): void {
+    persistRoomCodeRefreshBlockedUntil(value);
+    this.inviteStore.update((state) => ({ ...state, roomCodeRefreshBlockedUntil: value > Date.now() ? value : 0 }));
+    this.scheduleRoomCodeRefreshCooldown(value);
+  }
+
+  private scheduleRoomCodeRefreshCooldown(value: number): void {
+    if (typeof window === 'undefined') return;
+    window.clearTimeout(this.roomCodeRefreshTimer);
+    this.roomCodeRefreshTimer = undefined;
+    if (value <= Date.now()) return;
+    this.roomCodeRefreshTimer = window.setTimeout(() => this.setRoomCodeRefreshBlockedUntil(0), value - Date.now());
   }
 
   private requirePlayerActorContext(actorId?: string): { participantId: string; actorId: string; actorName?: string } | null {

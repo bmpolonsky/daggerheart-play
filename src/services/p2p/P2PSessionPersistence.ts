@@ -4,6 +4,7 @@ import type { P2PInviteDraftState, P2PSessionRole } from '../P2PSessionService';
 
 const ACTIVE_SESSION_STORAGE_KEY = 'daggerheart-play:p2p-active-session';
 const INVITE_DRAFT_STORAGE_KEY = 'daggerheart-play:p2p-invite-draft';
+const ROOM_CODE_REFRESH_BLOCKED_UNTIL_STORAGE_KEY = 'daggerheart-play:p2p-room-code-refresh-blocked-until';
 
 export interface PersistedP2PSession {
   version: 1;
@@ -20,7 +21,8 @@ export function initialInviteDraftState(): P2PInviteDraftState {
     roomId: persisted?.roomId ? normalizeSessionRoomId(persisted.roomId, createShortRoomCode()) : createShortRoomCode(),
     password: persisted?.password ?? '',
     inviteUrl: '',
-    message: ''
+    message: '',
+    roomCodeRefreshBlockedUntil: readSessionNumber(ROOM_CODE_REFRESH_BLOCKED_UNTIL_STORAGE_KEY)
   };
 }
 
@@ -59,6 +61,19 @@ export function persistInviteDraft(draft: Pick<P2PInviteDraftState, 'roomId' | '
   });
 }
 
+export function persistRoomCodeRefreshBlockedUntil(value: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value > Date.now()) {
+      window.sessionStorage.setItem(ROOM_CODE_REFRESH_BLOCKED_UNTIL_STORAGE_KEY, String(value));
+    } else {
+      window.sessionStorage.removeItem(ROOM_CODE_REFRESH_BLOCKED_UNTIL_STORAGE_KEY);
+    }
+  } catch {
+    // Cooldown persistence is optional.
+  }
+}
+
 function readJson<T>(key: string): T | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -75,5 +90,15 @@ function writeJson(key: string, value: unknown): void {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // Reconnect persistence is optional.
+  }
+}
+
+function readSessionNumber(key: string): number {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const value = Number(window.sessionStorage.getItem(key));
+    return Number.isFinite(value) && value > Date.now() ? value : 0;
+  } catch {
+    return 0;
   }
 }

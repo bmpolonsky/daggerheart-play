@@ -1,6 +1,7 @@
 import { AssetService } from './AssetService';
 import { AudioService } from './AudioService';
 import { GameService } from './GameService';
+import { GmLobbyService } from './GmLobbyService';
 import { ContentService } from './ContentService';
 import { CharacterService } from './CharacterService';
 import { DiceService } from './DiceService';
@@ -35,6 +36,7 @@ export const sceneTableService = new SceneTableService();
 export const sceneAudioBroadcastService = new SceneAudioBroadcastService();
 export const syncService = new SyncService();
 export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService);
+export const gmLobbyService = new GmLobbyService(p2pSessionService);
 characterService.setDeathMoveRequestHandler((character, transition) => {
   if (p2pSessionService.isConnectedPlayerSession()) return;
   if (transition === 'defeatedRemoved') {

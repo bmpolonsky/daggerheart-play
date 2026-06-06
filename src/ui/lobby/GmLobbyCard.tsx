@@ -1,8 +1,8 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef } from 'preact/hooks';
-import { Crown, Link2, Trash2 } from 'lucide-react';
+import { Crown, Link2, RefreshCw, Trash2 } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
-import { characterService, gameService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
+import { characterService, gameService, gmLobbyService, sceneTableService } from '../../services/serviceRegistry';
 import { Button } from '../components/common/Button';
 import { SelectControl, TextControl } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
@@ -18,39 +18,44 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
   const { gmName } = useStream(gameService.game$);
   const { entities: characterEntities, order: characterOrder } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
-  useStream(p2pSessionService.session$);
+  const invite = useStream(gmLobbyService.invite$);
   const restoreAttempted = useRef(false);
   const characterOptions = characterOrder.map((id) => characterEntities[id]).filter(Boolean);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');
-  const displayedInviteUrl = p2pSessionService.previewInviteUrl(inviteContext);
-  const displayedGmRoomId = p2pSessionService.getGmRoomId();
+  const displayedInviteUrl = gmLobbyService.previewInviteUrl(inviteContext);
+  const displayedGmRoomId = gmLobbyService.getRoomId();
+  const roomCodeRefresh = gmLobbyService.roomCodeRefreshView(invite);
+  const isRoomCodeRefreshCoolingDown = roomCodeRefresh.remainingSeconds > 0;
+  const roomCodeRefreshTitle = isRoomCodeRefreshCoolingDown ? `Обновить код можно через ${roomCodeRefresh.remainingSeconds} с` : 'Обновить код комнаты';
 
   useEffect(() => {
     if (restoreAttempted.current) return;
     restoreAttempted.current = true;
-    void p2pSessionService.restoreActiveSession('gm', gmName);
+    void gmLobbyService.restoreSession(gmName);
   }, [gmName]);
 
   const createSession = async (): Promise<boolean> => {
-    try {
-      await p2pSessionService.createGmInviteFromDraft({
-        participantName: gmName,
-        ...inviteContext
-      });
-      return true;
-    } catch {
-      return false;
-    }
+    return Boolean(await gmLobbyService.createSession({
+      participantName: gmName,
+      ...inviteContext
+    }));
   };
 
   const copyInvite = async () => {
-    if (!displayedInviteUrl) return;
-    try {
-      await navigator.clipboard?.writeText(displayedInviteUrl);
-      p2pSessionService.setInviteMessage('Ссылка скопирована.');
-    } catch {
-      p2pSessionService.setInviteMessage('Скопируйте ссылку вручную.');
+    await gmLobbyService.copyInvite(displayedInviteUrl, {
+      copied: 'Ссылка скопирована.',
+      manual: 'Скопируйте ссылку вручную.'
+    });
+  };
+
+  const refreshRoomCode = async () => {
+    if (
+      gmLobbyService.hasConnectedPlayers()
+      && !window.confirm('Игроки будут отключены от старой комнаты. Создать новый код и новую ссылку?')
+    ) {
+      return;
     }
+    await gmLobbyService.refreshRoomCode();
   };
 
   const enterGm = () => {
@@ -68,10 +73,24 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
           <span>Управление комнатой и местами игроков.</span>
         </div>
       </header>
-      <label>
-        <span>Код комнаты</span>
-        <TextControl value={displayedGmRoomId} readOnly />
-      </label>
+      <div className="role-entry__invite-line">
+        <label>
+          <span>Код комнаты</span>
+          <TextControl value={displayedGmRoomId} readOnly />
+        </label>
+        <IconButton
+          className="role-entry__icon-action role-entry__room-refresh"
+          variant="ghost"
+          size="sm"
+          type="button"
+          title={roomCodeRefreshTitle}
+          aria-label="Обновить код комнаты"
+          disabled={isRoomCodeRefreshCoolingDown}
+          onClick={() => void refreshRoomCode()}
+        >
+          <RefreshCw size={15} aria-hidden="true" />
+        </IconButton>
+      </div>
       <div className="role-entry__players">
         <header>
           <strong>Игроки</strong>

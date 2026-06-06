@@ -13,7 +13,7 @@ export interface PlayerSessionParams {
 const PLAYER_SEAT_STORAGE_PREFIX = 'daggerheart-play:p2p-seat:';
 
 export function createShortRoomCode(): string {
-  return Math.random().toString(36).slice(2, 6).toUpperCase();
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
 export function createFallbackRoomId(): string {

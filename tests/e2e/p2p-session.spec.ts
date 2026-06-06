@@ -22,12 +22,10 @@ function sessionMeta(page: Page, label: string) {
   return page.locator('.player-tools-sync__meta div').filter({ hasText: label }).locator('dd');
 }
 
-async function createLobbyInvite(page: Page, roomId: string): Promise<string> {
+async function createLobbyInvite(page: Page): Promise<string> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Добавить' }).click();
-  await page.getByLabel('Код комнаты').first().fill(roomId);
-  await page.getByRole('button', { name: 'Создать сессию' }).click();
+  const roomId = await page.getByLabel('Код комнаты').first().inputValue();
   const invite = page.getByLabel('Ссылка приглашения');
   await expect(invite).toHaveValue(new RegExp(`/join/${roomId}$`));
   return invite.inputValue();
@@ -57,11 +55,10 @@ test.describe('P2P session workflow', () => {
     test.skip(process.env.RUN_P2P_E2E !== '1', 'Real WebRTC relay smoke is opt-in to keep default e2e deterministic.');
     test.setTimeout(60_000);
 
-    const roomId = `dh-e2e-${Date.now().toString(36)}`;
     const gm = await newSharedPage(browser);
     const player = await newSharedPage(browser);
 
-    const inviteLink = await createLobbyInvite(gm, roomId);
+    const inviteLink = await createLobbyInvite(gm);
     await gm.getByRole('button', { name: 'Открыть игру' }).click();
     await openCurrentSettings(gm, 'Диагностика');
     await player.goto(inviteLink);
