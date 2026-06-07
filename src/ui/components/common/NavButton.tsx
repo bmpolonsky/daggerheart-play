@@ -3,7 +3,7 @@ import styles from './NavButton.module.css';
 
 type UiNode = any;
 
-interface NavButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface NavButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   active?: boolean;
   collapsed?: boolean;
   children: UiNode;

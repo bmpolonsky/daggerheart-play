@@ -2,7 +2,7 @@ import styles from './ModalShell.module.css';
 
 type UiNode = any;
 
-interface ModalShellProps {
+export interface ModalShellProps {
   title?: UiNode;
   actions?: UiNode;
   children: UiNode;

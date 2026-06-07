@@ -14,8 +14,8 @@ import {
 import { Button } from "../../../../ui/components/common/Button";
 import { Checkbox } from "../../../../ui/components/common/Checkbox";
 import { IconButton } from "../../../../ui/components/common/IconButton";
+import { SegmentedControl } from "../../../../ui/components/common/SegmentedControl";
 import { Surface } from "../../../../ui/components/common/Surface";
-import { TabButton, Tabs } from "../../../../ui/components/common/Tabs";
 
 interface EncounterPanelProps {
   entries: EncounterBattleEntry[];
@@ -175,29 +175,18 @@ export function EncounterPanel({
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Настройка сложности
             </span>
-            <Tabs className="combat-difficulty-tabs" layout="equal" label="Настройка сложности">
-              <TabButton
-                type="button"
-                onClick={() => onSetDifficultyMode("easy")}
-                active={difficultyMode === "easy"}
-              >
-                Легкий (-1)
-              </TabButton>
-              <TabButton
-                type="button"
-                onClick={() => onSetDifficultyMode("standard")}
-                active={difficultyMode === "standard"}
-              >
-                Норма
-              </TabButton>
-              <TabButton
-                type="button"
-                onClick={() => onSetDifficultyMode("hard")}
-                active={difficultyMode === "hard"}
-              >
-                Сложный (+2)
-              </TabButton>
-            </Tabs>
+            <SegmentedControl<DifficultyMode>
+              className="combat-difficulty-tabs"
+              layout="equal"
+              label="Настройка сложности"
+              value={difficultyMode}
+              onChange={onSetDifficultyMode}
+              options={[
+                { value: "easy", label: "Легкий (-1)" },
+                { value: "standard", label: "Норма" },
+                { value: "hard", label: "Сложный (+2)" },
+              ]}
+            />
           </div>
 
           <div>

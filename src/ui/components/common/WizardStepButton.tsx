@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 import styles from './WizardStepButton.module.css';
 
-interface WizardStepButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface WizardStepButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
   index: number;
   label: string;

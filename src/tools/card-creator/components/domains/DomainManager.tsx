@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { Trash2 } from "lucide-react";
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import { useStream } from "../../../../core/hooks/useStream";
@@ -6,6 +7,7 @@ import type { DomainTheme } from "@cards/stores/domains";
 import { domainService } from "@cards/services/domainService";
 import { Button } from "@cards/components/ui/button";
 import { Input } from "@cards/components/ui/input";
+import { IconButton } from "../../../../ui/components/common";
 
 interface DomainManagerProps {
   onClose: () => void;
@@ -228,9 +230,17 @@ export function DomainManager({ onClose }: DomainManagerProps) {
                 )}
               </div>
               {isCustom && (
-                <Button variant="ghost" size="sm" onClick={() => domainService.removeDomain(domain.id)}>
-                  Удалить
-                </Button>
+                <IconButton
+                  variant="ghost"
+                  tone="danger"
+                  size="sm"
+                  type="button"
+                  title="Удалить домен"
+                  aria-label={`Удалить домен ${domain.name}`}
+                  onClick={() => domainService.removeDomain(domain.id)}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                </IconButton>
               )}
             </div>
           )})}

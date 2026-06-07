@@ -1,5 +1,6 @@
 /* Dark-glass foundation tokens plus temporary legacy bridges. Component
    primitives own their styles in src/ui/components/common/*.module.css. */
+:root,
 .cinematic-vtt,
 .role-entry,
 .player-view,
@@ -33,6 +34,18 @@
   --dh-shadow-soft: 0 14px 38px rgba(0, 0, 0, 0.28);
   --dh-focus: 0 0 0 2px rgba(240, 201, 106, 0.2);
   --dh-z-modal: 120;
+}
+
+.dh-portal-scope {
+  color: var(--dh-paper-100);
+  font-family: "DH Overpass", ui-sans-serif, system-ui, sans-serif;
+}
+
+.dh-portal-scope,
+.dh-portal-scope *,
+.dh-portal-scope *::before,
+.dh-portal-scope *::after {
+  box-sizing: border-box;
 }
 
 .dh-label {

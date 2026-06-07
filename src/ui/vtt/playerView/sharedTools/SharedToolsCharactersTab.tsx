@@ -9,6 +9,7 @@ import { CharacterBuilderModal } from '../../../characters/CharacterBuilderModal
 import { CharacterEditor } from '../../../characters/CharacterEditor';
 import { Button } from '../../../components/common/Button';
 import { ChoiceCard } from '../../../components/common/ChoiceCard';
+import { EmptyState } from '../../../components/common/EmptyState';
 
 export function SharedToolsCharactersTab({
   characterBuilderOpen,
@@ -97,10 +98,13 @@ export function SharedToolsCharactersTab({
             {selectedCharacter ? (
               <CharacterEditor character={selectedCharacter} content={content} />
             ) : (
-              <div className="player-tools-character-editor-empty">
-                <strong>Персонаж не выбран</strong>
-                <span>Выберите персонажа из списка или создайте нового.</span>
-              </div>
+              <EmptyState
+                className="player-tools-character-editor-empty"
+                tone="subtle"
+                size="sm"
+                title="Персонаж не выбран"
+                body="Выберите персонажа из списка или создайте нового."
+              />
             )}
           </section>
         )}

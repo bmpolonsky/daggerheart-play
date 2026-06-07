@@ -1,5 +1,7 @@
+import { Trash2 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { NumberField, SelectControl, SelectField, TextAreaField, TextField } from '../components/common/Field';
+import { IconButton } from '../components/common/IconButton';
 import { Surface } from '../components/common/Surface';
 import { DAMAGE_TYPE_LABELS, DOMAIN_LABELS, RANGE_LABELS, RANGES, TRAITS } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
@@ -103,7 +105,9 @@ export function LoadoutPanel({ character, content }: { character: Character; con
               <p className="form-hint">Двуручное оружие обычно занимает обе руки. Проверьте второе оружие вручную.</p>
             )}
             <div className="row-end">
-              <Button variant="danger" onClick={() => characterService.removeWeapon(character.id, weapon.id)}>Удалить атаку</Button>
+              <IconButton variant="danger" size="sm" type="button" title="Удалить атаку" aria-label={`Удалить атаку ${weapon.name}`} onClick={() => characterService.removeWeapon(character.id, weapon.id)}>
+                <Trash2 size={15} aria-hidden="true" />
+              </IconButton>
             </div>
           </Surface>
         ))}
@@ -138,7 +142,9 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             <span>{DOMAIN_LABELS[card.domain] ?? card.domain}</span>
             <span>Ур. {card.level}</span>
             <span>{card.cost ? `Цена ${card.cost}` : 'Без цены'}</span>
-            <Button variant="danger" onClick={() => characterService.removeDomainCard(character.id, card.id)}>Удалить</Button>
+            <IconButton variant="danger" size="sm" type="button" title="Удалить карту" aria-label={`Удалить карту ${card.name}`} onClick={() => characterService.removeDomainCard(character.id, card.id)}>
+              <Trash2 size={15} aria-hidden="true" />
+            </IconButton>
           </div>
         ))}
       </section>
@@ -236,7 +242,9 @@ export function LoadoutPanel({ character, content }: { character: Character; con
               onChange={(event) => characterService.updateInventoryItem(character.id, item.id, { text: event.currentTarget.value })}
             />
             <div className="row-end">
-              <Button variant="danger" onClick={() => characterService.removeInventoryItem(character.id, item.id)}>Удалить предмет</Button>
+              <IconButton variant="danger" size="sm" type="button" title="Удалить предмет" aria-label={`Удалить предмет ${item.name}`} onClick={() => characterService.removeInventoryItem(character.id, item.id)}>
+                <Trash2 size={15} aria-hidden="true" />
+              </IconButton>
             </div>
           </Surface>
         ))}

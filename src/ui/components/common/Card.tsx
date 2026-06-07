@@ -2,7 +2,7 @@ import styles from './Card.module.css';
 
 type UiNode = any;
 
-interface CardProps {
+export interface CardProps {
   title?: UiNode;
   subtitle?: UiNode;
   actions?: UiNode;

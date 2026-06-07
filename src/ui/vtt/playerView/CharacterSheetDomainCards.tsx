@@ -1,8 +1,12 @@
 /** @jsxImportSource preact */
-import type { JSX } from "preact";
 import { cssImageUrl } from "./helpers";
 import { TrackDots } from "./PlayerSheetControls";
 import type { PlayerViewDomainCard } from "./domainCards/types";
+import { ListItem } from "../../components/common/ListItem";
+
+type EventWithTarget = {
+  target: EventTarget | null;
+};
 
 export function CharacterSheetDomainCards({
   cards,
@@ -13,7 +17,7 @@ export function CharacterSheetDomainCards({
   onPreview: (cardId: string) => void;
   onTokenChange: (cardId: string, value: number) => void;
 }) {
-  const openCardPreview = (event: JSX.TargetedMouseEvent<HTMLElement>, cardId: string) => {
+  const openCardPreview = (event: EventWithTarget, cardId: string) => {
     const target = event.target;
     if (target instanceof HTMLElement && target.closest('button, input, select, textarea, a')) return;
     onPreview(cardId);
@@ -22,11 +26,21 @@ export function CharacterSheetDomainCards({
   return (
     <>
       {cards.map((card) => (
-        <article
-          className={`player-sheet-row player-sheet-row--featured ${card.imageUrl ? 'player-domain-card-preview' : ''}`}
+        <ListItem
           key={card.id}
-          role="button"
-          tabIndex={0}
+          align="start"
+          tone="featured"
+          title={card.name}
+          subtitle={`${card.domainLabel} ${card.level}`}
+          leftAccessory={card.imageUrl ? <img className="player-domain-card-thumb" src={cssImageUrl(card.imageUrl)} alt="" /> : undefined}
+          detail={card.tokens.max > 0 && (
+            <TrackDots
+              value={card.tokens.value}
+              max={card.tokens.max}
+              tone="hope"
+              onSet={(next) => onTokenChange(card.id, next)}
+            />
+          )}
           onClick={(event) => openCardPreview(event, card.id)}
           onKeyDown={(event) => {
             const target = event.target;
@@ -35,21 +49,7 @@ export function CharacterSheetDomainCards({
             event.preventDefault();
             onPreview(card.id);
           }}
-        >
-          {card.imageUrl && <img src={cssImageUrl(card.imageUrl)} alt="" />}
-          <div>
-            <strong>{card.name}</strong>
-            <span>{card.domainLabel} {card.level}</span>
-            {card.tokens.max > 0 && (
-              <TrackDots
-                value={card.tokens.value}
-                max={card.tokens.max}
-                tone="hope"
-                onSet={(next) => onTokenChange(card.id, next)}
-              />
-            )}
-          </div>
-        </article>
+        />
       ))}
     </>
   );

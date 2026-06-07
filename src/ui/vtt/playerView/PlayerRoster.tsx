@@ -1,7 +1,8 @@
 /** @jsxImportSource preact */
 import { Hand, Mic, MicOff, Plus } from 'lucide-react';
-import { ChoiceCard } from '../../components/common/ChoiceCard';
+import { Avatar } from '../../components/common/Avatar';
 import { IconButton } from '../../components/common/IconButton';
+import { ListItem } from '../../components/common/ListItem';
 import { cssImageUrl, initials } from './helpers';
 import type { PlayerRosterActor, PlayerViewedActor, TableViewRole } from './types';
 
@@ -38,38 +39,29 @@ export function PlayerRoster({
         const activationRequest = actor.activationRequest;
         const voiceLive = Boolean(actor.presence?.voiceLive && !actor.presence.voiceMuted);
         const voiceConnected = Boolean(actor.presence?.connected);
+        const subtitle = actor.kind === 'character' ? actor.subtitle : actor.kind === 'environment' ? actor.subtitle || 'Окружение' : 'НПС';
         return (
-          <article
-            className={`player-roster__row ${locked ? 'dh-is-locked' : ''} ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
+          <ListItem
+            className={`player-roster__row ${active || Boolean(activationRequest) ? 'dh-is-selected' : ''} ${locked ? 'dh-is-locked' : ''} ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
             key={`${actor.kind}:${actor.actorId}`}
-          >
-            <ChoiceCard
-              className="player-roster__open"
-              selected={active || Boolean(activationRequest)}
-              disabled={locked}
-              title={opensSheet ? actor.name : 'Детали скрыты от игроков'}
-              onClick={() => {
-                if (opensSheet) onOpenActor({ kind: actor.kind, actorId: actor.actorId });
-              }}
-            >
-              {actor.kind === 'character' && role === 'gm' && (
-                <i
-                  className={`player-roster__presence ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
-                  aria-label={actor.presence?.connected ? 'Игрок подключен' : 'Игрок не подключен'}
-                />
-              )}
-              {actor.imageUrl ? (
-                <img src={cssImageUrl(actor.imageUrl)} alt="" draggable={false} onDragStart={(event) => event.preventDefault()} />
-              ) : (
-                <span className="player-roster__avatar" aria-hidden="true">{initials(actor.name)}</span>
-              )}
-              <span>
-                <strong>{actor.name}</strong>
-                <small>{actor.kind === 'character' ? actor.subtitle : actor.kind === 'environment' ? actor.subtitle || 'Окружение' : 'НПС'}</small>
-              </span>
-            </ChoiceCard>
-            {role === 'gm' && (
-              <div className="player-roster__actions">
+            title={actor.name}
+            subtitle={subtitle}
+            leftAccessory={(
+              <>
+                {actor.kind === 'character' && role === 'gm' && (
+                  <i
+                    className={`player-roster__presence ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
+                    aria-label={actor.presence?.connected ? 'Игрок подключен' : 'Игрок не подключен'}
+                  />
+                )}
+                <Avatar src={actor.imageUrl ? cssImageUrl(actor.imageUrl) : undefined} fallback={initials(actor.name)} />
+              </>
+            )}
+            disabled={locked}
+            tooltip={opensSheet ? actor.name : 'Детали скрыты от игроков'}
+            onClick={opensSheet ? () => onOpenActor({ kind: actor.kind, actorId: actor.actorId }) : undefined}
+            rightAccessory={role === 'gm' ? (
+              <>
                 {actor.kind === 'character' && (
                   <IconButton
                     aria-label={`Микрофон ${actor.name}`}
@@ -119,9 +111,9 @@ export function PlayerRoster({
                 >
                   <Plus size={15} aria-hidden="true" />
                 </IconButton>
-              </div>
-            )}
-          </article>
+              </>
+            ) : undefined}
+          />
         );
       })}
     </section>

@@ -50,10 +50,6 @@
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
 }
 
-.tool-viewport--combat .combat-search-input {
-  padding-left: 2.25rem;
-}
-
 .tool-viewport--combat .combat-filter-select {
   width: clamp(9rem, 14vw, 13rem);
   min-width: 0;
@@ -68,25 +64,20 @@
 
 .tool-viewport--combat .combat-sidebar-toggle {
   display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  place-items: center;
+  padding: 0 !important;
+  line-height: 1;
+}
+
+.tool-viewport--combat .combat-sidebar-toggle svg {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .tool-viewport--combat .combat-difficulty-tabs {
   gap: 8px;
-}
-
-.tool-viewport--combat .combat-difficulty-tabs .dh-tab {
-  min-height: 34px;
-  border-radius: 999px;
-  background: transparent;
-  color: rgba(243, 234, 216, 0.7);
-  font-size: 0.72rem;
-  font-weight: 760;
-  text-transform: none;
-}
-
-.tool-viewport--combat .combat-difficulty-tabs .dh-tab.dh-is-active {
-  background: rgba(243, 234, 216, 0.13);
-  color: #fff7e7;
 }
 
 .tool-viewport--combat .combat-modifier-checkbox {
@@ -371,11 +362,132 @@
     max-width: 100%;
   }
 
-  .tool-viewport--combat header {
+  .tool-viewport--combat .combat-browser-header {
     overflow: hidden;
+    padding: 14px;
+  }
+
+  .tool-viewport--combat .combat-browser-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .tool-viewport--combat .combat-browser-create {
+    width: auto;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .tool-viewport--combat .combat-browser-actions {
+    width: auto;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .tool-viewport--combat .combat-browser-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .tool-viewport--combat .combat-browser-filters {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .tool-viewport--combat .combat-browser-filters > span {
+    min-width: 0;
+    align-self: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tool-viewport--combat .combat-filter-select,
+  .tool-viewport--combat .combat-filter-select--role {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 auto;
   }
 
   .tool-viewport--combat article {
     width: 100%;
+  }
+
+  .tool-viewport--combat .combat-adversary-grid {
+    gap: 10px;
+  }
+
+  .tool-viewport--combat .combat-adversary-card {
+    min-height: 0;
+    border-color: transparent !important;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__media {
+    aspect-ratio: 1 / 0.92;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__body {
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__badges {
+    gap: 4px;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__badges span {
+    max-width: 100%;
+    padding: 2px 6px;
+    overflow: hidden;
+    font-size: 0.56rem;
+    letter-spacing: 0.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__title {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 0.9rem;
+    line-height: 1.12;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__summary {
+    min-height: 0;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__summary p {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 0.68rem;
+    line-height: 1.28;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__add,
+  .tool-viewport--combat .combat-adversary-card__edit {
+    right: 6px;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__add {
+    top: 6px;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__edit {
+    top: 42px;
+  }
+
+  .tool-viewport--combat .combat-adversary-card__cost {
+    left: 6px;
+    top: 6px;
+    transform: scale(0.86);
+    transform-origin: top left;
   }
 }

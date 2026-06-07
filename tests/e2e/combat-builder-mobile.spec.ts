@@ -18,6 +18,7 @@ test.describe('Combat Builder mobile workspace', () => {
     await expect(firstCard).toBeVisible();
     await expect(addButton).toBeVisible();
     await expectInsideViewport(page, addButton);
+    await expect(sheet).toBeHidden();
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
 
     await addButton.click();

@@ -3,7 +3,7 @@ import styles from './Toolbar.module.css';
 
 type UiNode = any;
 
-interface ToolbarProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
+export interface ToolbarProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   children: UiNode;
 }
 

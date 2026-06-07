@@ -3,14 +3,14 @@ import styles from './Tabs.module.css';
 
 type UiNode = any;
 
-interface TabsProps {
+export interface TabsProps {
   label: string;
   children: UiNode;
   className?: string;
   layout?: 'auto' | 'equal';
 }
 
-interface TabButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface TabButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   active?: boolean;
   children: UiNode;
 }

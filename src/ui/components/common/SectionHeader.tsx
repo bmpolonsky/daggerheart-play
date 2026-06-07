@@ -2,7 +2,7 @@ import styles from './SectionHeader.module.css';
 
 type UiNode = any;
 
-interface SectionHeaderProps {
+export interface SectionHeaderProps {
   eyebrow?: UiNode;
   title: UiNode;
   subtitle?: UiNode;

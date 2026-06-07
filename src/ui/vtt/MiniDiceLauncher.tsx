@@ -6,8 +6,9 @@ import type { DiceVisualTone, RollPublication, TraitId } from '../../domain/rule
 import type { AudioLayerState } from '../../services/AudioService';
 import type { PolyhedralDieSides } from '../dice/types';
 import { Button } from '../components/common/Button';
+import { Checkbox } from '../components/common/Checkbox';
 import { IconButton } from '../components/common/IconButton';
-import { TabButton, Tabs } from '../components/common/Tabs';
+import { SegmentedControl } from '../components/common/SegmentedControl';
 import { DiceIcon } from './playerView/playerChrome/feedCards/DiceIcon';
 import { usePrivateRollPreference } from './playerView/rollPrivacyPreference';
 import type { PlayerRollType } from './playerView/types';
@@ -268,23 +269,30 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
         </div>
         <div className="mini-dice-launcher__controls">
           {isDualityRoll && (
-            <Tabs className="mini-dice-launcher__segmented" label="Тип броска Дуальности" layout="equal">
-              <TabButton active={dualityRollType === 'action'} onClick={() => setDualityRollType('action')}>
-                Действие
-              </TabButton>
-              <TabButton active={dualityRollType === 'reaction'} onClick={() => setDualityRollType('reaction')}>
-                Реакция
-              </TabButton>
-            </Tabs>
+            <SegmentedControl<PlayerRollType>
+              className="mini-dice-launcher__segmented"
+              label="Тип броска Дуальности"
+              layout="equal"
+              value={dualityRollType}
+              onChange={setDualityRollType}
+              options={[
+                { value: 'action', label: 'Действие' },
+                { value: 'reaction', label: 'Реакция' },
+              ]}
+            />
           )}
           <Button className="mini-dice-launcher__roll" variant="primary" size="lg" type="button" disabled={trayItems.length === 0} onClick={rollTray}>
             Бросить
           </Button>
         </div>
-        <label className="mini-dice-launcher__private">
-          <input type="checkbox" checked={privateRoll} onChange={(event) => setPrivateRoll(event.currentTarget.checked)} />
-          <span>Приватный бросок</span>
-        </label>
+        <Checkbox
+          className="mini-dice-launcher__private"
+          size="sm"
+          boxPosition="start"
+          label="Приватный бросок"
+          checked={privateRoll}
+          onChange={(event) => setPrivateRoll(event.currentTarget.checked)}
+        />
       </div>
       )}
     </section>

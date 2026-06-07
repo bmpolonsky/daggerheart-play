@@ -1,0 +1,28 @@
+.notice {
+  min-width: 0;
+  border-radius: var(--dh-radius-sm);
+  padding: 10px 12px;
+  color: var(--dh-paper-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.info {
+  background: rgba(216, 173, 83, 0.08);
+  color: rgba(243, 234, 216, 0.76);
+}
+
+.warning {
+  background: rgba(216, 173, 83, 0.12);
+  color: #ffe3a1;
+}
+
+.error {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ffc6c6;
+}
+
+.success {
+  background: rgba(55, 180, 112, 0.15);
+  color: #bdf4d3;
+}

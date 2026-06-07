@@ -3,11 +3,11 @@ import styles from './Button.module.css';
 
 type UiNode = any;
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm';
-type ButtonMinWidth = 'sm' | 'md' | 'lg';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon' | 'iconSm';
+export type ButtonMinWidth = 'sm' | 'md' | 'lg';
 
-interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   minWidth?: ButtonMinWidth;

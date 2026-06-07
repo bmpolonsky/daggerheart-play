@@ -3,9 +3,11 @@ import styles from './ChoiceCard.module.css';
 
 type UiNode = any;
 
-interface ChoiceCardProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export type ChoiceCardLayout = 'default' | 'class' | 'media' | 'domain';
+
+export interface ChoiceCardProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   selected?: boolean;
-  layout?: 'default' | 'class' | 'media' | 'domain';
+  layout?: ChoiceCardLayout;
   children: UiNode;
 }
 

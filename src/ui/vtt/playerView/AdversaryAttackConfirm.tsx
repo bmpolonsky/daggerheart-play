@@ -8,7 +8,8 @@ import { compactDamageTypeLabel, signed } from './helpers';
 import { RollConfirmHeader, RollPrivateToggle, useRollConfirmDrag } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
 import { Button } from '../../components/common/Button';
-import { TabButton, Tabs } from '../../components/common/Tabs';
+import { Checkbox } from '../../components/common/Checkbox';
+import { SegmentedControl } from '../../components/common/SegmentedControl';
 
 export interface AdversaryAttackRollOptions {
   advantageCount: number;
@@ -67,16 +68,24 @@ export function AdversaryAttackConfirm({
   };
 
   const content = (
-    <section ref={panelRef} className="player-roll-confirm" aria-label="Подтверждение атаки противника" style={{ left: position.x, top: position.y }}>
+    <div className="dh-portal-scope player-roll-confirm-portal">
+      <section ref={panelRef} className="player-roll-confirm" aria-label="Подтверждение атаки противника" style={{ left: position.x, top: position.y }}>
       <RollConfirmHeader label="Атака противника" onClose={onClose} dragHandlers={dragHandlers} />
       <div className="player-roll-confirm__intro">
         <strong>{adversary.standardAttack.name}</strong>
         <p>{signed(adversary.attackModifier)} / {adversary.standardAttack.range} / {adversary.standardAttack.damage} {compactDamageTypeLabel(adversary.standardAttack.damageType)}</p>
       </div>
-      <Tabs className="player-roll-confirm__segmented" label="Тип броска" layout="equal">
-        <TabButton className="player-roll-confirm__segmented-option" active={mode === 'attack'} onClick={() => setMode('attack')}>Атака</TabButton>
-        <TabButton className="player-roll-confirm__segmented-option" active={mode === 'damage'} onClick={() => setMode('damage')}>Урон</TabButton>
-      </Tabs>
+      <SegmentedControl<'attack' | 'damage'>
+        className="player-roll-confirm__segmented"
+        label="Тип броска"
+        layout="equal"
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'attack', label: 'Атака' },
+          { value: 'damage', label: 'Урон' },
+        ]}
+      />
       <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
       {mode === 'attack' ? (
         <>
@@ -95,30 +104,39 @@ export function AdversaryAttackConfirm({
             <div className="player-roll-confirm__checks">
               <span>Опыт {experienceModifier ? signed(experienceModifier) : ''}</span>
               {adversary.experiences.map((experience) => (
-                <label key={experience.id}>
-                  <input type="checkbox" checked={experienceIds.includes(experience.id)} onChange={() => toggleExperience(experience.id)} />
-                  <span>{experience.name} {signed(experience.modifier)}</span>
-                </label>
-              ))}
-              <label>
-                <input
-                  type="checkbox"
-                  checked={spendFearForExperiences}
-                  disabled={experienceIds.length === 0}
-                  onChange={(event) => setSpendFearForExperiences(event.currentTarget.checked)}
+                <Checkbox
+                  key={experience.id}
+                  className="player-roll-confirm__check"
+                  size="sm"
+                  boxPosition="start"
+                  label={`${experience.name} ${signed(experience.modifier)}`}
+                  checked={experienceIds.includes(experience.id)}
+                  onChange={() => toggleExperience(experience.id)}
                 />
-                <span>Потратить Страх за опыт</span>
-              </label>
+              ))}
+              <Checkbox
+                className="player-roll-confirm__check"
+                size="sm"
+                boxPosition="start"
+                label="Потратить Страх за опыт"
+                checked={spendFearForExperiences}
+                disabled={experienceIds.length === 0}
+                onChange={(event) => setSpendFearForExperiences(event.currentTarget.checked)}
+              />
             </div>
           )}
         </>
       ) : (
         <div className="player-roll-confirm__checks">
           <span>Урон {adversary.standardAttack.damage} {compactDamageTypeLabel(adversary.standardAttack.damageType)}</span>
-          <label>
-            <input type="checkbox" checked={criticalDamage} onChange={(event) => setCriticalDamage(event.currentTarget.checked)} />
-            <span>Критический урон</span>
-          </label>
+          <Checkbox
+            className="player-roll-confirm__check"
+            size="sm"
+            boxPosition="start"
+            label="Критический урон"
+            checked={criticalDamage}
+            onChange={(event) => setCriticalDamage(event.currentTarget.checked)}
+          />
         </div>
       )}
       <div className="player-roll-confirm__actions">
@@ -133,7 +151,8 @@ export function AdversaryAttackConfirm({
           {mode === 'attack' ? 'Бросить атаку' : 'Бросить урон'}
         </Button>
       </div>
-    </section>
+      </section>
+    </div>
   );
   return typeof document === 'undefined' ? content : createPortal(content, document.body);
 }

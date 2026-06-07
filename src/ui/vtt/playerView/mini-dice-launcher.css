@@ -225,8 +225,7 @@
 }
 
 .mini-dice-launcher__row,
-.mini-dice-launcher__controls,
-.mini-dice-launcher__segmented {
+.mini-dice-launcher__controls {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -309,27 +308,10 @@
 .mini-dice-launcher__private {
   min-width: 0;
   min-height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
   padding: 0 2px;
   color: rgba(243, 234, 216, 0.74);
   font-size: 0.68rem;
   font-weight: 950;
-}
-
-.mini-dice-launcher__private input {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--dh-gold-400);
-}
-
-.mini-dice-launcher__private span {
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: nowrap;
 }
 
 .mini-dice-launcher__reset {

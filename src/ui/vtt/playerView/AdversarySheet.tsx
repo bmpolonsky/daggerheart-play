@@ -11,8 +11,8 @@ import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
 import { SheetFeatureSection, SheetHero, SheetLeadBlock, type SheetFeatureView } from "./SheetContent";
 import { StatusChips } from "./StatusChips";
-import { ChoiceCard } from "../../components/common/ChoiceCard";
 import { IconButton } from "../../components/common/IconButton";
+import { ListItem } from "../../components/common/ListItem";
 
 export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdversarySummary; onBack: () => void }) {
   const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
@@ -90,21 +90,16 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
           </section>
         </SheetSection>
         <SheetSection title="Атака">
-          <ChoiceCard
-            className="player-sheet-row player-sheet-row--featured player-sheet-action-row"
-            type="button"
+          <ListItem
+            title={adversary.standardAttack.name}
+            subtitle={`${signed(adversary.attackModifier)} / ${adversary.standardAttack.range} / ${adversary.standardAttack.damage} ${compactDamageTypeLabel(adversary.standardAttack.damageType)}`}
+            tone="featured"
             onClick={() => setAdversaryAttackConfirmOpen(true)}
-          >
-            <strong>{adversary.standardAttack.name}</strong>
-            <span>{signed(adversary.attackModifier)} / {adversary.standardAttack.range} / {adversary.standardAttack.damage} {compactDamageTypeLabel(adversary.standardAttack.damageType)}</span>
-          </ChoiceCard>
+          />
         </SheetSection>
         <SheetSection title="Опыт" emptyLabel="Опыт не указан">
           {adversary.experiences.map((experience) => (
-            <article className="player-sheet-row player-sheet-row--compact" key={experience.id}>
-              <strong>{experience.name}</strong>
-              <b>{signed(experience.modifier)}</b>
-            </article>
+            <ListItem key={experience.id} title={experience.name} value={signed(experience.modifier)} density="compact" />
           ))}
         </SheetSection>
         <SheetFeatureSection

@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
@@ -15,6 +16,7 @@ import {
 } from './helpers';
 import { Button } from '../../components/common/Button';
 import { SelectControl, TextControl, TextField } from '../../components/common/Field';
+import { IconButton } from '../../components/common/IconButton';
 import { Surface } from '../../components/common/Surface';
 import type { TableViewRole } from './types';
 
@@ -77,7 +79,9 @@ export function SharedToolsPlayersSettingsPanel({
                 ))}
               </SelectControl>
             </label>
-            <Button variant="danger" size="sm" type="button" onClick={() => sceneTableService.removePlayerSeat(seat.id)}>Удалить</Button>
+            <IconButton variant="danger" size="sm" type="button" title="Удалить игрока" aria-label={`Удалить игрока ${seat.name}`} onClick={() => sceneTableService.removePlayerSeat(seat.id)}>
+              <Trash2 size={15} aria-hidden="true" />
+            </IconButton>
           </Surface>
         ))}
         {playerSeats.length === 0 && <p className="player-tools-empty">Игроки еще не созданы.</p>}

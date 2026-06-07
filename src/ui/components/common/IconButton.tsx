@@ -3,11 +3,11 @@ import styles from './IconButton.module.css';
 
 type UiNode = any;
 
-type IconButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
-type IconButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-type IconButtonTone = 'neutral' | 'gold' | 'blue' | 'green' | 'danger';
+export type IconButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type IconButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+export type IconButtonTone = 'neutral' | 'gold' | 'blue' | 'green' | 'danger';
 
-interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   variant?: IconButtonVariant;
   size?: IconButtonSize;
   tone?: IconButtonTone;

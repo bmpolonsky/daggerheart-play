@@ -9,8 +9,9 @@ import { RollConfirmHeader, RollPrivateToggle, useRollConfirmDrag } from './Roll
 import { usePrivateRollPreference } from './rollPrivacyPreference';
 import type { PlayerRollDraft, PlayerRollType } from './types';
 import { Button } from '../../components/common/Button';
+import { Checkbox } from '../../components/common/Checkbox';
 import { SelectControl } from '../../components/common/Field';
-import { TabButton, Tabs } from '../../components/common/Tabs';
+import { SegmentedControl } from '../../components/common/SegmentedControl';
 
 export function PlayerRollConfirm({
   character,
@@ -59,7 +60,8 @@ export function PlayerRollConfirm({
     setDisadvantageCount(0);
   };
   const content = (
-    <section ref={panelRef} className="player-roll-confirm" aria-label="Подтверждение броска" style={{ left: position.x, top: position.y }}>
+    <div className="dh-portal-scope player-roll-confirm-portal">
+      <section ref={panelRef} className="player-roll-confirm" aria-label="Подтверждение броска" style={{ left: position.x, top: position.y }}>
       <RollConfirmHeader
         label={draft.kind === 'weapon' ? 'Атака' : draft.kind === 'card' ? 'Карта домена' : 'Характеристика'}
         onClose={onClose}
@@ -69,16 +71,17 @@ export function PlayerRollConfirm({
         <strong>{draft.title}</strong>
         <p>{draft.subtitle}</p>
       </div>
-      <Tabs className="player-roll-confirm__segmented" label="Тип броска" layout="equal">
-        {([
-          ['action', 'Действие'],
-          ['reaction', 'Реакция']
-        ] as Array<[PlayerRollType, string]>).map(([type, label]) => (
-          <TabButton className="player-roll-confirm__segmented-option" active={rollType === type} key={type} onClick={() => setRollType(type)}>
-            {label}
-          </TabButton>
-        ))}
-      </Tabs>
+      <SegmentedControl<PlayerRollType>
+        className="player-roll-confirm__segmented"
+        label="Тип броска"
+        layout="equal"
+        value={rollType}
+        onChange={setRollType}
+        options={[
+          { value: 'action', label: 'Действие' },
+          { value: 'reaction', label: 'Реакция' },
+        ]}
+      />
       <label className="player-roll-confirm__field">
         <span>Характеристика</span>
         <SelectControl value={draft.trait} onChange={(event) => onTraitChange(event.currentTarget.value as TraitId)}>
@@ -103,20 +106,25 @@ export function PlayerRollConfirm({
         <div className="player-roll-confirm__checks">
           <span>Опыт {experienceModifier ? signed(experienceModifier) : ''}</span>
           {character.experiences.map((experience) => (
-            <label key={experience.id}>
-              <input type="checkbox" checked={experienceIds.includes(experience.id)} onChange={() => toggleExperience(experience.id)} />
-              <span>{experience.name} {signed(experience.modifier)}</span>
-            </label>
+            <Checkbox
+              key={experience.id}
+              className="player-roll-confirm__check"
+              size="sm"
+              boxPosition="start"
+              label={`${experience.name} ${signed(experience.modifier)}`}
+              checked={experienceIds.includes(experience.id)}
+              onChange={() => toggleExperience(experience.id)}
+            />
           ))}
           {experienceIds.length > 0 && (
-            <label className="player-roll-confirm__hope-toggle">
-              <input
-                type="checkbox"
-                checked={spendHopeForExperiences}
-                onChange={(event) => setSpendHopeForExperiences(event.currentTarget.checked)}
-              />
-              <span>Потратить Надежду за опыт</span>
-            </label>
+            <Checkbox
+              className="player-roll-confirm__check player-roll-confirm__hope-toggle"
+              size="sm"
+              boxPosition="start"
+              label="Потратить Надежду за опыт"
+              checked={spendHopeForExperiences}
+              onChange={(event) => setSpendHopeForExperiences(event.currentTarget.checked)}
+            />
           )}
         </div>
       )}
@@ -128,7 +136,8 @@ export function PlayerRollConfirm({
         >{rollType === 'reaction' ? 'Бросить реакцию' : 'Бросить действие'}</Button>
         {onDamage && <Button type="button" onClick={() => onDamage({ publication })}>Бросить урон</Button>}
       </div>
-    </section>
+      </section>
+    </div>
   );
   return typeof document === 'undefined' ? content : createPortal(content, document.body);
 }

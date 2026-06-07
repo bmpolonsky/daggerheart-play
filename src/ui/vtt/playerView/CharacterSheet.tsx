@@ -26,6 +26,7 @@ import { Button } from "../../components/common/Button";
 import { ChoiceCard } from "../../components/common/ChoiceCard";
 import { SelectControl } from "../../components/common/Field";
 import { IconButton } from "../../components/common/IconButton";
+import { ListItem } from "../../components/common/ListItem";
 
 export function CharacterSheet({
   character,
@@ -423,23 +424,18 @@ export function CharacterSheet({
           ))}
         </section>
         {character.experiences.map((experience) => (
-          <article className="player-sheet-row player-sheet-row--compact" key={experience.id}>
-            <strong>{experience.name}</strong>
-            <b>{signed(experience.modifier)}</b>
-          </article>
+          <ListItem key={experience.id} title={experience.name} value={signed(experience.modifier)} density="compact" />
         ))}
       </SheetSection>
       <SheetSection id="player-sheet-actions" title="Действия" emptyLabel="Оружие не выбрано">
         {character.weapons.map((weapon) => (
-          <ChoiceCard
-            className="player-sheet-row player-sheet-row--featured player-sheet-action-row"
+          <ListItem
             key={weapon.id}
-            type="button"
+            title={weapon.name}
+            subtitle={`${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`}
+            tone="featured"
             onClick={() => setRollDraft({ kind: 'weapon', title: weapon.name, subtitle: `${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`, trait: weapon.trait, damageFormula: weapon.damageFormula, damageType: weapon.damageType })}
-          >
-            <strong>{weapon.name}</strong>
-            <span>{weapon.traitLabel} / {weapon.range} / {weapon.damage} {compactDamageTypeLabel(weapon.damageType)}</span>
-          </ChoiceCard>
+          />
         ))}
       </SheetSection>
       <SheetSection id="player-sheet-features" title="Особенности" emptyLabel="Особенности появятся после заполнения листа">
@@ -448,17 +444,11 @@ export function CharacterSheet({
           const summary = feature.subtitle || detail || 'Особенность';
           if (!detail) {
             return (
-              <article className="player-sheet-row" key={feature.id}>
-                <strong>{feature.name}</strong>
-                <span>{summary}</span>
-              </article>
+              <ListItem key={feature.id} title={feature.name} subtitle={summary} lines={2} />
             );
           }
           return (
-            <ChoiceCard className="player-sheet-row player-sheet-row--feature" key={feature.id} onClick={() => onFeaturePreview?.(character, feature)}>
-                <strong>{feature.name}</strong>
-                <span>{summary}</span>
-            </ChoiceCard>
+            <ListItem key={feature.id} title={feature.name} subtitle={summary} lines={2} onClick={() => onFeaturePreview?.(character, feature)} />
           );
         })}
       </SheetSection>
@@ -470,15 +460,16 @@ export function CharacterSheet({
         />
       </SheetSection>
       <SheetSection id="player-sheet-gear" title="Инвентарь">
-        <ChoiceCard
-          className="player-sheet-row player-sheet-row--feature"
+        <ListItem
+          title="Деньги"
+          subtitle={formatWealthSummary(character.wealth, { showCoins: game.showCoins })}
+          lines={2}
           onClick={() => onWealthEdit?.(character)}
-        >
-          <strong>Деньги</strong>
-          <span>{formatWealthSummary(character.wealth, { showCoins: game.showCoins })}</span>
-        </ChoiceCard>
-        <ChoiceCard
-          className="player-sheet-row player-sheet-row--feature"
+        />
+        <ListItem
+          title={character.armor.name || 'Броня'}
+          subtitle={`Пороги ${character.thresholds.major} / ${character.thresholds.severe} · Показатель ${character.armor.score}`}
+          lines={2}
           onClick={() => onFeaturePreview?.(character, {
               id: 'armor',
               name: character.armor.name || 'Броня',
@@ -486,58 +477,53 @@ export function CharacterSheet({
               text: character.armor.feature,
               sourceLabel: 'Броня'
             })}
-        >
-            <strong>{character.armor.name || 'Броня'}</strong>
-            <span>Пороги {character.thresholds.major} / {character.thresholds.severe} · Показатель {character.armor.score}</span>
-        </ChoiceCard>
+        />
         {character.inventory.filter((item) => item.kind === 'consumable').map((item) => {
           return (
-            <article className="player-sheet-row player-sheet-row--consumable" key={item.id}>
-              <Button
-                className="player-sheet-item-main player-sheet-item-main--button"
-                variant="ghost"
-                size="sm"
-                type="button"
-                onClick={() => onFeaturePreview?.(character, {
-                  id: item.id,
-                  name: item.name,
-                  subtitle: inventoryQuantityLabel(item),
-                  text: item.text ?? '',
-                  sourceLabel: 'Инвентарь'
-                })}
-              >
-                <strong>{item.name}</strong>
-                {inventoryQuantityLabel(item) && <small>{inventoryQuantityLabel(item)}</small>}
-              </Button>
-              <Button
-                className="player-sheet-use-action"
-                variant="secondary"
-                size="sm"
-                type="button"
-                disabled={!canUseInventoryItem(item)}
-                onClick={() => characterService.useInventoryItem(character.id, item.id)}
-              >
-                Использовать
-              </Button>
-            </article>
+            <ListItem
+              key={item.id}
+              title={item.name}
+              subtitle={inventoryQuantityLabel(item)}
+              lines={2}
+              onClick={() => onFeaturePreview?.(character, {
+                id: item.id,
+                name: item.name,
+                subtitle: inventoryQuantityLabel(item),
+                text: item.text ?? '',
+                sourceLabel: 'Инвентарь'
+              })}
+              rightAccessory={
+                <Button
+                  className="player-sheet-use-action"
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  disabled={!canUseInventoryItem(item)}
+                  onClick={() => characterService.useInventoryItem(character.id, item.id)}
+                >
+                  Использовать
+                </Button>
+              }
+            />
           );
         })}
         {character.inventory.filter((item) => item.kind !== 'consumable').map((item) => {
+          const quantityLabel = inventoryQuantityLabel(item);
           return (
-            <ChoiceCard
-              className="player-sheet-row player-sheet-row--feature"
+            <ListItem
               key={item.id}
+              title={item.name}
+              subtitle={quantityLabel}
+              density={quantityLabel ? 'regular' : 'compact'}
+              lines={quantityLabel ? 2 : 1}
               onClick={() => onFeaturePreview?.(character, {
                   id: item.id,
                   name: item.name,
-                  subtitle: inventoryQuantityLabel(item),
+                  subtitle: quantityLabel,
                   text: item.text ?? '',
                   sourceLabel: 'Инвентарь'
                 })}
-              >
-                <strong>{item.name}</strong>
-                {inventoryQuantityLabel(item) && <small>{inventoryQuantityLabel(item)}</small>}
-            </ChoiceCard>
+            />
           );
         })}
       </SheetSection>

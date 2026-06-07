@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -40,7 +40,9 @@ export function CharacterEditor({ character, content }: { character: Character; 
           <div className="button-row">
             {character.level < 10 && <Button variant="primary" onClick={() => setLevelUpOpen(true)}>Повысить уровень</Button>}
             <Button onClick={() => characterService.duplicateCharacter(character.id)}>Дублировать</Button>
-            <Button variant="danger" onClick={() => characterService.deleteCharacter(character.id)}>Удалить</Button>
+            <IconButton variant="danger" size="sm" type="button" title="Удалить персонажа" aria-label={`Удалить персонажа ${character.name}`} onClick={() => characterService.deleteCharacter(character.id)}>
+              <Trash2 size={15} aria-hidden="true" />
+            </IconButton>
           </div>
         }
       >

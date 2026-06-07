@@ -2,16 +2,16 @@ import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes 
 import styles from './Field.module.css';
 
 type UiNode = any;
-type ControlTone = 'default' | 'plain';
+export type ControlTone = 'default' | 'plain';
 
-interface BaseProps {
+export interface FieldProps {
   label: string;
   hint?: UiNode;
   children: UiNode;
   className?: string;
 }
 
-export function Field({ label, hint, children, className = '' }: BaseProps) {
+export function Field({ label, hint, children, className = '' }: FieldProps) {
   return (
     <label className={`dh-label ${styles.label} ${className}`.trim()}>
       <span className={styles.caption}>{label}</span>
@@ -25,11 +25,11 @@ function controlClass(className = '', extra = '', tone: ControlTone = 'default')
   return `dh-field ${styles.control} ${tone === 'plain' ? styles.plain : ''} ${extra} ${className}`.trim();
 }
 
-interface ControlToneProps {
+export interface ControlToneProps {
   tone?: ControlTone;
 }
 
-interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement>, ControlToneProps {
+export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement>, ControlToneProps {
   label: string;
   hint?: UiNode;
 }
@@ -42,7 +42,7 @@ export function TextField({ label, hint, className = '', tone = 'default', ...pr
   );
 }
 
-interface NumberFieldProps extends InputHTMLAttributes<HTMLInputElement>, ControlToneProps {
+export interface NumberFieldProps extends InputHTMLAttributes<HTMLInputElement>, ControlToneProps {
   label: string;
   hint?: UiNode;
 }
@@ -55,7 +55,7 @@ export function NumberField({ label, hint, className = '', tone = 'default', ...
   );
 }
 
-interface TextAreaFieldProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextAreaFieldProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: string;
   hint?: UiNode;
 }
@@ -68,7 +68,7 @@ export function TextAreaField({ label, hint, className = '', ...props }: TextAre
   );
 }
 
-interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
+export interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
   label: string;
   hint?: UiNode;
   children: UiNode;

@@ -3,7 +3,7 @@ import type { CSSProperties, ChangeEvent } from 'react';
 import { IconButton } from './IconButton';
 import styles from './ImageFilePicker.module.css';
 
-interface FilePickerProps {
+export interface FilePickerProps {
   accept: string;
   label: string;
   valueLabel?: string;
@@ -76,7 +76,7 @@ export function FilePicker({
   );
 }
 
-interface ImageFilePickerProps extends Omit<FilePickerProps, 'accept' | 'previewUrl' | 'icon' | 'valueLabel'> {
+export interface ImageFilePickerProps extends Omit<FilePickerProps, 'accept' | 'previewUrl' | 'icon' | 'valueLabel'> {
   imageUrl?: string | null;
 }
 

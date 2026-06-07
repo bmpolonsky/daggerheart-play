@@ -1,0 +1,29 @@
+.field {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+  color: var(--dh-paper-faint);
+  pointer-events: none;
+}
+
+.control {
+  padding-left: 2.25rem;
+}
+
+.sm .control {
+  min-height: 34px;
+  font-size: 0.78rem;
+}
+
+.md .control {
+  min-height: 38px;
+}

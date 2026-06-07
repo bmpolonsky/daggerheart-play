@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 import styles from './StepRailButton.module.css';
 
-interface StepRailButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface StepRailButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
   label: string;
 }

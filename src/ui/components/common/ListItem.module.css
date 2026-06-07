@@ -1,0 +1,136 @@
+.root {
+  min-width: 0;
+  width: 100%;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--dh-radius);
+  background: rgba(7, 9, 12, 0.26);
+  color: var(--dh-paper-100);
+  box-shadow: none;
+  padding: 10px 12px;
+  font: inherit;
+  text-align: left;
+}
+
+.compact {
+  min-height: 44px;
+  padding: 8px 11px;
+}
+
+.alignStart {
+  align-items: flex-start;
+}
+
+.featured {
+  background: rgba(7, 9, 12, 0.32);
+}
+
+.interactive {
+  cursor: pointer;
+}
+
+.interactive:hover:not(:disabled),
+.root:has(.contentButton:hover) {
+  background: rgba(243, 234, 216, 0.055);
+}
+
+.interactive:focus-visible,
+.contentButton:focus-visible {
+  box-shadow: var(--dh-focus);
+  outline: none;
+}
+
+.root:disabled,
+.disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.content,
+.contentButton {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.contentButton {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dh-paper-100);
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--dh-paper-muted);
+  font-size: 0.72rem;
+  font-weight: 760;
+  line-height: 1.28;
+  overflow-wrap: break-word;
+  text-overflow: ellipsis;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--dh-list-item-lines, 1);
+}
+
+.detail {
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.twoLine {
+  --dh-list-item-lines: 2;
+}
+
+.value {
+  min-width: 0;
+  flex: 0 0 auto;
+  color: var(--dh-gold-400);
+  font-size: 0.86rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.leftAccessory,
+.rightAccessory {
+  min-width: 0;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.rightAccessory {
+  color: var(--dh-paper-muted);
+}
+
+.alignStart .content,
+.alignStart .contentButton,
+.alignStart .leftAccessory,
+.alignStart .rightAccessory {
+  align-self: flex-start;
+}

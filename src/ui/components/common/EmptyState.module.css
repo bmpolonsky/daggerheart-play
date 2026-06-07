@@ -1,0 +1,74 @@
+.empty {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  color: var(--dh-paper-muted);
+}
+
+.sm {
+  gap: 6px;
+  padding: 20px;
+}
+
+.md {
+  gap: 10px;
+  padding: 28px 24px;
+}
+
+.lg {
+  gap: 14px;
+  padding: 38px 30px;
+}
+
+.transparent {
+  background: transparent;
+}
+
+.subtle {
+  border-radius: var(--dh-radius-sm);
+  background: rgba(7, 9, 12, 0.18);
+}
+
+.panel {
+  border-radius: var(--dh-radius-sm);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.62), rgba(7, 9, 12, 0.42)),
+    rgba(7, 9, 12, 0.26);
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dh-radius-sm);
+  background: rgba(216, 173, 83, 0.08);
+  color: var(--dh-gold-400);
+}
+
+.title {
+  margin: 0;
+  color: var(--dh-paper-100);
+  font-family: "DH Eveleth", "DH Overpass", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.body {
+  max-width: 34ch;
+  margin: 0;
+  color: var(--dh-paper-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}

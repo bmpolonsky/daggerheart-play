@@ -1,0 +1,34 @@
+.root {
+  width: var(--dh-avatar-size, 42px);
+  height: var(--dh-avatar-size, 42px);
+  flex: 0 0 var(--dh-avatar-size, 42px);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(7, 9, 12, 0.42);
+  color: #fff4d6;
+  font-size: 0.75rem;
+  font-weight: 950;
+  line-height: 1;
+  object-fit: cover;
+}
+
+.sm {
+  --dh-avatar-size: 34px;
+  font-size: 0.68rem;
+}
+
+.md {
+  --dh-avatar-size: 42px;
+}
+
+.lg {
+  --dh-avatar-size: 54px;
+  font-size: 0.86rem;
+}
+
+.image {
+  display: block;
+}

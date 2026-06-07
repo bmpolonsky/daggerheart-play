@@ -12,6 +12,7 @@ import { stripInlineMarkers } from "@cards/lib/text";
 import { editorService } from "@cards/services/editorService";
 import { exportService } from "@cards/services/exportService";
 import { customCardsService } from "@cards/services/customCardsService";
+import { EmptyState } from "../../../../ui/components/common";
 
 type CardFieldInputFactory = <
   Element extends HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
@@ -156,8 +157,13 @@ export function WorkspaceContainer({ onOpenDomainManager }: WorkspaceContainerPr
             onRequestDomainManager={onOpenDomainManager}
           />
         ) : (
-          <section className="empty-state">
-            <div className="empty-state__icon">
+          <EmptyState
+            className="workspace__empty-state"
+            tone="panel"
+            size="lg"
+            title="Выберите шаблон"
+            body="Нажмите на карточку, чтобы открыть рабочее пространство и начать редактировать."
+            icon={
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -173,10 +179,8 @@ export function WorkspaceContainer({ onOpenDomainManager }: WorkspaceContainerPr
                 <path d="M14 6V4" />
                 <path d="M18 6V4" />
               </svg>
-            </div>
-            <h2>Выберите шаблон</h2>
-            <p>Нажмите на карточку, чтобы открыть рабочее пространство и начать редактировать.</p>
-          </section>
+            }
+          />
         )}
       </div>
       </main>

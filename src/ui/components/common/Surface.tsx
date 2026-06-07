@@ -3,8 +3,8 @@ import styles from './Surface.module.css';
 
 type UiNode = any;
 
-type SurfaceTone = 'glass' | 'solid' | 'subtle';
-type SurfacePadding = 'none' | 'sm' | 'md';
+export type SurfaceTone = 'glass' | 'solid' | 'subtle';
+export type SurfacePadding = 'none' | 'sm' | 'md';
 
 const toneClass: Record<SurfaceTone, string> = {
   glass: styles.glass,
@@ -17,7 +17,7 @@ const paddingClass: Record<SurfacePadding, string> = {
   md: styles.paddingMd
 };
 
-interface SurfaceProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
+export interface SurfaceProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
   as?: ElementType;
   tone?: SurfaceTone;
   padding?: SurfacePadding;

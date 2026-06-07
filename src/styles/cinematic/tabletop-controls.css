@@ -453,33 +453,6 @@
   width: 112px;
 }
 
-.dh-segmented {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.dh-segmented button {
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: var(--dh-radius-sm);
-  background: transparent;
-  color: var(--dh-paper-muted);
-}
-
-.dh-segmented button.dh-is-active {
-  border-color: transparent;
-  background: rgba(150, 119, 75, 0.34);
-  color: var(--dh-paper-100);
-}
-
 .dh-pip-control,
 .dh-track {
   display: grid;

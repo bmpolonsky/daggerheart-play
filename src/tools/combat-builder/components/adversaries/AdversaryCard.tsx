@@ -29,7 +29,7 @@ export function AdversaryCard({
   };
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-slate-700 bg-dagger-panel shadow-lg transition-all duration-200 hover:border-dagger-gold hover:shadow-xl hover:shadow-black/40">
+    <article className="combat-adversary-card group relative flex h-full flex-col overflow-hidden rounded-lg border border-slate-700 bg-dagger-panel shadow-lg transition-all duration-200 hover:border-dagger-gold hover:shadow-xl hover:shadow-black/40">
       <div
         role="button"
         tabIndex={0}
@@ -37,7 +37,7 @@ export function AdversaryCard({
         onClick={onViewDetails}
         onKeyDown={handleCardKeyDown}
       >
-        <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-800">
+        <div className="combat-adversary-card__media relative aspect-[16/10] w-full overflow-hidden bg-slate-800">
           <div className="absolute inset-0 z-10 bg-gradient-to-t from-dagger-panel via-transparent to-transparent opacity-80" />
 
           {imageUrl ? (
@@ -60,7 +60,7 @@ export function AdversaryCard({
               event.stopPropagation();
               onAdd();
             }}
-            className="absolute right-2 top-2 z-20"
+            className="combat-adversary-card__add absolute right-2 top-2 z-20"
             variant="primary"
             size="sm"
             title="Добавить в бой"
@@ -76,7 +76,7 @@ export function AdversaryCard({
                 event.stopPropagation();
                 onEdit();
               }}
-              className="absolute right-2 top-12 z-20"
+              className="combat-adversary-card__edit absolute right-2 top-12 z-20"
               variant="secondary"
               size="sm"
               title="Редактировать"
@@ -87,7 +87,7 @@ export function AdversaryCard({
           )}
 
           <div
-            className="absolute left-2 top-2 z-20"
+            className="combat-adversary-card__cost absolute left-2 top-2 z-20"
             title={`Стоимость: ${cost} очков (Роль: ${adversary.roleName})`}
           >
             <div
@@ -105,8 +105,8 @@ export function AdversaryCard({
 
         </div>
 
-        <div className="relative z-20 flex flex-grow flex-col gap-2 bg-dagger-panel px-3 pb-3 pt-2">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="combat-adversary-card__body relative z-20 flex flex-grow flex-col gap-2 bg-dagger-panel px-3 pb-3 pt-2">
+          <div className="combat-adversary-card__badges flex flex-wrap items-center gap-1.5">
             <span className="rounded border border-dagger-gold/20 bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-dagger-gold shadow-sm backdrop-blur-sm">
               Ранг {adversary.tier}
             </span>
@@ -121,12 +121,12 @@ export function AdversaryCard({
           </div>
 
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-display text-base font-bold leading-tight text-white">
+            <h3 className="combat-adversary-card__title font-display text-base font-bold leading-tight text-white">
               {adversary.name}
             </h3>
           </div>
 
-          <div className="min-h-[3em] flex-1">
+          <div className="combat-adversary-card__summary min-h-[3em] flex-1">
             <p className="line-clamp-3 text-xs italic leading-relaxed text-slate-400">
               {adversary.summary}
             </p>

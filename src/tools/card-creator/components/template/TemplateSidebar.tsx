@@ -1,13 +1,12 @@
 /** @jsxImportSource preact */
+import { Trash2 } from "lucide-react";
 import type { TemplateCard } from "@cards/lib/api";
-import { Input } from "@cards/components/ui/input";
 import { Button } from "@cards/components/ui/button";
-import { IconSearch } from "@cards/components/icons";
 import { cn } from "@cards/lib/utils";
 import { stripInlineMarkers } from "@cards/lib/text";
-import type { TargetedEvent } from "preact";
 import type { TemplateGroupView } from "@cards/services/templatesService";
 import type { CustomCardRecord } from "@cards/services/customCardsService";
+import { Badge, IconButton, Notice, SearchField } from "../../../../ui/components/common";
 
 interface TemplateSidebarProps {
   searchTerm: string;
@@ -34,10 +33,6 @@ export function TemplateSidebar({
   onDeleteCustomCard,
   onOpenDomainManager,
 }: TemplateSidebarProps) {
-  const handleSearchInput = (event: TargetedEvent<HTMLInputElement, Event>) => {
-    onSearchChange(event.currentTarget.value);
-  };
-
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
   const filteredCustomCards = normalizedSearch
@@ -52,7 +47,7 @@ export function TemplateSidebar({
       <Button variant="ghost" className="template-group__toggle" onClick={group.toggle}>
         <span className="template-group__title">{group.title}</span>
         <div className="template-group__meta">
-          <span className="template-group__count">{group.filteredItems.length}</span>
+          <Badge tone="gold">{group.filteredItems.length}</Badge>
           <span
             className={cn(
               "template-group__chevron",
@@ -99,16 +94,12 @@ export function TemplateSidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar__search">
-        <div className="sidebar__search-field">
-          <IconSearch className="sidebar__search-icon" />
-          <Input
-            type="text"
-            placeholder="Поиск по шаблонам..."
-            value={searchTerm}
-            onInput={handleSearchInput}
-            className="sidebar__search-input"
-          />
-        </div>
+        <SearchField
+          placeholder="Поиск по шаблонам..."
+          value={searchTerm}
+          onInput={(event: any) => onSearchChange(event.currentTarget.value)}
+          inputClassName="sidebar__search-input"
+        />
         <Button
           variant="secondary"
           fullWidth
@@ -128,7 +119,7 @@ export function TemplateSidebar({
           <div className="custom-cards">
             <div className="custom-cards__header">
               <h3>Кастомные карты</h3>
-              <span className="custom-cards__count">{filteredCustomCards.length}</span>
+              <Badge tone="gold">{filteredCustomCards.length}</Badge>
             </div>
             {filteredCustomCards.length > 0 ? (
               <div className="custom-cards__grid">
@@ -141,29 +132,35 @@ export function TemplateSidebar({
                       className="custom-cards__item"
                       onClick={() => onSelectCustomCard(record)}
                     >
-                      {previewImage ? (
-                        <img
-                          src={previewImage}
-                          alt={title}
-                          className="custom-cards__image"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <div className="custom-cards__placeholder">Нет изображения</div>
-                      )}
+                      <div className="custom-cards__media">
+                        {previewImage ? (
+                          <img
+                            src={previewImage}
+                            alt={title}
+                            className="custom-cards__image"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          <div className="custom-cards__placeholder">Нет изображения</div>
+                        )}
+                        <IconButton
+                          variant="secondary"
+                          tone="danger"
+                          size="sm"
+                          type="button"
+                          className="custom-cards__delete"
+                          title="Удалить карту"
+                          aria-label={`Удалить карту ${title}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteCustomCard(record);
+                          }}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                        </IconButton>
+                      </div>
                       <div className="custom-cards__label">{title}</div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="custom-cards__delete"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDeleteCustomCard(record);
-                        }}
-                      >
-                        Удалить
-                      </Button>
                     </div>
                   );
                 })}
@@ -177,14 +174,14 @@ export function TemplateSidebar({
             )}
           </div>
           {isLoading && (
-            <div className="sidebar__status" role="status">
+            <Notice className="sidebar__status" role="status">
               Загружаем шаблоны…
-            </div>
+            </Notice>
           )}
           {error && !isLoading && (
-            <div className="sidebar__status sidebar__status--error" role="alert">
+            <Notice className="sidebar__status" tone="error" role="alert">
               {error}
-            </div>
+            </Notice>
           )}
           {groups.map(renderTemplateGroup)}
         </div>

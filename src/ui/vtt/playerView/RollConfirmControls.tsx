@@ -3,6 +3,7 @@ import type { JSX } from 'preact';
 import { useRef, useState } from 'preact/hooks';
 import { X } from 'lucide-react';
 import { clampRollConfirmPosition } from './helpers';
+import { Checkbox } from '../../components/common/Checkbox';
 import { IconButton } from '../../components/common/IconButton';
 
 export function useRollConfirmDrag() {
@@ -82,9 +83,13 @@ export function RollPrivateToggle({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="player-roll-confirm__private">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.currentTarget.checked)} />
-      <span>Приватный бросок</span>
-    </label>
+    <Checkbox
+      className="player-roll-confirm__private"
+      size="sm"
+      boxPosition="start"
+      label="Приватный бросок"
+      checked={checked}
+      onChange={(event) => onChange(event.currentTarget.checked)}
+    />
   );
 }

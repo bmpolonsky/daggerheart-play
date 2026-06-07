@@ -1,4 +1,4 @@
-interface ResourcePipsProps {
+export interface ResourcePipsProps {
   label: string;
   current: number;
   max: number;
