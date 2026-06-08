@@ -5,7 +5,8 @@ import { createGameDocument, isGameDocument, gameDocumentCustomContent, gameDocu
 import type { GameDocument } from '../domain/game/gameDocument';
 import { createGameState, createEncounterState, createSceneTableState, createUiState } from '../domain/rules/factories';
 import { resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
-import { hydratePersistedState, isPersistedState, normalizePersistedState, snapshotPersistedState } from '../stores/persistedState';
+import { CURRENT_PERSISTED_STATE_VERSION, migratePersistedState } from '../domain/migrations/persistedState';
+import { hydratePersistedState, isPersistedState, snapshotPersistedState } from '../stores/persistedState';
 import type { PersistedState } from '../domain/rules/types';
 import type { StoredGameSummary } from '../core/persistence/gameDocumentStore';
 import type { AssetService } from './AssetService';
@@ -320,7 +321,7 @@ export class PersistenceService {
       gmName: current.game.gmName
     };
     return createGameDocument({
-      schemaVersion: 4,
+      schemaVersion: CURRENT_PERSISTED_STATE_VERSION,
       game,
       characters: current.characters,
       encounter: createEncounterState(),
@@ -356,7 +357,7 @@ function storedDocumentToGameDocument(value: unknown) {
     return value;
   }
   if (isPersistedState(value)) {
-    return createGameDocument(normalizePersistedState(value));
+    return createGameDocument(migratePersistedState(value));
   }
   return null;
 }

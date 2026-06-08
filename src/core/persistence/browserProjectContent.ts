@@ -2,9 +2,8 @@ import type { GameCustomContent } from '../../domain/game/gameDocument';
 import { emptyCustomContent } from '../../domain/game/gameDocument';
 import { createCustomContentStore } from './customContentStore';
 import type { KeyValueDocumentStore } from './keyValueStore';
+import { prepareCustomContentDocument, type BrowserCustomContentDocument } from './migrations/browserProjectContent';
 import { CUSTOM_CONTENT_STORAGE } from './storageKeys';
-
-type BrowserCustomContentDocument = GameCustomContent;
 
 type CustomContentTopic = keyof GameCustomContent | 'customCards' | 'all';
 
@@ -119,7 +118,7 @@ export function subscribeCustomContentChanges(topic: CustomContentTopic, listene
   let initialized = false;
   let previousSignature: string | null = null;
   return customContentStore.subscribe<Partial<BrowserCustomContentDocument>>(CUSTOM_CONTENT_STORAGE.key, (value) => {
-    const document = normalizeCustomContentDocument(value);
+    const document = prepareCustomContentDocument(value);
     const nextSignature = customContentTopicSignature(document, topic);
     setCustomContentDocumentCache(document);
 
@@ -144,7 +143,7 @@ async function loadCustomContentDocument(store: KeyValueDocumentStore | null): P
   }
   try {
     const document = await store.get<Partial<BrowserCustomContentDocument>>(CUSTOM_CONTENT_STORAGE.key);
-    return normalizeCustomContentDocument(document);
+    return prepareCustomContentDocument(document);
   } catch {
     return emptyCustomContentDocument();
   }
@@ -183,20 +182,6 @@ function setCustomContentDocumentCache(document: BrowserCustomContentDocument): 
   projectContentCache = cloneProjectContent(document);
   projectContentLoaded = true;
   projectContentLoadPromise = Promise.resolve(cloneCustomContentDocument());
-}
-
-function normalizeCustomContentDocument(document: Partial<BrowserCustomContentDocument> | null | undefined): BrowserCustomContentDocument {
-  if (!document || typeof document !== 'object') {
-    return emptyCustomContentDocument();
-  }
-  return {
-    ancestries: Array.isArray(document.ancestries) ? document.ancestries : [],
-    communities: Array.isArray(document.communities) ? document.communities : [],
-    subclasses: Array.isArray(document.subclasses) ? document.subclasses : [],
-    domainCards: Array.isArray(document.domainCards) ? document.domainCards : [],
-    cardDomains: Array.isArray(document.cardDomains) ? document.cardDomains : [],
-    adversaries: Array.isArray(document.adversaries) ? document.adversaries : []
-  };
 }
 
 function cloneProjectContent(content: GameCustomContent): GameCustomContent {

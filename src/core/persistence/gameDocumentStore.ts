@@ -1,4 +1,3 @@
-import Dexie from 'dexie';
 import {
   createGameDocument,
   emptyCustomContent,
@@ -10,8 +9,17 @@ import {
 } from '../../domain/game/gameDocument';
 import type { CharactersState, PersistedState, SceneTableState } from '../../domain/rules/types';
 import { createId } from '../utils/id';
+import { CURRENT_PERSISTED_STATE_VERSION } from '../../domain/migrations/persistedState';
 import { GAME_DOCUMENT_STORAGE } from './storageKeys';
 import { createKeyValueStore, type KeyValueDocumentStore } from './keyValueStore';
+import {
+  deletePreviousProjectDocuments,
+  prepareProjectDocument,
+  prepareStoredGameState,
+  readPreviousProjectDocument
+} from './migrations/gameDocumentStore';
+
+const PROJECT_DOCUMENT_VERSION = 2;
 
 export interface StoredGameSummary {
   id: string;
@@ -31,9 +39,9 @@ export interface GameDocumentStore {
   subscribe(listener: (document: GameDocument | PersistedState | null) => void): () => void;
 }
 
-interface ProjectDocument {
+export interface ProjectDocument {
   kind: 'daggerheart-play:project';
-  version: 1;
+  version: typeof PROJECT_DOCUMENT_VERSION;
   project: {
     id: string;
     name: string;
@@ -50,14 +58,14 @@ interface ProjectDocument {
   games: Record<string, ProjectGameRecord>;
 }
 
-interface ProjectGameRecord {
+export interface ProjectGameRecord {
   id: string;
   createdAt: string;
   updatedAt: string;
   state: ProjectGameState;
 }
 
-interface ProjectGameState {
+export interface ProjectGameState {
   game: PersistedState['game'];
   encounter: PersistedState['encounter'];
   rollLog: PersistedState['rollLog'];
@@ -65,32 +73,6 @@ interface ProjectGameState {
   ui: PersistedState['ui'];
   sceneTable: Omit<SceneTableState, 'participants'>;
 }
-
-type LegacyPersistedState = Omit<PersistedState, 'game'> & { campaign: PersistedState['game'] };
-type StoredProjectValue = ProjectDocument | LegacyGameDocumentLibrary | GameDocument | PersistedState | LegacyPersistedState;
-
-interface LegacyGameDocumentLibrary {
-  kind: 'daggerheart-play:game-library';
-  version: 1;
-  activeGameId: string | null;
-  order: string[];
-  games: Record<string, {
-    id: string;
-    document: GameDocument | PersistedState | LegacyPersistedState;
-    createdAt: string;
-    updatedAt: string;
-  }>;
-}
-
-const LEGACY_GAME_DOCUMENT_STORAGES = [{
-  dbName: 'daggerheart-play-game-project',
-  storeName: 'documents',
-  key: 'current-game-project'
-}, {
-  dbName: 'daggerheart-play',
-  storeName: 'game-documents',
-  key: 'local-game'
-}] as const;
 
 export function createGameDocumentStore(indexedDb: IDBFactory | undefined = globalThis.indexedDB): GameDocumentStore | null {
   const store = createKeyValueStore(GAME_DOCUMENT_STORAGE.dbName, GAME_DOCUMENT_STORAGE.storeName, indexedDb);
@@ -114,7 +96,7 @@ class BrowserGameDocumentStore implements GameDocumentStore {
   async save(document: GameDocument): Promise<void> {
     const project = await this.loadProject();
     const next = upsertActiveGame(project, document);
-    await this.store.put(GAME_DOCUMENT_STORAGE.key, next);
+    await this.saveProject(next);
   }
 
   async delete(): Promise<void> {
@@ -123,7 +105,7 @@ class BrowserGameDocumentStore implements GameDocumentStore {
       await this.store.delete(GAME_DOCUMENT_STORAGE.key);
       return;
     }
-    await this.store.put(GAME_DOCUMENT_STORAGE.key, removeGame(project, project.activeGameId));
+    await this.saveProject(removeGame(project, project.activeGameId));
   }
 
   async list(): Promise<StoredGameSummary[]> {
@@ -143,7 +125,7 @@ class BrowserGameDocumentStore implements GameDocumentStore {
     const project = await this.loadProject();
     const id = createId('game');
     const next = upsertGame(project, document, id, true);
-    await this.store.put(GAME_DOCUMENT_STORAGE.key, next);
+    await this.saveProject(next);
     return id;
   }
 
@@ -156,7 +138,7 @@ class BrowserGameDocumentStore implements GameDocumentStore {
     const next = replacement && removed.order.length === 0
       ? upsertGame(removed, replacement, createId('game'), true)
       : removed;
-    await this.store.put(GAME_DOCUMENT_STORAGE.key, next);
+    await this.saveProject(next);
     return activeDocument(next);
   }
 
@@ -166,63 +148,65 @@ class BrowserGameDocumentStore implements GameDocumentStore {
       return null;
     }
     const next = { ...project, activeGameId: id };
-    await this.store.put(GAME_DOCUMENT_STORAGE.key, next);
+    await this.saveProject(next);
     return activeDocument(next);
   }
 
   subscribe(listener: (document: GameDocument | null) => void): () => void {
-    return this.store.subscribe<StoredProjectValue>(GAME_DOCUMENT_STORAGE.key, (value) => {
-      listener(value ? activeDocument(projectFromStored(value)) : null);
+    return this.store.subscribe<unknown>(GAME_DOCUMENT_STORAGE.key, (value) => {
+      try {
+        listener(value ? activeDocument(projectFromStored(value)) : null);
+      } catch {
+        listener(null);
+      }
     });
   }
 
   private async loadProject(): Promise<ProjectDocument> {
-    const stored = await this.store.get<StoredProjectValue>(GAME_DOCUMENT_STORAGE.key);
+    const stored = await this.store.get<unknown>(GAME_DOCUMENT_STORAGE.key);
     if (stored) {
-      const project = projectFromStored(stored);
-      if (!isProjectDocument(stored)) {
-        await this.store.put(GAME_DOCUMENT_STORAGE.key, project);
+      try {
+        const project = projectFromStored(stored);
+        if (!isProjectDocument(stored)) {
+          await this.saveProject(project);
+        }
+        return project;
+      } catch {
+        return emptyProject();
       }
-      return project;
     }
 
-    const migrated = await this.oneTimeMigrateLegacyProject();
+    const migrated = await this.oneTimeMigratePreviousProject();
     if (migrated) {
       return migrated;
     }
     return emptyProject();
   }
 
-  // One-time local migration for pre-project test saves. Remove after local projects are migrated.
-  private oneTimeMigrateLegacyProject(): Promise<ProjectDocument | null> {
-    this.migrationPromise ??= this.readLegacyGameDocument().then(async (document) => {
+  private oneTimeMigratePreviousProject(): Promise<ProjectDocument | null> {
+    this.migrationPromise ??= this.readPreviousGameDocument().then(async (document) => {
       if (!document) return null;
       const project = projectFromStored(document);
-      await this.store.put(GAME_DOCUMENT_STORAGE.key, project);
-      await this.deleteLegacyGameDocuments();
+      await this.saveProject(project);
+      await this.deletePreviousGameDocuments();
       return project;
     });
     return this.migrationPromise;
   }
 
-  private async readLegacyGameDocument(): Promise<GameDocument | PersistedState | LegacyPersistedState | null> {
-    if (!this.indexedDb) {
-      return null;
+  private async saveProject(project: ProjectDocument): Promise<void> {
+    if (!isProjectDocument(project)) {
+      throw new Error('Refusing to persist invalid game project document.');
     }
-    for (const storage of LEGACY_GAME_DOCUMENT_STORAGES) {
-      const value = await readLegacyDocument(storage);
-      if (value) return value;
-    }
-    return null;
+    await this.store.put(GAME_DOCUMENT_STORAGE.key, project);
   }
 
-  private async deleteLegacyGameDocuments(): Promise<void> {
-    if (!this.indexedDb) {
-      return;
-    }
-    for (const storage of LEGACY_GAME_DOCUMENT_STORAGES) {
-      await deleteLegacyDocument(storage);
-    }
+  private async readPreviousGameDocument(): Promise<unknown | null> {
+    return readPreviousProjectDocument(this.indexedDb);
+  }
+
+  private async deletePreviousGameDocuments(): Promise<void> {
+    await deletePreviousProjectDocuments(this.indexedDb);
   }
 }
 
@@ -230,7 +214,7 @@ function emptyProject(): ProjectDocument {
   const now = new Date().toISOString();
   return {
     kind: 'daggerheart-play:project',
-    version: 1,
+    version: PROJECT_DOCUMENT_VERSION,
     project: {
       id: createId('project'),
       name: '',
@@ -248,30 +232,12 @@ function emptyProject(): ProjectDocument {
   };
 }
 
-function projectFromStored(value: StoredProjectValue): ProjectDocument {
-  if (isProjectDocument(value)) {
-    return normalizeProject(value);
-  }
-  if (isLegacyGameDocumentLibrary(value)) {
-    return projectFromLegacyGameLibrary(value);
-  }
-  return projectFromGameDocument(toGameDocument(value));
-}
-
-function normalizeProject(project: ProjectDocument): ProjectDocument {
-  const order = project.order.filter((id) => Boolean(project.games[id]));
-  const fallbackIds = Object.keys(project.games).filter((id) => !order.includes(id));
-  const normalizedOrder = [...order, ...fallbackIds];
-  return {
-    ...project,
-    activeGameId: project.activeGameId && project.games[project.activeGameId] ? project.activeGameId : normalizedOrder[0] ?? null,
-    order: normalizedOrder,
-    shared: {
-      characters: project.shared.characters,
-      participants: project.shared.participants ?? {},
-      customContent: project.shared.customContent ?? emptyCustomContent()
-    }
-  };
+function projectFromStored(value: unknown): ProjectDocument {
+  return prepareProjectDocument(value, {
+    isProjectDocument,
+    projectFromGameDocument,
+    toGameDocument
+  });
 }
 
 function projectFromGameDocument(document: GameDocument): ProjectDocument {
@@ -292,39 +258,6 @@ function projectFromGameDocument(document: GameDocument): ProjectDocument {
     games: {
       [gameId]: gameRecordFromState(gameId, state)
     }
-  };
-}
-
-function projectFromLegacyGameLibrary(library: LegacyGameDocumentLibrary): ProjectDocument {
-  const records = library.order
-    .map((id) => library.games[id])
-    .filter((record): record is LegacyGameDocumentLibrary['games'][string] => Boolean(record));
-  const fallbackRecords = Object.values(library.games).filter((record) => !records.some((item) => item.id === record.id));
-  const orderedRecords = [...records, ...fallbackRecords];
-  const activeRecord = orderedRecords.find((record) => record.id === library.activeGameId) ?? orderedRecords[0] ?? null;
-  const states = orderedRecords.map((record) => ({ record, document: toGameDocument(record.document) }));
-  const activeDocumentValue = activeRecord ? toGameDocument(activeRecord.document) : states[0]?.document ?? null;
-  const activeState = activeDocumentValue ? gameDocumentToPersistedState(activeDocumentValue) : null;
-  const project = emptyProject();
-  const shared = activeState
-    ? mergeSharedState(states.map(({ document }) => gameDocumentToPersistedState(document)), activeState, gameDocumentCustomContent(activeDocumentValue))
-    : project.shared;
-  const games = Object.fromEntries(states.map(({ record, document }) => {
-    const state = gameDocumentToPersistedState(document);
-    return [record.id, gameRecordFromState(record.id, state, record)];
-  }));
-  const order = orderedRecords.map((record) => record.id).filter((id) => Boolean(games[id]));
-  return {
-    ...project,
-    project: {
-      ...project.project,
-      createdAt: activeRecord?.createdAt ?? project.project.createdAt,
-      updatedAt: activeRecord?.updatedAt ?? project.project.updatedAt
-    },
-    shared,
-    activeGameId: activeRecord?.id ?? order[0] ?? null,
-    order,
-    games
   };
 }
 
@@ -373,7 +306,7 @@ function activeDocument(project: ProjectDocument): GameDocument | null {
 
 function composePersistedState(project: ProjectDocument, record: ProjectGameRecord): PersistedState {
   return {
-    schemaVersion: 4,
+    schemaVersion: CURRENT_PERSISTED_STATE_VERSION,
     game: record.state.game,
     characters: project.shared.characters,
     encounter: record.state.encounter,
@@ -391,22 +324,6 @@ function sharedFromState(state: PersistedState, customContent: GameCustomContent
   return {
     characters: state.characters,
     participants: state.sceneTable.participants,
-    customContent
-  };
-}
-
-function mergeSharedState(states: PersistedState[], activeState: PersistedState, customContent: GameCustomContent): ProjectDocument['shared'] {
-  const order = unique([...activeState.characters.order, ...states.flatMap((state) => state.characters.order)]);
-  const entities = Object.assign({}, ...states.map((state) => state.characters.entities), activeState.characters.entities);
-  const participants = Object.assign({}, ...states.map((state) => state.sceneTable.participants), activeState.sceneTable.participants);
-  return {
-    characters: {
-      entities,
-      order: order.filter((id) => Boolean(entities[id])),
-      selectedId: activeState.characters.selectedId,
-      updatedAt: activeState.characters.updatedAt
-    },
-    participants,
     customContent
   };
 }
@@ -433,79 +350,68 @@ function stripParticipants(sceneTable: SceneTableState): Omit<SceneTableState, '
   return gameSceneTable;
 }
 
-function toGameDocument(value: GameDocument | PersistedState | LegacyPersistedState): GameDocument {
-  return isGameDocument(value) ? value : createGameDocument(normalizeStoredState(value));
-}
-
-function normalizeStoredState(value: PersistedState | LegacyPersistedState): PersistedState {
-  if ('game' in value) {
+function toGameDocument(value: unknown): GameDocument {
+  if (isGameDocument(value)) {
     return value;
   }
-  return {
-    schemaVersion: 4,
-    game: value.campaign,
-    characters: value.characters,
-    encounter: value.encounter,
-    rollLog: value.rollLog,
-    feed: value.feed,
-    ui: value.ui,
-    sceneTable: value.sceneTable
-  };
+  return createGameDocument(prepareStoredGameState(value));
 }
 
-function isProjectDocument(value: unknown): value is ProjectDocument {
+export function isProjectDocument(value: unknown): value is ProjectDocument {
+  if (!isRecord(value)) return false;
+  if (value.kind !== 'daggerheart-play:project' || value.version !== PROJECT_DOCUMENT_VERSION) return false;
+  if (!isRecord(value.project) || !isRecord(value.shared) || !isRecord(value.games) || !Array.isArray(value.order)) return false;
+  if (!isRecord(value.shared.characters) || !isRecord(value.shared.participants) || !isCustomContent(value.shared.customContent)) return false;
+  if (value.activeGameId !== null && typeof value.activeGameId !== 'string') return false;
+  const order = value.order;
+  const games = value.games;
+  if (!order.every((id) => typeof id === 'string' && Boolean(games[id]))) return false;
+  const gameIds = Object.keys(games);
+  if (gameIds.some((id) => !order.includes(id))) return false;
+  if (gameIds.length > 0 && (typeof value.activeGameId !== 'string' || !games[value.activeGameId])) return false;
+  for (const [id, game] of Object.entries(games)) {
+    if (!isProjectGameRecord(id, game)) return false;
+  }
+  return true;
+}
+
+function isProjectGameRecord(id: string, value: unknown): value is ProjectGameRecord {
   return Boolean(
-    value &&
-    typeof value === 'object' &&
-    (value as { kind?: unknown }).kind === 'daggerheart-play:project' &&
-    (value as { version?: unknown }).version === 1 &&
-    typeof (value as { shared?: unknown }).shared === 'object' &&
-    typeof (value as { games?: unknown }).games === 'object'
+    isRecord(value) &&
+    value.id === id &&
+    typeof value.createdAt === 'string' &&
+    typeof value.updatedAt === 'string' &&
+    isProjectGameState(value.state)
   );
 }
 
-function isLegacyGameDocumentLibrary(value: unknown): value is LegacyGameDocumentLibrary {
+function isProjectGameState(value: unknown): value is ProjectGameState {
   return Boolean(
-    value &&
-    typeof value === 'object' &&
-    (value as { kind?: unknown }).kind === 'daggerheart-play:game-library' &&
-    (value as { version?: unknown }).version === 1 &&
-    typeof (value as { games?: unknown }).games === 'object' &&
-    Array.isArray((value as { order?: unknown }).order)
+    isRecord(value) &&
+    isRecord(value.game) &&
+    isRecord(value.encounter) &&
+    Array.isArray(value.rollLog) &&
+    Array.isArray(value.feed) &&
+    isRecord(value.ui) &&
+    isRecord(value.sceneTable) &&
+    isRecord(value.sceneTable.scenes) &&
+    isRecord(value.sceneTable.assets) &&
+    Array.isArray(value.sceneTable.sceneOrder)
   );
 }
 
-function unique(values: string[]): string[] {
-  return Array.from(new Set(values));
+function isCustomContent(value: unknown): value is GameCustomContent {
+  return Boolean(
+    isRecord(value) &&
+    Array.isArray(value.ancestries) &&
+    Array.isArray(value.communities) &&
+    Array.isArray(value.subclasses) &&
+    Array.isArray(value.domainCards) &&
+    Array.isArray(value.cardDomains) &&
+    Array.isArray(value.adversaries)
+  );
 }
 
-async function readLegacyDocument(storage: typeof LEGACY_GAME_DOCUMENT_STORAGES[number]): Promise<GameDocument | PersistedState | LegacyPersistedState | null> {
-  if (!(await Dexie.exists(storage.dbName))) {
-    return null;
-  }
-  const legacyDb = new Dexie(storage.dbName);
-  legacyDb.version(1).stores({ [storage.storeName]: '' });
-  try {
-    const value = await legacyDb.table(storage.storeName).get(storage.key) as GameDocument | PersistedState | LegacyPersistedState | undefined;
-    return value ?? null;
-  } catch {
-    return null;
-  } finally {
-    legacyDb.close();
-  }
-}
-
-async function deleteLegacyDocument(storage: typeof LEGACY_GAME_DOCUMENT_STORAGES[number]): Promise<void> {
-  if (!(await Dexie.exists(storage.dbName))) {
-    return;
-  }
-  const legacyDb = new Dexie(storage.dbName);
-  legacyDb.version(1).stores({ [storage.storeName]: '' });
-  try {
-    await legacyDb.table(storage.storeName).delete(storage.key);
-  } catch {
-    // A failed cleanup should not block reading the migrated game.
-  } finally {
-    legacyDb.close();
-  }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object');
 }

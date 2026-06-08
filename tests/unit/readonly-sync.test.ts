@@ -39,7 +39,7 @@ test('read-only sync joins receive snapshots and cannot publish snapshots', asyn
   const snapshot = snapshotPersistedState();
   assert.equal(await gm.publishSnapshot(snapshot), true);
   assert.equal(received.length, 1);
-  assert.equal(received[0].schemaVersion, 4);
+  assert.equal(received[0].schemaVersion, 5);
   assert.equal(await observer.publishSnapshot(snapshot), false);
 
   const playerRequests: unknown[] = [];

@@ -1,6 +1,7 @@
 import { loadBrowserCustomContent, readBrowserCustomContent } from '../core/persistence/browserProjectContent';
 import { readZipEntries, writeZip, zipTextEntry, type ZipEntry, type ZipFileEntry } from '../core/archive/zip';
-import { isPersistedState, normalizePersistedState, snapshotPersistedState } from '../stores/persistedState';
+import { migratePersistedState } from '../domain/migrations/persistedState';
+import { isPersistedState, snapshotPersistedState } from '../stores/persistedState';
 import {
   assetResourcePath,
   createGameDocument,
@@ -197,10 +198,10 @@ function parseImportPayload(value: unknown): GameDocument | null {
     return value;
   }
   if (isPersistedState(value)) {
-    return createGameDocument(normalizePersistedState(value));
+    return createGameDocument(migratePersistedState(value));
   }
   if (isLegacyGameArchive(value) && isPersistedState(value.document)) {
-    const state = normalizePersistedState(value.document);
+    const state = migratePersistedState(value.document);
     return createGameDocument({
       ...state,
       sceneTable: {

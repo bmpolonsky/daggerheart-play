@@ -678,7 +678,7 @@ export interface SceneTableState {
 }
 
 export interface PersistedState {
-  schemaVersion: 4;
+  schemaVersion: number;
   game: GameState;
   characters: CharactersState;
   encounter: EncounterState;

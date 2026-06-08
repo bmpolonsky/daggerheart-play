@@ -3,7 +3,8 @@ import { nowIso } from '../core/utils/date';
 import { hasStringFields, isRecord } from '../core/utils/guards';
 import type { Character, CharacterCondition, DamageType, DeathMoveChoice, DiceVisualTone, FeedEntry, PersistedState, RollPublication, TraitId } from '../domain/rules/types';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableParticipant } from '../domain/tabletop/types';
-import { hydratePersistedState, isPersistedState, normalizePersistedState, snapshotPersistedState } from '../stores/persistedState';
+import { migratePersistedState } from '../domain/migrations/persistedState';
+import { hydratePersistedState, isPersistedState, snapshotPersistedState } from '../stores/persistedState';
 import { isPlayerActivationQueueMessage, type PlayerActivationQueueMessage } from './PlayerActivationQueueService';
 import { isPlayerPresence, isPlayerVoiceControlMessage, type PlayerPresence, type PlayerVoiceControlMessage } from './PlayerPresenceService';
 import { isCallPresenceMessage, type CallPresenceMessage } from './MediaCallService';
@@ -236,7 +237,7 @@ export class SyncService {
       if (event.kind !== 'snapshot' || !isPersistedState(event.value)) {
         return;
       }
-      onSnapshot(normalizePersistedState(event.value), event);
+      onSnapshot(migratePersistedState(event.value), event);
     });
     try {
       await this.transport.connect(roomId, participant);

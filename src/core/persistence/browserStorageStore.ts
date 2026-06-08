@@ -1,23 +1,23 @@
 export type BrowserStorageSource = Storage | null | undefined | (() => Storage | null | undefined);
 export type BrowserStorageUpdater<T extends object> = Partial<T> | ((current: T) => Partial<T>);
 
-export interface BrowserStorageMigrationContext<T extends object> {
+export interface BrowserStorageLoadContext<T extends object> {
   storage: Storage;
-  state: T;
+  value: unknown;
   hasStoredState: boolean;
+  initialState: T;
 }
 
-export interface BrowserStorageMigrationResult<T extends object> {
+export interface BrowserStorageLoadResult<T extends object> {
   state: T;
-  migrated: boolean;
+  shouldPersist: boolean;
 }
 
 export interface BrowserStorageStoreOptions<T extends object> {
   key: string;
   storage: BrowserStorageSource;
   initialState: () => T;
-  normalize?: (value: unknown) => T | null;
-  migrate?: (context: BrowserStorageMigrationContext<T>) => BrowserStorageMigrationResult<T>;
+  prepareLoadedState?: (context: BrowserStorageLoadContext<T>) => BrowserStorageLoadResult<T>;
 }
 
 export class BrowserStorageStore<T extends object> {
@@ -66,35 +66,27 @@ export class BrowserStorageStore<T extends object> {
     }
 
     const loaded = this.read(storage);
-    let state = loaded.state;
-    let shouldPersist = false;
-    if (this.options.migrate) {
-      const migrated = this.options.migrate({
-        storage,
-        state,
-        hasStoredState: loaded.hasStoredState
-      });
-      state = migrated.state;
-      shouldPersist = migrated.migrated;
-    }
-
-    this.state = state;
-    if (shouldPersist) {
+    this.state = loaded.state;
+    if (loaded.shouldPersist) {
       this.persist();
     }
   }
 
-  private read(storage: Storage): { state: T; hasStoredState: boolean } {
+  private read(storage: Storage): BrowserStorageLoadResult<T> {
+    const initialState = this.options.initialState();
     try {
       const raw = storage.getItem(this.options.key);
-      if (!raw) {
-        return { state: this.options.initialState(), hasStoredState: false };
+      const hasStoredState = Boolean(raw);
+      const value = raw ? JSON.parse(raw) as unknown : null;
+      if (this.options.prepareLoadedState) {
+        return this.options.prepareLoadedState({ storage, value, hasStoredState, initialState });
       }
-      const parsed = JSON.parse(raw) as unknown;
-      const normalized = this.options.normalize ? this.options.normalize(parsed) : parsed as T;
-      return { state: normalized ?? this.options.initialState(), hasStoredState: true };
+      if (!raw) {
+        return { state: initialState, shouldPersist: false };
+      }
+      return { state: value as T, shouldPersist: false };
     } catch {
-      return { state: this.options.initialState(), hasStoredState: false };
+      return { state: initialState, shouldPersist: false };
     }
   }
 

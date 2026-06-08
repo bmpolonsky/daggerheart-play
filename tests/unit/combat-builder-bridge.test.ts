@@ -1,10 +1,10 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { createEncounterState } from "../../src/domain/rules/factories";
-import { snapshotPersistedState, normalizePersistedState } from "../../src/stores/persistedState";
+import { migratePersistedState } from "../../src/domain/migrations/persistedState";
+import { snapshotPersistedState } from "../../src/stores/persistedState";
 import { buildCombatBuilderEncounterFromCoreEncounter, buildCoreAdversariesFromCombatBuilder } from "../../src/domain/combatBuilderBridge/index";
 import { createAdversaryFromLibrary, mapRawAdversary } from "../../src/domain/content/mappers";
-import type { PersistedState } from "../../src/domain/rules/types";
 
 test('combat builder bridge maps encounter entries into core adversaries', () => {
   const result = buildCoreAdversariesFromCombatBuilder({
@@ -87,9 +87,10 @@ test('combat builder bridge maps core encounter back into builder snapshot', () 
   assert.deepEqual(snapshot.entries[0]?.instances?.[0], { id: adversary.id, currentHp: 2, currentStress: 1 });
 });
 
-test('persisted encounter normalization fills adversary raw fields for combat builder', () => {
+test('v4 persisted encounter snapshots migrate old adversary shapes', () => {
   const state = {
     ...snapshotPersistedState(),
+    schemaVersion: 4 as const,
     encounter: {
       ...createEncounterState(),
       adversaries: {
@@ -100,17 +101,14 @@ test('persisted encounter normalization fills adversary raw fields for combat bu
       },
       order: ['legacy']
     }
-  } as unknown as PersistedState;
+  };
 
-  const normalized = normalizePersistedState(state);
-  const adversary = normalized.encounter.adversaries.legacy;
-  const snapshot = buildCombatBuilderEncounterFromCoreEncounter(normalized.encounter);
+  const migrated = migratePersistedState(state);
 
-  assert.equal(adversary.summary, '');
-  assert.equal(adversary.motives, '');
-  assert.equal(adversary.mainBody, '');
-  assert.equal(adversary.imageUrl, null);
-  assert.equal(snapshot.entries[0]?.adversary.name, 'Старый противник');
+  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.encounter.adversaries.legacy?.name, 'Старый противник');
+  assert.equal(migrated.encounter.adversaries.legacy?.summary, '');
+  assert.equal(migrated.encounter.order[0], 'legacy');
 });
 
 test('combat builder bridge groups core adversary instances by source', () => {

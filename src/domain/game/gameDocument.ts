@@ -87,7 +87,7 @@ export function createGameDocument(state: PersistedState, customContent: GameCus
 export function gameDocumentToPersistedState(document: GameDocument): PersistedState {
   const sceneTable = document.files['data/scene-table.json'];
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     game: document.files['data/game.json'],
     characters: document.files['data/characters.json'],
     encounter: document.files['data/encounter.json'],
