@@ -1,5 +1,7 @@
 /** @jsxImportSource preact */
 import { parsePlayerSessionLocation } from '../../domain/p2p/sessionLinks';
+import { publicAssetUrl } from '../../domain/content/publicAssets';
+import { DEFAULT_LOBBY_SCENE_IMAGE } from '../../domain/tabletop/defaultArt';
 import { PlayerJoinLobby } from './PlayerJoinLobby';
 import { SessionLobby } from './SessionLobby';
 
@@ -14,12 +16,14 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
   const sessionParams = typeof window === 'undefined'
     ? null
     : parsePlayerSessionLocation(window.location.pathname, basePath);
+  const sceneImageUrl = publicAssetUrl(DEFAULT_LOBBY_SCENE_IMAGE, basePath);
 
   if (sessionParams) {
     return (
       <PlayerJoinLobby
         roomId={sessionParams.roomId}
         password={sessionParams.password}
+        sceneImageUrl={sceneImageUrl}
         onBackToLobby={() => onSelectRole('entry')}
         onEnterPlayerRoom={(roomId) => onSelectRole('player', '', '', roomId)}
       />
@@ -29,6 +33,7 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
   return (
     <SessionLobby
       inviteContext={lobbyInviteContext(basePath)}
+      sceneImageUrl={sceneImageUrl}
       onEnterGm={() => onSelectRole('gm')}
       onJoinRoom={(roomId) => onSelectRole('join', '', '', roomId)}
     />

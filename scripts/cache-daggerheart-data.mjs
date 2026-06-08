@@ -213,6 +213,9 @@ function collectAssetUrls(payload) {
     if (typeof item?.image === 'string' && item.image.trim()) {
       urls.add(item.image);
     }
+    if (typeof item?.domain_image_url === 'string' && item.domain_image_url.trim()) {
+      urls.add(item.domain_image_url);
+    }
     const normalizedImagePath = normalizeAssetPath(item?.image_url);
     if (
       typeof item?.image_url === 'string' &&
@@ -258,6 +261,9 @@ function rewritePayloadAssetReferences(payload) {
       if (typeof nextItem.image === 'string' && nextItem.image.trim()) {
         nextItem.image = publicAssetPath(nextItem.image) ?? nextItem.image;
       }
+      if (typeof nextItem.domain_image_url === 'string' && nextItem.domain_image_url.trim()) {
+        nextItem.domain_image_url = publicAssetPath(nextItem.domain_image_url) ?? nextItem.domain_image_url;
+      }
       return nextItem;
     })
   };
@@ -268,9 +274,14 @@ async function loadCollection(collection) {
   const cached = await readJson(targetPath);
 
   if (isUsablePayload(cached) && isFreshPayload(cached)) {
+    const normalizedCached = rewritePayloadAssetReferences(cached);
+    if (JSON.stringify(normalizedCached) !== JSON.stringify(cached)) {
+      await ensureDir(dirname(targetPath));
+      await writeFile(targetPath, JSON.stringify(normalizedCached, null, 2));
+    }
     return {
-      payload: cached,
-      assetUrls: collection.assets ? collectAssetUrls(cached) : new Set()
+      payload: normalizedCached,
+      assetUrls: collection.assets ? collectAssetUrls(normalizedCached) : new Set()
     };
   }
 
@@ -300,10 +311,15 @@ async function loadCollection(collection) {
     };
   } catch (error) {
     if (isUsablePayload(cached)) {
+      const normalizedCached = rewritePayloadAssetReferences(cached);
+      if (JSON.stringify(normalizedCached) !== JSON.stringify(cached)) {
+        await ensureDir(dirname(targetPath));
+        await writeFile(targetPath, JSON.stringify(normalizedCached, null, 2));
+      }
       console.warn(`Using cached ${collection.key}: ${String(error)}`);
       return {
-        payload: cached,
-        assetUrls: collection.assets ? collectAssetUrls(cached) : new Set()
+        payload: normalizedCached,
+        assetUrls: collection.assets ? collectAssetUrls(normalizedCached) : new Set()
       };
     }
 

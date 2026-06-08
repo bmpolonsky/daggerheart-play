@@ -11,11 +11,12 @@ import { Button, ChoiceCard, EmptyState, Notice, SectionHeader, Surface, Toolbar
 interface PlayerJoinLobbyProps {
   password?: string;
   roomId: string;
+  sceneImageUrl: string;
   onBackToLobby: () => void;
   onEnterPlayerRoom: (roomId: string, seatId: string) => void;
 }
 
-export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '', roomId }: PlayerJoinLobbyProps) {
+export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '', roomId, sceneImageUrl }: PlayerJoinLobbyProps) {
   const { entities: characterEntities } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
   const session = useStream(p2pSessionService.session$);
@@ -66,7 +67,7 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
 
   return (
     <section className="role-entry" aria-label="Лобби игрока">
-      <div className="role-entry__scene" aria-hidden="true" />
+      <div className="role-entry__scene" aria-hidden="true" style={{ '--role-entry-scene-image': `url("${sceneImageUrl}")` }} />
       <div className="role-entry__content role-entry__content--join">
         <div className="role-entry__title">
           <span>Комната {roomId}</span>

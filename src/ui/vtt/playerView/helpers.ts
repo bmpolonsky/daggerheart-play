@@ -6,6 +6,7 @@ import type { TableParticipant } from '../../../domain/tabletop/types';
 import type { PlayerViewModel, PlayerViewToken } from '../../../domain/tabletop/playerView';
 import { defaultCharacterPortraitUrl } from '../../../domain/tabletop/defaultArt';
 import { inferBasePathFromWorkspacePath } from '../../../domain/p2p/sessionLinks';
+import { publicAssetUrl } from '../../../domain/content/publicAssets';
 import { classLabel } from '../../../domain/rules/constants';
 import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
 
@@ -147,16 +148,7 @@ export function playerCharacterIdFromParticipants(participants: Record<string, T
 }
 
 export function cssImageUrl(input: string): string {
-  if (!input) return '';
-  if (/^(blob:|data:|https?:)/i.test(input)) return input;
-  if (typeof window === 'undefined') return input;
-  const basePath = inferBasePathFromWorkspacePath(window.location.pathname).replace(/\/+$/, '');
-  const baseHref = `${window.location.origin}${basePath}/`;
-  if (basePath && input.startsWith(`${basePath}/`)) {
-    return new URL(input, window.location.origin).href;
-  }
-  const relativePath = input.startsWith('/') ? input.slice(1) : input.replace(/^\.\//, '');
-  return new URL(relativePath, baseHref).href;
+  return publicAssetUrl(input);
 }
 
 export function revealedRollIdsFromActivity(activity: PlayerViewModel['activity']): Set<string> {
