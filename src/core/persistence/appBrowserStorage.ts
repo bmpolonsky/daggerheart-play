@@ -18,14 +18,12 @@ export interface StoredP2PSession {
   version: 1;
   role: 'gm' | 'player';
   roomId: string;
-  password: string;
   participantName: string;
   updatedAt: string;
 }
 
 export interface StoredP2PInviteDraft {
   roomId: string;
-  password: string;
 }
 
 export interface AppLocalStorageState {
@@ -221,15 +219,13 @@ function isStoredP2PSession(value: unknown): value is StoredP2PSession {
     value.version === 1 &&
     (value.role === 'gm' || value.role === 'player') &&
     typeof value.roomId === 'string' &&
-    typeof value.password === 'string' &&
     typeof value.participantName === 'string' &&
     typeof value.updatedAt === 'string';
 }
 
 function isStoredP2PInviteDraft(value: unknown): value is StoredP2PInviteDraft {
   return isRecord(value) &&
-    typeof value.roomId === 'string' &&
-    typeof value.password === 'string';
+    typeof value.roomId === 'string';
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {

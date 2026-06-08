@@ -37,7 +37,7 @@ export async function waitFor(assertion: () => void, timeoutMs = 8000): Promise<
 }
 
 interface ScriptedP2PTransportOptions {
-  password?: string;
+  appId?: string;
 }
 
 export class ScriptedP2PNetwork {

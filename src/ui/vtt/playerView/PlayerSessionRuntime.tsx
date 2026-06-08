@@ -12,7 +12,6 @@ interface PlayerSessionRuntimeProps {
   role: TableViewRole;
   selectedPlayerName?: string;
   selectedPlayerSeatId: string | null;
-  sessionPassword?: string;
   sessionRoomId?: string;
 }
 
@@ -23,7 +22,6 @@ export function PlayerSessionRuntime({
   role,
   selectedPlayerName,
   selectedPlayerSeatId,
-  sessionPassword,
   sessionRoomId
 }: PlayerSessionRuntimeProps) {
   const audioState = useStream(audioService.audio$);
@@ -60,17 +58,16 @@ export function PlayerSessionRuntime({
     if (session.connected && session.role === 'player' && session.roomId === sessionRoomId) {
       return;
     }
-    const key = `player:room:${sessionRoomId}:${sessionPassword}`;
+    const key = `player:room:${sessionRoomId}`;
     if (autoP2PRestoreKey.current === key && session.status === 'connecting') return;
     autoP2PRestoreKey.current = key;
     void p2pSessionService.startPlayerRoom({
       roomId: sessionRoomId,
-      password: sessionPassword,
       participantId: selectedPlayerSeatId ?? undefined,
       actorIds: playerCharacterId ? [playerCharacterId] : [],
       participantName: selectedPlayerName
     }).catch(() => undefined);
-  }, [gameGmName, p2pSession.connected, p2pSession.role, p2pSession.status, playerCharacterId, role, selectedPlayerName, selectedPlayerSeatId, sessionPassword, sessionRoomId]);
+  }, [gameGmName, p2pSession.connected, p2pSession.role, p2pSession.status, playerCharacterId, role, selectedPlayerName, selectedPlayerSeatId, sessionRoomId]);
 
   useEffect(() => {
     if (role !== 'player') {

@@ -9,14 +9,13 @@ import { characterService, p2pSessionService, sceneTableService } from '../../se
 import { Button, ChoiceCard, EmptyState, Notice, SectionHeader, Surface, Toolbar } from '../components/common';
 
 interface PlayerJoinLobbyProps {
-  password?: string;
   roomId: string;
   sceneImageUrl: string;
   onBackToLobby: () => void;
   onEnterPlayerRoom: (roomId: string, seatId: string) => void;
 }
 
-export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '', roomId, sceneImageUrl }: PlayerJoinLobbyProps) {
+export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, sceneImageUrl }: PlayerJoinLobbyProps) {
   const { entities: characterEntities } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
   const session = useStream(p2pSessionService.session$);
@@ -35,17 +34,16 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
       : session.message;
 
   useEffect(() => {
-    const key = `${roomId}:${password}`;
+    const key = roomId;
     if (connectedToRoom || joining || connectKey.current === key) return;
     connectKey.current = key;
     void p2pSessionService.startPlayerRoom({
       roomId,
-      password,
       participantName: selectedSeat?.name.trim() || undefined
     }).catch(() => {
       connectKey.current = null;
     });
-  }, [connectedToRoom, joining, password, roomId, selectedSeat?.name]);
+  }, [connectedToRoom, joining, roomId, selectedSeat?.name]);
 
   useEffect(() => {
     if (selectedSeatId && playerSeats.some((seat) => seat.id === selectedSeatId)) return;

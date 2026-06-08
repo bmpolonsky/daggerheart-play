@@ -7,7 +7,6 @@ export interface PersistedP2PSession {
   version: 1;
   role: P2PSessionRole;
   roomId: string;
-  password: string;
   participantName: string;
   updatedAt: string;
 }
@@ -16,7 +15,6 @@ export function initialInviteDraftState(): P2PInviteDraftState {
   const persisted = localAppStorageStore.getState().p2p?.inviteDraft;
   return {
     roomId: persisted?.roomId ? normalizeSessionRoomId(persisted.roomId, createShortRoomCode()) : createShortRoomCode(),
-    password: persisted?.password ?? '',
     inviteUrl: '',
     roomCodeRefreshBlockedUntil: readSessionNumber()
   };
@@ -39,7 +37,7 @@ export function forgetActiveSession(): void {
   }));
 }
 
-export function persistActiveSession(input: { role: P2PSessionRole; roomId: string; password: string; participantName?: string }): void {
+export function persistActiveSession(input: { role: P2PSessionRole; roomId: string; participantName?: string }): void {
   localAppStorageStore.update((state) => ({
     p2p: {
       ...state.p2p,
@@ -47,7 +45,6 @@ export function persistActiveSession(input: { role: P2PSessionRole; roomId: stri
         version: 1,
         role: input.role,
         roomId: input.roomId,
-        password: input.password,
         participantName: input.participantName?.trim() || (input.role === 'gm' ? 'Мастер' : 'Игрок'),
         updatedAt: nowIso()
       } satisfies PersistedP2PSession
@@ -55,13 +52,12 @@ export function persistActiveSession(input: { role: P2PSessionRole; roomId: stri
   }));
 }
 
-export function persistInviteDraft(draft: Pick<P2PInviteDraftState, 'roomId' | 'password'>): void {
+export function persistInviteDraft(draft: Pick<P2PInviteDraftState, 'roomId'>): void {
   localAppStorageStore.update((state) => ({
     p2p: {
       ...state.p2p,
       inviteDraft: {
-        roomId: draft.roomId,
-        password: draft.password
+        roomId: draft.roomId
       }
     }
   }));

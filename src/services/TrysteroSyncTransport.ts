@@ -4,7 +4,6 @@ import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
 export interface TrysteroP2PTransportOptions {
   appId?: string;
-  password?: string;
 }
 
 export class TrysteroP2PTransport implements P2PTransportAdapter {
@@ -32,8 +31,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     this.peerId = selfId;
     this.room = joinRoom(
       {
-        appId: this.options.appId ?? 'daggerheart-play',
-        password: this.options.password?.trim() || undefined
+        appId: this.options.appId ?? 'daggerheart-play'
       },
       roomId,
       {

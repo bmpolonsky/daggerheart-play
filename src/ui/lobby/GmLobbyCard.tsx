@@ -15,13 +15,13 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
   const { gmName } = useStream(gameService.game$);
   const { entities: characterEntities, order: characterOrder } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
-  const invite = useStream(gmLobbyService.invite$);
+  const lobby = useStream(gmLobbyService.lobby$);
   const restoreAttempted = useRef(false);
   const characterOptions = characterOrder.map((id) => characterEntities[id]).filter(Boolean);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');
-  const displayedInviteUrl = gmLobbyService.previewInviteUrl(inviteContext);
-  const displayedGmRoomId = gmLobbyService.getRoomId();
-  const roomCodeRefresh = gmLobbyService.roomCodeRefreshView(invite);
+  const displayedInviteUrl = gmLobbyService.previewInviteUrl(inviteContext, lobby);
+  const displayedGmRoomId = gmLobbyService.getRoomId(lobby);
+  const roomCodeRefresh = gmLobbyService.roomCodeRefreshView(lobby);
   const isRoomCodeRefreshCoolingDown = roomCodeRefresh.remainingSeconds > 0;
   const roomCodeRefreshTitle = isRoomCodeRefreshCoolingDown ? `Обновить код можно через ${roomCodeRefresh.remainingSeconds} с` : 'Обновить код комнаты';
 

@@ -4,18 +4,15 @@ export interface PlayerInviteUrlInput {
   origin: string;
   basePath?: string;
   roomId: string;
-  password?: string;
 }
 
 export interface PlayerSessionParams {
   roomId: string;
-  password: string;
 }
 
 export interface StoredCallSessionSummary {
   role: 'gm' | 'player';
   roomId: string;
-  password: string;
   participantName: string;
 }
 
@@ -49,8 +46,7 @@ export function parsePlayerSessionLocation(pathname: string, basePath = ''): Pla
     return null;
   }
   return {
-    roomId,
-    password: ''
+    roomId
   };
 }
 
@@ -66,8 +62,7 @@ export function parseCallSessionLocation(pathname: string, basePath = ''): Playe
     return null;
   }
   return {
-    roomId,
-    password: ''
+    roomId
   };
 }
 
@@ -124,7 +119,6 @@ export function readStoredCallSession(roomId: string): StoredCallSessionSummary 
   return {
     role: session.role,
     roomId: session.roomId,
-    password: session.password,
     participantName: session.participantName
   };
 }

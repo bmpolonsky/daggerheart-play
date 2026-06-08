@@ -1,34 +1,69 @@
-import type { P2PInviteContext, P2PInviteDraftState, P2PSessionInvite } from './P2PSessionService';
+import { buildPlayerInviteUrl } from '../domain/p2p/sessionLinks';
+import type { P2PInviteContext, P2PSessionInvite } from './P2PSessionService';
 import type { P2PSessionService } from './P2PSessionService';
-import type { Stream } from '../core/store/Stream';
+import { Stream } from '../core/store/Stream';
 import { toastService } from './ToastService';
 
 export interface RoomCodeRefreshView {
   remainingSeconds: number;
 }
 
+export interface GmLobbyState {
+  roomId: string;
+  draftRoomId: string;
+  inviteUrl: string;
+  roomCodeRefreshBlockedUntil: number;
+  hasConnectedPlayers: boolean;
+}
+
 export class GmLobbyService {
-  readonly invite$: Stream<P2PInviteDraftState>;
+  readonly lobby$: Stream<GmLobbyState>;
 
   constructor(private p2pSessionService: P2PSessionService) {
-    this.invite$ = p2pSessionService.invite$;
+    this.lobby$ = Stream.combine({
+      invite: p2pSessionService.invite$,
+      session: p2pSessionService.session$
+    }).map(({
+      invite: { inviteUrl, roomCodeRefreshBlockedUntil, roomId: draftRoomId },
+      session: { peers, role, roomId: sessionRoomId }
+    }) => {
+      const activeRoomId = role === 'gm' && sessionRoomId ? sessionRoomId : '';
+      return {
+        roomId: activeRoomId || draftRoomId,
+        draftRoomId,
+        inviteUrl,
+        roomCodeRefreshBlockedUntil,
+        hasConnectedPlayers: role === 'gm' && peers.length > 0
+      };
+    });
   }
 
   async restoreSession(participantName: string): Promise<void> {
     await this.p2pSessionService.restoreActiveSession('gm', participantName);
   }
 
-  getRoomId(): string {
-    return this.p2pSessionService.getGmRoomId();
+  getRoomId(state: Pick<GmLobbyState, 'roomId'>): string {
+    return state.roomId;
   }
 
-  previewInviteUrl(context: P2PInviteContext): string {
-    return this.p2pSessionService.previewInviteUrl(context);
+  previewInviteUrl(
+    context: P2PInviteContext,
+    state: Pick<GmLobbyState, 'draftRoomId' | 'inviteUrl' | 'roomId'>
+  ): string {
+    const roomId = state.roomId;
+    if (!roomId) return '';
+    if (state.inviteUrl && state.draftRoomId === roomId) {
+      return state.inviteUrl;
+    }
+    return buildPlayerInviteUrl({
+      ...context,
+      roomId
+    });
   }
 
-  roomCodeRefreshView(invite: Pick<P2PInviteDraftState, 'roomCodeRefreshBlockedUntil'>, now = Date.now()): RoomCodeRefreshView {
+  roomCodeRefreshView(state: Pick<GmLobbyState, 'roomCodeRefreshBlockedUntil'>, now = Date.now()): RoomCodeRefreshView {
     return {
-      remainingSeconds: Math.max(0, Math.ceil((invite.roomCodeRefreshBlockedUntil - now) / 1000))
+      remainingSeconds: Math.max(0, Math.ceil((state.roomCodeRefreshBlockedUntil - now) / 1000))
     };
   }
 
@@ -51,7 +86,7 @@ export class GmLobbyService {
   }
 
   hasConnectedPlayers(): boolean {
-    return this.p2pSessionService.hasConnectedPlayers();
+    return this.lobby$.get().hasConnectedPlayers;
   }
 
   refreshRoomCode(): Promise<void> {

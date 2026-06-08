@@ -80,17 +80,14 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
       return;
     }
     const role = storedSession?.role ?? 'player';
-    const password = storedSession?.password || sessionParams?.password;
     if (role === 'gm') {
       await p2pSessionService.startGmRoom({
         roomId,
-        password,
         participantName: name
       });
     } else {
       await p2pSessionService.startPlayerRoom({
         roomId,
-        password,
         participantName: name
       });
     }

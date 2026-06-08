@@ -67,20 +67,17 @@ export interface P2PSessionState {
 export interface P2PSessionStartInput {
   roomId: string;
   participantName?: string;
-  password?: string;
   participantId?: string;
   actorIds?: string[];
 }
 
 export interface P2PSessionInvite {
   roomId: string;
-  password: string;
   inviteUrl: string;
 }
 
 export interface P2PInviteDraftState {
   roomId: string;
-  password: string;
   inviteUrl: string;
   roomCodeRefreshBlockedUntil: number;
 }
@@ -164,15 +161,6 @@ export class P2PSessionService {
     this.persistInviteDraft();
   }
 
-  setInvitePassword(password: string): void {
-    this.inviteStore.update((state) => ({
-      ...state,
-      password,
-      inviteUrl: ''
-    }));
-    this.persistInviteDraft();
-  }
-
   async refreshGmRoomCode(): Promise<void> {
     const draft = this.inviteStore.get();
     if (draft.roomCodeRefreshBlockedUntil > Date.now()) return;
@@ -196,8 +184,7 @@ export class P2PSessionService {
     }
     return buildPlayerInviteUrl({
       ...context,
-      roomId,
-      password: draft.password
+      roomId
     });
   }
 
@@ -239,27 +226,22 @@ export class P2PSessionService {
       const active = this.sessionStore.get();
       const hasActiveGmRoom = active.role === 'gm' && (active.connected || active.status === 'connecting') && Boolean(active.roomId);
       const roomId = hasActiveGmRoom ? active.roomId : normalizeSessionRoomId(draft.roomId);
-      const password = '';
       if (!hasActiveGmRoom) {
         await this.startGmRoom({
           roomId,
-          password,
           participantName: input.participantName
         });
       }
       const invite: P2PSessionInvite = {
         roomId,
-        password,
         inviteUrl: buildPlayerInviteUrl({
           origin: input.origin,
           basePath: input.basePath,
-          roomId,
-          password
+          roomId
         })
       };
       this.inviteStore.set({
         roomId: invite.roomId,
-        password: invite.password,
         inviteUrl: invite.inviteUrl,
         roomCodeRefreshBlockedUntil: draft.roomCodeRefreshBlockedUntil
       });
@@ -286,13 +268,11 @@ export class P2PSessionService {
     this.inviteStore.update((state) => ({
       ...state,
       roomId,
-      password: '',
       inviteUrl: ''
     }));
     this.persistInviteDraft();
     await this.startGmRoom({
       roomId,
-      password: '',
       participantName
     });
     return true;
@@ -301,8 +281,7 @@ export class P2PSessionService {
   async startGmRoom(input: P2PSessionStartInput): Promise<void> {
     await this.stop({ forgetSession: false });
     const roomId = normalizeSessionRoomId(input.roomId);
-    const password = input.password?.trim() ?? '';
-    const transport = this.createTransport(password);
+    const transport = this.createTransport();
     this.audioService?.setVoiceTransport(transport);
     this.sceneAudioBroadcastService?.setTransport(transport);
     this.mediaCallService?.setMediaTransport(transport);
@@ -400,7 +379,7 @@ export class P2PSessionService {
         message: peers.length > 0 ? 'Игрок подключился.' : 'Комната мастера открыта.'
       };
     });
-    persistActiveSession({ role: 'gm', roomId, password, participantName: input.participantName });
+    persistActiveSession({ role: 'gm', roomId, participantName: input.participantName });
   }
 
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
@@ -416,8 +395,7 @@ export class P2PSessionService {
       actorName: input.participantName
     });
     const roomId = normalizeSessionRoomId(input.roomId);
-    const password = input.password?.trim() ?? '';
-    const transport = this.createTransport(password);
+    const transport = this.createTransport();
     this.audioService?.setVoiceTransport(transport);
     this.sceneAudioBroadcastService?.setTransport(transport);
     this.mediaCallService?.setMediaTransport(transport);
@@ -494,7 +472,7 @@ export class P2PSessionService {
       message: state.lastSnapshotAt ? 'Вы подключены к серверу мастера.' : 'Ждем данные игры от мастера.'
     }));
     this.startPlayerProductRecoveryPolling();
-    persistActiveSession({ role: 'player', roomId, password, participantName: input.participantName });
+    persistActiveSession({ role: 'player', roomId, participantName: input.participantName });
   }
 
   async stop(options: { forgetSession?: boolean } = {}): Promise<void> {
@@ -541,7 +519,6 @@ export class P2PSessionService {
     }
     const input = {
       roomId: saved.roomId,
-      password: saved.password,
       participantName: participantName?.trim() || saved.participantName
     };
     if (role === 'gm') {
@@ -1172,8 +1149,8 @@ export class P2PSessionService {
     this.productRecoveryTimer = undefined;
   }
 
-  private createTransport(password?: string): P2PRoomConnection {
-    const connection = new P2PRoomConnection(this.transportFactory({ password }), this.roomConnectionConfig);
+  private createTransport(): P2PRoomConnection {
+    const connection = new P2PRoomConnection(this.transportFactory({}), this.roomConnectionConfig);
     this.activeRoomConnection = connection;
     this.subscriptions.add(connection.subscribeRoomEvents((event) => this.handleRoomConnectionEvent(event)));
     return connection;

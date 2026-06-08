@@ -107,7 +107,6 @@ export function SharedToolsConnectionSettingsPanel({
     status: p2pStatus
   } = useStream(p2pSessionService.session$);
   const [playerRoomId, setPlayerRoomId] = useState(() => initialPlayerRoomId());
-  const [playerPassword, setPlayerPassword] = useState(() => initialPlayerPassword());
   const settingsInviteContext = currentSettingsInviteContext();
   const displayedInviteLink = role === 'gm' ? p2pSessionService.previewInviteUrl(settingsInviteContext) : '';
   const syncRoomId = role === 'gm' ? p2pSessionService.getGmRoomId() : playerRoomId;
@@ -172,13 +171,6 @@ export function SharedToolsConnectionSettingsPanel({
             value={syncRoomId}
             onInput={(event) => setPlayerRoomId(event.currentTarget.value)}
           />
-          <TextField
-            label="Пароль"
-            type="password"
-            value={playerPassword}
-            onInput={(event) => setPlayerPassword(event.currentTarget.value)}
-            placeholder="Опционально"
-          />
         </div>
       )}
       <div className="player-tools-sync__summary">
@@ -197,7 +189,7 @@ export function SharedToolsConnectionSettingsPanel({
       </div>
       <div className="player-tools-actions">
         {role === 'player' && (
-          <Button variant="primary" type="button" onClick={() => void p2pSessionService.startPlayerRoom({ roomId: playerRoomId, password: playerPassword })}>
+          <Button variant="primary" type="button" onClick={() => void p2pSessionService.startPlayerRoom({ roomId: playerRoomId })}>
             Подключиться
           </Button>
         )}
@@ -255,8 +247,4 @@ export function SharedToolsDiagnosticsSettingsPanel({ role }: { role: TableViewR
 function initialPlayerRoomId(): string {
   if (typeof window === 'undefined') return '';
   return parsePlayerSessionLocation(window.location.pathname, inferBasePathFromWorkspacePath(window.location.pathname))?.roomId ?? '';
-}
-
-function initialPlayerPassword(): string {
-  return '';
 }

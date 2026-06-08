@@ -240,7 +240,6 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         role={role}
         selectedPlayerName={selectedPlayerName}
         selectedPlayerSeatId={selectedPlayerSeatId}
-        sessionPassword={sessionParams?.password}
         sessionRoomId={sessionParams?.roomId}
       />
       <div

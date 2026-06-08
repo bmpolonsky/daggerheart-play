@@ -71,7 +71,9 @@ test('local app storage migrates old P2P and preference keys into one key', () =
 
     const migrated = JSON.parse(localStorage.getItem(APP_BROWSER_STORAGE_KEY) ?? '{}');
     assert.equal(migrated.p2p.activeSession.roomId, 'ROOM1');
-    assert.equal(migrated.p2p.inviteDraft.password, 'draft');
+    assert.equal(migrated.p2p.inviteDraft.roomId, 'ROOM2');
+    assert.equal('password' in migrated.p2p.activeSession, false);
+    assert.equal('password' in migrated.p2p.inviteDraft, false);
     assert.equal(migrated.preferences.privateRolls, true);
     assert.equal(readActiveSession()?.participantName, 'GM');
     assert.equal(initialInviteDraftState().roomId, 'ROOM2');
@@ -123,8 +125,8 @@ test('P2P helpers write only through the single app storage key', () => {
   });
 
   try {
-    persistActiveSession({ role: 'player', roomId: 'ROOM3', password: 'pw', participantName: 'Player' });
-    persistInviteDraft({ roomId: 'ROOM4', password: 'draft-pw' });
+    persistActiveSession({ role: 'player', roomId: 'ROOM3', participantName: 'Player' });
+    persistInviteDraft({ roomId: 'ROOM4' });
     persistRoomCodeRefreshBlockedUntil(Date.now() + 60_000);
     writeStoredPlayerSeatId('ROOM3', 'seat-3');
     writeStoredCallName('ROOM3', 'Caller 3');
@@ -135,7 +137,7 @@ test('P2P helpers write only through the single app storage key', () => {
     assert.equal(sessionStorage.key(0), APP_BROWSER_STORAGE_KEY);
 
     assert.equal(readActiveSession()?.roomId, 'ROOM3');
-    assert.equal(initialInviteDraftState().password, 'draft-pw');
+    assert.equal(initialInviteDraftState().roomId, 'ROOM4');
     assert.equal(readStoredPlayerSeatId('ROOM3'), 'seat-3');
     assert.equal(readStoredCallName('ROOM3'), 'Caller 3');
 
