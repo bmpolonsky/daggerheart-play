@@ -11,6 +11,7 @@ export * from './IconButton';
 export * from './ImageFilePicker';
 export * from './InlineStat';
 export * from './ListItem';
+export * from './ListDetailLayout';
 export * from './ModalShell';
 export * from './NavButton';
 export * from './Notice';

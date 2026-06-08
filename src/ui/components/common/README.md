@@ -63,6 +63,7 @@ Do not introduce new global color systems for screens. If a tool needs local ali
 - Use `EmptyState` for empty/loading/no-results placeholders.
 - Use `Notice` for inline info, warning, success, and error messages.
 - Use `ListItem` for compact repeated rows with a title, optional subtitle, value, or action.
+- Use `ListDetailLayout` for responsive list/detail workspaces.
 - Use `ResourcePips` for hope, hp, stress, armor, and similar pip tracks.
 - Use `ModalShell` for modal chrome.
 
@@ -367,6 +368,31 @@ Guidance:
 - If `rightAccessory` is present, `onClick` applies only to the text area to avoid nesting buttons.
 - Do not recreate local row padding, title/subtitle typography, or one-off truncation CSS.
 
+### ListDetailLayout
+
+Use for workspaces where a list/grid expands full-width until an item opens a detail panel.
+
+```tsx
+<ListDetailLayout
+  list={<LibraryGrid entries={entries} />}
+  detail={selectedEntry ? <LibraryDetail entry={selectedEntry} /> : null}
+  listLabel="Записи"
+  detailLabel="Детали"
+/>
+```
+
+Props:
+
+- `list`, `detail`
+- `listClassName`, `detailClassName` for the content regions
+
+Guidance:
+
+- Keep selected/open state in the caller.
+- Use this for reusable layout behavior, not for styling individual cards.
+- Keep the split behavior standardized: full-width list without detail, list/detail split with detail, detail above list on narrow screens.
+- Do not duplicate split-grid CSS in screen files when this component fits.
+
 ### Tabs
 
 Use for tab navigation between content sections.
@@ -579,6 +605,7 @@ Guidance:
 | `SectionHeader` | Heading + actions | Whole panels |
 | `ModalShell` | Modal chrome | Nested modal content cards |
 | `Checkbox` | Boolean options | Multi-choice tabs |
+| `ListDetailLayout` | List/detail workspaces | Generic page columns |
 | `ResourcePips` | Pip resources | Generic progress bars |
 | `ImageFilePicker` / `FilePicker` | File uploads | URL text fields |
 | `NavButton` | Sidebar/navigation rows | Form submit/actions |

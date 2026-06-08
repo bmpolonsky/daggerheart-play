@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ContentLibraryView } from '../../../../services/ContentService';
+import { ListDetailLayout } from '../../../components/common';
 import { LibraryDetailPanel } from './LibraryDetailPanel';
 import { buildLibraryEntries } from './libraryEntries';
 import { LibraryMiniCard } from './LibraryMiniCard';
@@ -21,30 +22,37 @@ export function LibraryResults({ libraryView, targetCharacterId }: { libraryView
   }
 
   return (
-    <div className={`player-library-browser ${selectedEntry ? 'player-library-browser--with-detail' : ''}`.trim()}>
-      <div className="player-library-list" aria-label="Записи компендиума">
-        {entries.map((entry) => (
-          <LibraryMiniCard
-            body={entry.preview}
-            imageUrl={entry.imageUrl}
-            isSelected={selectedEntry?.id === entry.id}
-            key={entry.id}
-            kicker={entry.kicker}
-            stats={entry.stats}
-            title={entry.title}
-            onSelect={() => setSelectedId(entry.id)}
-          />
-        ))}
-      </div>
-      <LibraryDetailPanel
-        actionMessage={actionMessage}
-        entry={selectedEntry}
-        onAction={setActionMessage}
-        onClose={() => {
-          setSelectedId('');
-          setActionMessage('');
-        }}
-      />
-    </div>
+    <ListDetailLayout
+      listLabel="Записи компендиума"
+      detailLabel="Детали записи"
+      listClassName="player-library-list"
+      list={(
+        <>
+          {entries.map((entry) => (
+            <LibraryMiniCard
+              body={entry.preview}
+              imageUrl={entry.imageUrl}
+              isSelected={selectedEntry?.id === entry.id}
+              key={entry.id}
+              kicker={entry.kicker}
+              stats={entry.stats}
+              title={entry.title}
+              onSelect={() => setSelectedId(entry.id)}
+            />
+          ))}
+        </>
+      )}
+      detail={selectedEntry && (
+        <LibraryDetailPanel
+          actionMessage={actionMessage}
+          entry={selectedEntry}
+          onAction={setActionMessage}
+          onClose={() => {
+            setSelectedId('');
+            setActionMessage('');
+          }}
+        />
+      )}
+    />
   );
 }

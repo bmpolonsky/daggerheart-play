@@ -1,0 +1,37 @@
+.root {
+  --dh-list-detail-gap: 14px;
+  --dh-list-detail-list-min: 360px;
+  --dh-list-detail-detail-min: 420px;
+  --dh-list-detail-detail-max: 920px;
+
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--dh-list-detail-gap);
+}
+
+.withDetail {
+  grid-template-columns:
+    minmax(var(--dh-list-detail-list-min), 1fr)
+    minmax(var(--dh-list-detail-detail-min), var(--dh-list-detail-detail-max));
+}
+
+.list,
+.detail {
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (max-width: 1120px) {
+  .withDetail {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 0.8fr);
+  }
+
+  .detailFirst .detail {
+    order: -1;
+  }
+}
