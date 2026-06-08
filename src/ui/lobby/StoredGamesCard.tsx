@@ -99,9 +99,9 @@ export function StoredGamesCard() {
         </div>
         <input
           ref={importFileRef}
-          className="visually-hidden"
           type="file"
           accept="application/json,application/zip,.json,.zip,.dhgame"
+          style={{ display: 'none' }}
           onChange={importGameFile}
         />
       </Surface>

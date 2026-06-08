@@ -18,7 +18,6 @@ export function initialInviteDraftState(): P2PInviteDraftState {
     roomId: persisted?.roomId ? normalizeSessionRoomId(persisted.roomId, createShortRoomCode()) : createShortRoomCode(),
     password: persisted?.password ?? '',
     inviteUrl: '',
-    message: '',
     roomCodeRefreshBlockedUntil: readSessionNumber()
   };
 }

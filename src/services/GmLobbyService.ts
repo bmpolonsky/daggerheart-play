@@ -1,6 +1,7 @@
 import type { P2PInviteContext, P2PInviteDraftState, P2PSessionInvite } from './P2PSessionService';
 import type { P2PSessionService } from './P2PSessionService';
 import type { Stream } from '../core/store/Stream';
+import { toastService } from './ToastService';
 
 export interface RoomCodeRefreshView {
   remainingSeconds: number;
@@ -43,9 +44,9 @@ export class GmLobbyService {
     if (!inviteUrl) return;
     try {
       await navigator.clipboard?.writeText(inviteUrl);
-      this.p2pSessionService.setInviteMessage(messages.copied);
+      toastService.show(messages.copied, 'success');
     } catch {
-      this.p2pSessionService.setInviteMessage(messages.manual);
+      toastService.show(messages.manual, 'warning');
     }
   }
 

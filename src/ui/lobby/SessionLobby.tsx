@@ -1,6 +1,5 @@
 /** @jsxImportSource preact */
 import { GmLobbyCard } from './GmLobbyCard';
-import { LobbyInviteMessage } from './LobbyInviteMessage';
 import { PlayerQuickJoinCard } from './PlayerQuickJoinCard';
 import { StoredGamesCard } from './StoredGamesCard';
 
@@ -32,7 +31,6 @@ export function SessionLobby({ inviteContext, onEnterGm, onJoinRoom }: SessionLo
           </div>
           <StoredGamesCard />
         </div>
-        <LobbyInviteMessage />
       </div>
     </section>
   );

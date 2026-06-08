@@ -2,7 +2,7 @@
 import { useState } from 'preact/hooks';
 import { MonitorPlay } from 'lucide-react';
 import { normalizeSessionRoomId } from '../../domain/p2p/sessionLinks';
-import { p2pSessionService } from '../../services/serviceRegistry';
+import { toastService } from '../../services/ToastService';
 import { Button, SectionHeader, Surface, TextControl } from '../components/common';
 
 interface PlayerQuickJoinCardProps {
@@ -15,7 +15,7 @@ export function PlayerQuickJoinCard({ onJoinRoom }: PlayerQuickJoinCardProps) {
   const normalizedRoomId = (): string => {
     const normalized = normalizeSessionRoomId(joinRoomId, '');
     if (!normalized) {
-      p2pSessionService.setInviteMessage('Введите код комнаты.');
+      toastService.show('Введите код комнаты.', 'warning');
       return '';
     }
     return normalized;

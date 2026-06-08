@@ -388,15 +388,23 @@
   gap: 6px;
 }
 
-.role-entry__invite-line {
+.role-entry__invite-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: end;
+  grid-template-columns: minmax(150px, 0.32fr) minmax(0, 0.68fr);
+  gap: 10px;
+  align-items: start;
 }
 
-.role-entry__invite-line label {
+.role-entry__invite-grid label {
   min-width: 0;
+}
+
+.role-entry__inline-control {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .role-entry__player-row {
@@ -510,7 +518,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .role-entry__invite-line {
+  .role-entry__invite-grid {
     grid-template-columns: 1fr;
   }
 

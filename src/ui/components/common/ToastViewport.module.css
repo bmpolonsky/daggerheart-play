@@ -1,0 +1,54 @@
+.viewport {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: var(--dh-z-toast, 1000);
+  display: grid;
+  width: min(360px, calc(100vw - 32px));
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  pointer-events: auto;
+  border-radius: var(--dh-radius);
+  padding: 10px 10px 10px 12px;
+  color: var(--dh-paper-100);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.88), rgba(7, 9, 12, 0.76)),
+    var(--dh-glass);
+  box-shadow: var(--dh-shadow), inset 0 1px 0 rgba(243, 234, 216, 0.08);
+  backdrop-filter: var(--dh-blur);
+}
+
+.body {
+  min-width: 0;
+  padding-top: 3px;
+  color: var(--dh-paper-100);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.success {
+  box-shadow: var(--dh-shadow), inset 3px 0 0 rgba(55, 180, 112, 0.82);
+}
+
+.warning {
+  box-shadow: var(--dh-shadow), inset 3px 0 0 rgba(216, 173, 83, 0.9);
+}
+
+.error {
+  box-shadow: var(--dh-shadow), inset 3px 0 0 rgba(239, 68, 68, 0.82);
+}
+
+@media (max-width: 640px) {
+  .viewport {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    width: min(340px, calc(100vw - 20px));
+  }
+}

@@ -36,6 +36,7 @@ import type { SceneTableService } from './SceneTableService';
 import type { SceneAudioBroadcastService } from './SceneAudioBroadcastService';
 import type { MediaCallService } from './MediaCallService';
 import { TrysteroP2PTransport, type TrysteroP2PTransportOptions } from './TrysteroSyncTransport';
+import { toastService } from './ToastService';
 import {
   forgetActiveSession,
   initialInviteDraftState,
@@ -81,7 +82,6 @@ export interface P2PInviteDraftState {
   roomId: string;
   password: string;
   inviteUrl: string;
-  message: string;
   roomCodeRefreshBlockedUntil: number;
 }
 
@@ -173,13 +173,6 @@ export class P2PSessionService {
     this.persistInviteDraft();
   }
 
-  setInviteMessage(message: string): void {
-    this.inviteStore.update((state) => ({
-      ...state,
-      message
-    }));
-  }
-
   async refreshGmRoomCode(): Promise<void> {
     const draft = this.inviteStore.get();
     if (draft.roomCodeRefreshBlockedUntil > Date.now()) return;
@@ -191,7 +184,7 @@ export class P2PSessionService {
       await this.stop();
     }
     this.setInviteRoomId(createShortRoomCode());
-    this.setInviteMessage(hasActiveGmRoom ? 'Старая комната закрыта. Новая ссылка готова.' : 'Код комнаты обновлен. Новая ссылка готова.');
+    toastService.show(hasActiveGmRoom ? 'Старая комната закрыта. Новая ссылка готова.' : 'Код комнаты обновлен. Новая ссылка готова.', 'success');
   }
 
   previewInviteUrl(context: P2PInviteContext): string {
@@ -241,7 +234,7 @@ export class P2PSessionService {
 
   async createGmInviteFromDraft(input: P2PInviteContext & { participantName?: string }): Promise<P2PSessionInvite> {
     const draft = this.inviteStore.get();
-    this.setInviteMessage('Готовим ссылку...');
+    toastService.show('Готовим ссылку...');
     try {
       const active = this.sessionStore.get();
       const hasActiveGmRoom = active.role === 'gm' && (active.connected || active.status === 'connecting') && Boolean(active.roomId);
@@ -268,13 +261,13 @@ export class P2PSessionService {
         roomId: invite.roomId,
         password: invite.password,
         inviteUrl: invite.inviteUrl,
-        message: 'Ссылка готова. Игрок подключится автоматически.',
         roomCodeRefreshBlockedUntil: draft.roomCodeRefreshBlockedUntil
       });
+      toastService.show('Ссылка готова. Игрок подключится автоматически.', 'success');
       this.persistInviteDraft();
       return invite;
     } catch (error) {
-      this.setInviteMessage(error instanceof Error ? error.message : 'Не удалось создать приглашение.');
+      toastService.show(error instanceof Error ? error.message : 'Не удалось создать приглашение.', 'error');
       throw error;
     }
   }

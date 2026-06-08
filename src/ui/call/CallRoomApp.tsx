@@ -5,6 +5,7 @@ import { useStream } from '../../core/hooks/useStream';
 import { parseCallSessionLocation, readStoredCallName, readStoredCallSession, writeStoredCallName } from '../../domain/p2p/sessionLinks';
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
 import { feedService, mediaCallService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
+import { toastService } from '../../services/ToastService';
 import type { CallParticipant, MediaCallState } from '../../services/MediaCallService';
 import { cssImageUrl } from '../vtt/playerView/helpers';
 import { Avatar, Badge, Button, ChoiceCard, EmptyState, Field, IconButton, ListItem, Notice, SectionHeader, Surface, TextControl, Toolbar } from '../components/common';
@@ -60,7 +61,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const joinCall = async (displayName = nameDraft): Promise<void> => {
     const name = displayName.trim();
     if (!roomId || !name) {
-      p2pSessionService.setInviteMessage('Введите имя для звонка.');
+      toastService.show('Введите имя для звонка.', 'warning');
       return;
     }
     writeStoredCallName(roomId, name);

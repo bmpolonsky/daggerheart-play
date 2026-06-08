@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef } from 'preact/hooks';
-import { Crown, Link2, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, Crown, RefreshCw, Trash2 } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { characterService, gameService, gmLobbyService, sceneTableService } from '../../services/serviceRegistry';
 import { Button, EmptyState, IconButton, SectionHeader, SelectControl, Surface, TextControl, Toolbar } from '../components/common';
@@ -64,22 +64,33 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
   return (
     <Surface className="role-entry__card role-entry__gm-card" aria-label="Создать сессию мастера">
       <SectionHeader title="Мастер" subtitle="Управление комнатой и местами игроков." actions={<Crown size={20} aria-hidden="true" />} />
-      <div className="role-entry__invite-line">
+      <div className="role-entry__invite-grid">
         <label>
           <span>Код комнаты</span>
-          <TextControl value={displayedGmRoomId} readOnly />
+          <div className="role-entry__inline-control">
+            <TextControl value={displayedGmRoomId} readOnly />
+            <IconButton
+              variant="ghost"
+              size="sm"
+              type="button"
+              title={roomCodeRefreshTitle}
+              aria-label="Обновить код комнаты"
+              disabled={isRoomCodeRefreshCoolingDown}
+              onClick={() => void refreshRoomCode()}
+            >
+              <RefreshCw size={15} aria-hidden="true" />
+            </IconButton>
+          </div>
         </label>
-        <IconButton
-          variant="ghost"
-          size="sm"
-          type="button"
-          title={roomCodeRefreshTitle}
-          aria-label="Обновить код комнаты"
-          disabled={isRoomCodeRefreshCoolingDown}
-          onClick={() => void refreshRoomCode()}
-        >
-          <RefreshCw size={15} aria-hidden="true" />
-        </IconButton>
+        <label>
+          <span>Ссылка для игроков</span>
+          <div className="role-entry__inline-control">
+            <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteUrl} placeholder="Появится после ввода кода комнаты" />
+            <IconButton type="button" size="sm" title="Копировать ссылку игрока" aria-label="Копировать ссылку игрока" disabled={!displayedInviteUrl} onClick={() => void copyInvite()}>
+              <Copy size={15} aria-hidden="true" />
+            </IconButton>
+          </div>
+        </label>
       </div>
       <div className="role-entry__players">
         <SectionHeader
@@ -119,15 +130,6 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
           Открыть игру
         </Button>
       </Toolbar>
-      <div className="role-entry__invite-line">
-        <label>
-          <span>Ссылка игрока</span>
-          <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteUrl} placeholder="Появится после ввода кода комнаты" />
-        </label>
-        <Button type="button" disabled={!displayedInviteUrl} iconBefore={<Link2 size={15} aria-hidden="true" />} onClick={() => void copyInvite()}>
-          Копировать
-        </Button>
-      </div>
     </Surface>
   );
 }

@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import { lazy, Suspense } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
+import { ToastViewport } from './ui/components/common';
 import { RoleEntry } from './ui/lobby/RoleEntry';
 
 type WorkspaceId = 'play' | 'combat' | 'cards';
@@ -193,6 +194,7 @@ export function SuperApp() {
           {activeRoute === 'cards' && <CardCreatorTool />}
         </Suspense>
       </main>
+      <ToastViewport />
     </div>
   );
 }

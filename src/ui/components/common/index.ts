@@ -22,4 +22,5 @@ export * from './StepRailButton';
 export * from './Surface';
 export * from './Tabs';
 export * from './Toolbar';
+export * from './ToastViewport';
 export * from './WizardStepButton';

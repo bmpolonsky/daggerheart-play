@@ -10,6 +10,7 @@ import {
   p2pSessionService,
   sceneTableService
 } from '../../../services/serviceRegistry';
+import { toastService } from '../../../services/ToastService';
 import {
   currentSettingsInviteContext,
   p2pStatusLabel
@@ -105,7 +106,6 @@ export function SharedToolsConnectionSettingsPanel({
     roomId: p2pActiveRoomId,
     status: p2pStatus
   } = useStream(p2pSessionService.session$);
-  const { message: inviteMessage } = useStream(p2pSessionService.invite$);
   const [playerRoomId, setPlayerRoomId] = useState(() => initialPlayerRoomId());
   const [playerPassword, setPlayerPassword] = useState(() => initialPlayerPassword());
   const settingsInviteContext = currentSettingsInviteContext();
@@ -136,9 +136,9 @@ export function SharedToolsConnectionSettingsPanel({
     if (!displayedInviteLink) return;
     try {
       await navigator.clipboard?.writeText(displayedInviteLink);
-      p2pSessionService.setInviteMessage('Ссылка скопирована.');
+      toastService.show('Ссылка скопирована.', 'success');
     } catch {
-      p2pSessionService.setInviteMessage('Скопируйте ссылку вручную.');
+      toastService.show('Скопируйте ссылку вручную.', 'warning');
     }
   };
 
@@ -152,7 +152,7 @@ export function SharedToolsConnectionSettingsPanel({
         <div className="player-tools-invite">
           <header>
             <strong>Приглашение</strong>
-            <span>{inviteMessage || 'Ссылка открывает игру игрока и подключает его к комнате.'}</span>
+            <span>Ссылка открывает игру игрока и подключает его к комнате.</span>
           </header>
           <div className="player-tools-actions">
             <Button variant="primary" size="sm" type="button" onClick={() => void createInvite()}>
