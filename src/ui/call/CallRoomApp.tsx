@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Hand, MessageCircle, Mic, MicOff, MonitorPlay, Send, Swords, UserRound, Video, VideoOff } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
-import { parseCallSessionLocation, readStoredCallName, readStoredCallSession, writeStoredCallName } from '../../domain/p2p/sessionLinks';
+import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, readStoredCallSession, writeStoredCallName } from '../../domain/p2p/sessionLinks';
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
 import { feedService, mediaCallService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
 import { toastService } from '../../services/ToastService';
@@ -37,6 +37,15 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     : '';
   const playerSeats = useMemo(() => Object.values(sceneTable.participants).filter((participant) => participant.role === 'player'), [sceneTable.participants]);
   const feedMessages = feed.filter((entry) => entry.type === 'message').slice(-8);
+
+  useEffect(() => {
+    if (!roomId || typeof window === 'undefined' || !isBareCallsPath(window.location.pathname, basePath)) return;
+    window.history.replaceState({}, '', buildCallInviteUrl({
+      origin: window.location.origin,
+      basePath,
+      roomId
+    }));
+  }, [basePath, roomId]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -300,6 +309,14 @@ function localParticipantFromCall(call: MediaCallState): CallParticipant {
     updatedAt: '',
     stream: call.localStream
   };
+}
+
+function isBareCallsPath(pathname: string, basePath: string): boolean {
+  const normalizedBase = basePath.replace(/\/+$/, '');
+  const strippedPath = normalizedBase && pathname.startsWith(normalizedBase)
+    ? pathname.slice(normalizedBase.length) || '/'
+    : pathname;
+  return (strippedPath.replace(/\/+$/, '') || '/') === '/calls';
 }
 
 function initials(name: string): string {
