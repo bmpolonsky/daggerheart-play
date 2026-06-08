@@ -15,6 +15,10 @@ test('public asset URLs respect GitHub Pages base paths', () => {
     publicAssetUrl('./image/domain/card/rune-ward.jpg', '/daggerheart-play'),
     'http://localhost/daggerheart-play/image/domain/card/rune-ward.webp'
   );
+  assert.equal(
+    publicAssetUrl('/image/domain/stress-cost.avif', '/daggerheart-play'),
+    'http://localhost/daggerheart-play/image/domain/stress-cost.webp'
+  );
 });
 
 test('public asset URLs normalize same-origin legacy image extensions', () => {

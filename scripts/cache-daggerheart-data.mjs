@@ -79,41 +79,23 @@ function resolveDownloadUrl(pathname) {
   return normalized ? `${BASE_URL}${normalized}` : null;
 }
 
-function ensureLeadingSlash(value) {
-  return value.startsWith('/') ? value : `/${value}`;
-}
-
 function clampNumber(value, min, max) {
   if (!Number.isFinite(value)) return max;
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
 function isWebpConvertibleAsset(pathname) {
-  return /\.(png|jpe?g)$/i.test(pathname);
+  return /\.(avif|png|jpe?g)$/i.test(pathname);
 }
 
 function webpAssetPath(pathname) {
-  return pathname.replace(/\.(png|jpe?g)$/i, '.webp');
+  return pathname.replace(/\.(avif|png|jpe?g)$/i, '.webp');
 }
 
 function publicAssetPath(pathname) {
   const normalized = normalizeAssetPath(pathname);
   if (!normalized) return null;
   return isWebpConvertibleAsset(normalized) ? webpAssetPath(normalized) : normalized;
-}
-
-function optimizeCardAssetPath(pathname) {
-  const normalized = ensureLeadingSlash(pathname);
-  const domainCardMatch = normalized.match(/^\/image\/domain\/card\/([^/.]+)(\.[a-zA-Z0-9]+)?$/);
-  if (domainCardMatch) {
-    return `/image/domain/card/small/${domainCardMatch[1]}.avif`;
-  }
-  const genericMatch = normalized.match(/^\/image\/(.+?)\/([^/.]+)\.(jpe?g|png|webp)$/);
-  if (genericMatch) {
-    const [, folder, slug] = genericMatch;
-    return `/image/${folder}/small/${slug}.avif`;
-  }
-  return normalized;
 }
 
 async function fetchJson(url) {
@@ -216,17 +198,6 @@ function collectAssetUrls(payload) {
     if (typeof item?.domain_image_url === 'string' && item.domain_image_url.trim()) {
       urls.add(item.domain_image_url);
     }
-    const normalizedImagePath = normalizeAssetPath(item?.image_url);
-    if (
-      typeof item?.image_url === 'string' &&
-      item.image_url.trim() &&
-      normalizedImagePath &&
-      !normalizedImagePath.startsWith('/image/adversary/') &&
-      !normalizedImagePath.startsWith('/image/equipment/') &&
-      !normalizedImagePath.startsWith('/image/environment/')
-    ) {
-      urls.add(optimizeCardAssetPath(item.image_url));
-    }
     if (typeof item?.class_slug === 'string' && item.class_slug.trim()) {
       const classSlug = item.class_slug.replace(/^playtest-/, '');
       urls.add(`/image/class/divider/${classSlug}.avif`);
@@ -281,7 +252,7 @@ async function loadCollection(collection) {
     }
     return {
       payload: normalizedCached,
-      assetUrls: collection.assets ? collectAssetUrls(normalizedCached) : new Set()
+      assetUrls: new Set()
     };
   }
 
@@ -319,7 +290,7 @@ async function loadCollection(collection) {
       console.warn(`Using cached ${collection.key}: ${String(error)}`);
       return {
         payload: normalizedCached,
-        assetUrls: collection.assets ? collectAssetUrls(normalizedCached) : new Set()
+        assetUrls: new Set()
       };
     }
 

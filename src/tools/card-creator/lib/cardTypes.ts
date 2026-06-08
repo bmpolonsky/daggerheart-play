@@ -25,7 +25,7 @@ export const CARD_TYPE_CONFIG: Record<CardTypeId, CardTypeConfig> = {
     cardLabel: "Родословная",
     baseClasses: ["ancestry"],
     pathSegment: "ancestry",
-    defaultDivider: "/image/ancestry/divider.avif",
+    defaultDivider: "/image/ancestry/divider.webp",
     supportsBanner: false,
     supportsPrelude: true,
     supportsSpellcast: false,

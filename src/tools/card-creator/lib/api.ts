@@ -90,22 +90,13 @@ type RawTemplateItem = {
   mastery_features?: RawFeature[];
 };
 
-function optimizeAssetPath(path: string) {
-  const domainCardMatch = path.match(/^\/image\/domain\/card\/([^/.]+)(\.[a-zA-Z0-9]+)?$/);
-  if (domainCardMatch) {
-    return `/image/domain/card/small/${domainCardMatch[1]}.avif`;
-  }
-  const genericMatch = path.match(/^\/image\/(.+?)\/([^/.]+)\.(jpe?g|png|webp)$/);
-  if (genericMatch) {
-    const [, folder, slug] = genericMatch;
-    return `/image/${folder}/small/${slug}.avif`;
-  }
-  return path;
+function localImagePath(path: string) {
+  return path.replace(/(\/image\/.+)\.(?:avif|jpe?g|png)$/i, "$1.webp");
 }
 
 function resolveImage(imageUrl?: string | null) {
   if (!imageUrl) {
-    imageUrl = "/image/wip.avif";
+    imageUrl = "/image/wip.webp";
   }
 
   if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
@@ -113,10 +104,10 @@ function resolveImage(imageUrl?: string | null) {
   }
 
   if (imageUrl.startsWith("/")) {
-    return `${ASSET_BASE_PATH}${optimizeAssetPath(imageUrl)}`;
+    return `${ASSET_BASE_PATH}${localImagePath(imageUrl)}`;
   }
 
-  return `${ASSET_BASE_PATH}${optimizeAssetPath(`/${imageUrl.replace(/^\/+/, "")}`)}`;
+  return `${ASSET_BASE_PATH}${localImagePath(`/${imageUrl.replace(/^\/+/, "")}`)}`;
 }
 
 const SUBCLASS_FEATURE_KEYS = [

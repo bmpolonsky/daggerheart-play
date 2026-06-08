@@ -30,6 +30,6 @@ function normalizeSameOriginPublicImageUrl(input: string, basePath: string): str
 }
 
 function normalizePublicImageUrl(url: URL): URL {
-  url.pathname = url.pathname.replace(/(\/image\/.+)\.(?:jpe?g|png)$/i, '$1.webp');
+  url.pathname = url.pathname.replace(/(\/image\/.+)\.(?:avif|jpe?g|png)$/i, '$1.webp');
   return url;
 }
