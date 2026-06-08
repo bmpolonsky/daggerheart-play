@@ -2,6 +2,7 @@
    primitives own their styles in src/ui/components/common/*.module.css. */
 :root,
 .cinematic-vtt,
+.call-room,
 .role-entry,
 .player-view,
 .tool-viewport {
@@ -64,8 +65,7 @@
 
 .player-tools-modal__panel,
 .cinematic-builder,
-.cinematic-drawer,
-.role-entry__card {
+.cinematic-drawer {
   border-radius: var(--dh-radius-lg);
   border: 1px solid rgba(243, 234, 216, 0.07);
   background:
@@ -76,7 +76,6 @@
 }
 
 .role-entry__players,
-.role-entry__games,
 .player-tools-row,
 .player-tools-grid > *,
 .player-sheet-row,

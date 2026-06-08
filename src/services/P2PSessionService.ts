@@ -34,6 +34,7 @@ import type {
 } from './SyncService';
 import type { SceneTableService } from './SceneTableService';
 import type { SceneAudioBroadcastService } from './SceneAudioBroadcastService';
+import type { MediaCallService } from './MediaCallService';
 import { TrysteroP2PTransport, type TrysteroP2PTransportOptions } from './TrysteroSyncTransport';
 import {
   forgetActiveSession,
@@ -140,7 +141,8 @@ export class P2PSessionService {
     private audioService?: AudioService,
     private sceneAudioBroadcastService?: SceneAudioBroadcastService,
     private transportFactory: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter = (options) => new TrysteroP2PTransport(options),
-    private roomConnectionConfig: P2PRoomConnectionConfig = {}
+    private roomConnectionConfig: P2PRoomConnectionConfig = {},
+    private mediaCallService?: MediaCallService
   ) {
     this.assetTransferService = new P2PAssetTransferService(
       syncService,
@@ -310,8 +312,11 @@ export class P2PSessionService {
     const transport = this.createTransport(password);
     this.audioService?.setVoiceTransport(transport);
     this.sceneAudioBroadcastService?.setTransport(transport);
+    this.mediaCallService?.setMediaTransport(transport);
+    this.mediaCallService?.setRoom({ roomId, displayName: input.participantName, role: 'gm' });
     this.sceneTableService.ensurePlayerSeatsForCharacters(Object.values(charactersStore.get().entities));
     this.syncService.setTransport(transport);
+    this.bindCallPresenceSync();
     this.subscriptions.add(this.syncService.subscribeSnapshotRequests((_request, _event, context) => {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Игрок запрашивает данные игры.' });
       void this.publishSnapshot({ targetPeer: context?.sourcePeerId });
@@ -422,7 +427,10 @@ export class P2PSessionService {
     const transport = this.createTransport(password);
     this.audioService?.setVoiceTransport(transport);
     this.sceneAudioBroadcastService?.setTransport(transport);
+    this.mediaCallService?.setMediaTransport(transport);
+    this.mediaCallService?.setRoom({ roomId, displayName: input.participantName, role: 'player' });
     this.syncService.setTransport(transport);
+    this.bindCallPresenceSync();
     this.patchSession({ status: 'connecting', role: 'player', roomId, message: 'Подключаемся к серверу мастера.' });
     try {
       await this.syncService.connectReadOnly(roomId, participant, (state) => {
@@ -447,6 +455,7 @@ export class P2PSessionService {
     } catch (error) {
       this.audioService?.setVoiceTransport(null);
       this.sceneAudioBroadcastService?.setTransport(null);
+      this.mediaCallService?.setMediaTransport(null);
       this.subscriptions.clear();
       await this.syncService.disconnect().catch(() => undefined);
       this.patchSession({
@@ -511,6 +520,7 @@ export class P2PSessionService {
     await this.syncService.disconnect();
     this.audioService?.setVoiceTransport(null);
     this.sceneAudioBroadcastService?.setTransport(null);
+    this.mediaCallService?.setMediaTransport(null);
     if (options.forgetSession !== false) {
       forgetActiveSession();
     }
@@ -1184,6 +1194,7 @@ export class P2PSessionService {
     if (event.type === 'peer-joined') {
       const session = this.session$.get();
       const isGmRestored = session.role === 'player' && event.role === 'gm';
+      void this.mediaCallService?.publishPresence();
       this.patchSession({
         peers: event.peers,
         status: session.role === 'gm' || isGmRestored ? 'connected' : session.status,
@@ -1194,6 +1205,7 @@ export class P2PSessionService {
     if (event.type === 'peer-left') {
       this.audioService?.removeRemoteVoicePeer(event.peerId);
       this.sceneAudioBroadcastService?.removeRemotePeer(event.peerId);
+      this.mediaCallService?.removeRemotePeer(event.peerId);
       this.playerPresenceService.markDisconnectedByPeer(event.peerId);
       this.patchSession((state) => ({
         ...state,
@@ -1226,6 +1238,7 @@ export class P2PSessionService {
       void this.requestSnapshotFromGm('peer-reconnect');
       void this.republishPendingRequests();
       void this.republishRaisedHand();
+      void this.mediaCallService?.publishPresence();
       return;
     }
     if (event.type === 'error') {
@@ -1242,6 +1255,13 @@ export class P2PSessionService {
       connected: true,
       updatedAt: nowIso()
     };
+  }
+
+  private bindCallPresenceSync(): void {
+    if (!this.mediaCallService) return;
+    this.subscriptions.add(this.syncService.subscribeCallPresence((presence, _event, context) => {
+      this.mediaCallService?.receiveRemotePresence(presence, context?.sourcePeerId);
+    }));
   }
 
   private async republishPendingRequests(): Promise<void> {

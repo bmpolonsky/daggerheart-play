@@ -4,8 +4,9 @@ import { useEffect, useState } from 'preact/hooks';
 import { RoleEntry } from './ui/lobby/RoleEntry';
 
 type WorkspaceId = 'play' | 'combat' | 'cards';
-type RouteId = 'entry' | 'gm' | 'join' | 'player' | 'combat' | 'cards';
+type RouteId = 'entry' | 'gm' | 'join' | 'player' | 'call' | 'combat' | 'cards';
 type OpenWorkspaceEvent = CustomEvent<{ workspace: WorkspaceId; hash?: string }>;
+type NavigateRouteEvent = CustomEvent<{ route: RouteId; hash?: string; search?: string; roomId?: string }>;
 
 const PlayerViewApp = lazy(async () => {
   const { PlayerViewApp } = await import('./ui/vtt/PlayerViewApp');
@@ -20,6 +21,11 @@ const CombatBuilderTool = lazy(async () => {
 const CardCreatorTool = lazy(async () => {
   const { CardCreatorTool } = await import('./tools/CardCreatorTool');
   return { default: CardCreatorTool };
+});
+
+const CallRoomApp = lazy(async () => {
+  const { CallRoomApp } = await import('./ui/call/CallRoomApp');
+  return { default: CallRoomApp };
 });
 
 const ROUTES: Array<{
@@ -41,6 +47,10 @@ const ROUTES: Array<{
   {
     id: 'player',
     path: '/player'
+  },
+  {
+    id: 'call',
+    path: '/calls'
   },
   {
     id: 'combat',
@@ -78,6 +88,7 @@ function routeFromPath(pathname: string): (typeof ROUTES)[number] {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   if (/^\/join\/[^/]+$/.test(normalized)) return routeById('join');
   if (/^\/player\/[^/]+$/.test(normalized)) return routeById('player');
+  if (/^\/calls(?:\/[^/]+)?$/.test(normalized)) return routeById('call');
   if (normalized === '/player') return routeById('entry');
   return ROUTES.find((route) => route.path === normalized) ?? ROUTES[0];
 }
@@ -113,8 +124,8 @@ function pathWithBase(pathname: string): string {
 }
 
 function pathForRoute(routeId: RouteId, roomId?: string): string {
-  if ((routeId === 'join' || routeId === 'player') && roomId) {
-    return pathWithBase(`/${routeId}/${encodeURIComponent(roomId)}`);
+  if ((routeId === 'join' || routeId === 'player' || routeId === 'call') && roomId) {
+    return pathWithBase(`/${routeId === 'call' ? 'calls' : routeId}/${encodeURIComponent(roomId)}`);
   }
   return pathWithBase(routeById(routeId).path);
 }
@@ -154,11 +165,18 @@ export function SuperApp() {
       if (!detail) return;
       navigateToRoute(routeFromWorkspace(detail.workspace), detail.hash ?? '');
     };
+    const handleNavigateRoute = (event: Event) => {
+      const detail = (event as NavigateRouteEvent).detail;
+      if (!detail) return;
+      navigateToRoute(detail.route, detail.hash ?? '', detail.search ?? '', detail.roomId);
+    };
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('daggerheart-play:open-workspace', handleOpenWorkspace);
+    window.addEventListener('daggerheart-play:navigate-route', handleNavigateRoute);
     return () => {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('daggerheart-play:open-workspace', handleOpenWorkspace);
+      window.removeEventListener('daggerheart-play:navigate-route', handleNavigateRoute);
     };
   }, []);
 
@@ -170,6 +188,7 @@ export function SuperApp() {
           {activeRoute === 'join' && <RoleEntry key={activeLocation} basePath={appBasePath()} onSelectRole={navigateToRoute} />}
           {activeRoute === 'gm' && <PlayerViewApp role="gm" />}
           {activeRoute === 'player' && <PlayerViewApp key={activeLocation} />}
+          {activeRoute === 'call' && <CallRoomApp key={activeLocation} basePath={appBasePath()} />}
           {activeRoute === 'combat' && <CombatBuilderTool />}
           {activeRoute === 'cards' && <CardCreatorTool />}
         </Suspense>

@@ -49,6 +49,7 @@ Do not introduce new global color systems for screens. If a tool needs local ali
 - Use `Avatar` for round image/fallback identity accessories.
 - Use `IconButton` for icon-only commands. Every icon-only button needs `aria-label` or `title`.
 - Use `Surface` for layout panels and glass containers.
+- Use `DraggableSurface` for floating movable panels over the game table.
 - Use `Card` only for repeated item cards with content, not for page sections.
 - Use `ChoiceCard` for clickable/selectable choices.
 - Use `Field`, `TextField`, `SelectField`, `TextControl`, `SelectControl`, and related controls for all inputs.
@@ -194,6 +195,27 @@ Guidance:
 - `solid`: denser tool surface.
 - `subtle`: nested grouping without visual noise.
 - If a `Surface` is nested inside another `Surface`, usually use `tone="subtle"` and avoid adding borders.
+
+### DraggableSurface
+
+Use for floating movable panels over the VTT, such as call widgets or roll confirmation tools.
+
+```tsx
+<DraggableSurface
+  aria-label="Видео звонок"
+  title="Звонок"
+  actions={<IconButton aria-label="Свернуть" title="Свернуть">...</IconButton>}
+  defaultPosition={() => ({ x: window.innerWidth - 338, y: window.innerHeight - 316 })}
+>
+  ...
+</DraggableSurface>
+```
+
+Guidance:
+
+- Build draggable windows from this primitive instead of local pointer hooks.
+- Set `--dh-draggable-z-index` on the feature class when layering matters.
+- Put icon-only window controls in `actions`; they are excluded from drag capture.
 
 ### Card
 

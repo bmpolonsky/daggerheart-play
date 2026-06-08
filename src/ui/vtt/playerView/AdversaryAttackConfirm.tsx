@@ -5,11 +5,9 @@ import type { PlayerViewAdversarySummary } from '../../../domain/tabletop/player
 import { addAdvantageDie, buildActionComposerRollOptions } from '../../../domain/rules/actionComposer';
 import type { RollPublication } from '../../../domain/rules/types';
 import { compactDamageTypeLabel, signed } from './helpers';
-import { RollConfirmHeader, RollPrivateToggle, useRollConfirmDrag } from './RollConfirmControls';
+import { RollConfirmCloseButton, RollPrivateToggle, rollConfirmDefaultPosition } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
-import { Button } from '../../components/common/Button';
-import { Checkbox } from '../../components/common/Checkbox';
-import { SegmentedControl } from '../../components/common/SegmentedControl';
+import { Button, Checkbox, DraggableSurface, SegmentedControl } from '../../components/common';
 
 export interface AdversaryAttackRollOptions {
   advantageCount: number;
@@ -38,7 +36,6 @@ export function AdversaryAttackConfirm({
   const [experienceIds, setExperienceIds] = useState<string[]>([]);
   const [spendFearForExperiences, setSpendFearForExperiences] = useState(true);
   const [criticalDamage, setCriticalDamage] = useState(false);
-  const { panelRef, position, dragHandlers } = useRollConfirmDrag();
   const experienceModifier = adversary.experiences
     .filter((experience) => experienceIds.includes(experience.id))
     .reduce((sum, experience) => sum + experience.modifier, 0);
@@ -69,8 +66,14 @@ export function AdversaryAttackConfirm({
 
   const content = (
     <div className="dh-portal-scope player-roll-confirm-portal">
-      <section ref={panelRef} className="player-roll-confirm" aria-label="Подтверждение атаки противника" style={{ left: position.x, top: position.y }}>
-      <RollConfirmHeader label="Атака противника" onClose={onClose} dragHandlers={dragHandlers} />
+      <DraggableSurface
+        className="player-roll-confirm"
+        aria-label="Подтверждение атаки противника"
+        title="Атака противника"
+        actions={<RollConfirmCloseButton onClose={onClose} />}
+        defaultPosition={rollConfirmDefaultPosition}
+        bounds={{ top: 72, right: 12, bottom: 18, left: 12 }}
+      >
       <div className="player-roll-confirm__intro">
         <strong>{adversary.standardAttack.name}</strong>
         <p>{signed(adversary.attackModifier)} / {adversary.standardAttack.range} / {adversary.standardAttack.damage} {compactDamageTypeLabel(adversary.standardAttack.damageType)}</p>
@@ -151,7 +154,7 @@ export function AdversaryAttackConfirm({
           {mode === 'attack' ? 'Бросить атаку' : 'Бросить урон'}
         </Button>
       </div>
-      </section>
+      </DraggableSurface>
     </div>
   );
   return typeof document === 'undefined' ? content : createPortal(content, document.body);

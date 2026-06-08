@@ -2,6 +2,7 @@ import type { ElementType, HTMLAttributes } from 'react';
 import styles from './Surface.module.css';
 
 type UiNode = any;
+type SurfaceElementRef = { current: HTMLElement | null } | ((element: HTMLElement | null) => void);
 
 export type SurfaceTone = 'glass' | 'solid' | 'subtle';
 export type SurfacePadding = 'none' | 'sm' | 'md';
@@ -19,6 +20,7 @@ const paddingClass: Record<SurfacePadding, string> = {
 
 export interface SurfaceProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
   as?: ElementType;
+  elementRef?: SurfaceElementRef;
   tone?: SurfaceTone;
   padding?: SurfacePadding;
   children: UiNode;
@@ -30,10 +32,11 @@ export function Surface({
   padding = 'md',
   children,
   className = '',
+  elementRef,
   ...props
 }: SurfaceProps) {
   return (
-    <Component className={`dh-surface ${styles.root} ${toneClass[tone]} ${paddingClass[padding]} ${className}`.trim()} {...props}>
+    <Component ref={elementRef} className={`dh-surface ${styles.root} ${toneClass[tone]} ${paddingClass[padding]} ${className}`.trim()} {...props}>
       {children}
     </Component>
   );

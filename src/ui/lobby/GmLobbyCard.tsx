@@ -3,10 +3,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { Crown, Link2, RefreshCw, Trash2 } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { characterService, gameService, gmLobbyService, sceneTableService } from '../../services/serviceRegistry';
-import { Button } from '../components/common/Button';
-import { SelectControl, TextControl } from '../components/common/Field';
-import { IconButton } from '../components/common/IconButton';
-import { Surface } from '../components/common/Surface';
+import { Button, EmptyState, IconButton, SectionHeader, SelectControl, Surface, TextControl, Toolbar } from '../components/common';
 import type { LobbyInviteContext } from './SessionLobby';
 
 interface GmLobbyCardProps {
@@ -66,20 +63,13 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
 
   return (
     <Surface className="role-entry__card role-entry__gm-card" aria-label="Создать сессию мастера">
-      <header>
-        <Crown size={20} />
-        <div>
-          <strong>Мастер</strong>
-          <span>Управление комнатой и местами игроков.</span>
-        </div>
-      </header>
+      <SectionHeader title="Мастер" subtitle="Управление комнатой и местами игроков." actions={<Crown size={20} aria-hidden="true" />} />
       <div className="role-entry__invite-line">
         <label>
           <span>Код комнаты</span>
           <TextControl value={displayedGmRoomId} readOnly />
         </label>
         <IconButton
-          className="role-entry__icon-action role-entry__room-refresh"
           variant="ghost"
           size="sm"
           type="button"
@@ -92,12 +82,14 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
         </IconButton>
       </div>
       <div className="role-entry__players">
-        <header>
-          <strong>Игроки</strong>
+        <SectionHeader
+          title="Игроки"
+          actions={
           <Button size="sm" type="button" onClick={() => sceneTableService.createPlayerSeat({ name: `Игрок ${playerSeats.length + 1}`, characterId: characterOptions[playerSeats.length]?.id })}>
             Добавить
           </Button>
-        </header>
+          }
+        />
         {playerSeats.map((seat) => (
           <article className="role-entry__player-row" key={seat.id}>
             <TextControl
@@ -115,18 +107,18 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
                 <option key={character.id} value={character.id}>{character.name}</option>
               ))}
             </SelectControl>
-            <IconButton className="role-entry__icon-action" variant="ghost" size="sm" type="button" title="Удалить игрока" aria-label={`Удалить игрока ${seat.name}`} onClick={() => sceneTableService.removePlayerSeat(seat.id)}>
+            <IconButton variant="ghost" size="sm" type="button" title="Удалить игрока" aria-label={`Удалить игрока ${seat.name}`} onClick={() => sceneTableService.removePlayerSeat(seat.id)}>
               <Trash2 size={15} aria-hidden="true" />
             </IconButton>
           </article>
         ))}
-        {playerSeats.length === 0 && <p>Добавьте игроков, чтобы они выбирали свои места при входе.</p>}
+        {playerSeats.length === 0 && <EmptyState size="sm" title="Добавьте игроков" body="После этого они смогут выбирать свои места при входе." />}
       </div>
-      <div className="role-entry__inline-actions">
+      <Toolbar className="role-entry__inline-actions">
         <Button variant="primary" type="button" onClick={enterGm}>
           Открыть игру
         </Button>
-      </div>
+      </Toolbar>
       <div className="role-entry__invite-line">
         <label>
           <span>Ссылка игрока</span>

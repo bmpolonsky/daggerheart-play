@@ -1490,57 +1490,17 @@
   --dh-gold-400: #f0c96a;
   --dh-paper-100: #f3ead8;
   --dh-paper-muted: rgba(243, 234, 216, 0.7);
-  position: fixed;
-  z-index: 360;
+  --dh-draggable-z-index: 360;
   width: min(354px, calc(100vw - 24px));
   max-height: calc(100vh - 90px);
-  display: grid;
-  gap: 10px;
-  padding: 14px;
-  overflow: auto;
-  border: 0;
-  border-radius: 17px;
-  background: rgba(8, 9, 11, 0.86);
-  box-shadow: 0 24px 74px rgba(0, 0, 0, 0.36);
-  backdrop-filter: blur(18px) saturate(1.14);
 }
 
-.player-roll-confirm__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
-
-.player-roll-confirm__header:active {
-  cursor: grabbing;
-}
-
-.player-roll-confirm__header span,
 .player-roll-confirm__field > span,
 .player-roll-confirm__checks > span {
   color: var(--dh-gold-400);
   font-size: 0.66rem;
   font-weight: 950;
   text-transform: uppercase;
-}
-
-.player-roll-confirm__header button {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(7, 9, 12, 0.34);
-  color: var(--dh-paper-100);
-}
-
-.player-roll-confirm__header button:hover {
-  background: rgba(243, 234, 216, 0.1);
 }
 
 .player-roll-confirm__intro {
@@ -1568,24 +1528,6 @@
   gap: 10px;
 }
 
-.player-roll-confirm select {
-  min-width: 0;
-  width: 100%;
-  min-height: 30px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 8px;
-  background: rgba(7, 9, 12, 0.62);
-  color: var(--dh-paper-100);
-  font-size: 0.78rem;
-  outline: none;
-}
-
-.player-roll-confirm select:focus-visible,
-.player-roll-confirm input:focus-visible {
-  box-shadow: 0 0 0 2px rgba(240, 201, 106, 0.34);
-}
-
 .player-roll-confirm__segmented {
   width: 100%;
 }
@@ -1606,11 +1548,6 @@
   justify-content: flex-start;
   gap: 8px;
   width: fit-content;
-  min-height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
   color: rgba(243, 234, 216, 0.76);
   font-size: 0.68rem;
   font-weight: 900;

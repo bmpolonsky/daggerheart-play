@@ -6,6 +6,7 @@ import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableP
 import { hydratePersistedState, isPersistedState, normalizePersistedState, snapshotPersistedState } from '../stores/persistedState';
 import { isPlayerActivationQueueMessage, type PlayerActivationQueueMessage } from './PlayerActivationQueueService';
 import { isPlayerPresence, isPlayerVoiceControlMessage, type PlayerPresence, type PlayerVoiceControlMessage } from './PlayerPresenceService';
+import { isCallPresenceMessage, type CallPresenceMessage } from './MediaCallService';
 
 export type SyncServiceMode = 'authority' | 'readonly';
 type SyncEventKind = SyncEvent['kind'];
@@ -158,6 +159,7 @@ const syncChannels = {
   playerActivation: channel<PlayerActivationQueueMessage>('playerActivation', isPlayerActivationQueueMessage),
   playerPresence: channel<PlayerPresence>('presence', isPlayerPresence),
   playerVoiceControl: channel<PlayerVoiceControlMessage>('playerVoiceControl', isPlayerVoiceControlMessage),
+  callPresence: channel<CallPresenceMessage>('callPresence', isCallPresenceMessage),
   feed: channel<FeedEntry>('feed', isFeedEntry),
   playerTokenMove: channel<PlayerTokenMoveMessage>('playerTokenMove', isPlayerTokenMoveMessage),
   playerRestChoice: channel<PlayerRestChoiceMessage>('playerRestChoice', isPlayerRestChoiceMessage),
@@ -283,6 +285,14 @@ export class SyncService {
 
   subscribePlayerVoiceControls(listener: (message: PlayerVoiceControlMessage, event: SyncEvent) => void): () => void {
     return this.subscribeChannel(syncChannels.playerVoiceControl, listener);
+  }
+
+  async publishCallPresence(message: CallPresenceMessage): Promise<boolean> {
+    return this.publishChannel(syncChannels.callPresence, message);
+  }
+
+  subscribeCallPresence(listener: (message: CallPresenceMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
+    return this.subscribeChannel(syncChannels.callPresence, listener);
   }
 
   async publishFeedEntry(entry: FeedEntry): Promise<boolean> {

@@ -4,9 +4,7 @@ import { Download, Trash2, Upload } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
 import { importExportService, persistenceService } from '../../services/serviceRegistry';
-import { Button } from '../components/common/Button';
-import { IconButton } from '../components/common/IconButton';
-import { Surface } from '../components/common/Surface';
+import { Button, EmptyState, IconButton, ListItem, SectionHeader, Surface, Toolbar } from '../components/common';
 import type { StoredGameSummary } from '../../core/persistence/gameDocumentStore';
 
 export function StoredGamesCard() {
@@ -57,12 +55,10 @@ export function StoredGamesCard() {
   return (
     <>
       <Surface className="role-entry__card role-entry__games-card" aria-label="Управление сохранениями">
-        <header>
-          <Download size={20} />
-          <div>
-            <strong>Сохранения</strong>
-          </div>
-          <div className="role-entry__storage-tools">
+        <SectionHeader
+          title="Сохранения"
+          actions={
+            <Toolbar className="role-entry__storage-tools">
             <Button size="sm" type="button" onClick={() => void createStoredGame()}>
               Новая
             </Button>
@@ -74,28 +70,32 @@ export function StoredGamesCard() {
                 Экспорт
               </Button>
             )}
-          </div>
-        </header>
+            </Toolbar>
+          }
+        />
         <div className="role-entry__game-list">
           {storedGames.map((game) => (
-            <article className={game.active ? 'dh-is-active' : ''} key={game.id}>
-              <div>
-                <strong>{game.name || 'Без названия'}</strong>
-                <span>{game.updatedAt ? formatDateTime(game.updatedAt) : 'Без сохранения'}</span>
-              </div>
-              <div className="role-entry__game-actions">
-                {!game.active && (
-                  <Button size="sm" type="button" onClick={() => void switchStoredGame(game.id)}>
-                    Открыть
-                  </Button>
-                )}
-                <IconButton className="role-entry__icon-action" variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => void removeStoredGame(game)}>
+            <ListItem
+              key={game.id}
+              title={game.name || 'Без названия'}
+              subtitle={game.updatedAt ? formatDateTime(game.updatedAt) : 'Без сохранения'}
+              tone={game.active ? 'featured' : 'default'}
+              leftAccessory={<Download size={17} aria-hidden="true" />}
+              rightAccessory={
+                <Toolbar className="role-entry__game-actions">
+                  {!game.active && (
+                    <Button size="sm" type="button" onClick={() => void switchStoredGame(game.id)}>
+                      Открыть
+                    </Button>
+                  )}
+                <IconButton variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => void removeStoredGame(game)}>
                   <Trash2 size={14} aria-hidden="true" />
                 </IconButton>
-              </div>
-            </article>
+                </Toolbar>
+              }
+            />
           ))}
-          {storedGames.length === 0 && <p>Сохранения появятся здесь после первого изменения игры.</p>}
+          {storedGames.length === 0 && <EmptyState size="sm" title="Сохранений пока нет" body="Они появятся здесь после первого изменения игры." />}
         </div>
         <input
           ref={importFileRef}

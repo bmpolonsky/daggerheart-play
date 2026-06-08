@@ -8,6 +8,7 @@ import { DiceService } from './DiceService';
 import { EncounterService } from './EncounterService';
 import { FeedService } from './FeedService';
 import { ImportExportService } from './ImportExportService';
+import { MediaCallService } from './MediaCallService';
 import { P2PSessionService } from './P2PSessionService';
 import { PersistenceService } from './PersistenceService';
 import { PlayerActionRequestService } from './PlayerActionRequestService';
@@ -35,7 +36,8 @@ export const playerPresenceService = new PlayerPresenceService();
 export const sceneTableService = new SceneTableService();
 export const sceneAudioBroadcastService = new SceneAudioBroadcastService();
 export const syncService = new SyncService();
-export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService);
+export const mediaCallService = new MediaCallService(syncService);
+export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, undefined, undefined, mediaCallService);
 export const gmLobbyService = new GmLobbyService(p2pSessionService);
 characterService.setDeathMoveRequestHandler((character, transition) => {
   if (p2pSessionService.isConnectedPlayerSession()) return;

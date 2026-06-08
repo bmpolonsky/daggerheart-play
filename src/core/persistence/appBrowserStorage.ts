@@ -33,6 +33,7 @@ export interface AppLocalStorageState {
   p2p?: {
     activeSession?: StoredP2PSession | null;
     inviteDraft?: StoredP2PInviteDraft | null;
+    callNames?: Record<string, string>;
   };
   preferences?: {
     privateRolls?: boolean;
@@ -192,7 +193,8 @@ function normalizeLocalStorageState(value: unknown): AppLocalStorageState | null
     version: 1,
     p2p: p2p ? {
       activeSession: isStoredP2PSession(p2p.activeSession) ? p2p.activeSession : p2p.activeSession === null ? null : undefined,
-      inviteDraft: isStoredP2PInviteDraft(p2p.inviteDraft) ? p2p.inviteDraft : p2p.inviteDraft === null ? null : undefined
+      inviteDraft: isStoredP2PInviteDraft(p2p.inviteDraft) ? p2p.inviteDraft : p2p.inviteDraft === null ? null : undefined,
+      callNames: isStringRecord(p2p.callNames) ? p2p.callNames : undefined
     } : undefined,
     preferences: preferences ? {
       privateRolls: typeof preferences.privateRolls === 'boolean' ? preferences.privateRolls : undefined

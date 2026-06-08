@@ -5,13 +5,10 @@ import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/player
 import { addAdvantageDie, buildActionComposerRollOptions, type ActionComposerRollOptions, type AdvantageMode } from '../../../domain/rules/actionComposer';
 import type { RollPublication, TraitId } from '../../../domain/rules/types';
 import { signed } from './helpers';
-import { RollConfirmHeader, RollPrivateToggle, useRollConfirmDrag } from './RollConfirmControls';
+import { RollConfirmCloseButton, RollPrivateToggle, rollConfirmDefaultPosition } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
 import type { PlayerRollDraft, PlayerRollType } from './types';
-import { Button } from '../../components/common/Button';
-import { Checkbox } from '../../components/common/Checkbox';
-import { SelectControl } from '../../components/common/Field';
-import { SegmentedControl } from '../../components/common/SegmentedControl';
+import { Button, Checkbox, DraggableSurface, SelectControl, SegmentedControl } from '../../components/common';
 
 export function PlayerRollConfirm({
   character,
@@ -41,7 +38,6 @@ export function PlayerRollConfirm({
   const [disadvantageCount, setDisadvantageCount] = useState(initialDisadvantageCount ?? (initialAdvantageMode < 0 ? 1 : 0));
   const [experienceIds, setExperienceIds] = useState<string[]>([]);
   const [spendHopeForExperiences, setSpendHopeForExperiences] = useState(true);
-  const { panelRef, position, dragHandlers } = useRollConfirmDrag();
   const experienceModifier = character.experiences
     .filter((experience) => experienceIds.includes(experience.id))
     .reduce((sum, experience) => sum + experience.modifier, 0);
@@ -61,12 +57,14 @@ export function PlayerRollConfirm({
   };
   const content = (
     <div className="dh-portal-scope player-roll-confirm-portal">
-      <section ref={panelRef} className="player-roll-confirm" aria-label="Подтверждение броска" style={{ left: position.x, top: position.y }}>
-      <RollConfirmHeader
-        label={draft.kind === 'weapon' ? 'Атака' : draft.kind === 'card' ? 'Карта домена' : 'Характеристика'}
-        onClose={onClose}
-        dragHandlers={dragHandlers}
-      />
+      <DraggableSurface
+        className="player-roll-confirm"
+        aria-label="Подтверждение броска"
+        title={draft.kind === 'weapon' ? 'Атака' : draft.kind === 'card' ? 'Карта домена' : 'Характеристика'}
+        actions={<RollConfirmCloseButton onClose={onClose} />}
+        defaultPosition={rollConfirmDefaultPosition}
+        bounds={{ top: 72, right: 12, bottom: 18, left: 12 }}
+      >
       <div className="player-roll-confirm__intro">
         <strong>{draft.title}</strong>
         <p>{draft.subtitle}</p>
@@ -136,7 +134,7 @@ export function PlayerRollConfirm({
         >{rollType === 'reaction' ? 'Бросить реакцию' : 'Бросить действие'}</Button>
         {onDamage && <Button type="button" onClick={() => onDamage({ publication })}>Бросить урон</Button>}
       </div>
-      </section>
+      </DraggableSurface>
     </div>
   );
   return typeof document === 'undefined' ? content : createPortal(content, document.body);

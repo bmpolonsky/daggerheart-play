@@ -21,6 +21,7 @@ import { SceneAudioRuntime } from './playerView/SceneAudioRuntime';
 import { PlayerActionDock } from './playerView/PlayerActionDock';
 import { PlayerConnectionStatus } from './playerView/PlayerConnectionStatus';
 import { PlayerSessionRuntime } from './playerView/PlayerSessionRuntime';
+import { FloatingCallWidget } from '../call/FloatingCallWidget';
 import { useLiveSceneAssetUrls } from './playerView/useLiveSceneAssetUrls';
 import {
   cssImageUrl,
@@ -291,6 +292,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         selectedPlayerSeatId={selectedPlayerSeatId}
         onOpenTools={openTools}
       />
+      <FloatingCallWidget />
       <PlayerCharacterPanel
         activeCharacterId={displayedCharacter?.id ?? null}
         activeAdversaryId={displayedAdversary?.id ?? null}

@@ -1,14 +1,12 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Mic, MicOff, MonitorPlay, Video, VideoOff } from 'lucide-react';
+import { MonitorPlay } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import type { Character } from '../../domain/rules/types';
 import type { TableParticipant } from '../../domain/tabletop/types';
-import { audioService, characterService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
-import { Button } from '../components/common/Button';
-import { ChoiceCard } from '../components/common/ChoiceCard';
-import { Surface } from '../components/common/Surface';
+import { characterService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
+import { Button, ChoiceCard, EmptyState, Notice, SectionHeader, Surface, Toolbar } from '../components/common';
 
 interface PlayerJoinLobbyProps {
   password?: string;
@@ -21,13 +19,9 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
   const { entities: characterEntities } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
   const session = useStream(p2pSessionService.session$);
-  const audioState = useStream(audioService.audio$);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');
   const [selectedSeatId, setSelectedSeatId] = useState(() => readStoredPlayerSeatId(roomId));
-  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
-  const [videoMessage, setVideoMessage] = useState('Камера выключена.');
   const [snapshotWaitExpired, setSnapshotWaitExpired] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const connectKey = useRef<string | null>(null);
   const selectedSeat = playerSeats.find((seat) => seat.id === selectedSeatId) ?? null;
   const connectedToRoom = session.connected && session.role === 'player' && session.roomId === roomId;
@@ -64,40 +58,10 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
     return () => window.clearTimeout(timeoutId);
   }, [roomId, waitingForSnapshot]);
 
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = videoStream;
-    }
-  }, [videoStream]);
-
-  useEffect(() => () => {
-    videoStream?.getTracks().forEach((track) => track.stop());
-  }, [videoStream]);
-
   const enterPlayerTable = () => {
     if (!selectedSeat) return;
     writeStoredPlayerSeatId(roomId, selectedSeat.id);
     onEnterPlayerRoom(roomId, selectedSeat.id);
-  };
-
-  const toggleCamera = async () => {
-    if (videoStream) {
-      videoStream.getTracks().forEach((track) => track.stop());
-      setVideoStream(null);
-      setVideoMessage('Камера выключена.');
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setVideoMessage('Камера недоступна в этом браузере.');
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      setVideoStream(stream);
-      setVideoMessage('Камера включена.');
-    } catch {
-      setVideoMessage('Не удалось включить камеру.');
-    }
   };
 
   return (
@@ -110,13 +74,7 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
         </div>
         <div className="player-join-lobby">
           <Surface className="role-entry__card player-join-lobby__seats" aria-label="Игроки комнаты">
-            <header>
-              <MonitorPlay size={20} />
-              <div>
-                <strong>Игроки</strong>
-                <span>{joinStatus}</span>
-              </div>
-            </header>
+            <SectionHeader title="Игроки" subtitle={joinStatus} actions={<MonitorPlay size={20} aria-hidden="true" />} />
             <div className="player-join-lobby__seat-list">
               {playerSeats.map((seat) => {
                 const character = characterForSeat(seat, characterEntities);
@@ -132,40 +90,21 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, password = '
                   </ChoiceCard>
                 );
               })}
-              {playerSeats.length === 0 && <p>{joining || connectedToRoom ? 'Ждем список игроков от мастера.' : session.message}</p>}
+              {playerSeats.length === 0 && (
+                <EmptyState size="sm" title={joining || connectedToRoom ? 'Ждем список игроков от мастера' : session.message} />
+              )}
             </div>
-            <div className="role-entry__inline-actions">
+            <Toolbar className="role-entry__inline-actions">
               <Button type="button" onClick={onBackToLobby}>
                 Сменить комнату
               </Button>
               <Button variant="primary" type="button" disabled={!selectedSeat} onClick={enterPlayerTable}>
                 Войти за игрока
               </Button>
-            </div>
-          </Surface>
-          <Surface className="role-entry__card player-join-lobby__media" aria-label="Аудио и видео">
-            <header>
-              <Mic size={20} />
-              <div>
-                <strong>Аудио и видео</strong>
-                <span>{audioState.voiceMessage}</span>
-              </div>
-            </header>
-            <div className="player-join-lobby__media-preview">
-              {videoStream ? <video ref={videoRef} autoPlay muted playsInline /> : <VideoOff size={32} />}
-            </div>
-            <span className="player-join-lobby__media-status">{videoMessage}</span>
-            <div className="role-entry__inline-actions">
-              <Button type="button" disabled={!connectedToRoom && !joining} iconBefore={audioState.voiceStatus === 'live' ? <Mic size={15} aria-hidden="true" /> : <MicOff size={15} aria-hidden="true" />} onClick={() => void audioService.toggleVoiceChat(selectedSeat?.name.trim() || undefined)}>
-                {audioState.voiceStatus === 'live' ? 'Микрофон включен' : 'Проверить микрофон'}
-              </Button>
-              <Button type="button" iconBefore={videoStream ? <Video size={15} aria-hidden="true" /> : <VideoOff size={15} aria-hidden="true" />} onClick={() => void toggleCamera()}>
-                {videoStream ? 'Камера включена' : 'Проверить камеру'}
-              </Button>
-            </div>
+            </Toolbar>
           </Surface>
         </div>
-        <p className="role-entry__message">{session.message}</p>
+        <Notice className="role-entry__message">{session.message}</Notice>
       </div>
     </section>
   );

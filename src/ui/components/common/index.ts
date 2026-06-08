@@ -4,6 +4,7 @@ export * from './Button';
 export * from './Card';
 export * from './Checkbox';
 export * from './ChoiceCard';
+export * from './DraggableSurface';
 export * from './EmptyState';
 export * from './Field';
 export * from './IconButton';

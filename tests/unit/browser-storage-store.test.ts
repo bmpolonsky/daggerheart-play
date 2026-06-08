@@ -9,7 +9,7 @@ import {
   persistRoomCodeRefreshBlockedUntil,
   readActiveSession
 } from '../../src/services/p2p/P2PSessionPersistence';
-import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../src/domain/p2p/sessionLinks';
+import { readStoredCallName, readStoredPlayerSeatId, writeStoredCallName, writeStoredPlayerSeatId } from '../../src/domain/p2p/sessionLinks';
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -127,6 +127,7 @@ test('P2P helpers write only through the single app storage key', () => {
     persistInviteDraft({ roomId: 'ROOM4', password: 'draft-pw' });
     persistRoomCodeRefreshBlockedUntil(Date.now() + 60_000);
     writeStoredPlayerSeatId('ROOM3', 'seat-3');
+    writeStoredCallName('ROOM3', 'Caller 3');
 
     assert.equal(localStorage.length, 1);
     assert.equal(sessionStorage.length, 1);
@@ -136,6 +137,7 @@ test('P2P helpers write only through the single app storage key', () => {
     assert.equal(readActiveSession()?.roomId, 'ROOM3');
     assert.equal(initialInviteDraftState().password, 'draft-pw');
     assert.equal(readStoredPlayerSeatId('ROOM3'), 'seat-3');
+    assert.equal(readStoredCallName('ROOM3'), 'Caller 3');
 
     forgetActiveSession();
     assert.equal(readActiveSession(), null);

@@ -333,16 +333,6 @@ export function openGameTable(): void {
   window.dispatchEvent(new CustomEvent('daggerheart-play:open-workspace', { detail: { workspace: 'play' } }));
 }
 
-export function clampRollConfirmPosition(x: number, y: number, size: { width?: number; height?: number } = {}): { x: number; y: number } {
-  if (typeof window === 'undefined') return { x, y };
-  const width = size.width ?? 354;
-  const height = size.height ?? 360;
-  return {
-    x: Math.min(Math.max(12, x), Math.max(12, window.innerWidth - width - 12)),
-    y: Math.min(Math.max(72, y), Math.max(72, window.innerHeight - height - 18))
-  };
-}
-
 export function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?';
 }

@@ -76,7 +76,7 @@
 }
 
 .superapp-mark {
-  border-radius: 8px;
+  border-radius: var(--dh-radius-sm);
   background: rgba(216, 173, 83, 0.14);
   color: #f0c96a;
   box-shadow: inset 0 0 0 1px rgba(216, 173, 83, 0.32);
@@ -84,7 +84,7 @@
 
 .superapp-tab {
   border-color: rgba(243, 234, 216, 0.12);
-  border-radius: 8px;
+  border-radius: var(--dh-radius-sm);
   background: rgba(13, 18, 24, 0.82);
   color: rgba(243, 234, 216, 0.82);
 }
@@ -226,7 +226,7 @@
   overflow: hidden;
   padding: 10px;
   border: 1px solid rgba(243, 234, 216, 0.12);
-  border-radius: 8px;
+  border-radius: var(--dh-radius-sm);
   background: rgba(8, 12, 16, 0.58);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(14px);
@@ -278,7 +278,7 @@
   gap: 4px;
   padding: 10px;
   border: 1px solid rgba(243, 234, 216, 0.12);
-  border-radius: 8px;
+  border-radius: var(--dh-radius-sm);
   background: rgba(7, 9, 12, 0.4);
 }
 
@@ -335,44 +335,6 @@
   gap: 14px;
 }
 
-.role-entry__actions > button {
-  min-height: 132px;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-content: start;
-  gap: 8px 12px;
-  padding: 20px;
-  border: 1px solid rgba(243, 234, 216, 0.16);
-  border-radius: 8px;
-  background: rgba(8, 12, 16, 0.74);
-  color: var(--dh-paper-100);
-  text-align: left;
-  backdrop-filter: blur(14px);
-}
-
-.role-entry__actions > button:hover,
-.role-entry__actions > button:focus-visible {
-  border-color: rgba(240, 201, 106, 0.58);
-  background: rgba(28, 31, 29, 0.82);
-}
-
-.role-entry__actions > button svg {
-  grid-row: span 2;
-  color: var(--dh-gold-400);
-}
-
-.role-entry__actions > button strong {
-  font-family: "DH Eveleth", "DH Overpass", sans-serif;
-  font-size: 1.05rem;
-  letter-spacing: 0;
-}
-
-.role-entry__actions > button span {
-  color: rgba(243, 234, 216, 0.7);
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
-
 .role-entry__actions--lobby {
   display: contents;
 }
@@ -382,50 +344,6 @@
   display: grid;
   gap: 13px;
   overflow: hidden;
-  padding: 18px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--role-glass);
-  box-shadow: 0 22px 62px rgba(0, 0, 0, 0.32);
-  backdrop-filter: blur(18px) saturate(1.08);
-}
-
-.role-entry__card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 247, 231, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.34);
-}
-
-.role-entry__card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.role-entry__card header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-}
-
-.role-entry__card header svg {
-  color: var(--dh-gold-400);
-}
-
-.role-entry__card header strong {
-  display: block;
-  font-family: "DH Eveleth", "DH Overpass", sans-serif;
-  font-size: 1.05rem;
-  letter-spacing: 0;
-}
-
-.role-entry__games-card header {
-  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
 .role-entry__gm-card {
@@ -445,133 +363,29 @@
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
 }
 
-.role-entry__storage-tools {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.role-entry__card header span,
-.role-entry__players p,
-.role-entry__message {
-  color: rgba(243, 234, 216, 0.68);
-  font-size: 0.82rem;
-  line-height: 1.35;
-}
-
 .role-entry__card label,
-.role-entry__players,
-.role-entry__games {
+.role-entry__players {
   display: grid;
   gap: 6px;
 }
 
-.role-entry__card label > span,
-.role-entry__players > header strong,
-.role-entry__games > header strong {
+.role-entry__card label > span {
   color: rgba(243, 234, 216, 0.62);
   font-size: 0.68rem;
   font-weight: 950;
   text-transform: uppercase;
 }
 
-.role-entry__card input,
-.role-entry__card select {
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .role-entry__players {
   padding: 12px;
   border: 1px solid rgba(243, 234, 216, 0.08);
-  border-radius: 8px;
+  border-radius: var(--dh-radius-sm);
   background: var(--role-glass-soft);
-}
-
-.role-entry__games {
-  gap: 8px;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.16);
-}
-
-.role-entry__players > header,
-.role-entry__games > header,
-.role-entry__inline-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .role-entry__game-list {
   display: grid;
   gap: 6px;
-}
-
-.role-entry__game-list article {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid rgba(243, 234, 216, 0.08);
-  border-radius: 8px;
-  background: var(--role-glass-soft);
-}
-
-.role-entry__game-list article.dh-is-active {
-  border-color: var(--role-accent-border);
-  background: rgba(216, 173, 83, 0.1);
-}
-
-.role-entry__game-list article > div {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.role-entry__game-list article strong {
-  overflow: hidden;
-  color: #fff4d6;
-  font-size: 0.84rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.role-entry__game-list article span,
-.role-entry__game-list p {
-  margin: 0;
-  color: rgba(243, 234, 216, 0.58);
-  font-size: 0.72rem;
-}
-
-.role-entry__game-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.role-entry__game-actions button[title] {
-  width: 32px;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
-}
-
-.role-entry__game-list article button:disabled {
-  color: rgba(240, 201, 106, 0.82);
-  cursor: default;
-}
-
-.role-entry__inline-actions .dh-variant-primary {
-  width: 100%;
 }
 
 .role-entry__invite-line {
@@ -585,32 +399,10 @@
   min-width: 0;
 }
 
-.role-entry__invite-line button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .role-entry__player-row {
   display: grid;
   grid-template-columns: minmax(90px, 1fr) minmax(130px, 1.3fr) 38px;
   gap: 8px;
-}
-
-.role-entry__icon-action {
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
-}
-
-.role-entry__game-actions .role-entry__icon-action {
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
 }
 
 .role-entry__message {
@@ -620,7 +412,7 @@
 
 .player-join-lobby {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: start;
 }
@@ -630,53 +422,16 @@
   gap: 8px;
 }
 
-.player-join-lobby__seat-list button {
-  min-height: 62px;
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-  border: 1px solid rgba(243, 234, 216, 0.14);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.28);
-  color: var(--dh-paper-100);
-  text-align: left;
-}
-
-.player-join-lobby__seat-list button:hover,
-.player-join-lobby__seat-list button:focus-visible,
-.player-join-lobby__seat-list button.dh-is-active {
-  border-color: rgba(240, 201, 106, 0.72);
-  background: rgba(216, 173, 83, 0.14);
-}
-
-.player-join-lobby__seat-list button strong {
+.player-join-lobby__seat-list .dh-choice-card strong {
   font-family: "DH Eveleth", "DH Overpass", sans-serif;
   font-size: 0.95rem;
 }
 
-.player-join-lobby__seat-list button span,
-.player-join-lobby__seat-list p,
-.player-join-lobby__media-status {
+.player-join-lobby__seat-list .dh-choice-card span,
+.player-join-lobby__seat-list p {
   color: rgba(243, 234, 216, 0.66);
   font-size: 0.82rem;
   line-height: 1.35;
-}
-
-.player-join-lobby__media-preview {
-  min-height: 190px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(243, 234, 216, 0.12);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  color: rgba(240, 201, 106, 0.74);
-}
-
-.player-join-lobby__media-preview video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 @media (max-width: 700px) {
@@ -730,16 +485,6 @@
 
   .role-entry__card {
     gap: 10px;
-    padding: 14px;
-  }
-
-  .role-entry__games-card {
-    padding: 13px 14px;
-  }
-
-  .role-entry__card input,
-  .role-entry__card select {
-    min-height: 38px;
   }
 
   .role-entry__players {
@@ -775,16 +520,5 @@
 
   .role-entry__player-row {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .role-entry__games-card header {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .role-entry__storage-tools {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
   }
 }

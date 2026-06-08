@@ -3,7 +3,7 @@ import { parsePlayerSessionLocation } from '../../domain/p2p/sessionLinks';
 import { PlayerJoinLobby } from './PlayerJoinLobby';
 import { SessionLobby } from './SessionLobby';
 
-type RoleRouteId = 'entry' | 'gm' | 'join' | 'player' | 'combat' | 'cards';
+type RoleRouteId = 'entry' | 'gm' | 'join' | 'player' | 'call' | 'combat' | 'cards';
 
 interface RoleEntryProps {
   basePath: string;

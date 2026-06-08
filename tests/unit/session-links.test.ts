@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { buildPlayerInviteUrl, createShortRoomCode, inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from "../../src/domain/p2p/sessionLinks";
+import { buildCallInviteUrl, buildPlayerInviteUrl, createShortRoomCode, inferBasePathFromWorkspacePath, parseCallSessionLocation, parsePlayerSessionLocation } from "../../src/domain/p2p/sessionLinks";
 import { parseRoutedPlayerViewState, updateRoutedPlayerViewSearch } from "../../src/ui/vtt/playerView/routedUiState";
 
 test('P2P invite links use path routing and room codes without a prefix', () => {
@@ -14,11 +14,15 @@ test('P2P invite links use path routing and room codes without a prefix', () => 
   assert.deepEqual(parsePlayerSessionLocation('/table/join/7K2Q', '/table'), { roomId: '7K2Q', password: '' });
   assert.deepEqual(parsePlayerSessionLocation('/table/join/7k2q', '/table'), { roomId: '7K2Q', password: '' });
   assert.deepEqual(parsePlayerSessionLocation('/table/player/7K2Q', '/table'), { roomId: '7K2Q', password: '' });
+  assert.equal(buildCallInviteUrl({ origin: 'https://example.test', basePath: '/table', roomId: ' 7K2Q ' }), 'https://example.test/table/calls/7K2Q');
+  assert.deepEqual(parseCallSessionLocation('/table/calls/7k2q', '/table'), { roomId: '7K2Q', password: '' });
+  assert.equal(parseCallSessionLocation('/table/call/7k2q', '/table'), null);
   assert.equal(parsePlayerSessionLocation('/table/player', '/table'), null);
   assert.equal(createShortRoomCode().startsWith('DH-'), false);
   assert.equal(inferBasePathFromWorkspacePath('/table/gm'), '/table');
   assert.equal(inferBasePathFromWorkspacePath('/table/player/7K2Q'), '/table');
   assert.equal(inferBasePathFromWorkspacePath('/table/join/7K2Q'), '/table');
+  assert.equal(inferBasePathFromWorkspacePath('/table/calls/7K2Q'), '/table');
 });
 
 test('player view routed UI state preserves session params and restores tools tabs', () => {
