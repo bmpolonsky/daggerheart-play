@@ -1,4 +1,5 @@
 import { Sparkles, X } from 'lucide-react';
+import { useState } from 'preact/hooks';
 import type { ContentState, LibraryEquipmentItem } from '../../domain/content/types';
 import {
   buildCharacterBuilderChoicePreview,
@@ -63,6 +64,9 @@ export function CharacterBuilderModal({
     selectedConsumable,
     classItem: fields.classItem
   });
+  const choicePreviewKey = choicePreview ? `${step}:${choicePreview.kicker}:${choicePreview.title}:${choicePreview.subtitle ?? ''}` : '';
+  const [hiddenChoicePreviewKey, setHiddenChoicePreviewKey] = useState('');
+  const visibleChoicePreview = choicePreview && hiddenChoicePreviewKey !== choicePreviewKey ? choicePreview : null;
   const currentStepIndex = steps.findIndex((item) => item.id === step);
   const progress = Math.round(((currentStepIndex + 1) / steps.length) * 100);
   const blockingIssues = builder.issues.filter((issue) => issue.severity === 'blocking');
@@ -119,7 +123,7 @@ export function CharacterBuilderModal({
             </Button>
           </header>
 
-          <div className={`cinematic-builder-workspace ${choicePreview ? 'dh-has-choice-detail' : ''}`}>
+          <div className={`cinematic-builder-workspace ${visibleChoicePreview ? 'dh-has-choice-detail' : ''}`}>
             {step === 'class' && (
               <section className="cinematic-builder-step">
                 <header className="cinematic-builder-step-head">
@@ -381,7 +385,12 @@ export function CharacterBuilderModal({
               </section>
             )}
 
-            {choicePreview && <BuilderChoiceDetail preview={choicePreview} />}
+            {visibleChoicePreview && (
+              <BuilderChoiceDetail
+                preview={visibleChoicePreview}
+                onClose={() => setHiddenChoicePreviewKey(choicePreviewKey)}
+              />
+            )}
           </div>
 
           <div className="cinematic-builder-actions">

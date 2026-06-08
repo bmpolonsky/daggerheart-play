@@ -7,12 +7,12 @@ import { LibraryMiniCard } from './LibraryMiniCard';
 
 export function LibraryResults({ libraryView, targetCharacterId }: { libraryView: ContentLibraryView; targetCharacterId?: string | null }) {
   const entries = useMemo(() => buildLibraryEntries(libraryView, targetCharacterId), [libraryView, targetCharacterId]);
-  const [selectedId, setSelectedId] = useState(entries[0]?.id ?? '');
+  const [selectedId, setSelectedId] = useState('');
   const [actionMessage, setActionMessage] = useState('');
-  const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? entries[0] ?? null;
+  const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? null;
 
   useEffect(() => {
-    setSelectedId((current) => entries.some((entry) => entry.id === current) ? current : entries[0]?.id ?? '');
+    setSelectedId((current) => entries.some((entry) => entry.id === current) ? current : '');
     setActionMessage('');
   }, [entries]);
 
@@ -21,7 +21,7 @@ export function LibraryResults({ libraryView, targetCharacterId }: { libraryView
   }
 
   return (
-    <div className="player-library-browser">
+    <div className={`player-library-browser ${selectedEntry ? 'player-library-browser--with-detail' : ''}`.trim()}>
       <div className="player-library-list" aria-label="Записи компендиума">
         {entries.map((entry) => (
           <LibraryMiniCard
@@ -36,7 +36,15 @@ export function LibraryResults({ libraryView, targetCharacterId }: { libraryView
           />
         ))}
       </div>
-      <LibraryDetailPanel actionMessage={actionMessage} entry={selectedEntry} onAction={setActionMessage} />
+      <LibraryDetailPanel
+        actionMessage={actionMessage}
+        entry={selectedEntry}
+        onAction={setActionMessage}
+        onClose={() => {
+          setSelectedId('');
+          setActionMessage('');
+        }}
+      />
     </div>
   );
 }

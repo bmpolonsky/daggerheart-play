@@ -192,7 +192,7 @@ export function SidebarContainer() {
             API недоступен: {error}
           </Notice>
         )}
-        <div className="combat-adversary-grid grid grid-cols-2 gap-3 pb-20 sm:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        <div className="combat-adversary-grid grid grid-cols-2 gap-3 pb-20 sm:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
           {isLoading && items.length === 0 && (
             <EmptyState
               className="col-span-full py-20"

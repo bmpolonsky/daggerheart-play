@@ -1,23 +1,38 @@
 /** @jsxImportSource preact */
+import { X } from 'lucide-react';
 import { cssImageUrl } from '../helpers';
 import { Button } from '../../../components/common/Button';
+import { IconButton } from '../../../components/common/IconButton';
 import type { LibraryEntry } from './libraryDetailTypes';
 import { RichText } from './RichText';
 
 export function LibraryDetailPanel({
   actionMessage,
   entry,
-  onAction
+  onAction,
+  onClose
 }: {
   actionMessage: string;
   entry: LibraryEntry | null;
   onAction: (message: string) => void;
+  onClose: () => void;
 }) {
   if (!entry) return null;
 
   return (
     <aside className="player-library-detail" aria-label="Полная запись компендиума">
       <div className="player-library-detail__body">
+        <IconButton
+          className="player-library-detail__close"
+          type="button"
+          variant="ghost"
+          size="sm"
+          title="Закрыть описание"
+          aria-label="Закрыть описание"
+          onClick={onClose}
+        >
+          <X size={18} aria-hidden="true" />
+        </IconButton>
         <div className={`player-library-detail__header ${entry.imageUrl ? 'player-library-detail__header--with-art' : ''}`}>
           <div className="player-library-detail__identity">
             <span className="player-library-card__kicker">{entry.kicker}</span>

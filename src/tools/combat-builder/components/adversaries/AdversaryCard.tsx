@@ -3,6 +3,7 @@ import { useState } from "preact/hooks";
 import type { JSX } from "preact";
 import type { Adversary } from "@combat/lib/api";
 import { calculateAdversaryCost } from "@combat/lib/mechanics";
+import { formatDamageRoll } from "@combat/lib/utils";
 import { IconEdit, IconPlus } from "@combat/components/icons";
 import { IconButton } from "../../../../ui/components/common/IconButton";
 
@@ -22,6 +23,8 @@ export function AdversaryCard({
   const cost = calculateAdversaryCost(adversary.roleId);
   const [imageError, setImageError] = useState(false);
   const imageUrl = adversary.image && !imageError ? adversary.image : null;
+  const attackBonus = adversary.attackBonus.startsWith("-") ? adversary.attackBonus : `+${adversary.attackBonus}`;
+  const damage = formatDamageRoll(adversary);
   const handleCardKeyDown = (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
@@ -29,7 +32,56 @@ export function AdversaryCard({
   };
 
   return (
-    <article className="combat-adversary-card group relative flex h-full flex-col overflow-hidden rounded-lg border border-slate-700 bg-dagger-panel shadow-lg transition-all duration-200 hover:border-dagger-gold hover:shadow-xl hover:shadow-black/40">
+    <article className={`combat-adversary-card ${imageUrl ? '' : 'combat-adversary-card--no-art'} group relative flex flex-col overflow-hidden rounded-lg border border-slate-700 bg-dagger-panel shadow-lg transition-all duration-200 hover:border-dagger-gold hover:shadow-xl hover:shadow-black/40`}>
+      <IconButton
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onAdd();
+        }}
+        className="combat-adversary-card__add absolute right-2 top-2 z-20"
+        variant="primary"
+        size="sm"
+        title="Добавить в бой"
+        aria-label="Добавить в бой"
+      >
+        <IconPlus size={14} aria-hidden="true" />
+      </IconButton>
+
+      {adversary.isCustom && onEdit && (
+        <IconButton
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onEdit();
+          }}
+          className="combat-adversary-card__edit absolute right-2 top-12 z-20"
+          variant="secondary"
+          size="sm"
+          title="Редактировать"
+          aria-label="Редактировать"
+        >
+          <IconEdit size={14} aria-hidden="true" />
+        </IconButton>
+      )}
+
+      <div
+        className="combat-adversary-card__cost absolute left-2 top-2 z-40"
+        title={`Стоимость: ${cost} очков (Роль: ${adversary.roleName})`}
+      >
+        <span
+          className="combat-adversary-card__cost-badge"
+          style={
+            {
+              clipPath:
+                "polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)",
+            } as JSX.CSSProperties
+          }
+        >
+          {cost}
+        </span>
+      </div>
+
       <div
         role="button"
         tabIndex={0}
@@ -37,73 +89,17 @@ export function AdversaryCard({
         onClick={onViewDetails}
         onKeyDown={handleCardKeyDown}
       >
-        <div className="combat-adversary-card__media relative aspect-[16/10] w-full overflow-hidden bg-slate-800">
-          <div className="absolute inset-0 z-10 bg-gradient-to-t from-dagger-panel via-transparent to-transparent opacity-80" />
-
-          {imageUrl ? (
+        {imageUrl && (
+          <div className="combat-adversary-card__media relative aspect-[16/10] w-full overflow-hidden bg-slate-800">
+            <div className="absolute inset-0 z-10 bg-gradient-to-t from-dagger-panel via-transparent to-transparent opacity-80" />
             <img
               src={imageUrl}
               alt={adversary.name}
               className="h-full w-full object-contain object-bottom opacity-90 transition-all duration-500 group-hover:scale-[1.03] group-hover:opacity-100"
               onError={() => setImageError(true)}
             />
-          ) : (
-            <div className="combat-missing-art">
-              <span>{adversary.name.slice(0, 2).toUpperCase()}</span>
-              <small>{adversary.roleName || 'Противник'}</small>
-            </div>
-          )}
-
-          <IconButton
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onAdd();
-            }}
-            className="combat-adversary-card__add absolute right-2 top-2 z-20"
-            variant="primary"
-            size="sm"
-            title="Добавить в бой"
-            aria-label="Добавить в бой"
-          >
-            <IconPlus size={14} aria-hidden="true" />
-          </IconButton>
-
-          {adversary.isCustom && onEdit && (
-            <IconButton
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEdit();
-              }}
-              className="combat-adversary-card__edit absolute right-2 top-12 z-20"
-              variant="secondary"
-              size="sm"
-              title="Редактировать"
-              aria-label="Редактировать"
-            >
-              <IconEdit size={14} aria-hidden="true" />
-            </IconButton>
-          )}
-
-          <div
-            className="combat-adversary-card__cost absolute left-2 top-2 z-20"
-            title={`Стоимость: ${cost} очков (Роль: ${adversary.roleName})`}
-          >
-            <div
-              className="flex h-8 w-8 cursor-help items-center justify-center rounded border border-white/20 bg-dagger-gold text-base font-bold text-dagger-dark shadow-lg"
-              style={
-                {
-                  clipPath:
-                    "polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)",
-                } as JSX.CSSProperties
-              }
-            >
-              {cost}
-            </div>
           </div>
-
-        </div>
+        )}
 
         <div className="combat-adversary-card__body relative z-20 flex flex-grow flex-col gap-2 bg-dagger-panel px-3 pb-3 pt-2">
           <div className="combat-adversary-card__badges flex flex-wrap items-center gap-1.5">
@@ -130,6 +126,14 @@ export function AdversaryCard({
             <p className="line-clamp-3 text-xs italic leading-relaxed text-slate-400">
               {adversary.summary}
             </p>
+          </div>
+
+          <div className="combat-adversary-card__stats" aria-label="Характеристики противника">
+            <span>Сложность {adversary.difficulty}</span>
+            <span>Раны {adversary.hp}</span>
+            <span>Стресс {adversary.stress}</span>
+            <span>Атака {attackBonus}</span>
+            {damage !== "0" && <span>{adversary.weaponName ? `${adversary.weaponName}: ${damage}` : `Урон ${damage}`}</span>}
           </div>
         </div>
       </div>
