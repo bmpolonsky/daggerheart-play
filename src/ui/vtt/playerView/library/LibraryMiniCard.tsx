@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { cleanMarkdownText } from '../../../../core/utils/markdownText';
+import { AssetImage } from '../../../components/common/AssetImage';
 import { ChoiceCard } from '../../../components/common/ChoiceCard';
-import { cssImageUrl } from '../helpers';
 
 export function LibraryMiniCard({
   body,
@@ -26,7 +26,7 @@ export function LibraryMiniCard({
     <ChoiceCard className={`player-library-card ${hasImage ? 'player-library-card--with-art' : ''}`} selected={isSelected} onClick={onSelect}>
       {hasImage && (
         <div className="player-library-card__art" aria-hidden="true">
-          <img src={cssImageUrl(resolvedImageUrl)} alt="" loading="lazy" />
+          <AssetImage src={resolvedImageUrl} alt="" />
         </div>
       )}
       <div className="player-library-card__body">

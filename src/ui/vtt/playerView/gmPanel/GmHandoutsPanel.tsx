@@ -1,8 +1,8 @@
 /** @jsxImportSource preact */
 import { Image } from "lucide-react";
 import type { GameHandout } from "../../../../domain/rules/types";
+import { AssetImage } from "../../../components/common/AssetImage";
 import { ChoiceCard } from "../../../components/common/ChoiceCard";
-import { cssImageUrl } from "../helpers";
 import { playerViewUiActions } from "../playerViewUiState";
 import { renderRulesText } from "../sheetText";
 
@@ -16,7 +16,7 @@ export function GmHandoutsPanel({
       {handouts.map((handout) => (
         <ChoiceCard className="player-gm-handouts__row" key={handout.id} type="button" onClick={() => playerViewUiActions.openHandoutDraft(handout)}>
           <div className="player-gm-handouts__preview" aria-label={handout.imageUrl ? 'Изображение раздатки' : 'Без изображения'}>
-            {handout.imageUrl ? <img src={cssImageUrl(handout.imageUrl)} alt="" /> : <Image size={18} />}
+            {handout.imageUrl ? <AssetImage src={handout.imageUrl} alt="" /> : <Image size={18} />}
           </div>
           <div className="player-gm-handouts__body">
             <strong>{handout.title || 'Без названия'}</strong>

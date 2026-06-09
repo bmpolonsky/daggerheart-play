@@ -2,7 +2,7 @@
 import { parseDomainCardTextMacros } from '../../../../../domain/rules/domainCards';
 import { domainLabel } from '../../../../../domain/rules/constants';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
-import { cssImageUrl } from '../../helpers';
+import { AssetImage } from '../../../../components/common/AssetImage';
 import { DomainCardMacroText } from '../../domainCards/DomainCardMacroText';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../../domainCards/types';
 import type { TableViewRole } from '../../types';
@@ -25,7 +25,7 @@ export function DomainCardFeedCard({
     <>
       <FeedCardHeader item={item} label={item.kicker || 'Карта'} />
       <div className="feed-domain-card">
-        {card.imageUrl && <img src={cssImageUrl(card.imageUrl)} alt="" />}
+        {card.imageUrl && <AssetImage src={card.imageUrl} alt="" />}
         <div className="feed-domain-card__body">
           <span>{domainLabel(card.domain)} · уровень {card.level}</span>
           <strong>{card.name}</strong>

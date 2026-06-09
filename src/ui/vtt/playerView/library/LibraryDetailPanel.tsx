@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { X } from 'lucide-react';
-import { cssImageUrl } from '../helpers';
+import { AssetImage } from '../../../components/common/AssetImage';
 import { Button } from '../../../components/common/Button';
 import { IconButton } from '../../../components/common/IconButton';
 import type { LibraryEntry } from './libraryDetailTypes';
@@ -45,7 +45,7 @@ export function LibraryDetailPanel({
           </div>
           {entry.imageUrl && (
             <div className="player-library-detail__art" aria-hidden="true">
-              <img src={cssImageUrl(entry.imageUrl)} alt="" loading="lazy" />
+              <AssetImage src={entry.imageUrl} alt="" />
             </div>
           )}
         </div>

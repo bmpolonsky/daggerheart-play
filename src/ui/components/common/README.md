@@ -46,6 +46,7 @@ Do not introduce new global color systems for screens. If a tool needs local ali
 ## Component Rules
 
 - Use `Button` for text commands.
+- Use `AssetImage` for repeated public content images that should lazy-load.
 - Use `Avatar` for round image/fallback identity accessories.
 - Use `IconButton` for icon-only commands. Every icon-only button needs `aria-label` or `title`.
 - Use `Surface` for layout panels and glass containers.
@@ -88,6 +89,26 @@ Allowed exceptions:
 - canvas/WebGL/gameplay surfaces where the component primitives do not apply.
 
 ## Primitive API
+
+### AssetImage
+
+Use for repeated public content images from the cached content library.
+
+```tsx
+<AssetImage src={item.imageUrl} alt="" />
+```
+
+Props:
+
+- Standard `img` props.
+- `loading`: defaults to `lazy`.
+- `decoding`: defaults to `async`.
+
+Guidance:
+
+- Good: library thumbnails, adversary cards, handout previews, domain card art.
+- Bad: avatar identity images, user-selected file previews, card creator render surfaces, icons.
+- Source URLs are normalized through `publicAssetUrl`, including public `/image/...` paths and WebP conversion.
 
 ### Badge
 

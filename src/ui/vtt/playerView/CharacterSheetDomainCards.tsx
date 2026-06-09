@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
-import { cssImageUrl } from "./helpers";
 import { TrackDots } from "./PlayerSheetControls";
 import type { PlayerViewDomainCard } from "./domainCards/types";
+import { AssetImage } from "../../components/common/AssetImage";
 import { ListItem } from "../../components/common/ListItem";
 
 type EventWithTarget = {
@@ -32,7 +32,7 @@ export function CharacterSheetDomainCards({
           tone="featured"
           title={card.name}
           subtitle={`${card.domainLabel} ${card.level}`}
-          leftAccessory={card.imageUrl ? <img className="player-domain-card-thumb" src={cssImageUrl(card.imageUrl)} alt="" /> : undefined}
+          leftAccessory={card.imageUrl ? <AssetImage className="player-domain-card-thumb" src={card.imageUrl} alt="" /> : undefined}
           detail={card.tokens.max > 0 && (
             <TrackDots
               value={card.tokens.value}

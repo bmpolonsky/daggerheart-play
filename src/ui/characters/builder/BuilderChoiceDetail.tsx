@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import type { CharacterBuilderChoicePreview } from "../../../domain/characterBuilder";
+import { AssetImage } from '../../components/common/AssetImage';
 import { IconButton } from '../../components/common/IconButton';
 
 export function BuilderChoiceDetail({ preview, onClose }: { preview: CharacterBuilderChoicePreview; onClose?: () => void }) {
@@ -18,7 +19,7 @@ export function BuilderChoiceDetail({ preview, onClose }: { preview: CharacterBu
           <X size={18} aria-hidden="true" />
         </IconButton>
       )}
-      {preview.imageUrl && <img src={preview.imageUrl} alt="" />}
+      {preview.imageUrl && <AssetImage src={preview.imageUrl} alt="" />}
       <div className="cinematic-builder-choice-detail-copy dh-scroll">
         <span className="cinematic-card-meta">{preview.kicker}</span>
         <strong>{preview.title}</strong>

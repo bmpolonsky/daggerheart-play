@@ -11,6 +11,7 @@ import { CLASS_LABELS, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { Character, DaggerheartClass } from '../../domain/rules/types';
 import { formatWealthSummary } from '../../domain/rules/wealthPresentation';
 import { Button } from '../components/common/Button';
+import { AssetImage } from '../components/common/AssetImage';
 import { ChoiceCard } from '../components/common/ChoiceCard';
 import { SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
@@ -133,7 +134,7 @@ export function CharacterBuilderModal({
                 <div className="dh-choice-grid cinematic-builder-choice-area dh-scroll">
                   {options.classOptions.map((item) => (
                     <ChoiceCard layout="class" selected={fields.className === item.className} key={item.className} type="button" onClick={() => handlers.selectClass(item.className)}>
-                      {item.imageUrl && <img src={item.imageUrl} alt="" />}
+                      {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-meta">{item.domains.map(domainLabel).join(' + ')}</span>
                       {item.body && <span className="cinematic-card-body">{cleanRulesText(item.body)}</span>}
@@ -151,7 +152,7 @@ export function CharacterBuilderModal({
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.builderContent.ancestries.slice(0, 36).map((item) => (
                     <ChoiceCard layout="media" selected={selectedAncestry?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectAncestry(item.id)}>
-                      {item.imageUrl && <img src={item.imageUrl} alt="" />}
+                      {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-body">{featureListText(item) || cleanRulesText(item.body)}</span>
                     </ChoiceCard>
@@ -168,7 +169,7 @@ export function CharacterBuilderModal({
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.builderContent.communities.map((item) => (
                     <ChoiceCard layout="media" selected={selectedCommunity?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectCommunity(item.id)}>
-                      {item.imageUrl && <img src={item.imageUrl} alt="" />}
+                      {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-body">{featureListText(item) || cleanRulesText(item.body)}</span>
                     </ChoiceCard>
@@ -185,7 +186,7 @@ export function CharacterBuilderModal({
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.classSubclasses.map((item) => (
                     <ChoiceCard layout="media" selected={selectedSubclass?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectSubclass(item.id)}>
-                      {item.imageUrl && <img src={item.imageUrl} alt="" />}
+                      {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-meta">{item.subtitle}</span>
                       <span className="cinematic-card-body">{firstFeatureText(item) || cleanRulesText(item.body)}</span>
@@ -337,7 +338,7 @@ export function CharacterBuilderModal({
                 <div className="dh-choice-grid dh-choice-grid--cards cinematic-builder-choice-area dh-scroll">
                   {options.availableDomainCards.map((item) => (
                     <ChoiceCard layout="domain" selected={fields.selectedCardIds.includes(item.id)} key={item.id} type="button" onClick={() => handlers.toggleCard(item.id)}>
-                      {item.imageUrl && <img src={item.imageUrl} alt="" />}
+                      {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <span className="cinematic-card-meta">{item.subtitle}</span>
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-body">{firstFeatureText(item) || cleanRulesText(item.body)}</span>

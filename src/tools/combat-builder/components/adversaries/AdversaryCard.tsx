@@ -5,6 +5,7 @@ import type { Adversary } from "@combat/lib/api";
 import { calculateAdversaryCost } from "@combat/lib/mechanics";
 import { formatDamageRoll } from "@combat/lib/utils";
 import { IconEdit, IconPlus } from "@combat/components/icons";
+import { AssetImage } from "../../../../ui/components/common/AssetImage";
 import { IconButton } from "../../../../ui/components/common/IconButton";
 
 interface AdversaryCardProps {
@@ -92,7 +93,7 @@ export function AdversaryCard({
         {imageUrl && (
           <div className="combat-adversary-card__media relative aspect-[16/10] w-full overflow-hidden bg-slate-800">
             <div className="absolute inset-0 z-10 bg-gradient-to-t from-dagger-panel via-transparent to-transparent opacity-80" />
-            <img
+            <AssetImage
               src={imageUrl}
               alt={adversary.name}
               className="h-full w-full object-contain object-bottom opacity-90 transition-all duration-500 group-hover:scale-[1.03] group-hover:opacity-100"
