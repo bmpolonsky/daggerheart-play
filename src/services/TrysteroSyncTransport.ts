@@ -4,20 +4,8 @@ import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
 export interface TrysteroP2PTransportOptions {
   appId?: string;
-  relayConfig?: {
-    urls?: string[];
-    redundancy?: number;
-    manualReconnection?: boolean;
-  };
+  strategy?: 'nostr' | 'torrent';
 }
-
-const DEFAULT_NOSTR_RELAY_URLS = [
-  'wss://strfry.shock.network',
-  'wss://nostr.data.haus',
-  'wss://relay.agorist.space',
-  'wss://relay-can.zombi.cloudrodion.com',
-  'wss://relay.lnau.net'
-];
 
 export class TrysteroP2PTransport implements P2PTransportAdapter {
   readonly id = 'trystero';
@@ -40,14 +28,16 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
 
   async connect(roomId: string): Promise<void> {
     this.room?.leave();
-    const { joinRoom, selfId } = await import('trystero');
+    const resolvedRoom = resolveTrysteroRoom(roomId, this.options.strategy ?? 'nostr');
+    const { joinRoom, selfId } = resolvedRoom.strategy === 'torrent'
+      ? await import('@trystero-p2p/torrent')
+      : await import('trystero');
     this.peerId = selfId;
     this.room = joinRoom(
       {
-        appId: this.options.appId ?? 'daggerheart-play',
-        relayConfig: this.options.relayConfig ?? { urls: DEFAULT_NOSTR_RELAY_URLS }
+        appId: this.options.appId ?? 'daggerheart-play'
       },
-      roomId,
+      resolvedRoom.roomId,
       {
         onJoinError: (details) => this.emitError(details.error)
       }
@@ -179,4 +169,15 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
   private emitError(message: string): void {
     this.errorListeners.forEach((listener) => listener(message));
   }
+}
+
+export function resolveTrysteroRoom(roomId: string, fallbackStrategy: 'nostr' | 'torrent'): { roomId: string; strategy: 'nostr' | 'torrent' } {
+  const normalized = roomId.trim().toUpperCase();
+  if (/^T[A-Z0-9]{6}$/.test(normalized)) {
+    return { roomId: normalized.slice(1), strategy: 'torrent' };
+  }
+  if (/^N[A-Z0-9]{6}$/.test(normalized)) {
+    return { roomId: normalized.slice(1), strategy: 'nostr' };
+  }
+  return { roomId, strategy: fallbackStrategy };
 }

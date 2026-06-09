@@ -1,5 +1,8 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
+import { localAppStorageStore, sessionAppStorageStore } from "../../src/core/persistence/appBrowserStorage";
+import { readP2PNetworkSettings, writeP2PNetworkSettings } from "../../src/domain/p2p/networkSettings";
+import { readActiveSession } from "../../src/services/p2p/P2PSessionPersistence";
 import { resetAllStores } from "../../src/stores/gameStores";
 import { createTestP2PSession, installTimerWindow, ScriptedP2PNetwork, waitFor } from "./helpers";
 
@@ -158,3 +161,87 @@ test('P2P session coalesces duplicate same-room starts', async () => {
     restoreWindow();
   }
 });
+
+test('P2P active session keeps prefixed torrent room code for restore', async () => {
+  resetAllStores();
+  const restoreWindow = installPersistentStorageWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gm = createTestP2PSession(network, { dice: true });
+  const restoredGm = createTestP2PSession(network, { dice: true });
+
+  try {
+    writeP2PNetworkSettings({ strategy: 'torrent' });
+    await gm.startGmRoom({ roomId: '7K2QAB', participantName: 'GM' });
+
+    assert.equal(gm.session$.get().roomId, 'T7K2QAB');
+    assert.equal(readActiveSession()?.roomId, 'T7K2QAB');
+
+    await gm.stop({ forgetSession: false });
+    writeP2PNetworkSettings({ strategy: 'nostr' });
+
+    assert.equal(await restoredGm.restoreActiveSession('gm', 'GM'), true);
+    assert.equal(restoredGm.session$.get().roomId, 'T7K2QAB');
+    assert.equal(readP2PNetworkSettings().strategy, 'nostr');
+  } finally {
+    await restoredGm.stop().catch(() => undefined);
+    await gm.stop().catch(() => undefined);
+    writeP2PNetworkSettings({ strategy: 'nostr' });
+    restoreWindow();
+  }
+});
+
+test('P2P player start keeps an explicit torrent selection for clean room codes', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const player = createTestP2PSession(network);
+
+  try {
+    writeP2PNetworkSettings({ strategy: 'torrent' });
+    await player.startPlayerRoom({ roomId: '7K2QAB', participantName: 'Player' });
+
+    assert.equal(player.session$.get().roomId, 'T7K2QAB');
+    assert.equal(readP2PNetworkSettings().strategy, 'torrent');
+  } finally {
+    await player.stop().catch(() => undefined);
+    writeP2PNetworkSettings({ strategy: 'nostr' });
+    restoreWindow();
+  }
+});
+
+function installPersistentStorageWindow(): () => void {
+  const originalWindow = globalThis.window;
+  const localStorage = new Map<string, string>();
+  const sessionStorage = new Map<string, string>();
+  Object.defineProperty(globalThis, 'window', {
+    value: {
+      localStorage: mapStorage(localStorage),
+      sessionStorage: mapStorage(sessionStorage),
+      clearTimeout,
+      setTimeout,
+      clearInterval,
+      setInterval,
+      location: { pathname: '/' }
+    },
+    configurable: true
+  });
+  localAppStorageStore.reload();
+  sessionAppStorageStore.reload();
+  return () => {
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+    localAppStorageStore.reload();
+    sessionAppStorageStore.reload();
+  };
+}
+
+function mapStorage(values: Map<string, string>): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    }
+  };
+}

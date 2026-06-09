@@ -1,9 +1,11 @@
 import { localAppStorageStore, sessionAppStorageStore } from '../../core/persistence/appBrowserStorage';
+import type { P2PNetworkSettings } from './networkSettings';
 
 export interface PlayerInviteUrlInput {
   origin: string;
   basePath?: string;
   roomId: string;
+  networkSettings?: P2PNetworkSettings;
 }
 
 export interface PlayerSessionParams {
@@ -23,8 +25,16 @@ export function normalizeSessionRoomId(roomId: string, fallback = createFallback
 }
 
 export function buildPlayerInviteUrl(input: PlayerInviteUrlInput): string {
-  const invite = new URL(joinRoutePath(input.basePath, normalizeSessionRoomId(input.roomId)), input.origin);
+  const invite = new URL(joinRoutePath(input.basePath, buildPlayerInviteRoomCode(input.roomId, input.networkSettings)), input.origin);
   return invite.toString();
+}
+
+export function buildPlayerInviteRoomCode(roomId: string, networkSettings?: P2PNetworkSettings): string {
+  const normalizedRoomId = normalizeSessionRoomId(roomId);
+  if (networkSettings?.strategy === 'torrent' && isShortInviteRoomId(normalizedRoomId)) {
+    return `T${normalizedRoomId}`;
+  }
+  return normalizedRoomId;
 }
 
 export function buildCallInviteUrl(input: PlayerInviteUrlInput): string {
@@ -35,13 +45,13 @@ export function buildCallInviteUrl(input: PlayerInviteUrlInput): string {
 export function parsePlayerSessionLocation(pathname: string, basePath = ''): PlayerSessionParams | null {
   const normalized = stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
   const match = normalized.match(/^\/join\/([^/]+)$/);
-  const roomId = match?.[1] ? normalizeSessionRoomId(decodeURIComponent(match[1]), '') : '';
-  if (!roomId) {
-    return null;
-  }
-  return {
-    roomId
-  };
+  return match?.[1] ? parsePlayerInviteRoomCode(decodeURIComponent(match[1])) : null;
+}
+
+export function parsePlayerInviteRoomCode(value: string): PlayerSessionParams | null {
+  const roomId = normalizeSessionRoomId(value, '');
+  if (!roomId) return null;
+  return { roomId };
 }
 
 export function parseCallSessionLocation(pathname: string, basePath = ''): PlayerSessionParams | null {
@@ -115,4 +125,8 @@ function stripBasePath(pathname: string, basePath = ''): string {
   if (!normalizedBase || !pathname.startsWith(normalizedBase)) return pathname;
   const stripped = pathname.slice(normalizedBase.length);
   return stripped.startsWith('/') ? stripped : `/${stripped}`;
+}
+
+function isShortInviteRoomId(roomId: string): boolean {
+  return /^[A-Z0-9]{6}$/.test(roomId);
 }

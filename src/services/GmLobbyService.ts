@@ -1,4 +1,3 @@
-import { buildPlayerInviteUrl } from '../domain/p2p/sessionLinks';
 import type { P2PInviteContext, P2PSessionInvite } from './P2PSessionService';
 import type { P2PSessionService } from './P2PSessionService';
 import { Stream } from '../core/store/Stream';
@@ -48,17 +47,9 @@ export class GmLobbyService {
 
   previewInviteUrl(
     context: P2PInviteContext,
-    state: Pick<GmLobbyState, 'draftRoomId' | 'inviteUrl' | 'roomId'>
+    _state: Pick<GmLobbyState, 'draftRoomId' | 'inviteUrl' | 'roomId'>
   ): string {
-    const roomId = state.roomId;
-    if (!roomId) return '';
-    if (state.inviteUrl && state.draftRoomId === roomId) {
-      return state.inviteUrl;
-    }
-    return buildPlayerInviteUrl({
-      ...context,
-      roomId
-    });
+    return this.p2pSessionService.previewInviteUrl(context);
   }
 
   roomCodeRefreshView(state: Pick<GmLobbyState, 'roomCodeRefreshBlockedUntil'>, now = Date.now()): RoomCodeRefreshView {

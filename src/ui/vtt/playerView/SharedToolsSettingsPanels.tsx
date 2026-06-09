@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
+import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$, writeP2PNetworkSettings, type P2PNetworkStrategy } from '../../../domain/p2p/networkSettings';
 import type { Character, GameState } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
 import {
@@ -16,7 +17,7 @@ import {
   p2pStatusLabel
 } from './helpers';
 import { Button } from '../../components/common/Button';
-import { SelectControl, TextControl, TextField } from '../../components/common/Field';
+import { SelectControl, SelectField, TextControl, TextField } from '../../components/common/Field';
 import { IconButton } from '../../components/common/IconButton';
 import { Surface } from '../../components/common/Surface';
 import type { TableViewRole } from './types';
@@ -107,6 +108,7 @@ export function SharedToolsConnectionSettingsPanel({
     status: p2pStatus
   } = useStream(p2pSessionService.session$);
   const [playerRoomId, setPlayerRoomId] = useState(() => initialPlayerRoomId());
+  const networkSettings = useStream(p2pNetworkSettings$);
   const settingsInviteContext = currentSettingsInviteContext();
   const displayedInviteLink = role === 'gm' ? p2pSessionService.previewInviteUrl(settingsInviteContext) : '';
   const syncRoomId = role === 'gm' ? p2pSessionService.getGmRoomId() : playerRoomId;
@@ -114,7 +116,6 @@ export function SharedToolsConnectionSettingsPanel({
   const hasConnectedPlayers = role !== 'gm' || p2pSessionService.hasConnectedPlayers();
   const canPublishSnapshot = role === 'gm' && p2pSessionService.canPublishSnapshotToPlayers();
   const displayedP2PStatus = role === 'gm' && p2pConnected && !hasConnectedPlayers ? 'Ожидает игроков' : p2pStatusLabel(p2pStatus);
-
   useEffect(() => {
     if (role !== 'player' || !p2pActiveRoomId) return;
     setPlayerRoomId(p2pActiveRoomId);
@@ -139,6 +140,16 @@ export function SharedToolsConnectionSettingsPanel({
     } catch {
       toastService.show('Скопируйте ссылку вручную.', 'warning');
     }
+  };
+
+  const reconnect = async () => {
+    if (!syncRoomId) return;
+    await p2pSessionService.stop({ forgetSession: false });
+    if (role === 'gm') {
+      await p2pSessionService.startGmRoom({ roomId: syncRoomId, participantName: game.gmName });
+      return;
+    }
+    await p2pSessionService.startPlayerRoom({ roomId: playerRoomId || syncRoomId });
   };
 
   return (
@@ -173,6 +184,18 @@ export function SharedToolsConnectionSettingsPanel({
           />
         </div>
       )}
+      <div className="player-tools-edit-grid">
+        <SelectField
+          label="Сигналинг"
+          value={networkSettings.strategy}
+          hint={p2pConnected ? 'Применится после переподключения.' : undefined}
+          onChange={(event) => writeP2PNetworkSettings({ strategy: event.currentTarget.value as P2PNetworkStrategy })}
+        >
+          {Object.entries(P2P_NETWORK_STRATEGY_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </SelectField>
+      </div>
       <div className="player-tools-sync__summary">
         <div>
           <span>Статус</span>
@@ -189,8 +212,13 @@ export function SharedToolsConnectionSettingsPanel({
       </div>
       <div className="player-tools-actions">
         {role === 'player' && (
-          <Button variant="primary" type="button" onClick={() => void p2pSessionService.startPlayerRoom({ roomId: playerRoomId })}>
+          <Button variant="primary" type="button" disabled={p2pConnected} onClick={() => void p2pSessionService.startPlayerRoom({ roomId: playerRoomId })}>
             Подключиться
+          </Button>
+        )}
+        {p2pConnected && (
+          <Button type="button" onClick={() => void reconnect()}>
+            Переподключиться
           </Button>
         )}
         {role === 'gm' && (
@@ -223,6 +251,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ role }: { role: TableViewR
     roomId: p2pActiveRoomId,
     status: p2pStatus
   } = useStream(p2pSessionService.session$);
+  const networkSettings = useStream(p2pNetworkSettings$);
   const hasConnectedPlayers = role !== 'gm' || p2pSessionService.hasConnectedPlayers();
   const displayedP2PStatus = role === 'gm' && p2pConnected && !hasConnectedPlayers ? 'Ожидает игроков' : p2pStatusLabel(p2pStatus);
 
@@ -235,6 +264,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ role }: { role: TableViewR
       <dl className="player-tools-sync__meta">
         {role === 'gm' && <div><dt>Активная комната</dt><dd>{p2pActiveRoomId || 'нет'}</dd></div>}
         <div><dt>Статус</dt><dd>{displayedP2PStatus}</dd></div>
+        <div><dt>Сигналинг</dt><dd>{P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
         <div><dt>Роль</dt><dd>{p2pRole ?? 'нет'}</dd></div>
         <div><dt>ID подключения</dt><dd>{p2pPeerId ?? 'нет'}</dd></div>
         <div><dt>Подключений</dt><dd>{p2pPeers.length}</dd></div>

@@ -2,7 +2,8 @@ import { Store } from '../core/store/Store';
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
-import { buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
+import { buildPlayerInviteRoomCode, buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
+import { readP2PNetworkSettings, trysteroOptionsForNetworkSettings } from '../domain/p2p/networkSettings';
 import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
@@ -183,15 +184,12 @@ export class P2PSessionService {
   }
 
   previewInviteUrl(context: P2PInviteContext): string {
-    const draft = this.inviteStore.get();
     const roomId = this.getGmRoomId();
     if (!roomId) return '';
-    if (draft.inviteUrl && draft.roomId === roomId) {
-      return draft.inviteUrl;
-    }
     return buildPlayerInviteUrl({
       ...context,
-      roomId
+      roomId,
+      networkSettings: this.isActiveGmRoom(roomId) ? undefined : readP2PNetworkSettings()
     });
   }
 
@@ -231,7 +229,7 @@ export class P2PSessionService {
     if (!saved) return null;
     return {
       role: saved.role,
-      roomId: saved.roomId,
+      roomId: normalizeSessionRoomId(saved.roomId, ''),
       participantName: saved.participantName
     };
   }
@@ -247,7 +245,7 @@ export class P2PSessionService {
     try {
       const active = this.sessionStore.get();
       const hasActiveGmRoom = active.role === 'gm' && (active.connected || active.status === 'connecting') && Boolean(active.roomId);
-      const roomId = hasActiveGmRoom ? active.roomId : normalizeSessionRoomId(draft.roomId);
+      const roomId = hasActiveGmRoom ? active.roomId : buildPlayerInviteRoomCode(draft.roomId, readP2PNetworkSettings());
       if (!hasActiveGmRoom) {
         await this.startGmRoom({
           roomId,
@@ -259,7 +257,8 @@ export class P2PSessionService {
         inviteUrl: buildPlayerInviteUrl({
           origin: input.origin,
           basePath: input.basePath,
-          roomId
+          roomId,
+          networkSettings: hasActiveGmRoom ? undefined : readP2PNetworkSettings()
         })
       };
       this.inviteStore.set({
@@ -301,7 +300,7 @@ export class P2PSessionService {
   }
 
   async startGmRoom(input: P2PSessionStartInput): Promise<void> {
-    const roomId = normalizeSessionRoomId(input.roomId);
+    const roomId = buildPlayerInviteRoomCode(input.roomId, readP2PNetworkSettings());
     await this.startRoom('gm', roomId, () => this.openGmRoom({ ...input, roomId }));
   }
 
@@ -406,11 +405,11 @@ export class P2PSessionService {
         message: peers.length > 0 ? 'Игрок подключился.' : 'Комната мастера открыта.'
       };
     });
-    persistActiveSession({ role: 'gm', roomId, participantName: input.participantName });
+    this.persistActiveSession('gm', roomId, input.participantName);
   }
 
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
-    const roomId = normalizeSessionRoomId(input.roomId);
+    const roomId = buildPlayerInviteRoomCode(input.roomId, readP2PNetworkSettings());
     await this.startRoom('player', roomId, () => this.openPlayerRoom({ ...input, roomId }));
   }
 
@@ -504,7 +503,7 @@ export class P2PSessionService {
       message: state.lastSnapshotAt ? 'Вы подключены к серверу мастера.' : 'Ждем данные игры от мастера.'
     }));
     this.startPlayerProductRecoveryPolling();
-    persistActiveSession({ role: 'player', roomId, participantName: input.participantName });
+    this.persistActiveSession('player', roomId, input.participantName);
   }
 
   private async startRoom(role: P2PSessionRole, roomId: string, start: () => Promise<void>): Promise<void> {
@@ -580,12 +579,13 @@ export class P2PSessionService {
     if (!saved || saved.role !== role || !saved.roomId) {
       return false;
     }
+    const roomId = normalizeSessionRoomId(saved.roomId);
     const session = this.sessionStore.get();
-    if (session.connected && session.role === role && session.roomId === saved.roomId) {
+    if (session.connected && session.role === role && session.roomId === roomId) {
       return true;
     }
     const input = {
-      roomId: saved.roomId,
+      roomId,
       participantName: participantName?.trim() || saved.participantName
     };
     if (role === 'gm') {
@@ -1217,10 +1217,23 @@ export class P2PSessionService {
   }
 
   private createTransport(): P2PRoomConnection {
-    const connection = new P2PRoomConnection(this.transportFactory({}), this.roomConnectionConfig);
+    const connection = new P2PRoomConnection(this.transportFactory(trysteroOptionsForNetworkSettings(readP2PNetworkSettings())), this.roomConnectionConfig);
     this.activeRoomConnection = connection;
     this.subscriptions.add(connection.subscribeRoomEvents((event) => this.handleRoomConnectionEvent(event)));
     return connection;
+  }
+
+  private persistActiveSession(role: P2PSessionRole, roomId: string, participantName?: string): void {
+    persistActiveSession({
+      role,
+      roomId: buildPlayerInviteRoomCode(roomId, readP2PNetworkSettings()),
+      participantName
+    });
+  }
+
+  private isActiveGmRoom(roomId: string): boolean {
+    const session = this.sessionStore.get();
+    return session.role === 'gm' && session.roomId === roomId && (session.connected || session.status === 'connecting');
   }
 
   private handleRoomConnectionEvent(event: P2PRoomConnectionEvent): void {

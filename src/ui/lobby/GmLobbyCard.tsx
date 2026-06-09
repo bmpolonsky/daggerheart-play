@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { Copy, Crown, RefreshCw, Trash2 } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
+import { p2pNetworkSettings$ } from '../../domain/p2p/networkSettings';
 import { characterService, gameService, gmLobbyService, sceneTableService } from '../../services/serviceRegistry';
 import { Button, EmptyState, IconButton, SectionHeader, SelectControl, Surface, TextControl, Toolbar } from '../components/common';
 import type { LobbyInviteContext } from './SessionLobby';
@@ -16,6 +17,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
   const { entities: characterEntities, order: characterOrder } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
   const lobby = useStream(gmLobbyService.lobby$);
+  useStream(p2pNetworkSettings$);
   const restoreAttempted = useRef(false);
   const characterOptions = characterOrder.map((id) => characterEntities[id]).filter(Boolean);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');

@@ -6,7 +6,6 @@ import type { NavigableRouteId } from '../../app/routing';
 import { PlayerJoinLobby } from './PlayerJoinLobby';
 import { SessionLobby } from './SessionLobby';
 
-
 interface RoleEntryProps {
   basePath: string;
   onSelectRole: (route: NavigableRouteId, hash?: string, search?: string, roomId?: string) => void;
