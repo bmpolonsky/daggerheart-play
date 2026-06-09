@@ -41,6 +41,7 @@ interface ScriptedP2PTransportOptions {
 }
 
 export class ScriptedP2PNetwork {
+  connects = 0;
   deliveredSnapshots = 0;
   droppedSnapshots = 0;
   droppedSnapshotRequests = 0;
@@ -59,6 +60,7 @@ export class ScriptedP2PNetwork {
   }
 
   connect(roomId: string, transport: ScriptedP2PTransport): void {
+    this.connects += 1;
     transport.roomId = roomId;
     transport.peerId = `peer-${this.nextPeerNumber++}`;
     const peers = this.rooms.get(roomId) ?? new Set<ScriptedP2PTransport>();

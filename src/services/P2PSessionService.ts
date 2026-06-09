@@ -123,6 +123,7 @@ export class P2PSessionService {
   private productRecoveryTimer: number | undefined;
   private roomCodeRefreshTimer: number | undefined;
   private activeRoomConnection: P2PRoomConnection | null = null;
+  private startInFlight: { role: P2PSessionRole; roomId: string; promise: Promise<void> } | null = null;
   private assetTransferService: P2PAssetTransferService;
   private publishedPlayerFeedEntrySignatures = new Map<string, string>();
   private publishingPlayerFeedEntryIds = new Set<string>();
@@ -295,6 +296,11 @@ export class P2PSessionService {
   }
 
   async startGmRoom(input: P2PSessionStartInput): Promise<void> {
+    const roomId = normalizeSessionRoomId(input.roomId);
+    await this.startRoom('gm', roomId, () => this.openGmRoom({ ...input, roomId }));
+  }
+
+  private async openGmRoom(input: P2PSessionStartInput): Promise<void> {
     await this.stop({ forgetSession: false });
     const roomId = normalizeSessionRoomId(input.roomId);
     const transport = this.createTransport();
@@ -399,6 +405,11 @@ export class P2PSessionService {
   }
 
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
+    const roomId = normalizeSessionRoomId(input.roomId);
+    await this.startRoom('player', roomId, () => this.openPlayerRoom({ ...input, roomId }));
+  }
+
+  private async openPlayerRoom(input: P2PSessionStartInput): Promise<void> {
     await this.stop({ forgetSession: false });
     resetAllStores();
     const participant = this.createParticipant('player', input.participantName, {
@@ -489,6 +500,41 @@ export class P2PSessionService {
     }));
     this.startPlayerProductRecoveryPolling();
     persistActiveSession({ role: 'player', roomId, participantName: input.participantName });
+  }
+
+  private async startRoom(role: P2PSessionRole, roomId: string, start: () => Promise<void>): Promise<void> {
+    const inFlight = this.startInFlight;
+    if (inFlight?.role === role && inFlight.roomId === roomId) {
+      await inFlight.promise;
+      return;
+    }
+    if (this.isActiveRoom(role, roomId)) {
+      return;
+    }
+    if (inFlight) {
+      await inFlight.promise.catch(() => undefined);
+      if (this.startInFlight !== inFlight) {
+        return this.startRoom(role, roomId, start);
+      }
+      if (this.isActiveRoom(role, roomId)) {
+        return;
+      }
+    }
+
+    const promise = start();
+    this.startInFlight = { role, roomId, promise };
+    try {
+      await promise;
+    } finally {
+      if (this.startInFlight?.promise === promise) {
+        this.startInFlight = null;
+      }
+    }
+  }
+
+  private isActiveRoom(role: P2PSessionRole, roomId: string): boolean {
+    const session = this.sessionStore.get();
+    return session.role === role && session.roomId === roomId && (session.connected || session.status === 'connecting');
   }
 
   async stop(options: { forgetSession?: boolean } = {}): Promise<void> {

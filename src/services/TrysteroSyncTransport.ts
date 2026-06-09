@@ -4,7 +4,20 @@ import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
 export interface TrysteroP2PTransportOptions {
   appId?: string;
+  relayConfig?: {
+    urls?: string[];
+    redundancy?: number;
+    manualReconnection?: boolean;
+  };
 }
+
+const DEFAULT_NOSTR_RELAY_URLS = [
+  'wss://strfry.shock.network',
+  'wss://nostr.data.haus',
+  'wss://relay.agorist.space',
+  'wss://relay-can.zombi.cloudrodion.com',
+  'wss://relay.lnau.net'
+];
 
 export class TrysteroP2PTransport implements P2PTransportAdapter {
   readonly id = 'trystero';
@@ -31,7 +44,8 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     this.peerId = selfId;
     this.room = joinRoom(
       {
-        appId: this.options.appId ?? 'daggerheart-play'
+        appId: this.options.appId ?? 'daggerheart-play',
+        relayConfig: this.options.relayConfig ?? { urls: DEFAULT_NOSTR_RELAY_URLS }
       },
       roomId,
       {

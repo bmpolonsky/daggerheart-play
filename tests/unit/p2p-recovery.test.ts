@@ -136,3 +136,25 @@ test('P2P player marks a silent GM disconnect as degraded and recovers when GM r
     restoreWindow();
   }
 });
+
+test('P2P session coalesces duplicate same-room starts', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const player = createTestP2PSession(network);
+
+  try {
+    await Promise.all([
+      player.startPlayerRoom({ roomId: 'duplicate-room', participantName: 'Player' }),
+      player.startPlayerRoom({ roomId: 'DUPLICATE-ROOM', participantName: 'Player' })
+    ]);
+
+    assert.equal(network.connects, 1);
+    assert.equal(player.session$.get().role, 'player');
+    assert.equal(player.session$.get().roomId, 'DUPLICATE-ROOM');
+    assert.equal(player.session$.get().connected, true);
+  } finally {
+    await player.stop().catch(() => undefined);
+    restoreWindow();
+  }
+});
