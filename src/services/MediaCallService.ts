@@ -188,7 +188,7 @@ export class MediaCallService {
     }
     if (!state.micMuted) {
       this.setAudioTracksEnabled(false);
-      this.callStore.update((current) => ({ ...current, micMuted: true, message: 'Микрофон выключен.' }));
+      this.callStore.update((current) => ({ ...current, micMuted: true }));
       await this.publishPresence();
       return;
     }
@@ -196,7 +196,7 @@ export class MediaCallService {
       return;
     }
     this.setAudioTracksEnabled(true);
-    this.callStore.update((current) => ({ ...current, micMuted: false, message: 'Микрофон включен.' }));
+    this.callStore.update((current) => ({ ...current, micMuted: false }));
     await this.publishPresence();
   }
 
@@ -207,7 +207,7 @@ export class MediaCallService {
     }
     if (!state.cameraOff) {
       this.setVideoTracksEnabled(false);
-      this.callStore.update((current) => ({ ...current, cameraOff: true, message: 'Камера выключена.' }));
+      this.callStore.update((current) => ({ ...current, cameraOff: true }));
       await this.publishPresence();
       return;
     }
@@ -215,7 +215,7 @@ export class MediaCallService {
       return;
     }
     this.setVideoTracksEnabled(true);
-    this.callStore.update((current) => ({ ...current, cameraOff: false, message: 'Камера включена.' }));
+    this.callStore.update((current) => ({ ...current, cameraOff: false }));
     await this.publishPresence();
   }
 
@@ -223,8 +223,7 @@ export class MediaCallService {
     this.callStore.update((state) => ({
       ...state,
       active: true,
-      handRaised: !state.handRaised,
-      message: !state.handRaised ? 'Рука поднята.' : 'Рука опущена.'
+      handRaised: !state.handRaised
     }));
     await this.publishPresence();
   }

@@ -18,6 +18,10 @@
   place-items: center;
 }
 
+.call-room.dh-side-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .call-room__scene-image,
 .call-room__backdrop {
   position: absolute;
@@ -46,7 +50,7 @@
   z-index: 2;
   position: relative;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 16px;
   padding: 24px;
 }
@@ -58,8 +62,16 @@
   gap: 12px;
 }
 
-.call-room__topbar span,
-.call-room__status {
+.call-room__top-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.call-room__topbar span {
   color: rgba(243, 234, 216, 0.64);
   font-size: 0.8rem;
   line-height: 1.35;
@@ -91,45 +103,116 @@
 
 .call-room__grid {
   min-height: 0;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
   gap: 12px;
 }
 
-.call-room__grid--1 {
+.call-room__focus-layout {
+  height: 100%;
+  min-height: 0;
+  display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: stretch;
+  gap: 12px;
 }
 
-.call-room__grid--2,
-.call-room__grid--3,
-.call-room__grid--4 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.call-room__filmstrip {
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(132px, 178px);
+  grid-auto-rows: 100px;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 
-.call-room__grid--5,
-.call-room__grid--6 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.call-room__grid .call-video-tile {
+  flex: 1 1 min(420px, 100%);
+}
+
+.call-room__grid--1 .call-video-tile {
+  flex-basis: 100%;
+}
+
+.call-room__grid--2 .call-video-tile,
+.call-room__grid--4 .call-video-tile {
+  flex-basis: calc(50% - 6px);
+}
+
+.call-room__grid--3 .call-video-tile,
+.call-room__grid--5 .call-video-tile,
+.call-room__grid--6 .call-video-tile {
+  flex-basis: calc(33.333% - 8px);
 }
 
 .call-video-tile {
   min-width: 0;
   min-height: 180px;
+  aspect-ratio: 16 / 9;
   position: relative;
   overflow: hidden;
   display: grid;
   place-items: center;
   border-radius: var(--dh-radius-lg);
-  border: 1px solid rgba(243, 234, 216, 0.08);
+  border: 1px solid transparent;
   background:
-    linear-gradient(180deg, rgba(13, 18, 24, 0.7), rgba(7, 9, 12, 0.52)),
-    var(--dh-glass);
+    linear-gradient(180deg, rgba(13, 18, 24, 0.66), rgba(7, 9, 12, 0.56)),
+    var(--dh-glass-subtle);
   box-shadow: var(--dh-shadow-soft), inset 0 1px 0 rgba(243, 234, 216, 0.06);
   backdrop-filter: var(--dh-blur);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.call-video-tile:hover {
+  border-color: rgba(243, 234, 216, 0.14);
+}
+
+.call-video-tile:focus-visible {
+  box-shadow: var(--dh-shadow-soft), var(--dh-focus);
+}
+
+.call-video-tile.dh-is-focused {
+  border-color: var(--dh-border-strong);
+  background:
+    linear-gradient(180deg, rgba(13, 18, 24, 0.5), rgba(7, 9, 12, 0.36)),
+    rgba(7, 9, 12, 0.36);
+}
+
+.call-room__focus-layout > .call-video-tile.dh-is-focused {
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: auto;
+  justify-self: stretch;
+  align-self: stretch;
+}
+
+.call-room__filmstrip .call-video-tile {
+  min-height: 96px;
+  aspect-ratio: 16 / 9;
 }
 
 .call-video-tile video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  background: rgba(0, 0, 0, 0.32);
+  object-fit: contain;
+}
+
+.call-video-tile.dh-is-local video,
+.floating-call__video.dh-is-local video {
+  transform: scaleX(-1);
 }
 
 .call-video-tile__avatar {
@@ -138,26 +221,25 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid rgba(216, 173, 83, 0.46);
-  background: rgba(216, 173, 83, 0.16);
-  color: #ffe3a0;
+  border: 1px solid var(--dh-border-strong);
+  background: var(--dh-glass-subtle);
+  color: var(--dh-paper-100);
   font-family: "DH Eveleth", "DH Overpass", sans-serif;
   font-size: 1.35rem;
 }
 
 .call-video-tile footer {
   position: absolute;
-  left: 10px;
-  right: 10px;
+  left: 12px;
   bottom: 10px;
-  min-height: 36px;
-  display: flex;
+  max-width: calc(100% - 24px);
+  min-height: 30px;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 9px;
+  gap: 7px;
+  padding: 6px 9px;
   border-radius: var(--dh-radius-sm);
-  background: rgba(7, 9, 12, 0.56);
+  background: rgba(7, 9, 12, 0.62);
   color: #fff4d6;
   font-size: 0.82rem;
   font-weight: 850;
@@ -171,7 +253,6 @@
   white-space: nowrap;
 }
 
-.call-video-tile footer div,
 .call-room__participant-status {
   display: flex;
   align-items: center;
@@ -184,36 +265,37 @@
   padding: 8px;
   border: 0;
   border-radius: var(--dh-radius-lg);
-  background: rgba(7, 9, 12, 0.54);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(14px) saturate(1.08);
+  background: var(--dh-glass-strong);
+  box-shadow: var(--dh-shadow-soft);
+  backdrop-filter: var(--dh-blur);
   justify-content: center;
-}
-
-.call-room__status {
-  min-height: 18px;
-  margin: 0;
-  text-align: center;
 }
 
 .call-room__side {
   min-height: 0;
   z-index: 2;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 12px;
   padding: 18px;
-  border-left: 1px solid rgba(243, 234, 216, 0.09);
-  background:
-    linear-gradient(180deg, rgba(25, 36, 48, 0.54), rgba(7, 9, 12, 0.42)),
-    rgba(7, 9, 12, 0.26);
-  backdrop-filter: blur(18px) saturate(1.08);
+  border-left: 1px solid var(--dh-border);
+  background: var(--dh-glass);
+  backdrop-filter: var(--dh-blur);
 }
 
-.call-room__panel {
+.call-room__panel,
+.call-room__panel.dh-surface {
   min-height: 0;
   display: grid;
   gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.call-room__side-actions {
+  justify-content: flex-end;
 }
 
 .call-room__participants {
@@ -237,11 +319,11 @@
   gap: 2px;
   padding: 8px;
   border-radius: var(--dh-radius);
-  background: rgba(7, 9, 12, 0.26);
+  background: var(--dh-glass-subtle);
 }
 
 .call-room__messages strong {
-  color: #ffe3a0;
+  color: var(--dh-gold-400);
   font-size: 0.72rem;
 }
 
@@ -265,14 +347,14 @@
   padding: 5px 5px 5px 12px;
   border: 0;
   border-radius: var(--dh-radius-lg);
-  background: rgba(7, 9, 12, 0.3);
+  background: var(--dh-control);
   box-shadow: none;
-  backdrop-filter: blur(14px) saturate(1.12);
+  backdrop-filter: var(--dh-blur);
   transition: background 0.16s ease;
 }
 
 .call-room__chat-form:focus-within {
-  background: rgba(7, 9, 12, 0.44);
+  background: var(--dh-control-hover);
 }
 
 .call-room__chat-form .dh-field {
@@ -286,23 +368,163 @@
 @media (max-width: 900px) {
   .call-room {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     overflow: auto;
   }
 
   .call-room__stage {
-    min-height: 66dvh;
-    padding: 16px;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 100dvh;
+    max-height: none;
+    padding: 16px 16px calc(94px + env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+  }
+
+  .call-room__topbar {
+    align-items: flex-start;
+  }
+
+  .call-room__top-actions {
+    align-items: flex-end;
+  }
+
+  .call-room__focus-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .call-room__focus-layout > .call-video-tile.dh-is-focused {
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .call-room__filmstrip {
+    grid-auto-columns: minmax(112px, calc((100vw - 44px) / 2));
+    grid-auto-rows: 88px;
+  }
+
+  .call-room__filmstrip .call-video-tile {
+    min-height: 0;
   }
 
   .call-room__grid,
   .call-room__grid--5,
   .call-room__grid--6 {
-    grid-template-columns: minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: stretch;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .call-room__grid .call-video-tile {
+    width: 100%;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    aspect-ratio: auto;
   }
 
   .call-room__side {
-    border-left: 0;
-    border-top: 1px solid rgba(243, 234, 216, 0.09);
+    position: fixed;
+    z-index: 10;
+    inset: 0;
+    min-height: 100dvh;
+    max-height: none;
+    overflow: auto;
+    border: 0;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .call-room__controls {
+    position: fixed;
+    z-index: 8;
+    left: 16px;
+    right: 16px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    justify-self: auto;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 500px) {
+  .call-room__stage {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .call-room__grid,
+  .call-room__grid--5,
+  .call-room__grid--6 {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: center;
+  }
+
+  .call-room__grid .call-video-tile {
+    width: auto;
+    min-height: 72px;
+    flex-basis: calc(50% - 6px);
+  }
+
+  .call-room__grid--1 .call-video-tile {
+    flex-basis: 100%;
+  }
+
+  .call-room__grid--3 .call-video-tile,
+  .call-room__grid--5 .call-video-tile,
+  .call-room__grid--6 .call-video-tile {
+    flex-basis: calc(33.333% - 8px);
+  }
+
+  .call-room__filmstrip {
+    grid-auto-rows: 72px;
+  }
+
+  .call-room__controls {
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 620px) {
+  .call-room__stage {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    padding: 12px 12px calc(94px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .call-room__topbar {
+    display: grid;
+  }
+
+  .call-room__top-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .call-room__top-actions .dh-button {
+    flex: 0 0 auto;
+  }
+
+  .call-room__controls {
+    left: 12px;
+    right: 12px;
+    justify-content: stretch;
+  }
+
+  .call-room__controls .dh-button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 620px) and (orientation: portrait) {
+  .call-room__grid,
+  .call-room__grid--5,
+  .call-room__grid--6 {
+    flex-direction: column;
   }
 }
 
@@ -335,7 +557,8 @@
 .floating-call__video video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  background: rgba(0, 0, 0, 0.28);
+  object-fit: contain;
 }
 
 .floating-call__video > span {

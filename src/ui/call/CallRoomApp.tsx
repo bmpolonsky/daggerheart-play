@@ -1,14 +1,14 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Hand, MessageCircle, Mic, MicOff, MonitorPlay, Send, Swords, UserRound, Video, VideoOff } from 'lucide-react';
+import { Hand, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
-import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, readStoredCallSession, writeStoredCallName } from '../../domain/p2p/sessionLinks';
+import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, writeStoredCallName } from '../../domain/p2p/sessionLinks';
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
 import { feedService, mediaCallService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
 import { toastService } from '../../services/ToastService';
 import type { CallParticipant, MediaCallState } from '../../services/MediaCallService';
 import { cssImageUrl } from '../vtt/playerView/helpers';
-import { Avatar, Badge, Button, ChoiceCard, EmptyState, Field, IconButton, ListItem, Notice, SectionHeader, Surface, TextControl, Toolbar } from '../components/common';
+import { Avatar, Badge, Button, ChoiceCard, EmptyState, Field, IconButton, ListItem, SectionHeader, Surface, TextControl, Toolbar } from '../components/common';
 import { MediaStreamVideo } from './MediaStreamVideo';
 import './call-room.css';
 
@@ -16,19 +16,32 @@ interface CallRoomAppProps {
   basePath: string;
 }
 
+type CallLayoutMode = 'focus' | 'grid';
+
 export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const sessionParams = typeof window === 'undefined'
     ? null
     : parseCallSessionLocation(window.location.pathname, basePath);
-  const roomId = sessionParams?.roomId ?? '';
   const session = useStream(p2pSessionService.session$);
+  const invite = useStream(p2pSessionService.invite$);
   const call = useStream(mediaCallService.call$);
   const feed = useStream(feedService.feed$);
   const sceneTable = useStream(sceneTableService.sceneTable$);
+  const bareCallsPath = typeof window !== 'undefined' && isBareCallsPath(window.location.pathname, basePath);
+  const roomId = resolveCallRoomId({
+    bareCallsPath,
+    inviteRoomId: invite.roomId,
+    sessionRoomId: session.roomId,
+    sessionParamsRoomId: sessionParams?.roomId ?? ''
+  });
   const [nameDraft, setNameDraft] = useState(() => roomId ? readStoredCallName(roomId) : '');
   const [chatDraft, setChatDraft] = useState('');
+  const [sideOpen, setSideOpen] = useState(defaultCallSideOpen);
+  const [layoutMode, setLayoutMode] = useState<CallLayoutMode>(defaultCallLayoutMode);
+  const [focusedParticipantId, setFocusedParticipantId] = useState<string | null>(null);
   const autoJoinKey = useRef<string | null>(null);
-  const storedSession = useMemo(() => roomId ? readStoredCallSession(roomId) : null, [roomId]);
+  const lastToastMessage = useRef('');
+  const storedSession = useMemo(() => roomId ? p2pSessionService.storedSessionForRoom(roomId) : null, [roomId]);
   const connectedToRoom = session.connected && session.roomId === roomId;
   const connectingToRoom = session.status === 'connecting' && session.roomId === roomId;
   const liveScene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
@@ -37,6 +50,16 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     : '';
   const playerSeats = useMemo(() => Object.values(sceneTable.participants).filter((participant) => participant.role === 'player'), [sceneTable.participants]);
   const feedMessages = feed.filter((entry) => entry.type === 'message').slice(-8);
+  const participantsList = useMemo(() => [
+    localParticipantFromCall(call),
+    ...Object.values(call.remoteParticipants).filter((participant) => participant.connected)
+  ], [call]);
+  const focusedParticipant = layoutMode === 'focus'
+    ? pickFocusedParticipant(participantsList, focusedParticipantId, call.localParticipantId)
+    : null;
+  const thumbnailParticipants = focusedParticipant
+    ? participantsList.filter((participant) => participant.participantId !== focusedParticipant.participantId)
+    : [];
 
   useEffect(() => {
     if (!roomId || typeof window === 'undefined' || !isBareCallsPath(window.location.pathname, basePath)) return;
@@ -66,6 +89,19 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
       autoJoinKey.current = null;
     });
   }, [connectedToRoom, connectingToRoom, roomId]);
+
+  useEffect(() => {
+    if (!focusedParticipantId) return;
+    if (participantsList.some((participant) => participant.participantId === focusedParticipantId)) return;
+    setFocusedParticipantId(null);
+  }, [focusedParticipantId, participantsList]);
+
+  useEffect(() => {
+    const message = connectingToRoom ? 'Подключаемся к комнате...' : call.message || session.message;
+    if (!message || message === 'Звонок не подключен.' || message === lastToastMessage.current) return;
+    lastToastMessage.current = message;
+    toastService.show(message, call.status === 'error' || call.status === 'permission-denied' ? 'error' : 'info');
+  }, [call.message, call.status, connectingToRoom, session.message]);
 
   const joinCall = async (displayName = nameDraft): Promise<void> => {
     const name = displayName.trim();
@@ -99,13 +135,6 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     void joinCall(name);
   };
 
-  const openGame = () => {
-    const route = session.role === 'gm' ? 'gm' : 'join';
-    window.dispatchEvent(new CustomEvent('daggerheart-play:navigate-route', {
-      detail: { route, roomId }
-    }));
-  };
-
   const sendChat = () => {
     const body = chatDraft.trim();
     const authorName = call.displayName.trim() || nameDraft.trim() || 'Гость';
@@ -122,13 +151,8 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     );
   }
 
-  const participantsList = [
-    localParticipantFromCall(call),
-    ...Object.values(call.remoteParticipants).filter((participant) => participant.connected)
-  ];
-
   return (
-    <main className="call-room">
+    <main className={`call-room ${sideOpen ? '' : 'dh-side-collapsed'}`.trim()}>
       <div className="call-room__scene-image" aria-hidden="true" style={{ backgroundImage: sceneBackgroundImage }} />
       <div className="call-room__backdrop" aria-hidden="true" />
       <section className="call-room__stage" aria-label="Видео звонок">
@@ -137,11 +161,13 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
             <span>Комната {roomId}</span>
             <h1>Видеозвонок</h1>
           </div>
-          <div className="call-room__top-actions">
-            <Button type="button" iconBefore={<Swords size={16} aria-hidden="true" />} onClick={openGame}>
-              В игру
-            </Button>
-          </div>
+          {!sideOpen && (
+            <div className="call-room__top-actions">
+              <IconButton type="button" size="lg" title="Открыть участников и чат" aria-label="Открыть участников и чат" onClick={() => setSideOpen(true)}>
+                <UserRound size={18} aria-hidden="true" />
+              </IconButton>
+            </div>
+          )}
         </header>
 
         {!connectedToRoom && !connectingToRoom && (
@@ -169,11 +195,46 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
           </Surface>
         )}
 
-        <div className={`call-room__grid call-room__grid--${Math.min(6, Math.max(1, participantsList.length))}`}>
-          {participantsList.map((participant) => (
-            <CallVideoTile key={participant.participantId} participant={participant} local={participant.participantId === call.localParticipantId} />
-          ))}
-        </div>
+        {layoutMode === 'focus' && focusedParticipant ? (
+          <div className="call-room__focus-layout">
+            <CallVideoTile
+              focused
+              local={focusedParticipant.participantId === call.localParticipantId}
+              participant={focusedParticipant}
+              onSelect={() => setLayoutMode('grid')}
+            />
+            {thumbnailParticipants.length > 0 && (
+              <div className="call-room__filmstrip" aria-label="Миниатюры участников">
+                {thumbnailParticipants.map((participant) => (
+                  <CallVideoTile
+                    key={participant.participantId}
+                    local={participant.participantId === call.localParticipantId}
+                    participant={participant}
+                    onSelect={() => {
+                      setFocusedParticipantId(participant.participantId);
+                      setLayoutMode('focus');
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={`call-room__grid call-room__grid--${Math.min(6, Math.max(1, participantsList.length))}`}>
+            {participantsList.map((participant) => (
+              <CallVideoTile
+                key={participant.participantId}
+                focused={participant.participantId === focusedParticipant?.participantId}
+                local={participant.participantId === call.localParticipantId}
+                participant={participant}
+                onSelect={() => {
+                  setFocusedParticipantId(participant.participantId);
+                  setLayoutMode('focus');
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         <Toolbar className="call-room__controls" aria-label="Управление звонком">
           <Button
@@ -213,13 +274,16 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
             Рука
           </Button>
         </Toolbar>
-        <Notice className="call-room__status" tone={call.status === 'error' || call.status === 'permission-denied' ? 'error' : 'info'}>
-          {connectingToRoom ? 'Подключаемся к комнате...' : call.message || session.message}
-        </Notice>
       </section>
 
+      {sideOpen && (
       <aside className="call-room__side" aria-label="Участники и чат">
-        <Surface className="call-room__panel call-room__participants">
+        <Toolbar className="call-room__side-actions" aria-label="Панель участников и чата">
+          <IconButton type="button" size="sm" variant="ghost" title="Скрыть участников и чат" aria-label="Скрыть участников и чат" onClick={() => setSideOpen(false)}>
+            <X size={16} aria-hidden="true" />
+          </IconButton>
+        </Toolbar>
+        <Surface className="call-room__panel call-room__participants" tone="subtle" padding="none">
           <SectionHeader
             title="Участники"
             actions={<Badge tone="gold">{participantsList.length}</Badge>}
@@ -228,8 +292,14 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
             <ListItem
               key={participant.participantId}
               title={participant.displayName || 'Гость'}
+              subtitle={participant.participantId === call.localParticipantId ? 'Вы' : participant.role === 'gm' ? 'Ведущий' : 'Игрок'}
               density="compact"
+              tone={layoutMode === 'focus' && participant.participantId === focusedParticipant?.participantId ? 'featured' : 'default'}
               leftAccessory={<Avatar fallback={initials(participant.displayName)} size="sm" />}
+              onClick={() => {
+                setFocusedParticipantId(participant.participantId);
+                setLayoutMode('focus');
+              }}
               rightAccessory={
                 <Toolbar className="call-room__participant-status">
                   {participant.handRaised && <Hand size={15} aria-label="Рука поднята" />}
@@ -240,10 +310,9 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
             />
           ))}
         </Surface>
-        <Surface className="call-room__panel call-room__chat">
+        <Surface className="call-room__panel call-room__chat" tone="subtle" padding="none">
           <SectionHeader
             title="Чат"
-            subtitle="Сообщения общей ленты"
             actions={<MessageCircle size={18} aria-hidden="true" />}
           />
           <div className="call-room__messages">
@@ -266,13 +335,32 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
           </form>
         </Surface>
       </aside>
+      )}
     </main>
   );
 }
 
-function CallVideoTile({ local, participant }: { local?: boolean; participant: CallParticipant }) {
+function CallVideoTile({ focused = false, local = false, onSelect, participant }: { focused?: boolean; local?: boolean; participant: CallParticipant; onSelect: () => void }) {
+  const className = [
+    'call-video-tile',
+    participant.cameraOff || !participant.stream ? 'dh-camera-off' : '',
+    local ? 'dh-is-local' : '',
+    focused ? 'dh-is-focused' : ''
+  ].filter(Boolean).join(' ');
   return (
-    <article className={`call-video-tile ${participant.cameraOff || !participant.stream ? 'dh-camera-off' : ''}`}>
+    <article
+      className={className}
+      role="button"
+      tabIndex={0}
+      aria-pressed={focused}
+      aria-label={`Показать крупно: ${participant.displayName || 'Гость'}`}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onSelect();
+      }}
+    >
       {participant.stream && !participant.cameraOff ? (
         <MediaStreamVideo key={mediaStreamRenderKey(participant.stream)} muted={local} stream={participant.stream} />
       ) : (
@@ -280,13 +368,33 @@ function CallVideoTile({ local, participant }: { local?: boolean; participant: C
       )}
       <footer>
         <span>{participant.displayName || 'Гость'}{local ? ' · вы' : ''}</span>
-        <div>
-          {participant.handRaised && <Hand size={14} aria-label="Рука поднята" />}
-          {participant.micMuted ? <MicOff size={14} aria-label="Микрофон выключен" /> : <Mic size={14} aria-label="Микрофон включен" />}
-        </div>
+        {participant.handRaised && <Hand size={14} aria-label="Рука поднята" />}
+        {participant.micMuted ? <MicOff size={14} aria-label="Микрофон выключен" /> : <Mic size={14} aria-label="Микрофон включен" />}
       </footer>
     </article>
   );
+}
+
+function pickFocusedParticipant(participants: CallParticipant[], focusedParticipantId: string | null, localParticipantId: string): CallParticipant | null {
+  return participants.find((participant) => participant.participantId === focusedParticipantId)
+    ?? participants.find((participant) => participant.participantId !== localParticipantId && participant.stream && !participant.cameraOff)
+    ?? participants.find((participant) => participant.participantId !== localParticipantId)
+    ?? participants[0]
+    ?? null;
+}
+
+function defaultCallLayoutMode(): CallLayoutMode {
+  return 'grid';
+}
+
+function defaultCallSideOpen(): boolean {
+  if (typeof window === 'undefined') return true;
+  return !window.matchMedia('(max-width: 900px)').matches;
+}
+
+function resolveCallRoomId(input: { bareCallsPath: boolean; inviteRoomId: string; sessionParamsRoomId: string; sessionRoomId: string }): string {
+  if (!input.bareCallsPath) return input.sessionParamsRoomId;
+  return input.sessionRoomId || input.sessionParamsRoomId || input.inviteRoomId;
 }
 
 function mediaStreamRenderKey(stream: MediaStream): string {

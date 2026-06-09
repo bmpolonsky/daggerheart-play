@@ -76,6 +76,12 @@ export interface P2PSessionInvite {
   inviteUrl: string;
 }
 
+export interface P2PStoredSessionSummary {
+  role: P2PSessionRole;
+  roomId: string;
+  participantName: string;
+}
+
 export interface P2PInviteDraftState {
   roomId: string;
   inviteUrl: string;
@@ -217,6 +223,16 @@ export class P2PSessionService {
   isConnectedPlayerSession(): boolean {
     const session = this.sessionStore.get();
     return session.role === 'player' && session.connected;
+  }
+
+  storedSessionForRoom(roomId: string): P2PStoredSessionSummary | null {
+    const saved = readActiveSession();
+    if (!saved || saved.roomId !== roomId) return null;
+    return {
+      role: saved.role,
+      roomId: saved.roomId,
+      participantName: saved.participantName
+    };
   }
 
   async createGmInviteFromDraft(input: P2PInviteContext & { participantName?: string }): Promise<P2PSessionInvite> {

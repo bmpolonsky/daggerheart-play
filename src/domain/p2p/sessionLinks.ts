@@ -10,12 +10,6 @@ export interface PlayerSessionParams {
   roomId: string;
 }
 
-export interface StoredCallSessionSummary {
-  role: 'gm' | 'player';
-  roomId: string;
-  participantName: string;
-}
-
 export function createShortRoomCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
@@ -53,11 +47,7 @@ export function parsePlayerSessionLocation(pathname: string, basePath = ''): Pla
 export function parseCallSessionLocation(pathname: string, basePath = ''): PlayerSessionParams | null {
   const normalized = stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
   const match = normalized.match(/^\/calls\/([^/]+)$/);
-  const roomId = match?.[1]
-    ? normalizeSessionRoomId(decodeURIComponent(match[1]), '')
-    : normalized === '/calls'
-      ? readStoredCallRoomId()
-      : '';
+  const roomId = match?.[1] ? normalizeSessionRoomId(decodeURIComponent(match[1]), '') : '';
   if (!roomId) {
     return null;
   }
@@ -91,7 +81,7 @@ export function writeStoredPlayerSeatId(roomId: string, seatId: string): void {
 export function readStoredCallName(roomId: string): string {
   if (!roomId) return '';
   const p2p = localAppStorageStore.getState().p2p;
-  return p2p?.callNames?.[roomId] ?? (p2p?.activeSession?.roomId === roomId ? p2p.activeSession.participantName : '');
+  return p2p?.callNames?.[roomId] ?? '';
 }
 
 export function writeStoredCallName(roomId: string, name: string): void {
@@ -106,21 +96,6 @@ export function writeStoredCallName(roomId: string, name: string): void {
       }
     }
   }));
-}
-
-export function readStoredCallRoomId(): string {
-  const p2p = localAppStorageStore.getState().p2p;
-  return normalizeSessionRoomId(p2p?.activeSession?.roomId ?? p2p?.inviteDraft?.roomId ?? '', '');
-}
-
-export function readStoredCallSession(roomId: string): StoredCallSessionSummary | null {
-  const session = localAppStorageStore.getState().p2p?.activeSession;
-  if (!session || session.version !== 1 || session.roomId !== roomId) return null;
-  return {
-    role: session.role,
-    roomId: session.roomId,
-    participantName: session.participantName
-  };
 }
 
 function joinRoutePath(basePath = '', roomId: string): string {

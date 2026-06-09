@@ -109,7 +109,7 @@ function readVttSidecarOffset(): number {
 function FloatingVideo({ fallbackName, local = false, participant }: { fallbackName: string; local?: boolean; participant: CallParticipant | null }) {
   const name = participant?.displayName || fallbackName;
   return (
-    <article className="floating-call__video">
+    <article className={`floating-call__video ${local ? 'dh-is-local' : ''}`.trim()}>
       {participant?.stream && !participant.cameraOff ? (
         <MediaStreamVideo key={mediaStreamRenderKey(participant.stream)} muted={local} stream={participant.stream} />
       ) : (
