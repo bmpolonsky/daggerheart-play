@@ -5,9 +5,11 @@ import sharp from 'sharp';
 const BASE_URL = (process.env.CONTENT_SOURCE ?? 'https://daggerheart.su').replace(/\/+$/, '');
 const LANGUAGE = process.env.CONTENT_LANG ?? 'ru';
 const SHOULD_REFRESH = process.env.CONTENT_REFRESH === '1';
+const SHOULD_REFRESH_ASSETS = process.env.CONTENT_REFRESH_ASSETS === '1';
 const CACHE_TTL_HOURS = Number(process.env.CONTENT_CACHE_TTL_HOURS ?? '24');
 const WEBP_QUALITY = clampNumber(Number(process.env.CONTENT_WEBP_QUALITY ?? '85'), 1, 100);
 const WEBP_MAX_SIDE = clampNumber(Number(process.env.CONTENT_WEBP_MAX_SIDE ?? '1200'), 1, 10000);
+const ASSET_CONCURRENCY = clampNumber(Number(process.env.CONTENT_ASSET_CONCURRENCY ?? '8'), 1, 32);
 const PUBLIC_DIR = resolve('public');
 const DATA_DIR = resolve(PUBLIC_DIR, 'data');
 const CSS_FILES = [];
@@ -116,7 +118,7 @@ async function downloadAsset(pathname) {
   if (!targetNormalized) return;
   const targetPath = resolve(PUBLIC_DIR, `.${targetNormalized}`);
   const hasCachedTarget = await fileExists(targetPath);
-  if (!SHOULD_REFRESH && hasCachedTarget) return;
+  if (!SHOULD_REFRESH_ASSETS && hasCachedTarget) return;
 
   await ensureDir(dirname(targetPath));
   let response;
@@ -143,6 +145,19 @@ async function downloadAsset(pathname) {
     return;
   }
   await writeFile(targetPath, buffer);
+}
+
+async function downloadAssets(assetUrls) {
+  const urls = Array.from(assetUrls);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(ASSET_CONCURRENCY, urls.length) }, async () => {
+    while (nextIndex < urls.length) {
+      const assetUrl = urls[nextIndex];
+      nextIndex += 1;
+      await downloadAsset(assetUrl);
+    }
+  });
+  await Promise.all(workers);
 }
 
 function rewriteCssUrls(cssText) {
@@ -175,10 +190,7 @@ async function cacheCssFiles() {
       cssText = await response.text();
     }
 
-    for (const assetUrl of collectUrlsFromCss(cssText)) {
-      // eslint-disable-next-line no-await-in-loop
-      await downloadAsset(assetUrl);
-    }
+    await downloadAssets(collectUrlsFromCss(cssText));
 
     const rewrittenCss = rewriteCssUrls(cssText);
     if (SHOULD_REFRESH || !(await fileExists(targetPath)) || rewrittenCss !== cssText) {
@@ -327,13 +339,10 @@ async function main() {
 
     if (!collection.assets) continue;
 
-    for (const assetUrl of assetUrls) {
-      // eslint-disable-next-line no-await-in-loop
-      await downloadAsset(assetUrl);
-    }
+    await downloadAssets(assetUrls);
   }
 
-  for (const staticAsset of [
+  await downloadAssets([
     '/font/roboto.woff2',
     '/font/eveleth-cyrillic.woff2',
     '/font/overpass.woff2',
@@ -351,10 +360,7 @@ async function main() {
     '/image/domain/emblems/sage.svg',
     '/image/domain/emblems/midnight.svg',
     '/image/domain/emblems/dread.svg'
-  ]) {
-    // eslint-disable-next-line no-await-in-loop
-    await downloadAsset(staticAsset);
-  }
+  ]);
 
   const existingManifest = await readJson(manifestPath);
   if (!SHOULD_REFRESH && isEquivalentManifest(existingManifest, manifest)) {
