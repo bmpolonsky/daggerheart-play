@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import type { ComponentType } from 'preact';
 import { lazy, Suspense } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
 import { ToastViewport } from './ui/components/common';
@@ -9,22 +10,24 @@ type RouteId = 'entry' | 'gm' | 'join' | 'player' | 'call' | 'combat' | 'cards';
 type OpenWorkspaceEvent = CustomEvent<{ workspace: WorkspaceId; hash?: string }>;
 type NavigateRouteEvent = CustomEvent<{ route: RouteId; hash?: string; search?: string; roomId?: string }>;
 
-const PlayerViewApp = lazy(async () => {
+const STALE_ROUTE_CHUNK_RELOAD_KEY = `daggerheart-play:stale-route-chunk-reload:${__APP_RELEASE__}`;
+
+const PlayerViewApp = lazyRoute(async () => {
   const { PlayerViewApp } = await import('./ui/vtt/PlayerViewApp');
   return { default: PlayerViewApp };
 });
 
-const CombatBuilderTool = lazy(async () => {
+const CombatBuilderTool = lazyRoute(async () => {
   const { CombatBuilderTool } = await import('./tools/CombatBuilderTool');
   return { default: CombatBuilderTool };
 });
 
-const CardCreatorTool = lazy(async () => {
+const CardCreatorTool = lazyRoute(async () => {
   const { CardCreatorTool } = await import('./tools/CardCreatorTool');
   return { default: CardCreatorTool };
 });
 
-const CallRoomApp = lazy(async () => {
+const CallRoomApp = lazyRoute(async () => {
   const { CallRoomApp } = await import('./ui/call/CallRoomApp');
   return { default: CallRoomApp };
 });
@@ -129,6 +132,34 @@ function pathForRoute(routeId: RouteId, roomId?: string): string {
     return pathWithBase(`/${routeId === 'call' ? 'calls' : routeId}/${encodeURIComponent(roomId)}`);
   }
   return pathWithBase(routeById(routeId).path);
+}
+
+function lazyRoute<T extends { default: ComponentType<any> }>(loader: () => Promise<T>) {
+  return lazy(() => loader().catch(handleLazyRouteImportError));
+}
+
+function handleLazyRouteImportError(error: unknown): Promise<never> {
+  if (isLikelyStaleRouteChunkError(error) && reloadOnceForStaleRouteChunk()) {
+    return new Promise(() => {});
+  }
+  throw error;
+}
+
+function isLikelyStaleRouteChunkError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /dynamically imported module|failed to fetch|error loading dynamically imported module|chunkloaderror/i.test(message);
+}
+
+function reloadOnceForStaleRouteChunk(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (window.sessionStorage.getItem(STALE_ROUTE_CHUNK_RELOAD_KEY) === '1') return false;
+    window.sessionStorage.setItem(STALE_ROUTE_CHUNK_RELOAD_KEY, '1');
+  } catch {
+    return false;
+  }
+  window.location.reload();
+  return true;
 }
 
 export function SuperApp() {
