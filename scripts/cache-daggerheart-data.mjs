@@ -6,7 +6,8 @@ const BASE_URL = (process.env.CONTENT_SOURCE ?? 'https://daggerheart.su').replac
 const LANGUAGE = process.env.CONTENT_LANG ?? 'ru';
 const SHOULD_REFRESH = process.env.CONTENT_REFRESH === '1';
 const CACHE_TTL_HOURS = Number(process.env.CONTENT_CACHE_TTL_HOURS ?? '24');
-const WEBP_QUALITY = clampNumber(Number(process.env.CONTENT_WEBP_QUALITY ?? '95'), 1, 100);
+const WEBP_QUALITY = clampNumber(Number(process.env.CONTENT_WEBP_QUALITY ?? '85'), 1, 100);
+const WEBP_MAX_SIDE = clampNumber(Number(process.env.CONTENT_WEBP_MAX_SIDE ?? '1200'), 1, 10000);
 const PUBLIC_DIR = resolve('public');
 const DATA_DIR = resolve(PUBLIC_DIR, 'data');
 const CSS_FILES = [];
@@ -134,7 +135,10 @@ async function downloadAsset(pathname) {
 
   const buffer = Buffer.from(await response.arrayBuffer());
   if (isWebpConvertibleAsset(normalized)) {
-    const webpBuffer = await sharp(buffer).webp({ quality: WEBP_QUALITY }).toBuffer();
+    const webpBuffer = await sharp(buffer)
+      .resize({ width: WEBP_MAX_SIDE, height: WEBP_MAX_SIDE, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: WEBP_QUALITY, effort: 6 })
+      .toBuffer();
     await writeFile(targetPath, webpBuffer);
     return;
   }

@@ -42,7 +42,6 @@ jobs:
           key: daggerheart-content-${{ runner.os }}-${{ hashFiles('scripts/cache-daggerheart-data.mjs') }}-${{ github.run_id }}
           restore-keys: |
             daggerheart-content-${{ runner.os }}-${{ hashFiles('scripts/cache-daggerheart-data.mjs') }}-
-            daggerheart-content-${{ runner.os }}-
 
       - name: Install dependencies
         run: npm ci
