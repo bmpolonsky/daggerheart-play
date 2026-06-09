@@ -155,7 +155,7 @@ test('persistence migrates legacy public asset image URLs', () => {
     value: {
       location: {
         origin: 'https://bmpolonsky.github.io',
-        pathname: '/daggerheart-play/gm'
+        pathname: '/daggerheart-play/game'
       }
     },
     configurable: true

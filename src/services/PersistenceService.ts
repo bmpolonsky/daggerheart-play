@@ -11,6 +11,7 @@ import type { PersistedState } from '../domain/rules/types';
 import type { StoredGameSummary } from '../core/persistence/gameDocumentStore';
 import type { AssetService } from './AssetService';
 import { Store } from '../core/store/Store';
+import { readActiveSession } from './p2p/P2PSessionPersistence';
 
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
 
@@ -366,5 +367,10 @@ function isRemotePlayerJoin(): boolean {
   if (typeof window === 'undefined') return false;
   const location = (window as Window & { location?: Location }).location;
   const pathname = location?.pathname ?? '';
-  return Boolean(parsePlayerSessionLocation(pathname, inferBasePathFromWorkspacePath(pathname)));
+  if (parsePlayerSessionLocation(pathname, inferBasePathFromWorkspacePath(pathname))) {
+    return true;
+  }
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const activeSession = readActiveSession();
+  return normalizedPath.endsWith('/game') && activeSession?.role === 'player';
 }

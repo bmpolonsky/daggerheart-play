@@ -226,14 +226,19 @@ export class P2PSessionService {
     return session.role === 'player' && session.connected;
   }
 
-  storedSessionForRoom(roomId: string): P2PStoredSessionSummary | null {
+  storedSession(): P2PStoredSessionSummary | null {
     const saved = readActiveSession();
-    if (!saved || saved.roomId !== roomId) return null;
+    if (!saved) return null;
     return {
       role: saved.role,
       roomId: saved.roomId,
       participantName: saved.participantName
     };
+  }
+
+  storedSessionForRoom(roomId: string): P2PStoredSessionSummary | null {
+    const saved = this.storedSession();
+    return saved?.roomId === roomId ? saved : null;
   }
 
   async createGmInviteFromDraft(input: P2PInviteContext & { participantName?: string }): Promise<P2PSessionInvite> {

@@ -27,7 +27,7 @@ test.describe('mobile card creator workspace', () => {
 
     const root = page.locator('.tool-viewport--cards');
     const sidebar = root.locator('.sidebar');
-    const search = root.locator('.sidebar__search-field');
+    const search = root.locator('.dh-search-field');
     const workspace = root.locator('.workspace');
     const header = root.locator('.workspace__header');
 

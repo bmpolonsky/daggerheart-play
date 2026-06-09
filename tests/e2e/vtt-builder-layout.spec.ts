@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openGmGame } from './game-route-helpers';
 import { expectAbove, expectInsideViewport, expectLeftOf, expectNoOverlap, rect } from './layout-helpers';
 
 async function openBuilder(page: Page): Promise<void> {
-  await page.goto('/gm');
+  await openGmGame(page);
   await page.locator('.mini-dice-launcher__tools').click();
   await page.getByRole('button', { name: 'Персонажи' }).click();
   await page.getByRole('button', { name: /Создать героя/ }).first().click();

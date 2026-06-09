@@ -34,7 +34,7 @@ export function buildCallInviteUrl(input: PlayerInviteUrlInput): string {
 
 export function parsePlayerSessionLocation(pathname: string, basePath = ''): PlayerSessionParams | null {
   const normalized = stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
-  const match = normalized.match(/^\/(?:join|player)\/([^/]+)$/);
+  const match = normalized.match(/^\/join\/([^/]+)$/);
   const roomId = match?.[1] ? normalizeSessionRoomId(decodeURIComponent(match[1]), '') : '';
   if (!roomId) {
     return null;
@@ -57,7 +57,7 @@ export function parseCallSessionLocation(pathname: string, basePath = ''): Playe
 }
 
 export function inferBasePathFromWorkspacePath(pathname: string): string {
-  return pathname.replace(/\/(?:gm|player|join|calls)(?:\/[^/]+)?\/?$/, '').replace(/\/$/, '');
+  return pathname.replace(/\/(?:game|join|calls)(?:\/[^/]+)?\/?$/, '').replace(/\/$/, '');
 }
 
 export function readStoredPlayerSeatId(roomId: string): string | null {

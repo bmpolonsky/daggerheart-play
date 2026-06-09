@@ -17,7 +17,7 @@ function currentBasePath(): string {
   if (typeof window === 'undefined') return '';
   return window.location.pathname
     .replace(/\/tools\/(?:cards|combat)\/?$/, '')
-    .replace(/\/(?:gm|player|join|calls)(?:\/[^/]+)?\/?$/, '')
+    .replace(/\/(?:game|join|calls)(?:\/[^/]+)?\/?$/, '')
     .replace(/\/$/, '');
 }
 

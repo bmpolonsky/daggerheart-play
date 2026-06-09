@@ -27,7 +27,7 @@ test('public asset URLs normalize same-origin legacy image extensions', () => {
     value: {
       location: {
         origin: 'https://bmpolonsky.github.io',
-        pathname: '/daggerheart-play/gm'
+        pathname: '/daggerheart-play/game'
       }
     },
     configurable: true

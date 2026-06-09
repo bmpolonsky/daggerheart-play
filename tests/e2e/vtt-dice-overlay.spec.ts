@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openPlayerGame } from './game-route-helpers';
 import { expectInsideViewport } from './layout-helpers';
 
 async function rollAction(page: Page): Promise<void> {
@@ -9,7 +10,7 @@ async function rollAction(page: Page): Promise<void> {
 test.describe('duality dice overlay', () => {
   test('shows a cinematic dice moment and keeps idle dice off the scene', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/player/test-room');
+    await openPlayerGame(page);
 
     await expect(page.locator('.polyhedral-dice-stage')).toHaveCount(0);
     await rollAction(page);
@@ -26,7 +27,7 @@ test.describe('duality dice overlay', () => {
 
   test('uses the full token stage for the dice moment on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/player/test-room');
+    await openPlayerGame(page);
 
     await rollAction(page);
     const overlay = page.locator('.polyhedral-dice-stage');
@@ -54,7 +55,7 @@ test.describe('duality dice overlay', () => {
 
   test('does not replay transient player dice after reload', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/player/test-room');
+    await openPlayerGame(page);
 
     await rollAction(page);
     await expect(page.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible();

@@ -1,6 +1,7 @@
-/* SuperApp player route shell and player-view backdrop. */
+/* App player route shell and player-view backdrop. */
 /* Player and GM scene overlay composition, rails, tokens, and mini dice launcher. */
 /* Scene composition pass: the game view is a scene with UI overlaid on top. */
+.superapp-shell--game,
 .superapp-shell--gm,
 .superapp-shell--gmer,
 .superapp-shell--player {
@@ -8,6 +9,7 @@
   grid-template-rows: minmax(0, 1fr);
 }
 
+.superapp-shell--game .superapp-content,
 .superapp-shell--gm .superapp-content,
 .superapp-shell--gmer .superapp-content,
 .superapp-shell--player .superapp-content {
@@ -35,6 +37,7 @@
   background: #07090c;
 }
 
+.superapp-shell--game .player-view,
 .superapp-shell--gm .player-view,
 .superapp-shell--gmer .player-view,
 .superapp-shell--player .player-view {
@@ -135,9 +138,11 @@
 
 @media (max-width: 920px) {
   .superapp-shell--gm .superapp-content,
+  .superapp-shell--game .superapp-content,
   .superapp-shell--gmer .superapp-content,
   .superapp-shell--player .superapp-content,
   .superapp-shell--gm .player-view,
+  .superapp-shell--game .player-view,
   .superapp-shell--gmer .player-view,
   .superapp-shell--player .player-view {
     height: 100svh;

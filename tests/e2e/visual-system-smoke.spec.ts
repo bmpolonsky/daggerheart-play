@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectInsideViewport } from './layout-helpers';
 
 async function expectNoHorizontalOverflow(page: Page, width: number): Promise<void> {
@@ -42,7 +43,7 @@ test.describe('dark glass visual system smoke', () => {
 
   test('GM VTT, tools modal, and character builder use stable glass surfaces', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/gm');
+    await openGmGame(page);
 
     const feed = page.locator('.player-left-rail');
     const scene = page.locator('.player-scene-stage');
@@ -71,7 +72,7 @@ test.describe('dark glass visual system smoke', () => {
 
   test('player mobile layers keep document width stable', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/player/test-room');
+    await openPlayerGame(page);
 
     const tabs = page.locator('.player-mobile-layer-tabs');
     await expectInsideViewport(page, tabs);

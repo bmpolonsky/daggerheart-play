@@ -1,8 +1,13 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { openGmGame, openPlayerGame } from './game-route-helpers';
 
-async function openSharedSettings(page: Page, route: '/gm' | '/player/test-room', section: 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
+async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(route);
+  if (role === 'gm') {
+    await openGmGame(page);
+  } else {
+    await openPlayerGame(page);
+  }
   await openCurrentSettings(page, section);
 }
 
@@ -41,13 +46,13 @@ test.describe('P2P session workflow', () => {
     const gm = await newSharedPage(browser);
     const player = await newSharedPage(browser);
 
-    await openSharedSettings(gm, '/gm', 'Игры проекта');
+    await openSharedSettings(gm, 'gm', 'Игры проекта');
     const gmModal = gm.locator('.player-tools-modal');
     await expect(gmModal.getByRole('button', { name: 'Экспорт' })).toBeVisible();
     await expect(gmModal.getByRole('button', { name: 'Импорт' })).toBeVisible();
     await expect(gm.getByText('Ручной JSON-архив')).toHaveCount(0);
 
-    await openSharedSettings(player, '/player/test-room', 'Подключение');
+    await openSharedSettings(player, 'player', 'Подключение');
     await expect(player.getByText('Ручной JSON-архив')).toHaveCount(0);
   });
 

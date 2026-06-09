@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
 
 test.describe('VTT detail composition', () => {
   test('desktop scene stays between activity feed and character panel', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/gm');
+    await openGmGame(page);
 
     const root = page.locator('.player-view--gm');
     const feed = page.locator('.player-left-rail');
@@ -23,7 +24,7 @@ test.describe('VTT detail composition', () => {
 
   test('desktop uses activity feed on the left and GM tools inside the right panel', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/gm');
+    await openGmGame(page);
 
     const feed = page.locator('.player-left-rail');
     const panel = page.locator('.player-character-panel');
@@ -42,7 +43,7 @@ test.describe('mobile VTT composition', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('keeps scene primary and switches activity feed as one exclusive layer', async ({ page }) => {
-    await page.goto('/player/test-room');
+    await openPlayerGame(page);
 
     const root = page.locator('.player-view--player');
     const tabs = page.locator('.player-mobile-layer-tabs');
@@ -65,7 +66,7 @@ test.describe('mobile VTT composition', () => {
   });
 
   test('tools modal opens above player layers and closes cleanly', async ({ page }) => {
-    await page.goto('/gm');
+    await openGmGame(page);
 
     await page.locator('.mini-dice-launcher__tools').click();
     const modal = page.locator('.player-tools-modal');
@@ -76,7 +77,7 @@ test.describe('mobile VTT composition', () => {
   });
 
   test('GM tools mobile tabs expose character creation', async ({ page }) => {
-    await page.goto('/gm');
+    await openGmGame(page);
 
     await page.locator('.mini-dice-launcher__tools').click();
     const modal = page.locator('.player-tools-modal');

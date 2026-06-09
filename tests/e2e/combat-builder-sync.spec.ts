@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { openGmGame } from './game-route-helpers';
 
 async function openCombatBuilder(context: BrowserContext): Promise<Page> {
   const page = await context.newPage();
@@ -11,7 +12,7 @@ async function openCombatBuilder(context: BrowserContext): Promise<Page> {
 async function openGmTable(context: BrowserContext): Promise<Page> {
   const page = await context.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/gm');
+  await openGmGame(page);
   await expect(page.locator('.player-view--gm')).toBeVisible();
   return page;
 }

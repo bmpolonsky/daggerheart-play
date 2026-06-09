@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
-import { SuperApp } from './SuperApp';
+import { App } from './App';
 import { initSentry } from './core/observability/sentry';
 import { bootServices } from './services/serviceRegistry';
 import './styles/app-foundation.css';
@@ -11,5 +11,5 @@ initSentry();
 const root = document.getElementById('root') as HTMLElement;
 
 void bootServices().finally(() => {
-  render(<SuperApp />, root);
+  render(<App />, root);
 });

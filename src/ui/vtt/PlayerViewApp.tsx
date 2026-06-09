@@ -9,7 +9,7 @@ import {
 } from '../../domain/tabletop/playerView';
 import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
-import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation, readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
+import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import { nowIso } from '../../core/utils/date';
 import { gameService, characterService, contentService, encounterService, feedService, p2pSessionService, rollLogService, sceneTableService } from '../../services/serviceRegistry';
 import { CharacterBuilderModal } from '../characters/CharacterBuilderModal';
@@ -40,7 +40,11 @@ import type { PlayerMobileLayer, PlayerViewedActor, SharedToolsTab, TableViewRol
 import { TabButton, Tabs } from '../components/common/Tabs';
 import './playerView/player-view.css';
 
-export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
+export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
+  const p2pSession = useStream(p2pSessionService.session$);
+  const storedSession = p2pSessionService.storedSession();
+  const role = roleProp ?? p2pSession.role ?? storedSession?.role ?? 'gm';
+  const sessionRoomId = role === 'player' ? p2pSession.roomId || storedSession?.roomId || '' : '';
   const game = useStream(gameService.game$);
   const characters = useStream(characterService.characters$);
   const encounter = useStream(encounterService.encounter$);
@@ -49,8 +53,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
   const rollLog = useStream(rollLogService.rollLog$);
   const feed = useStream(feedService.feed$);
   const liveScene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
-  const sessionParams = typeof window === 'undefined' ? null : parsePlayerSessionLocation(window.location.pathname, inferBasePathFromWorkspacePath(window.location.pathname));
-  const [selectedPlayerSeatId, setSelectedPlayerSeatId] = useState(() => sessionParams?.roomId ? readStoredPlayerSeatId(sessionParams.roomId) : null);
+  const [selectedPlayerSeatId, setSelectedPlayerSeatId] = useState(() => sessionRoomId ? readStoredPlayerSeatId(sessionRoomId) : null);
   const playerSeats = useMemo(() => Object.values(sceneTable.participants).filter((participant) => participant.role === 'player'), [sceneTable.participants]);
   const selectedPlayerSeat = playerSeats.find((seat) => seat.id === selectedPlayerSeatId) ?? null;
   const playerCharacterId = playerCharacterIdFromParticipants(sceneTable.participants, characters.entities, role === 'player' ? selectedPlayerSeatId : null);
@@ -66,7 +69,15 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
   useEffect(() => {
     playerViewUiActions.reset();
     return () => playerViewUiActions.reset();
-  }, [role, sessionParams?.roomId]);
+  }, [role, sessionRoomId]);
+
+  useEffect(() => {
+    if (role !== 'player' || !sessionRoomId) return;
+    const storedSeatId = readStoredPlayerSeatId(sessionRoomId);
+    if (storedSeatId && storedSeatId !== selectedPlayerSeatId) {
+      setSelectedPlayerSeatId(storedSeatId);
+    }
+  }, [role, selectedPlayerSeatId, sessionRoomId]);
 
   const model = useMemo(
     () => buildPlayerViewModel({
@@ -139,8 +150,8 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
   const completeDiceRoll = useCallback((rollId: string) => playerViewUiActions.completeDiceRoll(rollId), []);
   const selectPlayerSeat = useCallback((seatId: string) => {
     setSelectedPlayerSeatId(seatId);
-    if (sessionParams?.roomId) writeStoredPlayerSeatId(sessionParams.roomId, seatId);
-  }, [sessionParams?.roomId]);
+    if (sessionRoomId) writeStoredPlayerSeatId(sessionRoomId, seatId);
+  }, [sessionRoomId]);
   const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab }) => {
     if (typeof window === 'undefined') return;
     const nextSearch = updateRoutedPlayerViewSearch(window.location.search, role, next);
@@ -240,7 +251,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         role={role}
         selectedPlayerName={selectedPlayerName}
         selectedPlayerSeatId={selectedPlayerSeatId}
-        sessionRoomId={sessionParams?.roomId}
+        sessionRoomId={sessionRoomId}
       />
       <div
         key={`${model.scene.id}:${model.scene.imageUrl}`}
@@ -249,7 +260,7 @@ export function PlayerViewApp({ role = 'player' }: { role?: TableViewRole }) {
         style={{ backgroundImage: sceneBackgroundImage }}
       />
       <div className="player-view__backdrop" aria-hidden="true" />
-      <PlayerConnectionStatus hasCharacter={Boolean(model.character)} hasSessionRoom={Boolean(sessionParams?.roomId)} role={role} />
+      <PlayerConnectionStatus hasCharacter={Boolean(model.character)} hasSessionRoom={Boolean(sessionRoomId)} role={role} />
       <PlayerTopBar model={model} role={role} />
       <Tabs className="player-mobile-layer-tabs" label="Слой интерфейса">
         <TabButton active={mobileLayer === 'feed'} onClick={() => setMobileLayer('feed')}>

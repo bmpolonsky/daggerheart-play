@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectNoOverlap, rect } from './layout-helpers';
 
 test.describe('VTT layout shell contract', () => {
   test('desktop aligns left feed lane, scene, and right character panel', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/gm');
+    await openGmGame(page);
 
     const feed = page.locator('.player-left-rail');
     const scene = page.locator('.player-scene-stage');
@@ -29,7 +30,7 @@ test.describe('VTT layout shell contract', () => {
 
   test('mobile tabs switch feed, scene, and sheet layers without document overflow', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/player/test-room');
+    await openPlayerGame(page);
 
     const root = page.locator('.player-view--player');
     const tabs = page.locator('.player-mobile-layer-tabs');

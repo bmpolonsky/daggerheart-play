@@ -1,14 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectInsideViewport } from './layout-helpers';
 
 async function openPlayerView(page: Page, viewport: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(viewport);
-  await page.goto('/player/test-room');
+  await openPlayerGame(page);
 }
 
 async function openAssignedPlayerView(page: Page, viewport: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(viewport);
-  await page.goto('/player/test-room');
+  await openPlayerGame(page);
   await expect(page.locator('.player-view--player')).toBeVisible();
 }
 
@@ -74,7 +75,7 @@ test.describe('Player View empty state', () => {
 
   test('GM can adjust Fear from the VTT top bar', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/gm');
+    await openGmGame(page);
 
     const fearTrack = page.locator('.player-fear-track');
     await expect(fearTrack).toContainText('0/12');
@@ -88,7 +89,7 @@ test.describe('Player View empty state', () => {
 
   test('GM creates and manages countdown from the feed composer', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/gm');
+    await openGmGame(page);
 
     await page.locator('.player-roster-gm-dock__tabs').getByRole('button', { name: 'Действия' }).click();
     await page.getByRole('button', { name: 'Создать отсчет' }).click();

@@ -2,14 +2,14 @@
 import { parsePlayerSessionLocation } from '../../domain/p2p/sessionLinks';
 import { publicAssetUrl } from '../../domain/content/publicAssets';
 import { DEFAULT_LOBBY_SCENE_IMAGE } from '../../domain/tabletop/defaultArt';
+import type { NavigableRouteId } from '../../app/routing';
 import { PlayerJoinLobby } from './PlayerJoinLobby';
 import { SessionLobby } from './SessionLobby';
 
-type RoleRouteId = 'entry' | 'gm' | 'join' | 'player' | 'call' | 'combat' | 'cards';
 
 interface RoleEntryProps {
   basePath: string;
-  onSelectRole: (route: RoleRouteId, hash?: string, search?: string, roomId?: string) => void;
+  onSelectRole: (route: NavigableRouteId, hash?: string, search?: string, roomId?: string) => void;
 }
 
 export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
@@ -24,7 +24,7 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
         roomId={sessionParams.roomId}
         sceneImageUrl={sceneImageUrl}
         onBackToLobby={() => onSelectRole('entry')}
-        onEnterPlayerRoom={(roomId) => onSelectRole('player', '', '', roomId)}
+        onEnterPlayerRoom={() => onSelectRole('game')}
       />
     );
   }
@@ -33,7 +33,7 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
     <SessionLobby
       inviteContext={lobbyInviteContext(basePath)}
       sceneImageUrl={sceneImageUrl}
-      onEnterGm={() => onSelectRole('gm')}
+      onEnterGm={() => onSelectRole('game')}
       onJoinRoom={(roomId) => onSelectRole('join', '', '', roomId)}
     />
   );
