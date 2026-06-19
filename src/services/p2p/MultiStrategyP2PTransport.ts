@@ -322,16 +322,19 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     if (physicalPeerId) {
       this.rememberRoutePeer(route.strategy, logicalPeerId, physicalPeerId);
     }
-    this.updatePeerRouteStats(logicalPeerId, route.strategy, { status: 'available', lastSeenAt: route.lastSeenAt });
     if (isRouteAck(envelope.payload)) {
       this.handleAck(route, logicalPeerId, envelope.payload);
       return;
     }
+    this.updatePeerRouteStats(logicalPeerId, route.strategy, {
+      status: this.peerRouteStatus(logicalPeerId, route.strategy) === 'lost' ? 'lost' : 'available',
+      lastSeenAt: route.lastSeenAt
+    });
     void this.sendAck(route, logicalPeerId, envelope.id);
     if (this.wasEnvelopeSeen(envelope.id)) {
       return;
     }
-    this.activateRoute(logicalPeerId, route.strategy);
+    this.activateRoute(logicalPeerId, route.strategy, { force: envelope.channel === 'data' });
     this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: logicalPeerId }));
   }
 
@@ -347,16 +350,14 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     }
   }
 
-  private activateRoute(logicalPeerId: string, strategy: P2PTransportStrategy): void {
+  private activateRoute(logicalPeerId: string, strategy: P2PTransportStrategy, options: { force?: boolean } = {}): void {
     const current = this.activeRouteByPeer.get(logicalPeerId);
-    if (current === strategy) {
+    const next = options.force ? strategy : this.preferredAvailableStrategy(logicalPeerId) ?? strategy;
+    if (current === next) {
       return;
     }
-    const next = choosePreferredRoute(current, strategy, this.routes);
     this.activeRouteByPeer.set(logicalPeerId, next);
-    if (next === strategy) {
-      void this.publishMediaStreamsForPeer(logicalPeerId);
-    }
+    void this.publishMediaStreamsForPeer(logicalPeerId);
     this.emitDiagnosticsChange();
   }
 
@@ -435,16 +436,16 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
   private handleAck(route: RouteState, logicalPeerId: string, ack: MultiRouteAck): void {
     const pendingKey = ackKey(logicalPeerId, ack.envelopeId);
     const pending = this.pendingAcks.get(pendingKey);
+    if (!pending) {
+      return;
+    }
     route.rttMs = Math.max(0, Date.now() - (pending?.sentAt ?? ack.sentAt));
     this.updatePeerRouteStats(logicalPeerId, route.strategy, {
       status: 'available',
       lastSeenAt: route.lastSeenAt ?? Date.now(),
       rttMs: route.rttMs
     });
-    this.activateRoute(logicalPeerId, route.strategy);
-    if (!pending) {
-      return;
-    }
+    this.activateRoute(logicalPeerId, route.strategy, { force: true });
     window.clearTimeout(pending.timeout);
     this.pendingAcks.delete(pendingKey);
     pending.resolve(route.strategy);
@@ -527,7 +528,7 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     physicalPeers?.delete(route.strategy);
     this.updatePeerRouteStats(logicalPeerId, route.strategy, { status: 'lost' });
     if (physicalPeers && physicalPeers.size > 0) {
-      const nextStrategy = Array.from(physicalPeers.keys())[0];
+      const nextStrategy = this.preferredAvailableStrategy(logicalPeerId) ?? Array.from(physicalPeers.keys())[0];
       this.activeRouteByPeer.set(logicalPeerId, nextStrategy);
       void this.publishMediaStreamsForPeer(logicalPeerId);
       this.emitDiagnosticsChange();
@@ -552,6 +553,26 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     statsByRoute.set(strategy, { ...current, ...patch });
     this.peerRouteStats.set(peerId, statsByRoute);
     this.emitDiagnosticsChange();
+  }
+
+  private peerRouteStatus(peerId: string, strategy: P2PTransportStrategy): PeerRouteStats['status'] | null {
+    return this.peerRouteStats.get(peerId)?.get(strategy)?.status ?? null;
+  }
+
+  private preferredAvailableStrategy(peerId: string): P2PTransportStrategy | null {
+    const physicalPeers = this.physicalPeerByLogicalPeer.get(peerId);
+    const statsByRoute = this.peerRouteStats.get(peerId);
+    for (const strategy of this.candidates) {
+      const route = this.routes.get(strategy);
+      const stats = statsByRoute?.get(strategy);
+      if (!route || route.status === 'failed' || route.status === 'degraded' || stats?.status === 'lost' || stats?.status === 'failed') {
+        continue;
+      }
+      if (physicalPeers?.has(strategy) || stats?.status === 'available') {
+        return strategy;
+      }
+    }
+    return null;
   }
 
   private wasEnvelopeSeen(envelopeId: string): boolean {
@@ -648,36 +669,6 @@ function isRouteAck(value: unknown): value is MultiRouteAck {
     (value as { type?: unknown }).type === 'multi-route-ack' &&
     typeof (value as { envelopeId?: unknown }).envelopeId === 'string'
   );
-}
-
-function choosePreferredRoute(current: P2PTransportStrategy | undefined, next: P2PTransportStrategy, routes: Map<P2PTransportStrategy, RouteState>): P2PTransportStrategy {
-  if (!current) {
-    return next;
-  }
-  const currentRoute = routes.get(current);
-  const nextRoute = routes.get(next);
-  if (!currentRoute || currentRoute.status === 'failed') {
-    return next;
-  }
-  if (!nextRoute || nextRoute.status === 'failed') {
-    return current;
-  }
-  if (currentRoute.status === 'degraded' && nextRoute.status === 'ready') {
-    return next;
-  }
-  if (nextRoute.lastSeenAt && (!currentRoute.lastSeenAt || nextRoute.lastSeenAt > currentRoute.lastSeenAt)) {
-    return next;
-  }
-  const currentRtt = currentRoute.rttMs ?? Number.POSITIVE_INFINITY;
-  const nextRtt = nextRoute.rttMs ?? Number.POSITIVE_INFINITY;
-  if (Number.isFinite(currentRtt) && Number.isFinite(nextRtt) && nextRtt + 50 < currentRtt) {
-    return next;
-  }
-  return strategyPriority(next) < strategyPriority(current) ? next : current;
-}
-
-function strategyPriority(strategy: P2PTransportStrategy): number {
-  return DEFAULT_CANDIDATES.indexOf(strategy);
 }
 
 function safeMetadataKey(metadata: unknown): string {

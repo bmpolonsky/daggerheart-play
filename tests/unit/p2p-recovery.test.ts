@@ -184,6 +184,69 @@ test('P2P auto route retries data through another strategy when the active route
   }
 });
 
+test('P2P auto route keeps a stable preferred active route while probes continue', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gm = createTestP2PSession(network, { dice: true });
+  const player = createTestP2PSession(network);
+
+  try {
+    writeP2PNetworkSettings({ strategy: 'auto' });
+    await gm.startGmRoom({ roomId: 'stable-route-room', participantName: 'GM' });
+    await player.startPlayerRoom({ roomId: 'stable-route-room', participantName: 'Player' });
+
+    await waitFor(() => {
+      assert.equal(player.session$.get().lastSnapshotAt !== null, true);
+      assert.equal(player.session$.get().routePeers[0]?.activeStrategy, 'nostr');
+      assert.equal(gm.session$.get().routePeers[0]?.activeStrategy, 'nostr');
+    }, 15_000);
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    assert.equal(player.session$.get().routePeers[0]?.activeStrategy, 'nostr');
+    assert.equal(gm.session$.get().routePeers[0]?.activeStrategy, 'nostr');
+  } finally {
+    await player.stop().catch(() => undefined);
+    await gm.stop().catch(() => undefined);
+    writeP2PNetworkSettings({ strategy: 'auto' });
+    restoreWindow();
+  }
+});
+
+test('P2P auto route does not prefer a degraded strategy while probes continue', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gm = createTestP2PSession(network, { dice: true });
+  const player = createTestP2PSession(network);
+
+  try {
+    writeP2PNetworkSettings({ strategy: 'auto' });
+    await gm.startGmRoom({ roomId: 'degraded-route-room', participantName: 'GM' });
+    await player.startPlayerRoom({ roomId: 'degraded-route-room', participantName: 'Player' });
+
+    await waitFor(() => {
+      assert.equal(player.session$.get().lastSnapshotAt !== null, true);
+      assert.equal(player.session$.get().routePeers[0]?.activeStrategy, 'nostr');
+      assert.equal(gm.session$.get().routePeers[0]?.activeStrategy, 'nostr');
+    }, 15_000);
+
+    network.emitStrategyError('nostr');
+    network.setStrategyEnabled('nostr', false);
+
+    await waitFor(() => {
+      assert.equal(player.session$.get().routePeers[0]?.activeStrategy, 'mqtt');
+      assert.equal(gm.session$.get().routePeers[0]?.activeStrategy, 'mqtt');
+    }, 15_000);
+  } finally {
+    await player.stop().catch(() => undefined);
+    await gm.stop().catch(() => undefined);
+    writeP2PNetworkSettings({ strategy: 'auto' });
+    restoreWindow();
+  }
+});
+
 test('P2P auto route retries data through another strategy when active route send rejects', async () => {
   resetAllStores();
   const restoreWindow = installTimerWindow();
@@ -206,7 +269,7 @@ test('P2P auto route retries data through another strategy when active route sen
 
     await waitFor(() => {
       assert.equal(network.deliveredSnapshots >= deliveredBeforeFailover + 2, true);
-      assert.equal(player.session$.get().routes.find((route) => route.strategy === 'mqtt')?.activePeers.length, 1);
+      assert.equal(gm.session$.get().routes.find((route) => route.strategy === 'mqtt')?.activePeers.length, 1);
     }, 15_000);
   } finally {
     await player.stop().catch(() => undefined);

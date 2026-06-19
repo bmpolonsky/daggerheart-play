@@ -79,6 +79,16 @@ export class ScriptedP2PNetwork {
     this.rejectingStrategies.delete(strategy);
   }
 
+  emitStrategyError(strategy: P2PTransportStrategy, message = `${strategy} transport error`): void {
+    for (const peers of this.rooms.values()) {
+      for (const transport of peers) {
+        if (transport.strategy === strategy) {
+          transport.emitError(message);
+        }
+      }
+    }
+  }
+
   createTransport(options: ScriptedP2PTransportOptions): P2PTransportAdapter {
     this.transportStrategies.push(options.strategy);
     if (!options.strategy || options.strategy === 'auto') {
@@ -310,6 +320,10 @@ class ScriptedP2PTransport implements P2PTransportAdapter {
 
   notifyPeerLeave(peerId: string): void {
     this.peerLeaveListeners.forEach((listener) => listener(peerId));
+  }
+
+  emitError(message: string): void {
+    this.errorListeners.forEach((listener) => listener(message));
   }
 }
 
