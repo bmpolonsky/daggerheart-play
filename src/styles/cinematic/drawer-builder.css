@@ -160,144 +160,17 @@
   background: rgba(7, 9, 12, 0.38);
 }
 
-.cinematic-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--dh-z-backdrop, 800);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: min(var(--dh-space-overlay, 24px), 16px);
-  background: rgba(7, 9, 12, 0.72);
-  backdrop-filter: blur(8px);
+.dh-dialog.cinematic-builder {
+  width: min(1280px, 100%);
+  height: min(760px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) 270px;
+  gap: 12px;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--dh-radius, 8px);
   overflow: hidden;
-}
-
-.cinematic-sheet {
-  width: min(820px, 100%);
-  max-height: min(760px, calc(100dvh - 2 * var(--dh-space-overlay)));
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--dh-border-strong);
-  border-radius: var(--dh-radius);
-  background: var(--dh-surface-strong);
-  box-shadow: var(--dh-shadow);
-  overflow: auto;
-}
-
-.cinematic-card-activation-modal {
-  width: min(760px, 100%);
-  max-height: min(760px, calc(100dvh - 2 * var(--dh-space-overlay)));
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid rgba(240, 201, 106, 0.34);
-  border-radius: var(--dh-radius);
-  background:
-    radial-gradient(90% 58% at 50% 0%, rgba(94, 38, 94, 0.24), transparent 60%),
-    var(--dh-surface-strong);
-  box-shadow: var(--dh-shadow), inset 0 1px 0 rgba(243, 234, 216, 0.08);
-  overflow: auto;
-}
-
-.cinematic-modal-header,
-.cinematic-modal-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.cinematic-modal-header h2 {
-  margin: 0;
-  color: var(--dh-paper-100);
-  font-size: 1.42rem;
-  line-height: 1.08;
-}
-
-.cinematic-modal-header p {
-  margin: 4px 0 0;
-  color: var(--dh-paper-muted);
-  font-size: 0.84rem;
-}
-
-.cinematic-card-activation-body {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(142px, 210px) minmax(0, 1fr);
-  gap: 16px;
-}
-
-.cinematic-card-activation-art {
-  width: 100%;
-  aspect-ratio: 0.72;
-  object-fit: cover;
-  border: 1px solid rgba(240, 201, 106, 0.4);
-  border-radius: 14px;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
-}
-
-.cinematic-card-activation-copy {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 12px;
-}
-
-.cinematic-card-activation-copy > p {
-  max-height: 210px;
-  margin: 0;
-  overflow: auto;
-  color: var(--dh-paper-muted);
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-
-.cinematic-card-activation-meta,
-.cinematic-card-activation-facts,
-.cinematic-card-activation-warnings {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid rgba(243, 234, 216, 0.12);
-  border-radius: var(--dh-radius-sm);
-  background: rgba(7, 9, 12, 0.32);
-}
-
-.cinematic-card-activation-meta span,
-.cinematic-card-activation-facts span,
-.cinematic-card-activation-warnings span {
-  color: var(--dh-paper-muted);
-  font-size: 0.78rem;
-  line-height: 1.3;
-}
-
-.cinematic-card-activation-meta strong,
-.cinematic-card-activation-facts strong {
-  color: var(--dh-paper-100);
-}
-
-.cinematic-card-activation-warnings {
-  border-color: rgba(240, 201, 106, 0.28);
-  background: rgba(216, 173, 83, 0.1);
-}
-
-.cinematic-card-activation-warnings.dh-is-blocking {
-  border-color: rgba(214, 91, 91, 0.46);
-  background: rgba(214, 91, 91, 0.12);
-}
-
-.cinematic-card-activation-mode {
-  justify-self: start;
-}
-
-.cinematic-sheet-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
 }
 
 .cinematic-builder {
@@ -839,35 +712,6 @@
 .cinematic-builder-stepper {
   display: grid;
   gap: 6px;
-}
-
-.cinematic-sheet-tabs {
-  display: flex;
-  gap: 6px;
-  padding: 5px;
-  border: 0;
-  border-radius: 10px;
-  background: rgba(7, 9, 12, 0.36);
-  overflow-x: auto;
-}
-
-.cinematic-sheet-tabs button {
-  flex: 0 0 auto;
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--dh-paper-muted);
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.cinematic-sheet-tabs button.dh-is-active {
-  border-color: transparent;
-  background: linear-gradient(90deg, rgba(48, 29, 105, 0.62), rgba(22, 127, 190, 0.46));
-  color: #fff7e7;
 }
 
 .cinematic-builder-issues {

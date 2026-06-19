@@ -2,6 +2,7 @@ import { Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
+import { Dialog } from '../components/common/Dialog';
 import { NumberField, SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
 import { InlineStat } from '../components/common/InlineStat';
@@ -315,8 +316,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
   const goNext = () => setStep(steps[Math.min(steps.length - 1, currentStepIndex + 1)].id);
 
   return (
-    <div className="cinematic-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
-      <section className="cinematic-builder character-level-up-wizard" onClick={(event) => event.stopPropagation()}>
+    <Dialog className="cinematic-builder character-level-up-wizard" onClose={onClose}>
         <nav className="cinematic-builder-nav" aria-label="Шаги повышения уровня">
           <div className="cinematic-builder-header">
             <h2 className="cinematic-builder-title">Повышение уровня</h2>
@@ -468,7 +468,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             )}
           </div>
 
-          <div className="cinematic-modal-actions">
+          <div className="cinematic-builder-actions">
             <Button disabled={currentStepIndex === 0} onClick={goPrevious}>Назад</Button>
             <div className="button-row">
               {step !== 'review' && <Button variant="primary" onClick={goNext}>Дальше</Button>}
@@ -476,8 +476,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             </div>
           </div>
         </div>
-      </section>
-    </div>
+    </Dialog>
   );
 }
 

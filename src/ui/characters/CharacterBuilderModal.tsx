@@ -13,6 +13,7 @@ import { formatWealthSummary } from '../../domain/rules/wealthPresentation';
 import { Button } from '../components/common/Button';
 import { AssetImage } from '../components/common/AssetImage';
 import { ChoiceCard } from '../components/common/ChoiceCard';
+import { Dialog } from '../components/common/Dialog';
 import { SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
@@ -81,8 +82,7 @@ export function CharacterBuilderModal({
   };
 
   return (
-    <div className="cinematic-modal-backdrop" role="dialog" aria-modal="true" onClick={onCancel}>
-      <section className="cinematic-builder" onClick={(event) => event.stopPropagation()}>
+    <Dialog className="cinematic-builder" onClose={onCancel}>
         <nav className="cinematic-builder-nav" aria-label="Шаги создания">
           <div className="cinematic-builder-header">
             <h2 className="cinematic-builder-title">Новый герой</h2>
@@ -414,7 +414,6 @@ export function CharacterBuilderModal({
           canCreate={builder.canCreate}
           blockingCount={blockingIssues.length}
         />
-      </section>
-    </div>
+    </Dialog>
   );
 }

@@ -410,7 +410,6 @@
 .cinematic-dice-header,
 .cinematic-drawer-header,
 .cinematic-library-header,
-.cinematic-sheet-header,
 .cinematic-builder-header {
   display: flex;
   align-items: center;
@@ -639,7 +638,6 @@
 }
 
 .cinematic-card-actions,
-.cinematic-sheet-actions,
 .cinematic-builder-actions,
 .cinematic-dice-actions {
   display: flex;
@@ -793,8 +791,7 @@
 }
 
 .cinematic-sidecar-section,
-.cinematic-builder-step,
-.cinematic-sheet-section {
+.cinematic-builder-step {
   display: grid;
   gap: 10px;
   padding: 10px;
@@ -804,8 +801,7 @@
 }
 
 .cinematic-sidecar-section:last-child,
-.cinematic-builder-step:last-child,
-.cinematic-sheet-section:last-child {
+.cinematic-builder-step:last-child {
   border-bottom: 1px solid transparent;
 }
 
@@ -814,7 +810,6 @@
 .cinematic-dice-title,
 .cinematic-drawer-title,
 .cinematic-library-title,
-.cinematic-sheet-title,
 .cinematic-builder-title {
   margin: 0;
   color: var(--dh-paper-100);
@@ -825,8 +820,7 @@
 
 .cinematic-sidecar-subtitle,
 .cinematic-panel-subtitle,
-.cinematic-builder-copy,
-.cinematic-sheet-copy {
+.cinematic-builder-copy {
   margin: 0;
   color: var(--dh-paper-muted);
   font-size: 0.82rem;

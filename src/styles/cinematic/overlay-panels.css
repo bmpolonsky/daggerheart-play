@@ -774,13 +774,8 @@
   color: #231b14;
 }
 
-.cinematic-rulebook-page .cinematic-card-meta,
-.cinematic-rulebook-page .cinematic-sheet-copy {
+.cinematic-rulebook-page .cinematic-card-meta {
   color: rgba(35, 27, 20, 0.72);
-}
-
-.cinematic-rulebook-page .cinematic-sheet-title {
-  color: #231b14;
 }
 
 .cinematic-rulebook-body {

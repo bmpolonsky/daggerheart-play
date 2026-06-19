@@ -35,6 +35,7 @@
   --dh-shadow-soft: 0 14px 38px rgba(0, 0, 0, 0.28);
   --dh-focus: 0 0 0 2px rgba(240, 201, 106, 0.2);
   --dh-z-modal: 120;
+  --dh-z-dialog: 900;
 }
 
 .dh-portal-scope {
@@ -81,8 +82,7 @@
 .player-sheet-row,
 .player-activity-card,
 .cinematic-sidecar-section,
-.cinematic-builder-step,
-.cinematic-sheet-section {
+.cinematic-builder-step {
   border-color: transparent;
   background: var(--dh-glass-subtle);
   box-shadow: none;

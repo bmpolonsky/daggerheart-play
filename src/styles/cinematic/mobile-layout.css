@@ -542,12 +542,12 @@
     overflow: visible;
   }
 
-  .superapp-shell--gm:has(.cinematic-modal-backdrop) .superapp-topbar {
+  .superapp-shell--gm:has(.dh-dialog-backdrop) .superapp-topbar {
     opacity: 0;
     pointer-events: none;
   }
 
-  .cinematic-modal-backdrop {
+  .dh-dialog-backdrop {
     z-index: calc(var(--dh-z-modal) + 20);
     padding: 10px;
   }

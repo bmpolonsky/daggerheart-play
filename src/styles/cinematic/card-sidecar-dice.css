@@ -226,15 +226,13 @@
   background: var(--dh-gold-400);
 }
 
-.cinematic-sidecar .cinematic-card-token-row,
-.cinematic-sheet .cinematic-card-token-row {
+.cinematic-sidecar .cinematic-card-token-row {
   position: static;
   justify-content: flex-start;
   transform: none;
 }
 
-.cinematic-sidecar .cinematic-card-token-row span,
-.cinematic-sheet .cinematic-card-token-row span {
+.cinematic-sidecar .cinematic-card-token-row span {
   width: 14px;
 }
 

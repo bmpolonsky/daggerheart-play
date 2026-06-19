@@ -680,6 +680,35 @@
   .cinematic-dice-actions.dh-priority-low {
     display: none;
   }
+
+  .dh-dialog.cinematic-builder,
+  .cinematic-builder {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .cinematic-builder-nav {
+    padding: 0 0 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--dh-border);
+  }
+
+  .cinematic-builder-stepper {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .cinematic-builder-preview {
+    max-height: 188px;
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
+    align-content: start;
+  }
+
+  .cinematic-builder-workspace.dh-has-choice-detail {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
 }
 
 @media (max-width: 920px) {
@@ -712,7 +741,6 @@
     transform: translateX(0);
   }
 
-  .cinematic-sheet-grid,
   .cinematic-builder {
     grid-template-columns: 1fr;
   }
@@ -872,28 +900,17 @@
     max-height: calc(100dvh - 20px);
   }
 
-  .cinematic-modal-backdrop {
+  .dh-dialog-backdrop {
     padding: 10px;
     place-items: stretch;
   }
 
-  .cinematic-sheet,
-  .cinematic-builder,
-  .cinematic-card-activation-modal {
+  .dh-dialog.cinematic-builder,
+  .cinematic-builder {
     width: 100%;
     height: calc(100dvh - 20px);
     max-height: calc(100dvh - 20px);
-    padding: 14px;
-  }
-
-  .cinematic-card-activation-modal {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
-    gap: 10px;
-    overflow: hidden;
-  }
-
-  .cinematic-builder {
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     padding: 10px;
     grid-template-rows: auto minmax(0, 1fr);
@@ -913,20 +930,31 @@
   }
 
   .cinematic-builder-stepper {
-    display: grid;
-    grid-template-columns: repeat(11, minmax(0, 1fr));
-    gap: 4px;
-    overflow: visible;
-    padding: 0;
+    display: flex;
+    gap: 6px;
+    margin-inline: -2px;
+    overflow-x: auto;
+    padding: 0 2px 4px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .cinematic-builder-stepper .dh-wizard-step-button {
+    flex: 0 0 42px;
+    width: 42px;
+    min-width: 42px;
+    scroll-snap-align: start;
   }
 
   .cinematic-builder-panel {
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 9px;
     overflow: hidden;
   }
 
   .cinematic-builder-stage {
-    grid-template-columns: 46px minmax(0, 1fr) 38px;
+    grid-template-columns: 46px minmax(0, 1fr);
     gap: 8px;
     min-height: 68px;
     padding: 8px;
@@ -953,12 +981,12 @@
   }
 
   .cinematic-builder-quickstart {
-    grid-column: 3;
-    grid-row: 1;
-    justify-self: end;
-    align-self: start;
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-self: stretch;
+    align-self: stretch;
     width: auto;
-    min-width: 104px;
+    min-width: 0;
     min-height: 34px;
     padding: 0 10px;
     font-size: 0.72rem;
@@ -1001,12 +1029,23 @@
   }
 
   .cinematic-builder-form .character-builder-portrait-picker {
-    --image-file-picker-compact-size: 112px;
+    --image-file-picker-compact-size: min(180px, calc(100vw - 60px));
   }
 
-  .cinematic-builder .dh-choice-grid > .cinematic-card {
-    min-height: 0;
+  .cinematic-builder .dh-choice-grid > .cinematic-card,
+  .cinematic-builder .dh-choice-grid > .dh-choice-card {
+    height: max-content;
+    min-height: 112px;
     max-height: none;
+    grid-template-rows: auto auto auto;
+    align-content: start;
+    overflow: hidden;
+  }
+
+  .cinematic-builder .cinematic-card-title {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .cinematic-builder .dh-choice-grid--equipment > .cinematic-card {
@@ -1014,11 +1053,10 @@
   }
 
   .cinematic-builder .cinematic-card-body {
-    display: -webkit-box;
-    max-height: 7em;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 5;
+    display: block;
+    max-height: none;
+    overflow: visible;
+    -webkit-line-clamp: unset;
   }
 
   .cinematic-builder-actions {
@@ -1046,61 +1084,6 @@
     display: none;
   }
 
-  .cinematic-card-activation-body {
-    min-height: 0;
-    grid-template-columns: 1fr;
-    align-content: start;
-    gap: 10px;
-    overflow: hidden;
-  }
-
-  .cinematic-card-activation-art {
-    width: 100%;
-    max-height: 118px;
-    aspect-ratio: 2.6;
-    border-radius: 10px;
-    object-position: center 24%;
-  }
-
-  .cinematic-card-activation-copy {
-    min-height: 0;
-    overflow: auto;
-  }
-
-  .cinematic-card-activation-copy > p {
-    max-height: none;
-    overflow: visible;
-    font-size: 0.84rem;
-    line-height: 1.45;
-  }
-
-  .cinematic-card-activation-meta,
-  .cinematic-card-activation-facts,
-  .cinematic-card-activation-warnings {
-    gap: 6px;
-    padding: 9px;
-  }
-
-  .cinematic-card-activation-mode {
-    max-width: 100%;
-    justify-self: stretch;
-    justify-content: flex-start;
-    overflow-x: auto;
-  }
-
-  .cinematic-modal-header,
-  .cinematic-modal-actions {
-    align-items: stretch;
-  }
-
-  .cinematic-card-activation-modal .cinematic-modal-actions {
-    flex-wrap: nowrap;
-  }
-
-  .cinematic-card-activation-modal .cinematic-modal-actions .dh-button {
-    flex: 1 1 0;
-    min-width: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
