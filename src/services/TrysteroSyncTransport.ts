@@ -1,10 +1,10 @@
 import type { ActionSender, DataPayload, JsonValue, Room } from 'trystero';
-import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PTargetPeer, P2PTransportAdapter, P2PWireEnvelope } from './p2p/P2PTransportAdapter';
+import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportMode, P2PTransportStrategy, P2PWireEnvelope } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
 export interface TrysteroP2PTransportOptions {
   appId?: string;
-  strategy?: 'nostr' | 'torrent';
+  strategy?: P2PTransportMode;
 }
 
 export class TrysteroP2PTransport implements P2PTransportAdapter {
@@ -15,7 +15,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
   private room: Room | null = null;
   private sendEnvelope: ActionSender<DataPayload> | null = null;
   private sendBinaryPayload: ActionSender<DataPayload> | null = null;
-  private envelopeListeners = new Set<(envelope: P2PWireEnvelope) => void>();
+  private envelopeListeners = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
   private binaryListeners = new Set<(data: ArrayBuffer, peerId: string, metadata?: JsonValue) => void>();
   private binaryProgressListeners = new Set<P2PBinaryProgressHandler>();
   private peerJoinListeners = new Set<(peerId: string) => void>();
@@ -28,10 +28,9 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
 
   async connect(roomId: string): Promise<void> {
     this.room?.leave();
-    const resolvedRoom = resolveTrysteroRoom(roomId, this.options.strategy ?? 'nostr');
-    const { joinRoom, selfId } = resolvedRoom.strategy === 'torrent'
-      ? await import('@trystero-p2p/torrent')
-      : await import('trystero');
+    const strategy = this.options.strategy && this.options.strategy !== 'auto' ? this.options.strategy : 'nostr';
+    const resolvedRoom = resolveTrysteroRoom(roomId, strategy);
+    const { joinRoom, selfId } = await importTrysteroStrategy(resolvedRoom.strategy);
     this.peerId = selfId;
     this.room = joinRoom(
       {
@@ -45,12 +44,12 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
 
     const [sendEnvelope, receiveEnvelope] = this.room.makeAction<DataPayload>('daggerheart-p2p-v2');
     this.sendEnvelope = sendEnvelope;
-    receiveEnvelope((data) => {
+    receiveEnvelope((data, peerId) => {
       const envelope = data as unknown;
       if (!isP2PWireEnvelope(envelope)) {
         return;
       }
-      this.envelopeListeners.forEach((listener) => listener(envelope));
+      this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: peerId }));
     });
     const [sendBinaryPayload, receiveBinaryPayload, onBinaryProgress] = this.room.makeAction<DataPayload>('daggerheart-binary-v1');
     this.sendBinaryPayload = sendBinaryPayload;
@@ -117,7 +116,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     await this.sendBinaryPayload(data, targetPeer, metadata as JsonValue | undefined, progress);
   }
 
-  subscribe(listener: (envelope: P2PWireEnvelope) => void): () => void {
+  subscribe(listener: (envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void): () => void {
     this.envelopeListeners.add(listener);
     return () => this.envelopeListeners.delete(listener);
   }
@@ -171,13 +170,26 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
   }
 }
 
-export function resolveTrysteroRoom(roomId: string, fallbackStrategy: 'nostr' | 'torrent'): { roomId: string; strategy: 'nostr' | 'torrent' } {
+export function resolveTrysteroRoom(roomId: string, fallbackStrategy: P2PTransportStrategy): { roomId: string; strategy: P2PTransportStrategy } {
   const normalized = roomId.trim().toUpperCase();
   if (/^T[A-Z0-9]{6}$/.test(normalized)) {
     return { roomId: normalized.slice(1), strategy: 'torrent' };
+  }
+  if (/^M[A-Z0-9]{6}$/.test(normalized)) {
+    return { roomId: normalized.slice(1), strategy: 'mqtt' };
   }
   if (/^N[A-Z0-9]{6}$/.test(normalized)) {
     return { roomId: normalized.slice(1), strategy: 'nostr' };
   }
   return { roomId, strategy: fallbackStrategy };
+}
+
+async function importTrysteroStrategy(strategy: P2PTransportStrategy): Promise<{ joinRoom: typeof import('trystero').joinRoom; selfId: string }> {
+  if (strategy === 'torrent') {
+    return await import('@trystero-p2p/torrent');
+  }
+  if (strategy === 'mqtt') {
+    return await import('@trystero-p2p/mqtt');
+  }
+  return await import('trystero');
 }

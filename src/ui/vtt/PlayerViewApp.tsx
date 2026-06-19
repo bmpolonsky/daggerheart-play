@@ -22,15 +22,16 @@ import { PlayerActionDock } from './playerView/PlayerActionDock';
 import { PlayerConnectionStatus } from './playerView/PlayerConnectionStatus';
 import { PlayerSessionRuntime } from './playerView/PlayerSessionRuntime';
 import { FloatingCallWidget } from '../call/FloatingCallWidget';
+import { P2PHealthIndicator } from '../p2p/P2PHealthIndicator';
 import { useLiveSceneAssetUrls } from './playerView/useLiveSceneAssetUrls';
 import {
   cssImageUrl,
   playerCharacterIdFromParticipants
 } from './playerView/helpers';
 import {
+  buildRoutedPlayerViewLocation,
   defaultSharedToolsTab,
-  parseRoutedPlayerViewState,
-  updateRoutedPlayerViewSearch
+  parseRoutedPlayerViewState
 } from './playerView/routedUiState';
 import { playerViewUiActions } from './playerView/playerViewUiState';
 import type { SceneMusicState } from '../../domain/audio/sceneAudio';
@@ -59,7 +60,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const playerCharacterId = playerCharacterIdFromParticipants(sceneTable.participants, characters.entities, role === 'player' ? selectedPlayerSeatId : null);
   const [viewedActor, setViewedActor] = useState<PlayerViewedActor | null>(null);
   const [mobileLayer, setMobileLayer] = useState<PlayerMobileLayer>('scene');
-  const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(typeof window === 'undefined' ? '' : window.location.search, role));
+  const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(typeof window === 'undefined' ? '' : window.location.pathname, role));
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role);
   const viewedCharacterId = viewedActor?.kind === 'character' ? viewedActor.actorId : null;
@@ -133,11 +134,16 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const syncRouteState = () => setRoutedUi(parseRoutedPlayerViewState(window.location.search, role));
+    const syncRouteState = () => setRoutedUi(parseRoutedPlayerViewState(window.location.pathname, role));
     syncRouteState();
     window.addEventListener('popstate', syncRouteState);
     return () => window.removeEventListener('popstate', syncRouteState);
   }, [role]);
+
+  useEffect(() => {
+    if (!routedUi.libraryCollection || content.selectedCollection === routedUi.libraryCollection) return;
+    contentService.setSelectedCollection(routedUi.libraryCollection);
+  }, [content.selectedCollection, routedUi.libraryCollection]);
 
   const sceneBackgroundImage = `linear-gradient(180deg, rgba(7, 9, 12, 0.06), rgba(7, 9, 12, 0.34)), url("${cssImageUrl(model.scene.imageUrl)}")`;
   const openActor = useCallback((actor: PlayerViewedActor) => {
@@ -152,15 +158,16 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     setSelectedPlayerSeatId(seatId);
     if (sessionRoomId) writeStoredPlayerSeatId(sessionRoomId, seatId);
   }, [sessionRoomId]);
-  const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab }) => {
+  const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab; libraryCollection?: typeof content.selectedCollection | null; settingsSection?: string | null }) => {
     if (typeof window === 'undefined') return;
-    const nextSearch = updateRoutedPlayerViewSearch(window.location.search, role, next);
-    const nextUrl = `${window.location.pathname}${nextSearch}${window.location.hash}`;
+    const navigation = buildRoutedPlayerViewLocation({
+      hash: window.location.hash
+    }, role, next);
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    if (nextUrl !== currentUrl) {
-      window.history.pushState({}, '', nextUrl);
+    if (navigation.url !== currentUrl) {
+      window.history.pushState({}, '', navigation.url);
     }
-    setRoutedUi(parseRoutedPlayerViewState(nextSearch, role));
+    setRoutedUi(parseRoutedPlayerViewState(navigation.pathname, role));
   }, [role]);
   const openTools = useCallback(() => {
     commitRoutedUi({ toolsOpen: true, toolsTab: routedUi.toolsTab || defaultSharedToolsTab(role) });
@@ -169,7 +176,19 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     commitRoutedUi({ toolsOpen: false });
   }, [commitRoutedUi]);
   const changeToolsTab = useCallback((tab: SharedToolsTab) => {
-    commitRoutedUi({ toolsOpen: true, toolsTab: tab });
+    commitRoutedUi({
+      toolsOpen: true,
+      toolsTab: tab,
+      libraryCollection: tab === 'library' ? content.selectedCollection : null,
+      settingsSection: tab === 'settings' ? routedUi.settingsSection : null
+    });
+  }, [commitRoutedUi, content.selectedCollection, routedUi.settingsSection]);
+  const changeLibraryCollection = useCallback((collection: typeof content.selectedCollection) => {
+    contentService.setSelectedCollection(collection);
+    commitRoutedUi({ toolsOpen: true, toolsTab: 'library', libraryCollection: collection });
+  }, [commitRoutedUi]);
+  const changeSettingsSection = useCallback((section: string) => {
+    commitRoutedUi({ toolsOpen: true, toolsTab: 'settings', settingsSection: section });
   }, [commitRoutedUi]);
   const createPlayerCharacterFromBuilder = useCallback((input: Partial<Character> & { className?: DaggerheartClass }) => {
     setPlayerCharacterBuilderOpen(false);
@@ -302,6 +321,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         selectedPlayerSeatId={selectedPlayerSeatId}
         onOpenTools={openTools}
       />
+      <P2PHealthIndicator role={role} />
       <FloatingCallWidget />
       <PlayerCharacterPanel
         activeCharacterId={displayedCharacter?.id ?? null}
@@ -329,7 +349,10 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           tab={routedUi.toolsTab}
           targetCharacterId={viewedCharacterId ?? model.character?.id ?? null}
           onClose={closeTools}
+          onLibraryCollectionChange={changeLibraryCollection}
+          onSettingsSectionChange={changeSettingsSection}
           onTabChange={changeToolsTab}
+          routedSettingsSection={routedUi.settingsSection}
         />
       )}
       {playerCharacterBuilderOpen && role === 'player' && (

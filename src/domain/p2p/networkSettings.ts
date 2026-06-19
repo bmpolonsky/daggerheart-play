@@ -1,19 +1,22 @@
 import { Store } from '../../core/store/Store';
 import type { TrysteroP2PTransportOptions } from '../../services/TrysteroSyncTransport';
+import type { P2PTransportMode } from '../../services/p2p/P2PTransportAdapter';
 
-export type P2PNetworkStrategy = 'nostr' | 'torrent';
+export type P2PNetworkStrategy = P2PTransportMode;
 
 export interface P2PNetworkSettings {
   strategy: P2PNetworkStrategy;
 }
 
 export const P2P_NETWORK_STRATEGY_LABELS: Record<P2PNetworkStrategy, string> = {
+  auto: 'Auto',
   nostr: 'Nostr',
+  mqtt: 'MQTT',
   torrent: 'Torrent'
 };
 
 const DEFAULT_P2P_NETWORK_SETTINGS: P2PNetworkSettings = {
-  strategy: 'nostr'
+  strategy: 'auto'
 };
 
 const p2pNetworkSettingsStore = new Store<P2PNetworkSettings>(DEFAULT_P2P_NETWORK_SETTINGS);

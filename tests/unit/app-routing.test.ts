@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { replaceLegacyRoute, routeNavigation } from "../../src/app/routing";
+import { buildRoutedPlayerViewLocation, parseRoutedPlayerViewState } from "../../src/ui/vtt/playerView/routedUiState";
 
 test('app route navigation canonicalizes legacy route events', () => {
   assert.deepEqual(routeNavigation('gm'), {
@@ -43,4 +44,44 @@ test('app routing redirects legacy URLs at the compatibility boundary', () => {
   } finally {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
+});
+
+test('app routing treats library paths as player view state', () => {
+  assert.deepEqual(parseRoutedPlayerViewState('/library/compendium/domain-cards', 'gm'), {
+    toolsOpen: true,
+    toolsTab: 'library',
+    libraryCollection: 'domainCards',
+    settingsSection: null
+  });
+
+  assert.deepEqual(parseRoutedPlayerViewState('/library/settings/diagnostics', 'gm'), {
+    toolsOpen: true,
+    toolsTab: 'settings',
+    libraryCollection: null,
+    settingsSection: 'diagnostics'
+  });
+});
+
+test('app routing builds path-based library URLs without query params', () => {
+  assert.deepEqual(buildRoutedPlayerViewLocation(
+    { hash: '#sheet' },
+    'gm',
+    { toolsOpen: true, toolsTab: 'library', libraryCollection: 'domainCards' }
+  ), {
+    hash: '#sheet',
+    pathname: '/library/compendium/domain-cards',
+    search: '',
+    url: '/library/compendium/domain-cards#sheet'
+  });
+
+  assert.deepEqual(buildRoutedPlayerViewLocation(
+    { hash: '' },
+    'gm',
+    { toolsOpen: false }
+  ), {
+    hash: '',
+    pathname: '/game',
+    search: '',
+    url: '/game'
+  });
 });

@@ -23,6 +23,7 @@ export interface TableParticipant {
   name: string;
   role: TableSyncRole;
   actorIds: string[];
+  peerId?: string;
   connected: boolean;
   updatedAt: string;
 }

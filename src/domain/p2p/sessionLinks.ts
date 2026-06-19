@@ -30,15 +30,25 @@ export function buildPlayerInviteUrl(input: PlayerInviteUrlInput): string {
 }
 
 export function buildPlayerInviteRoomCode(roomId: string, networkSettings?: P2PNetworkSettings): string {
-  const normalizedRoomId = normalizeSessionRoomId(roomId);
+  const normalizedRoomId = normalizeLogicalRoomId(roomId);
   if (networkSettings?.strategy === 'torrent' && isShortInviteRoomId(normalizedRoomId)) {
     return `T${normalizedRoomId}`;
+  }
+  if (networkSettings?.strategy === 'mqtt' && isShortInviteRoomId(normalizedRoomId)) {
+    return `M${normalizedRoomId}`;
+  }
+  if (networkSettings?.strategy === 'nostr' && /^N[A-Z0-9]{6}$/.test(normalizeSessionRoomId(roomId))) {
+    return normalizeSessionRoomId(roomId);
   }
   return normalizedRoomId;
 }
 
+export function rebasePlayerInviteRoomCode(roomId: string, networkSettings: P2PNetworkSettings): string {
+  return buildPlayerInviteRoomCode(normalizeLogicalRoomId(roomId), networkSettings);
+}
+
 export function buildCallInviteUrl(input: PlayerInviteUrlInput): string {
-  const invite = new URL(callRoutePath(input.basePath, normalizeSessionRoomId(input.roomId)), input.origin);
+  const invite = new URL(callRoutePath(input.basePath, normalizeLogicalRoomId(input.roomId)), input.origin);
   return invite.toString();
 }
 
@@ -49,7 +59,7 @@ export function parsePlayerSessionLocation(pathname: string, basePath = ''): Pla
 }
 
 export function parsePlayerInviteRoomCode(value: string): PlayerSessionParams | null {
-  const roomId = normalizeSessionRoomId(value, '');
+  const roomId = normalizeLogicalRoomId(value, '');
   if (!roomId) return null;
   return { roomId };
 }
@@ -57,7 +67,7 @@ export function parsePlayerInviteRoomCode(value: string): PlayerSessionParams | 
 export function parseCallSessionLocation(pathname: string, basePath = ''): PlayerSessionParams | null {
   const normalized = stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
   const match = normalized.match(/^\/calls\/([^/]+)$/);
-  const roomId = match?.[1] ? normalizeSessionRoomId(decodeURIComponent(match[1]), '') : '';
+  const roomId = match?.[1] ? normalizeLogicalRoomId(decodeURIComponent(match[1]), '') : '';
   if (!roomId) {
     return null;
   }
@@ -129,4 +139,10 @@ function stripBasePath(pathname: string, basePath = ''): string {
 
 function isShortInviteRoomId(roomId: string): boolean {
   return /^[A-Z0-9]{6}$/.test(roomId);
+}
+
+export function normalizeLogicalRoomId(roomId: string, fallback = createFallbackRoomId()): string {
+  const normalizedRoomId = normalizeSessionRoomId(roomId, fallback);
+  const match = normalizedRoomId.match(/^[MNT]([A-Z0-9]{6})$/);
+  return match?.[1] ?? normalizedRoomId;
 }

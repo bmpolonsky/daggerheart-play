@@ -247,6 +247,7 @@ export class SceneAudioBroadcastService {
     }
     this.stopLocalBroadcastTracks();
     const broadcastStream = this.createGainControlledStream(sourceStream);
+    applyMusicContentHint(broadcastStream);
     this.localSourceStream = sourceStream;
     this.localBroadcastStream = broadcastStream;
     sourceStream.getTracks().forEach((track) => {
@@ -355,6 +356,12 @@ function isSceneAudioMediaTransport(transport: SyncTransport | null): transport 
 
 function isSceneAudioMetadata(value: unknown): value is { kind: 'scene-audio'; label: string } {
   return Boolean(value && typeof value === 'object' && (value as { kind?: unknown }).kind === 'scene-audio');
+}
+
+function applyMusicContentHint(stream: MediaStream): void {
+  stream.getAudioTracks().forEach((track) => {
+    track.contentHint = 'music';
+  });
 }
 
 type CapturableMediaElement = HTMLMediaElement & {

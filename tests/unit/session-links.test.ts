@@ -1,8 +1,7 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { buildCallInviteUrl, buildPlayerInviteUrl, createShortRoomCode, inferBasePathFromWorkspacePath, parseCallSessionLocation, parsePlayerInviteRoomCode, parsePlayerSessionLocation } from "../../src/domain/p2p/sessionLinks";
+import { buildCallInviteUrl, buildPlayerInviteUrl, createShortRoomCode, inferBasePathFromWorkspacePath, parseCallSessionLocation, parsePlayerInviteRoomCode, parsePlayerSessionLocation, rebasePlayerInviteRoomCode } from "../../src/domain/p2p/sessionLinks";
 import { resolveTrysteroRoom } from "../../src/services/TrysteroSyncTransport";
-import { parseRoutedPlayerViewState, updateRoutedPlayerViewSearch } from "../../src/ui/vtt/playerView/routedUiState";
 
 test('P2P invite links use path routing and room codes without a prefix', () => {
   const invite = buildPlayerInviteUrl({
@@ -45,26 +44,31 @@ test('P2P invite links carry signaling settings for players', () => {
   });
   assert.equal(invite, 'https://example.test/table/join/T7K2QAB');
   assert.deepEqual(parsePlayerSessionLocation('/table/join/T7K2QAB', '/table'), {
-    roomId: 'T7K2QAB'
+    roomId: '7K2QAB'
   });
   assert.deepEqual(parsePlayerInviteRoomCode('N7K2QAB'), {
-    roomId: 'N7K2QAB'
+    roomId: '7K2QAB'
   });
+  assert.deepEqual(parsePlayerInviteRoomCode('M7K2QAB'), { roomId: '7K2QAB' });
+  assert.equal(buildPlayerInviteUrl({
+    origin: 'https://example.test',
+    basePath: '/table',
+    roomId: 'T7K2QAB',
+    networkSettings: { strategy: 'auto' }
+  }), 'https://example.test/table/join/7K2QAB');
+  assert.equal(buildCallInviteUrl({ origin: 'https://example.test', basePath: '/table', roomId: 'N7K2QAB' }), 'https://example.test/table/calls/7K2QAB');
   assert.deepEqual(parsePlayerInviteRoomCode('7K2QAB'), { roomId: '7K2QAB' });
   assert.deepEqual(resolveTrysteroRoom('T7K2QAB', 'nostr'), { roomId: '7K2QAB', strategy: 'torrent' });
+  assert.deepEqual(resolveTrysteroRoom('M7K2QAB', 'nostr'), { roomId: '7K2QAB', strategy: 'mqtt' });
   assert.deepEqual(resolveTrysteroRoom('N7K2QAB', 'torrent'), { roomId: '7K2QAB', strategy: 'nostr' });
   assert.deepEqual(resolveTrysteroRoom('7K2QAB', 'torrent'), { roomId: '7K2QAB', strategy: 'torrent' });
 });
 
-test('player view routed UI state preserves session params and restores tools tabs', () => {
-  assert.deepEqual(parseRoutedPlayerViewState('', 'gm'), { toolsOpen: false, toolsTab: 'scenes' });
-  assert.deepEqual(parseRoutedPlayerViewState('?tools=handouts', 'player'), { toolsOpen: true, toolsTab: 'handouts' });
-  assert.deepEqual(parseRoutedPlayerViewState('?tools=library', 'player'), { toolsOpen: true, toolsTab: 'library' });
-  assert.deepEqual(parseRoutedPlayerViewState('?tools=scenes', 'player'), { toolsOpen: true, toolsTab: 'handouts' });
-  assert.deepEqual(parseRoutedPlayerViewState('?tools=games', 'gm'), { toolsOpen: true, toolsTab: 'scenes' });
-
-  assert.equal(updateRoutedPlayerViewSearch('', 'gm', { toolsOpen: true, toolsTab: 'notes' }), '?tools=notes');
-  assert.equal(updateRoutedPlayerViewSearch('', 'gm', { toolsOpen: true, toolsTab: 'library' }), '?tools=library');
-  assert.equal(updateRoutedPlayerViewSearch('?tools=settings', 'gm', { toolsOpen: false }), '');
-  assert.equal(updateRoutedPlayerViewSearch('?tool=notes', 'gm', { toolsOpen: true, toolsTab: 'handouts' }), '?tools=handouts');
+test('P2P room codes can be rebased when signaling changes at runtime', () => {
+  assert.equal(rebasePlayerInviteRoomCode('T7K2QAB', { strategy: 'nostr' }), '7K2QAB');
+  assert.equal(rebasePlayerInviteRoomCode('N7K2QAB', { strategy: 'torrent' }), 'T7K2QAB');
+  assert.equal(rebasePlayerInviteRoomCode('T7K2QAB', { strategy: 'auto' }), '7K2QAB');
+  assert.equal(rebasePlayerInviteRoomCode('T7K2QAB', { strategy: 'mqtt' }), 'M7K2QAB');
+  assert.equal(rebasePlayerInviteRoomCode('7K2QAB', { strategy: 'torrent' }), 'T7K2QAB');
+  assert.equal(rebasePlayerInviteRoomCode('CUSTOM-ROOM', { strategy: 'torrent' }), 'CUSTOM-ROOM');
 });

@@ -65,6 +65,7 @@ function routeFromPath(pathname: string): RouteId {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   if (/^\/join\/[^/]+$/.test(normalized)) return 'join';
   if (/^\/calls(?:\/[^/]+)?$/.test(normalized)) return 'call';
+  if (/^\/library(?:\/.*)?$/.test(normalized)) return 'game';
   return (Object.entries(ROUTE_PATHS).find(([, path]) => path === normalized)?.[0] as RouteId | undefined) ?? 'entry';
 }
 

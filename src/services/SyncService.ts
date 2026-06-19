@@ -233,10 +233,12 @@ export class SyncService {
     this.unsubscribeSnapshot?.();
     this.participant = participant;
     this.mode = 'readonly';
+    const seenSnapshotIds = createEventDeduper();
     this.unsubscribeSnapshot = this.transport.subscribe((event) => {
       if (event.kind !== 'snapshot' || !isPersistedState(event.value)) {
         return;
       }
+      if (seenSnapshotIds(event.id)) return;
       onSnapshot(migratePersistedState(event.value), event);
     });
     try {
@@ -387,9 +389,11 @@ export class SyncService {
   }
 
   private subscribeChannel<T>(channel: SyncChannel<T>, listener: (value: T, event: SyncEvent, context?: SyncEventContext) => void): () => void {
+    const wasDelivered = createEventDeduper();
     return this.transport.subscribe((event, context) => {
       if (event.kind !== channel.kind) return;
       if (channel.guard && !channel.guard(event.value)) return;
+      if (wasDelivered(event.id)) return;
       listener(event.value as T, event, context);
     });
   }
@@ -407,6 +411,23 @@ export class SyncService {
   private currentAuthorId(): string {
     return this.participant?.id ?? (this.mode === 'authority' ? 'local-gm' : 'local-player');
   }
+}
+
+function createEventDeduper(): (eventId: string) => boolean {
+  const seenEventIds = new Set<string>();
+  const seenEventOrder: string[] = [];
+  return (eventId: string): boolean => {
+    if (seenEventIds.has(eventId)) {
+      return true;
+    }
+    seenEventIds.add(eventId);
+    seenEventOrder.push(eventId);
+    while (seenEventOrder.length > 1000) {
+      const removed = seenEventOrder.shift();
+      if (removed) seenEventIds.delete(removed);
+    }
+    return false;
+  };
 }
 
 function channel<T>(kind: SyncEventKind, guard?: SyncValueGuard<T>): SyncChannel<T> {

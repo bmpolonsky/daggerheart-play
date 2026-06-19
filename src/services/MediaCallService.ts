@@ -75,10 +75,11 @@ export class MediaCallService {
 
   constructor(private syncService: SyncService) {}
 
-  setRoom(input: { roomId: string; displayName?: string; role?: CallParticipantRole; active?: boolean }): void {
+  setRoom(input: { roomId: string; participantId?: string; displayName?: string; role?: CallParticipantRole; active?: boolean }): void {
     this.callStore.update((state) => ({
       ...state,
       roomId: input.roomId,
+      localParticipantId: input.participantId?.trim() || state.localParticipantId,
       displayName: input.displayName?.trim() || state.displayName || (input.role === 'gm' ? 'Мастер' : ''),
       role: input.role ?? state.role,
       active: input.active ? true : input.roomId === state.roomId ? state.active : false,
@@ -299,11 +300,13 @@ export class MediaCallService {
           : false,
         video: constraints.video
           ? {
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
+              width: { ideal: 854 },
+              height: { ideal: 480 },
+              frameRate: { ideal: 15, max: 24 }
             }
           : false
       });
+      applyCallContentHints(stream);
       if (current.localStream) {
         this.mediaTransport.removeMediaStream(current.localStream);
         current.localStream.getTracks().forEach((track) => track.stop());
@@ -412,4 +415,13 @@ export function isCallPresenceMessage(value: unknown): value is CallPresenceMess
     hasStringFields(value, ['participantId', 'displayName', 'role', 'updatedAt']) &&
     (value.role === 'gm' || value.role === 'player' || value.role === 'guest') &&
     hasBooleanFields(value, ['connected', 'micMuted', 'cameraOff', 'handRaised']);
+}
+
+function applyCallContentHints(stream: MediaStream): void {
+  stream.getAudioTracks().forEach((track) => {
+    track.contentHint = 'speech';
+  });
+  stream.getVideoTracks().forEach((track) => {
+    track.contentHint = 'motion';
+  });
 }

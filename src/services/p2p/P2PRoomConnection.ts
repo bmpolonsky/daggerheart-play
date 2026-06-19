@@ -1,7 +1,7 @@
 import { createId } from '../../core/utils/id';
 import { nowIso } from '../../core/utils/date';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableParticipant } from '../../domain/tabletop/types';
-import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PTargetPeer, P2PTransportAdapter, P2PWireEnvelope, P2PWireRole } from './P2PTransportAdapter';
+import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PTargetPeer, P2PTransportAdapter, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent, P2PWireEnvelope, P2PWireRole } from './P2PTransportAdapter';
 
 export type P2PRoomConnectionStatus = 'connected' | 'degraded';
 
@@ -11,6 +11,8 @@ export type P2PRoomConnectionEvent =
   | { type: 'peer-left'; peerId: string; role: P2PWireRole | null; peers: string[] }
   | { type: 'gm-lost'; peers: string[] }
   | { type: 'gm-restored'; peerId: string; peers: string[] }
+  | { type: 'diagnostics-updated'; peers: string[] }
+  | { type: 'route-switched'; peers: string[]; switch: P2PTransportRouteSwitchEvent }
   | { type: 'error'; message: string };
 
 export interface P2PRoomConnectionConfig {
@@ -66,6 +68,14 @@ export class P2PRoomConnection implements SyncTransport {
       }
     }
     return null;
+  }
+
+  routeDiagnostics(): P2PTransportRouteDiagnostic[] {
+    return this.adapter.getRouteDiagnostics?.() ?? [];
+  }
+
+  peerDiagnostics(): P2PTransportPeerDiagnostic[] {
+    return this.adapter.getPeerDiagnostics?.() ?? [];
   }
 
   subscribeRoomEvents(listener: (event: P2PRoomConnectionEvent) => void): () => void {
@@ -162,6 +172,8 @@ export class P2PRoomConnection implements SyncTransport {
       this.adapter.onPeerJoin((peerId) => this.handlePeerJoin(peerId)),
       this.adapter.onPeerLeave((peerId) => this.removePeer(peerId)),
       this.adapter.onError((message) => this.emitRoomEvent({ type: 'error', message })),
+      this.adapter.onDiagnosticsChange?.(() => this.emitRoomEvent({ type: 'diagnostics-updated', peers: this.peers() })) ?? (() => undefined),
+      this.adapter.onRouteSwitch?.((routeSwitch) => this.emitRoomEvent({ type: 'route-switched', peers: this.peers(), switch: routeSwitch })) ?? (() => undefined),
       this.adapter.subscribeBinary?.((data, peerId, metadata) => this.handleBinary(peerId, data, metadata)) ?? (() => undefined),
       this.adapter.subscribeBinaryProgress?.((percent, peerId, metadata) => {
         this.binaryProgressListeners.forEach((listener) => listener(percent, peerId, metadata));

@@ -1,4 +1,4 @@
-export function publicAssetUrl(input: string, basePath = currentBasePath()): string {
+export function publicAssetUrl(input: string, basePath = configuredBasePath()): string {
   if (!input || /^(blob:|data:)/i.test(input)) return input;
   if (/^https?:\/\//i.test(input)) return normalizeSameOriginPublicImageUrl(input, basePath);
   const normalizedBase = basePath.replace(/\/+$/, '');
@@ -13,21 +13,23 @@ export function publicAssetUrl(input: string, basePath = currentBasePath()): str
   return normalizePublicImageUrl(new URL(relativePath, baseHref)).href;
 }
 
-function currentBasePath(): string {
-  if (typeof window === 'undefined') return '';
-  return window.location.pathname
-    .replace(/\/tools\/(?:cards|combat)\/?$/, '')
-    .replace(/\/(?:game|join|calls)(?:\/[^/]+)?\/?$/, '')
-    .replace(/\/$/, '');
+function configuredBasePath(): string {
+  const base = import.meta.env?.BASE_URL ?? '/';
+  if (!base || base === '/' || base === './') return '';
+  return base.replace(/\/+$/, '');
 }
 
 function normalizeSameOriginPublicImageUrl(input: string, basePath: string): string {
-  if (typeof window === 'undefined') return input;
   const url = new URL(input);
-  if (url.origin !== window.location.origin) return input;
   const normalizedBase = basePath.replace(/\/+$/, '');
+  if (typeof window === 'undefined') {
+    const baseImageRoot = normalizedBase ? `${normalizedBase}/image/` : '';
+    return baseImageRoot && url.pathname.startsWith(baseImageRoot) ? normalizePublicImageUrl(url).href : input;
+  }
+  if (url.origin !== window.location.origin) return input;
   const imageRoot = normalizedBase ? `${normalizedBase}/image/` : '/image/';
-  return url.pathname.startsWith(imageRoot) ? normalizePublicImageUrl(url).href : input;
+  const isPublicImage = url.pathname.startsWith(imageRoot) || (!normalizedBase && url.pathname.includes('/image/'));
+  return isPublicImage ? normalizePublicImageUrl(url).href : input;
 }
 
 function normalizePublicImageUrl(url: URL): URL {

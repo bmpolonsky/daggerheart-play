@@ -3,8 +3,10 @@ import { charactersStore } from "../../src/stores/gameStores";
 import { characterService, diceService } from "../../src/services/serviceRegistry";
 import { SyncService } from "../../src/services/SyncService";
 import { P2PSessionService } from "../../src/services/P2PSessionService";
+import { MediaCallService } from "../../src/services/MediaCallService";
 import { P2PRoomConnection } from "../../src/services/p2p/P2PRoomConnection";
-import type { P2PBinaryPayload, P2PTargetPeer, P2PTransportAdapter, P2PWireEnvelope } from "../../src/services/p2p/P2PTransportAdapter";
+import { MultiStrategyP2PTransport } from "../../src/services/p2p/MultiStrategyP2PTransport";
+import type { P2PBinaryPayload, P2PTargetPeer, P2PTransportAdapter, P2PTransportMode, P2PTransportStrategy, P2PWireEnvelope } from "../../src/services/p2p/P2PTransportAdapter";
 import { PlayerActionRequestService } from "../../src/services/PlayerActionRequestService";
 import { PlayerActivationQueueService } from "../../src/services/PlayerActivationQueueService";
 import { PlayerPresenceService } from "../../src/services/PlayerPresenceService";
@@ -38,10 +40,12 @@ export async function waitFor(assertion: () => void, timeoutMs = 8000): Promise<
 
 interface ScriptedP2PTransportOptions {
   appId?: string;
+  strategy?: P2PTransportMode;
 }
 
 export class ScriptedP2PNetwork {
   connects = 0;
+  transportStrategies: Array<P2PTransportMode | undefined> = [];
   deliveredSnapshots = 0;
   droppedSnapshots = 0;
   droppedSnapshotRequests = 0;
@@ -52,19 +56,51 @@ export class ScriptedP2PNetwork {
   mediaMessages: Record<string, number> = {};
   private nextPeerNumber = 1;
   private readonly rooms = new Map<string, Set<ScriptedP2PTransport>>();
+  private disabledStrategies = new Set<P2PTransportStrategy>();
+  private rejectingStrategies = new Set<P2PTransportStrategy>();
 
-  constructor(private drops: { dropSnapshots: number; dropSnapshotRequests: number; suppressPeerJoinNotifications?: boolean }) {}
+  constructor(private drops: { dropSnapshots: number; dropSnapshotRequests: number; suppressPeerJoinNotifications?: boolean; disabledStrategies?: P2PTransportStrategy[] }) {
+    this.disabledStrategies = new Set(drops.disabledStrategies ?? []);
+  }
+
+  setStrategyEnabled(strategy: P2PTransportStrategy, enabled: boolean): void {
+    if (enabled) {
+      this.disabledStrategies.delete(strategy);
+      return;
+    }
+    this.disabledStrategies.add(strategy);
+  }
+
+  setStrategySendRejecting(strategy: P2PTransportStrategy, rejecting: boolean): void {
+    if (rejecting) {
+      this.rejectingStrategies.add(strategy);
+      return;
+    }
+    this.rejectingStrategies.delete(strategy);
+  }
 
   createTransport(options: ScriptedP2PTransportOptions): P2PTransportAdapter {
+    this.transportStrategies.push(options.strategy);
+    if (!options.strategy || options.strategy === 'auto') {
+      return new MultiStrategyP2PTransport({
+        mode: 'auto',
+        ackTimeoutMs: 40,
+        createTransport: (childOptions) => this.createTransport(childOptions)
+      });
+    }
     return new ScriptedP2PTransport(this, options);
   }
 
   connect(roomId: string, transport: ScriptedP2PTransport): void {
+    if (this.disabledStrategies.has(transport.strategy)) {
+      throw new Error(`${transport.strategy} disabled`);
+    }
     this.connects += 1;
     transport.roomId = roomId;
     transport.peerId = `peer-${this.nextPeerNumber++}`;
-    const peers = this.rooms.get(roomId) ?? new Set<ScriptedP2PTransport>();
-    this.rooms.set(roomId, peers);
+    const roomKey = this.roomKey(transport.strategy, roomId);
+    const peers = this.rooms.get(roomKey) ?? new Set<ScriptedP2PTransport>();
+    this.rooms.set(roomKey, peers);
     const existingPeers = Array.from(peers);
     peers.add(transport);
     existingPeers.forEach((peer) => {
@@ -90,21 +126,29 @@ export class ScriptedP2PNetwork {
 
   disconnectPeer(peerId: string, options: { notify?: boolean } = {}): boolean {
     const notify = options.notify !== false;
+    let disconnected = false;
     for (const peers of this.rooms.values()) {
-      const transport = Array.from(peers).find((peer) => peer.peerId === peerId);
-      if (!transport) continue;
-      peers.delete(transport);
-      if (notify) {
-        peers.forEach((peer) => peer.notifyPeerLeave(peerId));
+      const transports = Array.from(peers).filter((peer) => peer.peerId === peerId || peer.logicalPeerId === peerId);
+      for (const transport of transports) {
+        peers.delete(transport);
+        disconnected = true;
+        if (notify) {
+          peers.forEach((peer) => peer.notifyPeerLeave(transport.peerId));
+        }
+        transport.roomId = '';
       }
-      transport.roomId = '';
-      return true;
     }
-    return false;
+    return disconnected;
   }
 
   publish(sender: ScriptedP2PTransport, envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): void {
-    const recipients = Array.from(this.rooms.get(sender.roomId) ?? [])
+    if (this.rejectingStrategies.has(sender.strategy)) {
+      throw new Error(`${sender.strategy} send rejected`);
+    }
+    if (this.disabledStrategies.has(sender.strategy)) {
+      return;
+    }
+    const recipients = Array.from(this.rooms.get(this.roomKey(sender.strategy, sender.roomId)) ?? [])
       .filter((peer) => peer !== sender && (!targetPeer || peer.peerId === targetPeer));
     if (recipients.length === 0) {
       return;
@@ -132,14 +176,17 @@ export class ScriptedP2PNetwork {
     if (event?.kind === 'snapshot') {
       this.deliveredSnapshots += recipients.length;
     }
-    recipients.forEach((peer) => peer.emit(envelope));
+    recipients.forEach((peer) => peer.emit(envelope, sender.peerId));
   }
 
   async publishBinary(sender: ScriptedP2PTransport, data: P2PBinaryPayload, targetPeer?: P2PTargetPeer, metadata?: unknown): Promise<void> {
-    const recipients = Array.from(this.rooms.get(sender.roomId) ?? [])
+    if (this.disabledStrategies.has(sender.strategy)) {
+      throw new Error(`${sender.strategy} disabled`);
+    }
+    const recipients = Array.from(this.rooms.get(this.roomKey(sender.strategy, sender.roomId)) ?? [])
       .filter((peer) => peer !== sender && (!targetPeer || peer.peerId === targetPeer));
     if (recipients.length === 0) {
-      return;
+      throw new Error('No binary recipient available');
     }
     const kind = metadata && typeof metadata === 'object' && typeof (metadata as { type?: unknown }).type === 'string'
       ? (metadata as { type: string }).type
@@ -150,12 +197,19 @@ export class ScriptedP2PNetwork {
   }
 
   publishMediaStream(sender: ScriptedP2PTransport, stream: MediaStream, metadata?: unknown): void {
-    const recipients = Array.from(this.rooms.get(sender.roomId) ?? []).filter((peer) => peer !== sender);
+    if (this.disabledStrategies.has(sender.strategy)) {
+      return;
+    }
+    const recipients = Array.from(this.rooms.get(this.roomKey(sender.strategy, sender.roomId)) ?? []).filter((peer) => peer !== sender);
     const kind = metadata && typeof metadata === 'object' && typeof (metadata as { kind?: unknown }).kind === 'string'
       ? (metadata as { kind: string }).kind
       : 'unknown';
     this.mediaMessages[kind] = (this.mediaMessages[kind] ?? 0) + recipients.length;
     recipients.forEach((peer) => peer.emitMediaStream(stream, sender.peerId, metadata));
+  }
+
+  private roomKey(strategy: P2PTransportStrategy, roomId: string): string {
+    return `${strategy}:${roomId}`;
   }
 }
 
@@ -164,7 +218,9 @@ class ScriptedP2PTransport implements P2PTransportAdapter {
   readonly label = 'Scripted P2P';
   peerId = '';
   roomId = '';
-  private readonly listeners = new Set<(envelope: P2PWireEnvelope) => void>();
+  logicalPeerId = '';
+  readonly strategy: P2PTransportStrategy;
+  private readonly listeners = new Set<(envelope: P2PWireEnvelope, context?: { sourcePeerId?: string }) => void>();
   private readonly peerJoinListeners = new Set<(peerId: string) => void>();
   private readonly peerLeaveListeners = new Set<(peerId: string) => void>();
   private readonly errorListeners = new Set<(message: string) => void>();
@@ -172,7 +228,9 @@ class ScriptedP2PTransport implements P2PTransportAdapter {
   private readonly mediaStreamListeners = new Set<(stream: MediaStream, peerId: string, metadata?: unknown) => void>();
   readonly publishedMediaStreams = new Map<MediaStream, unknown>();
 
-  constructor(private readonly network: ScriptedP2PNetwork, _options: ScriptedP2PTransportOptions) {}
+  constructor(private readonly network: ScriptedP2PNetwork, options: ScriptedP2PTransportOptions) {
+    this.strategy = options.strategy && options.strategy !== 'auto' ? options.strategy : 'nostr';
+  }
 
   async connect(roomId: string): Promise<void> {
     this.network.connect(roomId, this);
@@ -187,6 +245,7 @@ class ScriptedP2PTransport implements P2PTransportAdapter {
   }
 
   async send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void> {
+    this.logicalPeerId = envelope.sender.peerId;
     this.network.publish(this, envelope, targetPeer);
   }
 
@@ -194,7 +253,7 @@ class ScriptedP2PTransport implements P2PTransportAdapter {
     await this.network.publishBinary(this, data, targetPeer, metadata);
   }
 
-  subscribe(listener: (envelope: P2PWireEnvelope) => void): () => void {
+  subscribe(listener: (envelope: P2PWireEnvelope, context?: { sourcePeerId?: string }) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
@@ -233,8 +292,8 @@ class ScriptedP2PTransport implements P2PTransportAdapter {
     return () => this.mediaStreamListeners.delete(listener);
   }
 
-  emit(envelope: P2PWireEnvelope): void {
-    this.listeners.forEach((listener) => listener(envelope));
+  emit(envelope: P2PWireEnvelope, sourcePeerId: string): void {
+    this.listeners.forEach((listener) => listener(envelope, { sourcePeerId }));
   }
 
   emitBinary(data: ArrayBuffer, peerId: string, metadata?: unknown): void {
@@ -272,7 +331,7 @@ async function binaryPayloadToArrayBuffer(data: P2PBinaryPayload): Promise<Array
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 }
 
-export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService } = {}): P2PSessionService {
+export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService } = {}): P2PSessionService {
   return new P2PSessionService(
     options.syncService ?? new SyncService(),
     new PlayerActionRequestService(),
@@ -285,7 +344,8 @@ export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dic
     undefined,
     undefined,
     (options) => network.createTransport(options),
-    { heartbeatMs: 100, gmTimeoutMs: 400 }
+    { heartbeatMs: 100, gmTimeoutMs: 400 },
+    options.mediaCallService
   );
 }
 

@@ -66,7 +66,7 @@ Do not introduce new global color systems for screens. If a tool needs local ali
 - Use `ListItem` for compact repeated rows with a title, optional subtitle, value, or action.
 - Use `ListDetailLayout` for responsive list/detail workspaces.
 - Use `ResourcePips` for hope, hp, stress, armor, and similar pip tracks.
-- Use `ModalShell` for modal chrome.
+- Use `Dialog` for dialog windows: backdrop, glass surface, title/actions, and click-outside close.
 
 ## What Not To Do
 
@@ -485,14 +485,14 @@ Use for section headings with optional actions.
 <SectionHeader title="Персонажи" subtitle="Игроки и назначенные герои" actions={<Button size="sm">Создать</Button>} />
 ```
 
-### ModalShell
+### Dialog
 
-Use for modal chrome: backdrop, glass shell, optional title/actions, click-outside close.
+Use for dialog windows: backdrop, glass surface, optional title/actions, click-outside close.
 
 ```tsx
-<ModalShell title={<h2>Библиотека</h2>} actions={<IconButton aria-label="Закрыть">...</IconButton>} onClose={close}>
+<Dialog title={<h2>Библиотека</h2>} actions={<IconButton aria-label="Закрыть">...</IconButton>} onClose={close}>
   ...
-</ModalShell>
+</Dialog>
 ```
 
 Guidance:
@@ -624,7 +624,7 @@ Guidance:
 | `Tabs` / `TabButton` | Tab navigation | Segmented boolean choices |
 | `Toolbar` | Compact command groups | Layout panels |
 | `SectionHeader` | Heading + actions | Whole panels |
-| `ModalShell` | Modal chrome | Nested modal content cards |
+| `Dialog` | Dialog windows | Nested dialog content cards |
 | `Checkbox` | Boolean options | Multi-choice tabs |
 | `ListDetailLayout` | List/detail workspaces | Generic page columns |
 | `ResourcePips` | Pip resources | Generic progress bars |

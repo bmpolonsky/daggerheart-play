@@ -73,6 +73,7 @@ export function createLocalParticipant(input?: Partial<TableParticipant>): Table
     name: input?.name ?? 'Мастер',
     role: input?.role ?? 'gm',
     actorIds: input?.actorIds ?? [],
+    peerId: input?.peerId,
     connected: input?.connected ?? true,
     updatedAt: input?.updatedAt ?? nowIso()
   };

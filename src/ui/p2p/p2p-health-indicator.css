@@ -1,0 +1,73 @@
+.p2p-health-indicator.dh-button {
+  position: fixed;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 470;
+  max-width: min(520px, calc(100vw - 20px));
+  justify-content: start;
+  padding-inline: 0;
+  background: transparent;
+  color: var(--dh-paper-faint);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.72);
+}
+
+.p2p-health-indicator.dh-button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--dh-paper-100);
+}
+
+.p2p-health-indicator__label,
+.p2p-health-indicator__detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p2p-health-indicator__label {
+  flex: 0 0 auto;
+  color: var(--dh-paper-100);
+}
+
+.p2p-health-indicator__detail {
+  flex: 1 1 auto;
+  color: var(--dh-paper-faint);
+}
+
+.p2p-health-indicator.is-ok svg {
+  color: #c1f0cb;
+}
+
+.p2p-health-indicator.is-waiting svg,
+.p2p-health-indicator.is-connecting svg {
+  color: var(--dh-gold-400);
+}
+
+.p2p-health-indicator.is-degraded svg {
+  color: #ffd296;
+}
+
+.p2p-health-indicator.is-error svg {
+  color: #ff9a9a;
+}
+
+.p2p-health-dialog.dh-dialog {
+  width: min(1180px, calc(100vw - 28px));
+}
+
+.p2p-health-dialog .player-tools-settings-panel {
+  background: transparent;
+  padding: 0;
+}
+
+@media (max-width: 720px) {
+  .p2p-health-indicator.dh-button {
+    right: auto;
+    bottom: calc(var(--dh-mobile-nav-height, 56px) + max(14px, env(safe-area-inset-bottom)));
+    max-width: min(270px, calc(100vw - 132px));
+  }
+
+  .p2p-health-indicator__detail {
+    display: none;
+  }
+}

@@ -6,10 +6,19 @@ import {
   writeP2PNetworkSettings
 } from '../../src/domain/p2p/networkSettings';
 
-test('P2P network settings use Trystero Nostr defaults without relayConfig by default', () => {
+test('P2P network settings use auto strategy by default and still allow Nostr debug mode', () => {
+  writeP2PNetworkSettings({ strategy: 'auto' });
+  assert.equal(readP2PNetworkSettings().strategy, 'auto');
+  assert.deepEqual(trysteroOptionsForNetworkSettings(readP2PNetworkSettings()), { strategy: 'auto' });
   const settings = writeP2PNetworkSettings({ strategy: 'nostr' });
   assert.equal(readP2PNetworkSettings().strategy, 'nostr');
   assert.deepEqual(trysteroOptionsForNetworkSettings(settings), { strategy: 'nostr' });
+});
+
+test('P2P network settings resolve MQTT options', () => {
+  const mqtt = writeP2PNetworkSettings({ strategy: 'mqtt' });
+  assert.equal(readP2PNetworkSettings().strategy, 'mqtt');
+  assert.deepEqual(trysteroOptionsForNetworkSettings(mqtt), { strategy: 'mqtt' });
 });
 
 test('P2P network settings resolve torrent options', () => {

@@ -200,6 +200,9 @@ export class AudioService {
         },
         video: false
       });
+      stream.getAudioTracks().forEach((track) => {
+        track.contentHint = 'speech';
+      });
       this.localVoiceStream = stream;
       await this.publishLocalVoiceStream(label);
       this.patchAudio({ voiceStatus: 'live', voiceMuted: false, voiceMessage: 'Микрофон включен.' });

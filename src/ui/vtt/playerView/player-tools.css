@@ -1646,6 +1646,37 @@
   white-space: nowrap;
 }
 
+.player-tools-auto-network {
+  display: grid;
+  grid-template-columns: minmax(86px, auto) minmax(56px, auto) minmax(150px, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.player-tools-auto-network span,
+.player-tools-auto-network small {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(243, 234, 216, 0.58);
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.player-tools-auto-network strong {
+  color: #fff4d6;
+  font-size: 0.9rem;
+}
+
+.player-tools-auto-network small {
+  text-transform: none;
+}
+
 .player-tools-sync__details {
   display: grid;
   gap: 8px;
@@ -1689,6 +1720,102 @@
   font-size: 0.74rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.player-tools-route-table {
+  display: grid;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.player-tools-route-table__row {
+  display: grid;
+  grid-template-columns: minmax(132px, 1.1fr) repeat(3, minmax(116px, 1fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 560px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.player-tools-route-table__row--head {
+  background: rgba(255, 244, 214, 0.07);
+}
+
+.player-tools-route-table__row span {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(243, 234, 216, 0.78);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-tools-route-table__row span[role="cell"]:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.player-tools-route-table__row span[role="cell"]:first-child small {
+  overflow: hidden;
+  color: rgba(243, 234, 216, 0.42);
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-tools-route-table__row--head span {
+  color: rgba(243, 234, 216, 0.56);
+  font-size: 0.64rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.player-tools-route-table__row strong {
+  color: #fff4d6;
+}
+
+.player-tools-route-table__route {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(255, 244, 214, 0.07);
+}
+
+.player-tools-route-table__route.is-active {
+  color: #fff4d6;
+  background: rgba(255, 211, 115, 0.2);
+}
+
+.player-tools-route-table__route.is-ready {
+  color: rgba(193, 240, 203, 0.92);
+}
+
+.player-tools-route-table__route.is-lost {
+  color: rgba(255, 210, 150, 0.92);
+}
+
+.player-tools-route-table__route.is-failed {
+  color: rgba(255, 154, 154, 0.92);
+}
+
+.player-tools-route-table__route.is-empty {
+  color: rgba(243, 234, 216, 0.42);
+}
+
+.player-tools-route-table__empty {
+  display: grid;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.player-tools-route-table__empty span {
+  color: rgba(243, 234, 216, 0.58);
+  font-size: 0.74rem;
 }
 
 .player-tools-fallback {

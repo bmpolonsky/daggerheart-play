@@ -20,6 +20,15 @@ export interface SceneImportReport {
   warnings: string[];
 }
 
+export interface ParticipantPresenceInput {
+  id: string;
+  name?: string;
+  role: TableParticipant['role'];
+  actorIds?: string[];
+  peerId?: string;
+  connected: boolean;
+}
+
 export class SceneTableService {
   readonly sceneTable$ = sceneTableStore.toStream();
 
@@ -125,6 +134,64 @@ export class SceneTableService {
       return {
         ...state,
         participants: nextParticipants,
+        updatedAt: nowIso()
+      };
+    });
+    if (nextParticipants) syncCharacterPlayerNames(nextParticipants);
+  }
+
+  upsertParticipantPresence(input: ParticipantPresenceInput): TableParticipant | null {
+    const id = input.id.trim();
+    if (!id) return null;
+    let participant: TableParticipant | null = null;
+    let nextParticipants: SceneTableState['participants'] | null = null;
+    sceneTableStore.update((state) => {
+      const current = state.participants[id];
+      const name = input.name?.trim() || current?.name || (input.role === 'gm' ? 'Мастер' : 'Игрок');
+      participant = createLocalParticipant({
+        ...current,
+        id,
+        name,
+        role: current?.role ?? input.role,
+        actorIds: input.actorIds ?? current?.actorIds ?? [],
+        peerId: input.peerId?.trim() || current?.peerId,
+        connected: input.connected,
+        updatedAt: nowIso()
+      });
+      nextParticipants = {
+        ...state.participants,
+        [id]: participant
+      };
+      return {
+        ...state,
+        participants: nextParticipants,
+        updatedAt: nowIso()
+      };
+    });
+    if (nextParticipants) syncCharacterPlayerNames(nextParticipants);
+    return participant;
+  }
+
+  markParticipantDisconnectedByPeer(peerId: string): void {
+    const normalizedPeerId = peerId.trim();
+    if (!normalizedPeerId) return;
+    let nextParticipants: SceneTableState['participants'] | null = null;
+    sceneTableStore.update((state) => {
+      let changed = false;
+      const participants = Object.fromEntries(Object.entries(state.participants).map(([id, participant]) => {
+        if (participant.peerId !== normalizedPeerId || !participant.connected) return [id, participant];
+        changed = true;
+        return [id, createLocalParticipant({
+          ...participant,
+          connected: false,
+          updatedAt: nowIso()
+        })];
+      }));
+      if (!changed) return state;
+      nextParticipants = participants;
+      return {
+        ...state,
+        participants,
         updatedAt: nowIso()
       };
     });

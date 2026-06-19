@@ -46,6 +46,40 @@ test('player seat assignments sync character player names', () => {
   assert.equal(characterService.getCharacter(kadzu.id)?.playerName, '');
 });
 
+test('participant presence creates and updates unified player identities', () => {
+  resetAllStores();
+  const roland = characterService.createCharacter({ name: 'Роланд' });
+
+  sceneTableService.upsertParticipantPresence({
+    id: 'participant-1',
+    name: 'Анна',
+    role: 'player',
+    actorIds: [roland.id],
+    peerId: 'p2p_peer_anna',
+    connected: true
+  });
+
+  assert.equal(sceneTableStore.get().participants['participant-1']?.name, 'Анна');
+  assert.equal(sceneTableStore.get().participants['participant-1']?.peerId, 'p2p_peer_anna');
+  assert.deepEqual(sceneTableStore.get().participants['participant-1']?.actorIds, [roland.id]);
+  assert.equal(characterService.getCharacter(roland.id)?.playerName, 'Анна');
+
+  sceneTableService.upsertParticipantPresence({
+    id: 'participant-1',
+    name: 'Анна Созвон',
+    role: 'player',
+    peerId: 'p2p_peer_anna',
+    connected: true
+  });
+
+  assert.equal(sceneTableStore.get().participants['participant-1']?.name, 'Анна Созвон');
+  assert.deepEqual(sceneTableStore.get().participants['participant-1']?.actorIds, [roland.id]);
+  assert.equal(characterService.getCharacter(roland.id)?.playerName, 'Анна Созвон');
+
+  sceneTableService.markParticipantDisconnectedByPeer('p2p_peer_anna');
+  assert.equal(sceneTableStore.get().participants['participant-1']?.connected, false);
+});
+
 test('services import old combat builder and map scene JSON exports', () => {
   resetAllStores();
   const combatReport = encounterService.importCombatBuilderJson(JSON.stringify({

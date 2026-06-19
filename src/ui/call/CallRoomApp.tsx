@@ -7,6 +7,7 @@ import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
 import { feedService, mediaCallService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
 import { toastService } from '../../services/ToastService';
 import type { CallParticipant, MediaCallState } from '../../services/MediaCallService';
+import { P2PHealthIndicator } from '../p2p/P2PHealthIndicator';
 import { cssImageUrl } from '../vtt/playerView/helpers';
 import { Avatar, Badge, Button, ChoiceCard, EmptyState, Field, IconButton, ListItem, SectionHeader, Surface, TextControl, Toolbar } from '../components/common';
 import { MediaStreamVideo } from './MediaStreamVideo';
@@ -40,8 +41,8 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const [layoutMode, setLayoutMode] = useState<CallLayoutMode>(defaultCallLayoutMode);
   const [focusedParticipantId, setFocusedParticipantId] = useState<string | null>(null);
   const autoJoinKey = useRef<string | null>(null);
-  const lastToastMessage = useRef('');
   const storedSession = useMemo(() => roomId ? p2pSessionService.storedSessionForRoom(roomId) : null, [roomId]);
+  const healthRole = session.role ?? storedSession?.role ?? 'player';
   const connectedToRoom = session.connected && session.roomId === roomId;
   const connectingToRoom = session.status === 'connecting' && session.roomId === roomId;
   const liveScene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
@@ -96,13 +97,6 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     setFocusedParticipantId(null);
   }, [focusedParticipantId, participantsList]);
 
-  useEffect(() => {
-    const message = connectingToRoom ? 'Подключаемся к комнате...' : call.message || session.message;
-    if (!message || message === 'Звонок не подключен.' || message === lastToastMessage.current) return;
-    lastToastMessage.current = message;
-    toastService.show(message, call.status === 'error' || call.status === 'permission-denied' ? 'error' : 'info');
-  }, [call.message, call.status, connectingToRoom, session.message]);
-
   const joinCall = async (displayName = nameDraft): Promise<void> => {
     const name = displayName.trim();
     if (!roomId || !name) {
@@ -113,6 +107,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     mediaCallService.setDisplayName(name);
     if (connectedToRoom) {
       mediaCallService.setRoom({ roomId, displayName: name, role: session.role === 'gm' ? 'gm' : 'player', active: true });
+      p2pSessionService.renameLocalParticipant(name);
       return;
     }
     const role = storedSession?.role ?? 'player';
@@ -128,6 +123,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
       });
     }
     mediaCallService.setRoom({ roomId, displayName: name, role, active: true });
+    p2pSessionService.renameLocalParticipant(name);
   };
 
   const selectSeatName = (name: string) => {
@@ -336,6 +332,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
         </Surface>
       </aside>
       )}
+      <P2PHealthIndicator role={healthRole} />
     </main>
   );
 }

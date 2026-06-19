@@ -26,6 +26,7 @@ import {
   SharedToolsScenesTab
 } from './SharedToolsTabs';
 import type { SharedToolsTab, TableViewRole } from './types';
+import type { ContentCollectionKey } from '../../../domain/content/types';
 import './player-tools.css';
 
 const PLAYER_COMPENDIUM_COLLECTIONS = COMPENDIUM_COLLECTIONS.filter((collection) => collection.key !== 'adversaries' && collection.key !== 'environments');
@@ -37,12 +38,18 @@ export function SharedToolsModal({
   tab,
   targetCharacterId,
   onClose,
+  onLibraryCollectionChange,
+  onSettingsSectionChange,
+  routedSettingsSection,
   onTabChange
 }: {
   role: TableViewRole;
   tab: SharedToolsTab;
   targetCharacterId?: string | null;
   onClose: () => void;
+  onLibraryCollectionChange?: (collection: ContentCollectionKey) => void;
+  onSettingsSectionChange?: (section: SettingsSectionId) => void;
+  routedSettingsSection?: string | null;
   onTabChange: (tab: SharedToolsTab) => void;
 }) {
   const tabs: SharedToolsTab[] = sharedToolsTabsForRole(role);
@@ -61,10 +68,12 @@ export function SharedToolsModal({
   const playerSeats = Object.values(sceneTable.participants).filter((participant) => participant.role === 'player');
   const scenes = sceneTable.sceneOrder.map((id) => sceneTable.scenes[id]).filter(Boolean);
   const [characterBuilderOpen, setCharacterBuilderOpen] = useState(false);
-  const [gameNavCollapsed, setGameNavCollapsed] = useState(true);
-  const [compendiumNavCollapsed, setCompendiumNavCollapsed] = useState(true);
-  const [settingsNavCollapsed, setSettingsNavCollapsed] = useState(true);
-  const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>(role === 'gm' ? 'game' : 'connection');
+  const [gameNavCollapsed, setGameNavCollapsed] = useState(!gameLibraryTabs.includes(activeTab));
+  const [compendiumNavCollapsed, setCompendiumNavCollapsed] = useState(activeTab !== 'library');
+  const [settingsNavCollapsed, setSettingsNavCollapsed] = useState(activeTab !== 'settings');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>(
+    normalizeSettingsSection((routedSettingsSection as SettingsSectionId | null) ?? (role === 'gm' ? 'game' : 'connection'), role)
+  );
   const settingsSections = settingsSectionsForRole(role);
   const normalizedSettingsSection = normalizeSettingsSection(activeSettingsSection, role);
 
@@ -79,6 +88,20 @@ export function SharedToolsModal({
     if (normalizedSettingsSection === activeSettingsSection) return;
     setActiveSettingsSection(normalizedSettingsSection);
   }, [activeSettingsSection, normalizedSettingsSection]);
+  useEffect(() => {
+    if (!routedSettingsSection) return;
+    const nextSection = normalizeSettingsSection(routedSettingsSection as SettingsSectionId, role);
+    if (nextSection !== activeSettingsSection) setActiveSettingsSection(nextSection);
+  }, [activeSettingsSection, role, routedSettingsSection]);
+
+  const changeSettingsSection = (section: SettingsSectionId) => {
+    setActiveSettingsSection(section);
+    if (onSettingsSectionChange) {
+      onSettingsSectionChange(section);
+    } else {
+      onTabChange('settings');
+    }
+  };
   const createCharacterFromBuilder = (input: Partial<Character> & { className?: DaggerheartClass }) => {
     const { character } = tabletopService.createCharacterOnActiveScene(input);
     sceneTableService.createPlayerSeat({
@@ -130,7 +153,7 @@ export function SharedToolsModal({
               )}
             </div>
             {standaloneTabs.map((item) => item === 'library'
-              ? renderLibraryNavItem(item, activeTab, libraryView, compendiumCollections, onTabChange, compendiumNavCollapsed, () => setCompendiumNavCollapsed((current) => !current))
+              ? renderLibraryNavItem(item, activeTab, libraryView, compendiumCollections, onTabChange, onLibraryCollectionChange, compendiumNavCollapsed, () => setCompendiumNavCollapsed((current) => !current))
               : item === 'settings'
                 ? renderSettingsNavItem(
                   item,
@@ -138,7 +161,7 @@ export function SharedToolsModal({
                   settingsSections,
                   normalizedSettingsSection,
                   onTabChange,
-                  setActiveSettingsSection,
+                  changeSettingsSection,
                   settingsNavCollapsed,
                   () => setSettingsNavCollapsed((current) => !current)
                 )
@@ -159,7 +182,8 @@ export function SharedToolsModal({
             settingsSections,
             normalizedSettingsSection,
             onTabChange,
-            setActiveSettingsSection
+            changeSettingsSection,
+            onLibraryCollectionChange
           ))}
           {specialTabs.map((item) => (
             <TabButton
@@ -225,7 +249,8 @@ function renderMobileTabItem(
   settingsSections: SettingsSectionId[],
   activeSettingsSection: SettingsSectionId,
   onTabChange: (tab: SharedToolsTab) => void,
-  onSettingsSectionChange: (section: SettingsSectionId) => void
+  onSettingsSectionChange: (section: SettingsSectionId) => void,
+  onLibraryCollectionChange?: (collection: ContentCollectionKey) => void
 ) {
   if (item === 'library') {
     return compendiumCollections.map((collection) => (
@@ -235,7 +260,11 @@ function renderMobileTabItem(
         type="button"
         onClick={() => {
           contentService.setSelectedCollection(collection.key);
-          onTabChange('library');
+          if (onLibraryCollectionChange) {
+            onLibraryCollectionChange(collection.key);
+          } else {
+            onTabChange('library');
+          }
         }}
       >
         {collection.shortLabel}
@@ -302,7 +331,6 @@ function renderSettingsNavItem(
               type="button"
               onClick={() => {
                 onSettingsSectionChange(section);
-                onTabChange(item);
               }}
             >
               <span>{settingsSectionLabel(section)}</span>
@@ -320,6 +348,7 @@ function renderLibraryNavItem(
   libraryView: ReturnType<typeof contentService.buildLibraryView>,
   compendiumCollections: typeof COMPENDIUM_COLLECTIONS,
   onTabChange: (tab: SharedToolsTab) => void,
+  onLibraryCollectionChange: ((collection: ContentCollectionKey) => void) | undefined,
   collapsed: boolean,
   onToggle: () => void
 ) {
@@ -346,7 +375,11 @@ function renderLibraryNavItem(
               type="button"
               onClick={() => {
                 contentService.setSelectedCollection(collection.key);
-                onTabChange(item);
+                if (onLibraryCollectionChange) {
+                  onLibraryCollectionChange(collection.key);
+                } else {
+                  onTabChange(item);
+                }
               }}
             >
               <span>{collection.shortLabel}</span>

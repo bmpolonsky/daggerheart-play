@@ -117,25 +117,6 @@
   font-size: 0.78rem;
 }
 
-.player-connection-diagnostic {
-  position: fixed;
-  left: max(8px, env(safe-area-inset-left));
-  bottom: max(8px, env(safe-area-inset-bottom));
-  z-index: 90;
-  max-width: min(460px, calc(100vw - 16px));
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: rgba(243, 234, 216, 0.46);
-  font-size: 0.62rem;
-  font-weight: 750;
-  line-height: 1.25;
-  pointer-events: none;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.68);
-  text-wrap: balance;
-}
-
 @media (max-width: 920px) {
   .superapp-shell--gm .superapp-content,
   .superapp-shell--game .superapp-content,

@@ -45,3 +45,24 @@ test('public asset URLs normalize same-origin legacy image extensions', () => {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });
+
+test('public asset URLs ignore path-only library routes', () => {
+  const originalWindow = globalThis.window;
+  Object.defineProperty(globalThis, 'window', {
+    value: {
+      location: {
+        origin: 'http://localhost:5173',
+        pathname: '/library/characters'
+      }
+    },
+    configurable: true
+  });
+  try {
+    assert.equal(
+      publicAssetUrl('/image/subclass/troubadour.webp'),
+      'http://localhost:5173/image/subclass/troubadour.webp'
+    );
+  } finally {
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});

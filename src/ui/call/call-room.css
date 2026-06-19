@@ -221,7 +221,6 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid var(--dh-border-strong);
   background: var(--dh-glass-subtle);
   color: var(--dh-paper-100);
   font-family: "DH Eveleth", "DH Overpass", sans-serif;

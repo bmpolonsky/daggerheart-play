@@ -20,6 +20,7 @@ interface AssetSessionPatch {
 
 interface PendingAssetRequest {
   assetId: string;
+  reason: AssetRequestReason;
   sourcePeerId: string;
   timeout: number;
   resolve: (ok: boolean) => void;
@@ -81,22 +82,27 @@ export class P2PAssetTransferService {
         };
       });
     }
-    const requestId = createId('asset_request');
     return new Promise<boolean>((resolve) => {
-      const timeout = window.setTimeout(() => {
-        this.pending.delete(requestId);
-        this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурс сцены недоступен.' });
-        resolve(false);
-      }, ASSET_REQUEST_TIMEOUT_MS);
-      this.pending.set(requestId, { assetId, sourcePeerId: gmPeerId, timeout, resolve });
-      void this.syncService.publishAssetMessage({
-        type: 'request',
-        requestId,
-        assetId,
-        reason,
-        requestedAt: nowIso()
-      }, gmPeerId).catch(() => this.finish(requestId, false));
+      this.startRequest({ assetId, reason, sourcePeerId: gmPeerId, resolve, failOnPublishError: true });
     });
+  }
+
+  async retryPendingRequestsForPeer(peerId: string): Promise<void> {
+    const pendingRequests = Array.from(this.pending.entries()).filter(([, request]) => request.sourcePeerId === peerId);
+    for (const [requestId, request] of pendingRequests) {
+      window.clearTimeout(request.timeout);
+      this.pending.delete(requestId);
+      this.startRequest({
+        assetId: request.assetId,
+        reason: request.reason,
+        sourcePeerId: request.sourcePeerId,
+        resolve: request.resolve,
+        failOnPublishError: false
+      });
+    }
+    if (pendingRequests.length > 0) {
+      this.patchSession({ lastRequestAt: nowIso(), message: 'Повторяем запрос ресурса сцены.' });
+    }
   }
 
   clear(ok: boolean): void {
@@ -143,7 +149,7 @@ export class P2PAssetTransferService {
       await unavailable(error instanceof Error ? error.message : 'binary-transfer-failed');
       return;
     }
-    this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурс сцены отправлен игроку.' });
+    this.patchSession({ lastRequestAt: nowIso(), message: 'Передача ресурса сцены запущена.' });
   }
 
   private async handleResponse(message: AssetMessage, context?: SyncEventContext): Promise<void> {
@@ -195,6 +201,40 @@ export class P2PAssetTransferService {
     window.clearTimeout(pending.timeout);
     this.pending.delete(requestId);
     pending.resolve(ok);
+  }
+
+  private startRequest(input: {
+    assetId: string;
+    reason: AssetRequestReason;
+    sourcePeerId: string;
+    resolve: (ok: boolean) => void;
+    failOnPublishError: boolean;
+  }): string {
+    const requestId = createId('asset_request');
+    const timeout = window.setTimeout(() => {
+      this.pending.delete(requestId);
+      this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурс сцены недоступен.' });
+      input.resolve(false);
+    }, ASSET_REQUEST_TIMEOUT_MS);
+    this.pending.set(requestId, {
+      assetId: input.assetId,
+      reason: input.reason,
+      sourcePeerId: input.sourcePeerId,
+      timeout,
+      resolve: input.resolve
+    });
+    void this.syncService.publishAssetMessage({
+      type: 'request',
+      requestId,
+      assetId: input.assetId,
+      reason: input.reason,
+      requestedAt: nowIso()
+    }, input.sourcePeerId).catch(() => {
+      if (input.failOnPublishError) {
+        this.finish(requestId, false);
+      }
+    });
+    return requestId;
   }
 }
 
