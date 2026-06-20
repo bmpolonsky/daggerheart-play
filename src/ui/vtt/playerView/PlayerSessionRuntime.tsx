@@ -86,7 +86,7 @@ export function PlayerSessionRuntime({
     }
     const publish = () => {
       void p2pSessionService.publishPresence({
-        requesterId: p2pSession.peerId ?? selectedPlayerSeatId ?? displayedCharacter.id,
+        requesterId: selectedPlayerSeatId ?? p2pSession.peerId ?? displayedCharacter.id,
         actorId: displayedCharacter.id,
         actorName: displayedCharacter.name,
         playerName: selectedPlayerName ?? '',

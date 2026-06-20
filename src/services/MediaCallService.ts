@@ -299,11 +299,7 @@ export class MediaCallService {
             }
           : false,
         video: constraints.video
-          ? {
-              width: { ideal: 854 },
-              height: { ideal: 480 },
-              frameRate: { ideal: 15, max: 24 }
-            }
+          ? callVideoConstraints()
           : false
       });
       applyCallContentHints(stream);
@@ -424,4 +420,22 @@ function applyCallContentHints(stream: MediaStream): void {
   stream.getVideoTracks().forEach((track) => {
     track.contentHint = 'motion';
   });
+}
+
+function callVideoConstraints(): MediaTrackConstraints {
+  const portraitViewport = typeof window !== 'undefined'
+    && window.matchMedia?.('(orientation: portrait)').matches;
+  return portraitViewport
+    ? {
+        width: { ideal: 480 },
+        height: { ideal: 854 },
+        aspectRatio: { ideal: 9 / 16 },
+        frameRate: { ideal: 15, max: 24 }
+      }
+    : {
+        width: { ideal: 854 },
+        height: { ideal: 480 },
+        aspectRatio: { ideal: 16 / 9 },
+        frameRate: { ideal: 15, max: 24 }
+      };
 }

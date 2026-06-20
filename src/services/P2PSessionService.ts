@@ -1406,24 +1406,53 @@ export class P2PSessionService {
   }
 
   private upsertParticipantFromCallPresence(presence: CallPresenceMessage, peerId?: string): void {
+    const participant = this.findExistingParticipantForPresence({
+      participantId: presence.participantId,
+      peerId
+    });
+    if (!participant) {
+      return;
+    }
     this.sceneTableService.upsertParticipantPresence({
-      id: presence.participantId,
+      id: participant.id,
       name: presence.displayName,
-      role: presence.role === 'gm' ? 'gm' : 'player',
+      role: participant.role,
+      actorIds: participant.actorIds,
       peerId,
       connected: presence.connected
     });
   }
 
   private upsertParticipantFromPlayerPresence(presence: PlayerPresence): void {
+    const participant = this.findExistingParticipantForPresence({
+      participantId: presence.requesterId,
+      actorId: presence.actorId,
+      peerId: presence.peerId
+    });
+    if (!participant) {
+      return;
+    }
     this.sceneTableService.upsertParticipantPresence({
-      id: presence.requesterId,
+      id: participant.id,
       name: presence.playerName || presence.actorName,
-      role: 'player',
-      actorIds: presence.actorId ? [presence.actorId] : [],
+      role: participant.role,
+      actorIds: participant.actorIds.length > 0 ? participant.actorIds : presence.actorId ? [presence.actorId] : [],
       peerId: presence.peerId,
       connected: presence.connected
     });
+  }
+
+  private findExistingParticipantForPresence(input: { participantId?: string; actorId?: string; peerId?: string }): TableParticipant | null {
+    const participants = Object.values(this.sceneTableService.sceneTable$.get().participants);
+    const participantId = input.participantId?.trim();
+    const actorId = input.actorId?.trim();
+    const peerId = input.peerId?.trim();
+    return (
+      participants.find((participant) => participantId && participant.id === participantId)
+      ?? participants.find((participant) => actorId && participant.role === 'player' && participant.actorIds.includes(actorId))
+      ?? participants.find((participant) => peerId && participant.peerId === peerId)
+      ?? null
+    );
   }
 
   private async republishPendingRequests(): Promise<void> {
