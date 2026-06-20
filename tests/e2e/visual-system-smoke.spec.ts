@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { openGmGame, openPlayerGame } from './game-route-helpers';
-import { expectInsideViewport } from './layout-helpers';
+import { expectInsideViewport, expectNoOverlap } from './layout-helpers';
 
 async function expectNoHorizontalOverflow(page: Page, width: number): Promise<void> {
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
@@ -58,7 +58,7 @@ test.describe('dark glass visual system smoke', () => {
     const modal = page.locator('.player-tools-modal');
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
-    await modal.getByRole('button', { name: 'Персонажи' }).click();
+    await modal.locator('.player-tools-modal__nav').getByRole('button', { name: 'Персонажи' }).click();
     const createHeroButton = modal.getByRole('button', { name: 'Создать героя' }).first();
     await expectStableButton(createHeroButton);
     await createHeroButton.click();
@@ -68,6 +68,22 @@ test.describe('dark glass visual system smoke', () => {
     await expectInsideViewport(page, builder);
     await expect(page.locator('.cinematic-builder-preview')).toHaveCSS('color', /rgb\(243, 234, 216\)|rgb\(255, 247, 231\)/);
     await expectNoHorizontalOverflow(page, 1440);
+  });
+
+  test('GM tools modal keeps wide tablet layout from overlapping content', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 1200 });
+    await openGmGame(page);
+
+    await page.locator('.mini-dice-launcher__tools').click();
+    const modal = page.locator('.player-tools-modal');
+    const nav = modal.locator('.player-tools-modal__nav');
+    const body = modal.locator('.player-tools-modal__body');
+
+    await expect(modal).toBeVisible();
+    await expectInsideViewport(page, modal);
+    await expectInsideViewport(page, body);
+    await expectNoOverlap(nav, body, 2);
+    await expectNoHorizontalOverflow(page, 1024);
   });
 
   test('player mobile layers keep document width stable', async ({ page }) => {

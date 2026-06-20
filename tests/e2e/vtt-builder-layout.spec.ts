@@ -5,7 +5,20 @@ import { expectAbove, expectInsideViewport, expectLeftOf, expectNoOverlap, rect 
 async function openBuilder(page: Page): Promise<void> {
   await openGmGame(page);
   await page.locator('.mini-dice-launcher__tools').click();
-  await page.getByRole('button', { name: 'Персонажи' }).click();
+  const toolsModal = page.locator('.player-tools-modal');
+  const isMobileToolsModal = (page.viewportSize()?.width ?? 999) <= 680;
+  const tabs = isMobileToolsModal
+    ? toolsModal.locator('.player-tools-modal__mobile-tabs')
+    : toolsModal.locator('.player-tools-modal__nav');
+  const charactersTab = tabs.getByRole('button', { name: 'Персонажи' });
+  await charactersTab.evaluate((button) => {
+    button.scrollIntoView({ block: 'nearest', inline: 'center' });
+  });
+  if (isMobileToolsModal) {
+    await charactersTab.dispatchEvent('click');
+  } else {
+    await charactersTab.click();
+  }
   await page.getByRole('button', { name: /Создать героя/ }).first().click();
   await expect(page.locator('.cinematic-builder')).toBeVisible();
 }
@@ -56,6 +69,26 @@ test.describe('character builder composition', () => {
     await expect(preview).toHaveCSS('display', 'none');
     expect((await rect(choiceArea)).height).toBeGreaterThanOrEqual(160);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  });
+
+  test('tablet width keeps builder readable without clipping ancestry cards', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 1200 });
+    await openBuilder(page);
+
+    await page.getByLabel('Родословная').click();
+    const builder = page.locator('.cinematic-builder');
+    const workspace = page.locator('.cinematic-builder-workspace');
+    const preview = page.locator('.cinematic-builder-preview');
+    const firstCard = page.locator('.cinematic-builder .dh-choice-card').first();
+    const firstCardBody = firstCard.locator('.cinematic-card-body');
+
+    await expectInsideViewport(page, builder);
+    await expectLeftOf(workspace, preview, 4);
+    await expect(firstCard.locator('.cinematic-card-title')).toBeVisible();
+    const cardBox = await rect(firstCard);
+    const bodyBox = await rect(firstCardBody);
+    expect(bodyBox.bottom).toBeLessThanOrEqual(cardBox.bottom + 1);
+    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 1024);
   });
 
   test('small mobile keeps every wizard choice area usable', async ({ page }) => {
