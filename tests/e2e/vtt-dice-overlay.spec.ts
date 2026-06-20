@@ -3,12 +3,12 @@ import { openPlayerGame } from './game-route-helpers';
 import { expectInsideViewport } from './layout-helpers';
 
 async function rollAction(page: Page): Promise<void> {
-  await page.locator('.mini-dice-launcher__quick').click();
-  await page.locator('.mini-dice-launcher__roll').click();
+  await page.getByRole('button', { name: 'Открыть панель костей' }).click();
+  await page.getByRole('button', { name: 'Бросить', exact: true }).click();
 }
 
 test.describe('duality dice overlay', () => {
-  test('shows a cinematic dice moment and keeps idle dice off the scene', async ({ page }) => {
+  test('shows a dramatic dice moment and keeps idle dice off the scene', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openPlayerGame(page);
 

@@ -263,13 +263,13 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         </header>
       )}
       <dl className="player-tools-sync__meta">
-        {role === 'gm' && <div><dt>Активная комната</dt><dd>{p2pActiveRoomId || 'нет'}</dd></div>}
-        <div><dt>Статус</dt><dd>{displayedP2PStatus}</dd></div>
-        <div><dt>Режим</dt><dd>{P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
-        <div><dt>Роль</dt><dd>{p2pRole ?? 'нет'}</dd></div>
-        <div><dt>ID подключения</dt><dd>{p2pPeerId ?? 'нет'}</dd></div>
-        <div><dt>Логических peer</dt><dd>{p2pPeers.length}</dd></div>
-        <div><dt>Последнее обновление</dt><dd>{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
+        {role === 'gm' && <div><dt>Активная комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>}
+        <div><dt>Статус</dt><dd aria-label="Статус">{displayedP2PStatus}</dd></div>
+        <div><dt>Режим</dt><dd aria-label="Режим">{P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
+        <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
+        <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
+        <div><dt>Логических peer</dt><dd aria-label="Логических peer">{p2pPeers.length}</dd></div>
+        <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
       </dl>
       <div className="player-tools-route-table" role="table" aria-label="Маршруты соединений">
         <div className="player-tools-route-table__row player-tools-route-table__row--head" role="row">

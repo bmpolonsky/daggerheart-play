@@ -70,7 +70,7 @@ export function GmRightPanel({
   const sceneActors = actors.filter((actor) => actor.kind === 'adversary' || actor.kind === 'environment');
   const visibleRosterActors = activeRosterTab === 'players' ? playerActors : sceneActors;
   return (
-    <aside className="player-character-panel player-character-panel--gm-overview" aria-label="Инструменты сцены">
+    <aside className="player-character-panel player-character-panel--gm-overview" aria-label="Инструменты сцены" data-vtt-side-panel>
       <section className="player-gm-overview__actors" aria-label="Персонажи">
         <SectionTitle>Персонажи</SectionTitle>
         <Tabs className="player-roster-tabs" label="Типы участников" layout="equal">

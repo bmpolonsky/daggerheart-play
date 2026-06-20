@@ -31,7 +31,7 @@ export function PlayerRightPanel({
     return <CharacterSheet character={character} beastforms={beastforms} role="player" onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} onWealthEdit={onWealthEdit} />;
   }
   return (
-    <aside className="player-character-panel player-character-panel--empty" aria-label="Персонаж игрока">
+    <aside className="player-character-panel player-character-panel--empty" aria-label="Персонаж игрока" data-vtt-side-panel>
       <UserRound size={22} />
       <strong>{emptyState.title}</strong>
       <p>{emptyState.description}</p>

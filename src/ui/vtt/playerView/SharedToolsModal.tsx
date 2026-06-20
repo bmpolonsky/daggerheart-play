@@ -197,7 +197,7 @@ export function SharedToolsModal({
             </TabButton>
           ))}
         </Tabs>
-        <div className="player-tools-modal__body">
+        <div className="player-tools-modal__body" role="region" aria-label="Содержимое библиотеки">
           {activeTab === 'scenes' && (
             <SharedToolsScenesTab
               characters={characters.entities}

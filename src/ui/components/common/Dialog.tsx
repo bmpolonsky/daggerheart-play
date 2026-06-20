@@ -3,6 +3,7 @@ import styles from './Dialog.module.css';
 type UiNode = any;
 
 export interface DialogProps {
+  'aria-label'?: string;
   title?: UiNode;
   actions?: UiNode;
   children: UiNode;
@@ -10,9 +11,9 @@ export interface DialogProps {
   onClose?: () => void;
 }
 
-export function Dialog({ title, actions, children, className = '', onClose }: DialogProps) {
+export function Dialog({ 'aria-label': ariaLabel, title, actions, children, className = '', onClose }: DialogProps) {
   return (
-    <div className={`dh-dialog-backdrop ${styles.backdrop}`} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={`dh-dialog-backdrop ${styles.backdrop}`} role="dialog" aria-label={ariaLabel} aria-modal="true" onClick={onClose}>
       <section className={`dh-dialog ${styles.shell} ${className}`.trim()} onClick={(event) => event.stopPropagation()}>
         {(title || actions) && (
           <header className={`dh-section-header dh-section-header--modal ${styles.header}`}>

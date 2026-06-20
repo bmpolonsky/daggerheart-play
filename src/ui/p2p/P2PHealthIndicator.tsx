@@ -34,6 +34,7 @@ export function P2PHealthIndicator({ role }: { role: TableViewRole }) {
       </Button>
       {open && (
         <Dialog
+          aria-label="Диагностика соединения"
           className="p2p-health-dialog"
           title={<strong>Диагностика соединения</strong>}
           actions={(

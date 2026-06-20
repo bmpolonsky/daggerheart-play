@@ -82,7 +82,7 @@ export function CharacterBuilderModal({
   };
 
   return (
-    <Dialog className="cinematic-builder" onClose={onCancel}>
+    <Dialog aria-label="Новый герой" className="cinematic-builder" onClose={onCancel}>
         <nav className="cinematic-builder-nav" aria-label="Шаги создания">
           <div className="cinematic-builder-header">
             <h2 className="cinematic-builder-title">Новый герой</h2>
@@ -103,8 +103,8 @@ export function CharacterBuilderModal({
           </div>
         </nav>
 
-        <div className="cinematic-builder-panel dh-scroll">
-          <header className="cinematic-builder-stage">
+        <div className="cinematic-builder-panel dh-scroll" role="region" aria-label="Шаг создания героя">
+          <header className="cinematic-builder-stage" aria-label="Сводка героя">
             <div className="cinematic-builder-stage-art">
               {selectedClassOption?.imageUrl ? <img src={selectedClassOption.imageUrl} alt="" /> : <span>{initials(CLASS_LABELS[fields.className])}</span>}
             </div>
@@ -124,9 +124,9 @@ export function CharacterBuilderModal({
             </Button>
           </header>
 
-          <div className={`cinematic-builder-workspace ${visibleChoicePreview ? 'dh-has-choice-detail' : ''}`}>
+          <div className={`cinematic-builder-workspace ${visibleChoicePreview ? 'dh-has-choice-detail' : ''}`} role="region" aria-label="Выборы создания героя">
             {step === 'class' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Класс">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Выберите класс</h3>
                   <p className="cinematic-builder-copy">Класс задает стартовые значения, две области и список доступных подклассов.</p>
@@ -145,7 +145,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'ancestry' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Родословная">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Родословная</h3>
                 </header>
@@ -162,7 +162,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'community' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Сообщество">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Сообщество</h3>
                 </header>
@@ -179,7 +179,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'subclass' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Подкласс">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Подкласс</h3>
                 </header>
@@ -197,7 +197,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'traits' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Характеристики">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Характеристики</h3>
                 </header>
@@ -210,7 +210,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'identity' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Личность">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Личность</h3>
                 </header>
@@ -233,7 +233,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'background' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Предыстория">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Предыстория</h3>
                   <p className="cinematic-builder-copy">Вопросы берутся из выбранного класса и сохраняются в лист персонажа.</p>
@@ -254,7 +254,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'connections' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Связи">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Связи</h3>
                   <p className="cinematic-builder-copy">Ответьте на вопросы связей сейчас или оставьте их для session zero.</p>
@@ -273,7 +273,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'equipment' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Стартовая экипировка">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Стартовая экипировка</h3>
                   <p className="cinematic-builder-copy">Выберите броню, оружие и стартовые предметы. Модификаторы применяются в итоговом листе автоматически.</p>
@@ -330,7 +330,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'cards' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Стартовые карты доменов">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Стартовые карты доменов</h3>
                   <p className="cinematic-builder-copy">Выберите 2 карты первого уровня из областей класса: {options.classDomains.map(domainLabel).join(' + ')}.</p>
@@ -349,7 +349,7 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'loadout' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Итог">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Готово к сцене</h3>
                 </header>
@@ -394,7 +394,7 @@ export function CharacterBuilderModal({
             )}
           </div>
 
-          <div className="cinematic-builder-actions">
+          <div className="cinematic-builder-actions" role="toolbar" aria-label="Действия создания героя">
             <Button type="button" onClick={handlers.goBack}>Назад</Button>
             {step !== 'loadout' ? (
               <Button variant="primary" type="button" onClick={handlers.goNext}>Дальше</Button>

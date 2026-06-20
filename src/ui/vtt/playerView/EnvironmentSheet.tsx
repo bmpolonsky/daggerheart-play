@@ -10,7 +10,7 @@ export function EnvironmentSheet({ environment, onBack }: { environment: Encount
   const portraitUrl = environment.imageUrl ?? '';
   const difficulty = environment.difficulty ? `Сложность ${environment.difficulty}` : 'Сложность не указана';
   return (
-    <aside className="player-character-panel" aria-label="Окружение мастера">
+    <aside className="player-character-panel" aria-label="Окружение мастера" data-vtt-side-panel>
       <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
         <ChevronLeft size={17} aria-hidden="true" />
       </IconButton>

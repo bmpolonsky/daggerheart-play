@@ -316,7 +316,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
   const goNext = () => setStep(steps[Math.min(steps.length - 1, currentStepIndex + 1)].id);
 
   return (
-    <Dialog className="cinematic-builder character-level-up-wizard" onClose={onClose}>
+    <Dialog aria-label="Повышение уровня" className="cinematic-builder character-level-up-wizard" onClose={onClose}>
         <nav className="cinematic-builder-nav" aria-label="Шаги повышения уровня">
           <div className="cinematic-builder-header">
             <h2 className="cinematic-builder-title">Повышение уровня</h2>
@@ -337,8 +337,8 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
           </div>
         </nav>
 
-        <div className="cinematic-builder-panel dh-scroll">
-          <header className="cinematic-builder-stage">
+        <div className="cinematic-builder-panel dh-scroll" role="region" aria-label="Шаг повышения уровня">
+          <header className="cinematic-builder-stage" aria-label="Сводка повышения уровня">
             <div className="cinematic-builder-stage-art">
               {character.portraitUrl ? <img src={character.portraitUrl} alt="" /> : <span>{character.name.slice(0, 2).toUpperCase()}</span>}
             </div>
@@ -352,9 +352,9 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             </div>
           </header>
 
-          <div className="cinematic-builder-workspace character-level-up-wizard__workspace">
+          <div className="cinematic-builder-workspace character-level-up-wizard__workspace" role="region" aria-label="Выборы повышения уровня">
             {step === 'overview' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Новый уровень">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Новый уровень</h3>
                   <p className="cinematic-builder-copy">{plan.summary}</p>
@@ -370,7 +370,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             )}
 
             {step === 'choices' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Улучшения">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Улучшения</h3>
                   <p className="cinematic-builder-copy">Выберите два улучшения ранга. Если правило спорное, оставьте ручную пометку и опишите решение в заметках.</p>
@@ -387,7 +387,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             )}
 
             {step === 'resources' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Параметры">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Параметры</h3>
                   <p className="cinematic-builder-copy">Проверьте только те значения, которые действительно меняются этим повышением.</p>
@@ -412,7 +412,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             )}
 
             {step === 'domain' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Карты и мультикласс">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Карты и мультикласс</h3>
                   <p className="cinematic-builder-copy">Карта выбирается из доступных доменов и уровня. Все сложные решения можно оставить на ручной выбор позже.</p>
@@ -442,7 +442,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             )}
 
             {step === 'notes' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Заметки">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Заметки</h3>
                   <p className="cinematic-builder-copy">Зафиксируйте спорные решения, ручные выборы и договоренности игры.</p>
@@ -452,7 +452,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             )}
 
             {step === 'review' && (
-              <section className="cinematic-builder-step">
+              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Проверка">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Проверка</h3>
                   <p className="cinematic-builder-copy">Применение изменит лист персонажа и добавит заметку повышения.</p>
@@ -468,7 +468,7 @@ function LevelUpPanel({ character, content, domains, onClose }: { character: Cha
             )}
           </div>
 
-          <div className="cinematic-builder-actions">
+          <div className="cinematic-builder-actions" role="toolbar" aria-label="Действия повышения уровня">
             <Button disabled={currentStepIndex === 0} onClick={goPrevious}>Назад</Button>
             <div className="button-row">
               {step !== 'review' && <Button variant="primary" onClick={goNext}>Дальше</Button>}

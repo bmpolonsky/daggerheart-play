@@ -10,21 +10,21 @@ async function openPlayerView(page: Page, viewport: { width: number; height: num
 async function openAssignedPlayerView(page: Page, viewport: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(viewport);
   await openPlayerGame(page);
-  await expect(page.locator('.player-view--player')).toBeVisible();
+  await expect(page.locator('[data-vtt-root]')).toBeVisible();
 }
 
 test.describe('Player View empty state', () => {
   test('assigned desktop player sees a character sheet lane, not GM controls', async ({ page }) => {
     await openAssignedPlayerView(page, { width: 1280, height: 720 });
 
-    const panel = page.locator('.player-character-panel');
+    const panel = page.getByLabel('Персонаж игрока');
     await expect(panel).toBeVisible();
     await expect(panel).toContainText('Персонаж не назначен');
     await expect(page.locator('body')).not.toContainText('Атака мастера');
     await expect(page.locator('body')).not.toContainText('Цель');
     await expect(page.locator('.superapp-tabs')).toHaveCount(0);
     await expect(page.locator('.player-title-stack')).toHaveCount(0);
-    await expect(page.locator('.player-character-panel__back')).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: 'К ростеру' })).toHaveCount(0);
     await expectInsideViewport(page, panel);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 1280);
   });
@@ -32,7 +32,7 @@ test.describe('Player View empty state', () => {
   test('desktop sheet section rail stays visible beside the right sheet', async ({ page }) => {
     await openAssignedPlayerView(page, { width: 1440, height: 900 });
 
-    const panel = page.locator('.player-character-panel');
+    const panel = page.getByLabel('Персонаж игрока');
 
     await expect(panel).toBeVisible();
     await expectInsideViewport(page, panel);
@@ -41,7 +41,7 @@ test.describe('Player View empty state', () => {
   test('desktop explains the missing character and opens character creation', async ({ page }) => {
     await openPlayerView(page, { width: 1440, height: 900 });
 
-    const panel = page.locator('.player-character-panel--empty');
+    const panel = page.getByLabel('Персонаж игрока');
     const cta = panel.getByRole('button', { name: 'Создать персонажа' });
 
     await expect(panel).toBeVisible();
@@ -51,14 +51,14 @@ test.describe('Player View empty state', () => {
     await expectInsideViewport(page, panel);
 
     await cta.click();
-    await expect(page.locator('.cinematic-builder')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Новый герой' })).toBeVisible();
   });
 
   test('mobile keeps the empty state readable and actionable', async ({ page }) => {
     await openPlayerView(page, { width: 390, height: 844 });
-    await page.locator('.player-mobile-layer-tabs').getByRole('button', { name: 'Лист' }).click();
+    await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Лист' }).click();
 
-    const panel = page.locator('.player-character-panel--empty');
+    const panel = page.getByLabel('Персонаж игрока');
     const cta = panel.getByRole('button', { name: 'Создать персонажа' });
 
     await expect(panel).toBeVisible();
@@ -70,14 +70,14 @@ test.describe('Player View empty state', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
 
     await cta.click();
-    await expect(page.locator('.cinematic-builder')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Новый герой' })).toBeVisible();
   });
 
   test('GM can adjust Fear from the VTT top bar', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const fearTrack = page.locator('.player-fear-track');
+    const fearTrack = page.getByLabel(/Страх \d+ из 12/).first();
     await expect(fearTrack).toContainText('0/12');
 
     await fearTrack.getByRole('button', { name: 'Страх 3' }).click();
@@ -91,10 +91,10 @@ test.describe('Player View empty state', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    await page.locator('.player-roster-gm-dock__tabs').getByRole('button', { name: 'Действия' }).click();
+    await page.getByLabel('Библиотека').getByRole('button', { name: 'Действия' }).click();
     await page.getByRole('button', { name: 'Создать отсчет' }).click();
 
-    const composer = page.locator('.player-countdown-composer');
+    const composer = page.getByLabel('Создать отсчет');
     const composerEvent = composer.locator('xpath=ancestor::article[contains(@class, "player-activity-event--countdownComposer")]');
     await expect(composer).toBeVisible();
     await expect(composerEvent).toBeVisible();

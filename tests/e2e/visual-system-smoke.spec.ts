@@ -45,28 +45,28 @@ test.describe('dark glass visual system smoke', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const feed = page.locator('.player-left-rail');
-    const scene = page.locator('.player-scene-stage');
-    const sheet = page.locator('.player-character-panel');
+    const feed = page.getByLabel('Чат игры');
+    const scene = page.getByLabel('Игровая сцена');
+    const sheet = page.getByLabel('Инструменты сцены');
 
     await expectInsideViewport(page, feed);
     await expectInsideViewport(page, scene);
     await expectInsideViewport(page, sheet);
-    await expectStableButton(page.locator('.mini-dice-launcher__tools'));
+    await expectStableButton(page.getByRole('button', { name: 'Библиотека' }));
 
-    await page.locator('.mini-dice-launcher__tools').click();
-    const modal = page.locator('.player-tools-modal');
+    await page.getByRole('button', { name: 'Библиотека' }).click();
+    const modal = page.getByRole('dialog', { name: 'Библиотека' });
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
-    await modal.locator('.player-tools-modal__nav').getByRole('button', { name: 'Персонажи' }).click();
+    await modal.getByLabel('Разделы инструментов').getByRole('button', { name: 'Персонажи' }).click();
     const createHeroButton = modal.getByRole('button', { name: 'Создать героя' }).first();
     await expectStableButton(createHeroButton);
     await createHeroButton.click();
 
-    const builder = page.locator('.cinematic-builder');
+    const builder = page.getByRole('dialog', { name: 'Новый герой' });
     await expect(builder).toBeVisible();
     await expectInsideViewport(page, builder);
-    await expect(page.locator('.cinematic-builder-preview')).toHaveCSS('color', /rgb\(243, 234, 216\)|rgb\(255, 247, 231\)/);
+    await expect(builder.getByLabel('Предпросмотр героя')).toHaveCSS('color', /rgb\(243, 234, 216\)|rgb\(255, 247, 231\)/);
     await expectNoHorizontalOverflow(page, 1440);
   });
 
@@ -74,10 +74,10 @@ test.describe('dark glass visual system smoke', () => {
     await page.setViewportSize({ width: 1024, height: 1200 });
     await openGmGame(page);
 
-    await page.locator('.mini-dice-launcher__tools').click();
-    const modal = page.locator('.player-tools-modal');
-    const nav = modal.locator('.player-tools-modal__nav');
-    const body = modal.locator('.player-tools-modal__body');
+    await page.getByRole('button', { name: 'Библиотека' }).click();
+    const modal = page.getByRole('dialog', { name: 'Библиотека' });
+    const nav = modal.getByLabel('Разделы инструментов');
+    const body = modal.getByLabel('Содержимое библиотеки');
 
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
@@ -90,12 +90,12 @@ test.describe('dark glass visual system smoke', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openPlayerGame(page);
 
-    const tabs = page.locator('.player-mobile-layer-tabs');
+    const tabs = page.getByLabel('Слой интерфейса');
     await expectInsideViewport(page, tabs);
     await tabs.getByRole('button', { name: 'Чат' }).click();
-    await expectInsideViewport(page, page.locator('.player-left-rail'));
+    await expectInsideViewport(page, page.getByLabel('Чат игры'));
     await tabs.getByRole('button', { name: 'Лист' }).click();
-    await expectInsideViewport(page, page.locator('.player-character-panel'));
+    await expectInsideViewport(page, page.getByLabel('Персонаж игрока'));
     await expectNoHorizontalOverflow(page, 390);
   });
 

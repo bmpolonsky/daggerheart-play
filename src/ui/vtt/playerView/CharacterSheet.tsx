@@ -121,7 +121,7 @@ export function CharacterSheet({
   return (
     <div className="player-character-panel-shell">
       <PlayerSheetSectionRail activeSheetSection={activeSheetSection} onSelect={scrollToSheetSection} />
-      <aside ref={panelRef} className="player-character-panel" aria-label="Персонаж игрока" onScroll={updateActiveSheetSection}>
+      <aside ref={panelRef} className="player-character-panel" aria-label="Персонаж игрока" data-vtt-side-panel onScroll={updateActiveSheetSection}>
         {showBackButton && (
           <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
             <ChevronLeft size={17} aria-hidden="true" />

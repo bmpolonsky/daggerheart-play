@@ -4,23 +4,19 @@ import { expectAbove, expectInsideViewport, expectLeftOf, expectNoOverlap, rect 
 
 async function openBuilder(page: Page): Promise<void> {
   await openGmGame(page);
-  await page.locator('.mini-dice-launcher__tools').click();
-  const toolsModal = page.locator('.player-tools-modal');
+  await page.getByRole('button', { name: 'Библиотека' }).click();
+  const toolsModal = page.getByRole('dialog', { name: 'Библиотека' });
   const isMobileToolsModal = (page.viewportSize()?.width ?? 999) <= 680;
   const tabs = isMobileToolsModal
-    ? toolsModal.locator('.player-tools-modal__mobile-tabs')
-    : toolsModal.locator('.player-tools-modal__nav');
+    ? toolsModal.getByRole('group', { name: 'Разделы библиотеки' })
+    : toolsModal.getByLabel('Разделы инструментов');
   const charactersTab = tabs.getByRole('button', { name: 'Персонажи' });
   await charactersTab.evaluate((button) => {
     button.scrollIntoView({ block: 'nearest', inline: 'center' });
   });
-  if (isMobileToolsModal) {
-    await charactersTab.dispatchEvent('click');
-  } else {
-    await charactersTab.click();
-  }
+  await charactersTab.dispatchEvent('click');
   await page.getByRole('button', { name: /Создать героя/ }).first().click();
-  await expect(page.locator('.cinematic-builder')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Новый герой' })).toBeVisible();
 }
 
 test.describe('character builder composition', () => {
@@ -28,16 +24,16 @@ test.describe('character builder composition', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openBuilder(page);
 
-    const builder = page.locator('.cinematic-builder');
-    const nav = page.locator('.cinematic-builder-nav');
-    const panel = page.locator('.cinematic-builder-panel');
-    const preview = page.locator('.cinematic-builder-preview');
-    const stage = page.locator('.cinematic-builder-stage');
-    const workspace = page.locator('.cinematic-builder-workspace');
-    const choiceDetail = page.locator('.cinematic-builder-choice-detail');
-    const actions = page.locator('.cinematic-builder-actions');
+    const builder = page.getByRole('dialog', { name: 'Новый герой' });
+    const nav = builder.getByRole('navigation', { name: 'Шаги создания' });
+    const panel = builder.getByRole('region', { name: 'Шаг создания героя' });
+    const preview = builder.getByLabel('Предпросмотр героя');
+    const stage = builder.getByLabel('Сводка героя');
+    const workspace = builder.getByRole('region', { name: 'Выборы создания героя' });
+    const choiceDetail = builder.getByLabel('Описание выбора');
+    const actions = builder.getByRole('toolbar', { name: 'Действия создания героя' });
 
-    await expect(workspace).toHaveClass(/dh-has-choice-detail/);
+    await expect(choiceDetail).toBeVisible();
     await expectInsideViewport(page, builder);
     await expectLeftOf(nav, panel, 4);
     await expectLeftOf(panel, preview, 4);
@@ -50,17 +46,17 @@ test.describe('character builder composition', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openBuilder(page);
 
-    const builder = page.locator('.cinematic-builder');
-    const stage = page.locator('.cinematic-builder-stage');
-    const workspace = page.locator('.cinematic-builder-workspace');
-    const actions = page.locator('.cinematic-builder-actions');
-    const preview = page.locator('.cinematic-builder-preview');
-    const choiceDetail = page.locator('.cinematic-builder-choice-detail');
-    const choiceArea = page.locator('.cinematic-builder-choice-area').first();
+    const builder = page.getByRole('dialog', { name: 'Новый герой' });
+    const stage = builder.getByLabel('Сводка героя');
+    const workspace = builder.getByRole('region', { name: 'Выборы создания героя' });
+    const actions = builder.getByRole('toolbar', { name: 'Действия создания героя' });
+    const preview = builder.getByLabel('Предпросмотр героя');
+    const choiceDetail = builder.getByLabel('Описание выбора');
 
-    await page.locator('.cinematic-builder-quickstart').click();
-    await page.locator('.cinematic-builder-step-tab').filter({ hasText: 'Карты' }).click();
-    await expect(workspace).toHaveClass(/dh-has-choice-detail/);
+    await builder.getByRole('button', { name: 'Быстрый старт' }).click();
+    await builder.getByRole('button', { name: 'Карты' }).click();
+    const choiceArea = builder.getByRole('group', { name: 'Шаг: Стартовые карты доменов' });
+    await expect(choiceDetail).toBeVisible();
     await expectInsideViewport(page, builder);
     await expectInsideViewport(page, choiceDetail);
     await expectNoOverlap(choiceArea, choiceDetail, 2);
@@ -76,15 +72,16 @@ test.describe('character builder composition', () => {
     await openBuilder(page);
 
     await page.getByLabel('Родословная').click();
-    const builder = page.locator('.cinematic-builder');
-    const workspace = page.locator('.cinematic-builder-workspace');
-    const preview = page.locator('.cinematic-builder-preview');
-    const firstCard = page.locator('.cinematic-builder .dh-choice-card').first();
-    const firstCardBody = firstCard.locator('.cinematic-card-body');
+    const builder = page.getByRole('dialog', { name: 'Новый герой' });
+    const workspace = builder.getByRole('region', { name: 'Выборы создания героя' });
+    const preview = builder.getByLabel('Предпросмотр героя');
+    const ancestryStep = builder.getByRole('group', { name: 'Шаг: Родословная' });
+    const firstCard = ancestryStep.getByRole('button').first();
+    const firstCardBody = firstCard.locator('span').last();
 
     await expectInsideViewport(page, builder);
     await expectLeftOf(workspace, preview, 4);
-    await expect(firstCard.locator('.cinematic-card-title')).toBeVisible();
+    await expect(firstCard).toBeVisible();
     const cardBox = await rect(firstCard);
     const bodyBox = await rect(firstCardBody);
     expect(bodyBox.bottom).toBeLessThanOrEqual(cardBox.bottom + 1);
@@ -95,13 +92,14 @@ test.describe('character builder composition', () => {
     await page.setViewportSize({ width: 360, height: 740 });
     await openBuilder(page);
 
-    await page.locator('.cinematic-builder-quickstart').click();
+    const builder = page.getByRole('dialog', { name: 'Новый герой' });
+    await builder.getByRole('button', { name: 'Быстрый старт' }).click();
     for (const stepLabel of ['Подкласс', 'Экипировка', 'Карты']) {
-      await page.locator('.cinematic-builder-step-tab').filter({ hasText: stepLabel }).click();
-      const choiceArea = page.locator('.cinematic-builder-choice-area').first();
+      await builder.getByRole('button', { name: stepLabel }).click();
+      const choiceArea = builder.getByRole('group', { name: `Шаг: ${stepLabel === 'Экипировка' ? 'Стартовая экипировка' : stepLabel === 'Карты' ? 'Стартовые карты доменов' : stepLabel}` });
       await expect(choiceArea).toBeVisible();
       expect((await rect(choiceArea)).height, `${stepLabel} choice area should remain usable`).toBeGreaterThanOrEqual(145);
-      await expectInsideViewport(page, page.locator('.cinematic-builder'));
+      await expectInsideViewport(page, builder);
     }
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 360);
   });

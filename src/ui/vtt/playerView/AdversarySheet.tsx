@@ -36,7 +36,7 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
   };
   return (
     <>
-      <aside className="player-character-panel" aria-label="Противник мастера">
+      <aside className="player-character-panel" aria-label="Противник мастера" data-vtt-side-panel>
         <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
           <ChevronLeft size={17} aria-hidden="true" />
         </IconButton>

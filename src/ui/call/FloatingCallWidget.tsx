@@ -92,15 +92,15 @@ function floatingCallDefaultPosition() {
 
 function readVttSidecarOffset(): number {
   if (typeof document === 'undefined' || window.innerWidth < 960) return 0;
-  const sidecar = document.querySelector('.player-character-panel, .cinematic-gm-roster, .cinematic-sidecar');
-  if (sidecar) {
-    const style = getComputedStyle(sidecar);
-    const rect = sidecar.getBoundingClientRect();
+  const sidePanel = document.querySelector('[data-vtt-side-panel]');
+  if (sidePanel) {
+    const style = getComputedStyle(sidePanel);
+    const rect = sidePanel.getBoundingClientRect();
     if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0' && rect.width > 0) {
       return Math.max(0, window.innerWidth - rect.left + 18);
     }
   }
-  const vttRoot = document.querySelector('.player-view, .cinematic-vtt');
+  const vttRoot = document.querySelector('[data-vtt-root]');
   if (!vttRoot) return 0;
   const sidecarWidth = Number.parseFloat(getComputedStyle(vttRoot).getPropertyValue('--dh-sidecar-width'));
   return Number.isFinite(sidecarWidth) ? sidecarWidth + 30 : 0;

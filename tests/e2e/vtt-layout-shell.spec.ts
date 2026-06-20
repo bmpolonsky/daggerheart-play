@@ -7,10 +7,10 @@ test.describe('VTT layout shell contract', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const feed = page.locator('.player-left-rail');
-    const scene = page.locator('.player-scene-stage');
-    const panel = page.locator('.player-character-panel');
-    const dice = page.locator('.mini-dice-launcher');
+    const feed = page.getByLabel('Чат игры');
+    const scene = page.getByLabel('Игровая сцена');
+    const panel = page.getByLabel('Инструменты сцены');
+    const dice = page.getByLabel('Бросок костей');
 
     await expect(feed).toBeVisible();
     await expect(scene).toBeVisible();
@@ -33,7 +33,7 @@ test.describe('VTT layout shell contract', () => {
     await openPlayerGame(page);
 
     const root = page.locator('.player-view--player');
-    const tabs = page.locator('.player-mobile-layer-tabs');
+    const tabs = page.getByLabel('Слой интерфейса');
     const feedTab = tabs.getByRole('button', { name: 'Чат' });
     const sceneTab = tabs.getByRole('button', { name: 'Сцена' });
     const sheetTab = tabs.getByRole('button', { name: 'Лист' });

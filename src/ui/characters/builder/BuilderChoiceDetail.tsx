@@ -5,7 +5,7 @@ import { IconButton } from '../../components/common/IconButton';
 
 export function BuilderChoiceDetail({ preview, onClose }: { preview: CharacterBuilderChoicePreview; onClose?: () => void }) {
   return (
-    <aside className="cinematic-builder-choice-detail">
+    <aside className="cinematic-builder-choice-detail" aria-label="Описание выбора">
       {onClose && (
         <IconButton
           className="cinematic-builder-choice-detail-close"

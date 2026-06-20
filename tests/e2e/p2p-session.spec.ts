@@ -12,19 +12,19 @@ async function openSharedSettings(page: Page, role: 'gm' | 'player', section: '�
 }
 
 async function openCurrentSettings(page: Page, section: 'Подключение' | 'Диагностика' | 'Игры проекта' = 'Подключение'): Promise<void> {
-  await page.locator('.mini-dice-launcher__tools').click();
-  const modal = page.locator('.player-tools-modal');
+  await page.getByRole('button', { name: 'Библиотека' }).click();
+  const modal = page.getByRole('dialog', { name: 'Библиотека' });
   await modal.getByRole('button', { name: 'Настройки' }).click();
-  await modal.getByRole('button', { name: section }).click();
+  await modal.getByLabel('Разделы настроек').getByRole('button', { name: section }).click();
   if (section === 'Подключение') {
     await expect(page.getByText(/Подключение (игроков|к мастеру)/)).toBeVisible();
   } else {
-    await expect(modal.locator('.player-tools-modal__body').getByText(section)).toBeVisible();
+    await expect(modal.getByLabel('Содержимое библиотеки').getByText(section)).toBeVisible();
   }
 }
 
 function sessionMeta(page: Page, label: string) {
-  return page.locator('.player-tools-sync__meta div').filter({ hasText: label }).locator('dd');
+  return page.getByRole('definition', { name: label });
 }
 
 async function createLobbyInvite(page: Page): Promise<string> {
@@ -47,7 +47,7 @@ test.describe('P2P session workflow', () => {
     const player = await newSharedPage(browser);
 
     await openSharedSettings(gm, 'gm', 'Игры проекта');
-    const gmModal = gm.locator('.player-tools-modal');
+    const gmModal = gm.getByRole('dialog', { name: 'Библиотека' });
     await expect(gmModal.getByRole('button', { name: 'Экспорт' })).toBeVisible();
     await expect(gmModal.getByRole('button', { name: 'Импорт' })).toBeVisible();
     await expect(gm.getByText('Ручной JSON-архив')).toHaveCount(0);
@@ -74,23 +74,23 @@ test.describe('P2P session workflow', () => {
     await openCurrentSettings(player, 'Диагностика');
     await expect(sessionMeta(player, 'Роль')).toHaveText('player');
 
-    await expect(sessionMeta(gm, 'Peers')).toHaveText('1', { timeout: 15_000 });
-    await expect(sessionMeta(player, 'Peers')).toHaveText('1', { timeout: 15_000 });
+    await expect(sessionMeta(gm, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
+    await expect(sessionMeta(player, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
 
     await gm.reload();
     await openCurrentSettings(gm, 'Диагностика');
     await expect(sessionMeta(gm, 'Роль')).toHaveText('gm', { timeout: 15_000 });
-    await expect(sessionMeta(gm, 'Peers')).toHaveText('1', { timeout: 15_000 });
+    await expect(sessionMeta(gm, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
 
     await player.reload();
     await openCurrentSettings(player, 'Диагностика');
     await expect(sessionMeta(player, 'Роль')).toHaveText('player', { timeout: 15_000 });
-    await expect(sessionMeta(player, 'Peers')).toHaveText('1', { timeout: 15_000 });
+    await expect(sessionMeta(player, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
 
-    await player.locator('.player-tools-modal').getByTitle('Закрыть').click();
+    await player.getByRole('dialog', { name: 'Библиотека' }).getByRole('button', { name: 'Закрыть' }).click();
     const playerChat = `сообщение игрока ${Date.now().toString(36)}`;
     await player.getByLabel('Сообщение игрока').fill(playerChat);
-    await player.locator('.player-chat-composer').getByRole('button').click();
+    await player.getByRole('button', { name: 'Отправить сообщение' }).click();
     await expect(gm.getByText(playerChat)).toBeVisible({ timeout: 15_000 });
 
     await openCurrentSettings(player, 'Подключение');

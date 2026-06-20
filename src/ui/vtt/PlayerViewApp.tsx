@@ -262,7 +262,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const needsSeatSelection = role === 'player' && playerSeats.length > 0 && !selectedPlayerSeat;
 
   return (
-    <main className={`player-view player-view--${role} player-view--mobile-${mobileLayer} ${model.handout ? 'dh-has-handout' : ''}`}>
+    <main className={`player-view player-view--${role} player-view--mobile-${mobileLayer} ${model.handout ? 'dh-has-handout' : ''}`} data-vtt-root>
       <PlayerSessionRuntime
         displayedCharacter={displayedCharacter}
         gameGmName={game.gmName}

@@ -27,7 +27,7 @@ export function BuilderLivePreview({
   const previewImage = draft.portraitUrl || classImageUrl || '';
   const traits = draft.traits ?? DEFAULT_TRAITS;
   return (
-    <aside className="cinematic-builder-preview">
+    <aside className="cinematic-builder-preview" aria-label="Предпросмотр героя">
       <div className="cinematic-builder-preview-art">
         {previewImage ? <img src={previewImage} alt="" /> : <span>{initials(draft.name ?? 'DH')}</span>}
         <div>

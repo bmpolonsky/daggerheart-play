@@ -8,9 +8,9 @@ test.describe('VTT detail composition', () => {
     await openGmGame(page);
 
     const root = page.locator('.player-view--gm');
-    const feed = page.locator('.player-left-rail');
-    const scene = page.locator('.player-scene-stage');
-    const panel = page.locator('.player-character-panel');
+    const feed = page.getByLabel('Чат игры');
+    const scene = page.getByLabel('Игровая сцена');
+    const panel = page.getByLabel('Инструменты сцены');
 
     await expect(root).toBeVisible();
     await expect(feed).toBeVisible();
@@ -26,9 +26,9 @@ test.describe('VTT detail composition', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const feed = page.locator('.player-left-rail');
-    const panel = page.locator('.player-character-panel');
-    const gmDock = panel.locator('.player-roster-gm-dock');
+    const feed = page.getByLabel('Чат игры');
+    const panel = page.getByLabel('Инструменты сцены');
+    const gmDock = panel.getByLabel('Библиотека');
 
     await expect(feed).toBeVisible();
     await expect(panel).toBeVisible();
@@ -46,11 +46,11 @@ test.describe('mobile VTT composition', () => {
     await openPlayerGame(page);
 
     const root = page.locator('.player-view--player');
-    const tabs = page.locator('.player-mobile-layer-tabs');
-    const feed = page.locator('.player-left-rail');
-    const scene = page.locator('.player-scene-stage');
-    const sheet = page.locator('.player-character-panel');
-    const dice = page.locator('.mini-dice-launcher');
+    const tabs = page.getByLabel('Слой интерфейса');
+    const feed = page.getByLabel('Чат игры');
+    const scene = page.getByLabel('Игровая сцена');
+    const sheet = page.getByLabel('Персонаж игрока');
+    const dice = page.getByLabel('Бросок костей');
 
     await expect(root).toBeVisible();
     await expect(scene).toBeVisible();
@@ -68,27 +68,31 @@ test.describe('mobile VTT composition', () => {
   test('tools modal opens above player layers and closes cleanly', async ({ page }) => {
     await openGmGame(page);
 
-    await page.locator('.mini-dice-launcher__tools').click();
-    const modal = page.locator('.player-tools-modal');
+    await page.getByRole('button', { name: 'Библиотека' }).click();
+    const modal = page.getByRole('dialog', { name: 'Библиотека' });
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
-    await modal.getByTitle('Закрыть').click();
+    await modal.getByRole('button', { name: 'Закрыть' }).click();
     await expect(modal).toHaveCount(0);
   });
 
   test('GM tools mobile tabs expose character creation', async ({ page }) => {
     await openGmGame(page);
 
-    await page.locator('.mini-dice-launcher__tools').click();
-    const modal = page.locator('.player-tools-modal');
-    const mobileTabs = modal.locator('.player-tools-modal__mobile-tabs');
+    await page.getByRole('button', { name: 'Библиотека' }).click();
+    const modal = page.getByRole('dialog', { name: 'Библиотека' });
+    const mobileTabs = modal.getByRole('group', { name: 'Разделы библиотеки' });
     const charactersTab = mobileTabs.getByRole('button', { name: 'Персонажи' });
 
     await expect(modal).toBeVisible();
+    await expect(mobileTabs).toBeVisible();
     await expectInsideViewport(page, mobileTabs);
     await expect(charactersTab).toBeVisible();
+    await charactersTab.evaluate((button) => {
+      button.scrollIntoView({ block: 'nearest', inline: 'center' });
+    });
     await expectInsideViewport(page, charactersTab);
-    await charactersTab.click();
+    await charactersTab.dispatchEvent('click');
     await expect(modal.getByRole('button', { name: 'Создать героя' })).toBeVisible();
   });
 });

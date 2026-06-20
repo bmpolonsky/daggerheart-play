@@ -34,7 +34,7 @@ export function buildGmPrepChecklist(input: GmPrepChecklistInput): GmPrepCheckli
     {
       id: 'sceneArt',
       label: 'Фон сцены',
-      detail: hasSceneArt ? 'Есть арт или карта.' : 'Добавьте фон, чтобы первый экран был cinematic.',
+      detail: hasSceneArt ? 'Есть арт или карта.' : 'Добавьте фон, чтобы первый экран выглядел готовым.',
       ready: hasSceneArt
     },
     {
