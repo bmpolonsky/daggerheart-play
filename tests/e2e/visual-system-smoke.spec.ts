@@ -58,6 +58,7 @@ test.describe('dark glass visual system smoke', () => {
     const modal = page.getByRole('dialog', { name: 'Библиотека' });
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
+    await expect(modal.getByLabel('Разделы библиотеки')).toBeHidden();
     await modal.getByLabel('Разделы инструментов').getByRole('button', { name: 'Персонажи' }).click();
     const createHeroButton = modal.getByRole('button', { name: 'Создать героя' }).first();
     await expectStableButton(createHeroButton);
@@ -78,9 +79,11 @@ test.describe('dark glass visual system smoke', () => {
     const modal = page.getByRole('dialog', { name: 'Библиотека' });
     const nav = modal.getByLabel('Разделы инструментов');
     const body = modal.getByLabel('Содержимое библиотеки');
+    const mobileTabs = modal.getByLabel('Разделы библиотеки');
 
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
+    await expect(mobileTabs).toBeHidden();
     await expectInsideViewport(page, body);
     await expectNoOverlap(nav, body, 2);
     await expectNoHorizontalOverflow(page, 1024);

@@ -96,7 +96,8 @@
   background: rgba(7, 9, 12, 0.18);
 }
 
-.player-tools-modal__mobile-tabs {
+.player-tools-modal__mobile-tabs,
+.player-tools-modal__mobile-tabs.dh-tab-row {
   display: none;
 }
 
@@ -1920,7 +1921,8 @@
     display: none;
   }
 
-  .player-tools-modal__mobile-tabs {
+  .player-tools-modal__mobile-tabs,
+  .player-tools-modal__mobile-tabs.dh-tab-row {
     position: relative;
     z-index: 1;
     min-width: 0;
