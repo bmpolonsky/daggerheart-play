@@ -1,18 +1,14 @@
 import { Store } from '../../core/store/Store';
 import type { TrysteroP2PTransportOptions } from '../../services/TrysteroSyncTransport';
-import type { P2PTransportMode } from '../../services/p2p/P2PTransportAdapter';
 
-export type P2PNetworkStrategy = P2PTransportMode;
+export type P2PNetworkStrategy = 'auto';
 
 export interface P2PNetworkSettings {
   strategy: P2PNetworkStrategy;
 }
 
 export const P2P_NETWORK_STRATEGY_LABELS: Record<P2PNetworkStrategy, string> = {
-  auto: 'Auto',
-  nostr: 'Nostr',
-  mqtt: 'MQTT',
-  torrent: 'Torrent'
+  auto: 'Auto'
 };
 
 const DEFAULT_P2P_NETWORK_SETTINGS: P2PNetworkSettings = {
@@ -32,8 +28,18 @@ export function writeP2PNetworkSettings(settings: Partial<P2PNetworkSettings>): 
   return next;
 }
 
-export function trysteroOptionsForNetworkSettings(settings: P2PNetworkSettings): TrysteroP2PTransportOptions {
-  return { strategy: settings.strategy };
+export function trysteroOptionsForNetworkSettings(settings: P2PNetworkSettings, env?: Partial<ImportMetaEnv>): TrysteroP2PTransportOptions {
+  return {
+    strategy: settings.strategy,
+    ...readTrysteroSupabaseConfig(env)
+  };
+}
+
+export function readTrysteroSupabaseConfig(env?: Partial<ImportMetaEnv>): Pick<TrysteroP2PTransportOptions, 'supabaseAnonKey' | 'supabaseUrl'> {
+  const sourceEnv = env ?? import.meta.env;
+  const supabaseUrl = sourceEnv?.VITE_TRYSTERO_SUPABASE_URL?.trim();
+  const supabaseAnonKey = sourceEnv?.VITE_TRYSTERO_SUPABASE_ANON_KEY?.trim();
+  return supabaseUrl && supabaseAnonKey ? { supabaseUrl, supabaseAnonKey } : {};
 }
 
 function normalizeP2PNetworkSettings(settings?: Partial<P2PNetworkSettings> | null): P2PNetworkSettings {
@@ -43,5 +49,5 @@ function normalizeP2PNetworkSettings(settings?: Partial<P2PNetworkSettings> | nu
 }
 
 function isP2PNetworkStrategy(value: unknown): value is P2PNetworkStrategy {
-  return typeof value === 'string' && value in P2P_NETWORK_STRATEGY_LABELS;
+  return value === 'auto';
 }

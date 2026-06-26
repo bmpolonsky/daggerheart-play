@@ -1,11 +1,25 @@
 import type { ActionSender, DataPayload, JsonValue, Room } from 'trystero';
+import { stripPrefixedShortRoomCode } from '../domain/p2p/sessionLinks';
 import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportMode, P2PTransportStrategy, P2PWireEnvelope } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
 export interface TrysteroP2PTransportOptions {
   appId?: string;
   strategy?: P2PTransportMode;
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+  candidates?: P2PTransportStrategy[];
 }
+
+interface TrysteroJoinConfig {
+  appId: string;
+  relayConfig?: {
+    supabaseKey: string;
+  };
+}
+
+type TrysteroJoinCallbacks = Parameters<typeof import('trystero').joinRoom>[2];
+type TrysteroJoinRoom = (config: TrysteroJoinConfig, roomId: string, callbacks?: TrysteroJoinCallbacks) => Room;
 
 export class TrysteroP2PTransport implements P2PTransportAdapter {
   readonly id = 'trystero';
@@ -31,11 +45,10 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     const strategy = this.options.strategy && this.options.strategy !== 'auto' ? this.options.strategy : 'nostr';
     const resolvedRoom = resolveTrysteroRoom(roomId, strategy);
     const { joinRoom, selfId } = await importTrysteroStrategy(resolvedRoom.strategy);
+    const config = trysteroConfigForStrategy(resolvedRoom.strategy, this.options);
     this.peerId = selfId;
     this.room = joinRoom(
-      {
-        appId: this.options.appId ?? 'daggerheart-play'
-      },
+      config,
       resolvedRoom.roomId,
       {
         onJoinError: (details) => this.emitError(details.error)
@@ -49,7 +62,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
       if (!isP2PWireEnvelope(envelope)) {
         return;
       }
-      this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: peerId }));
+      this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: peerId, verifiedSourcePeerId: peerId }));
     });
     const [sendBinaryPayload, receiveBinaryPayload, onBinaryProgress] = this.room.makeAction<DataPayload>('daggerheart-binary-v1');
     this.sendBinaryPayload = sendBinaryPayload;
@@ -172,24 +185,36 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
 
 export function resolveTrysteroRoom(roomId: string, fallbackStrategy: P2PTransportStrategy): { roomId: string; strategy: P2PTransportStrategy } {
   const normalized = roomId.trim().toUpperCase();
-  if (/^T[A-Z0-9]{6}$/.test(normalized)) {
-    return { roomId: normalized.slice(1), strategy: 'torrent' };
-  }
-  if (/^M[A-Z0-9]{6}$/.test(normalized)) {
-    return { roomId: normalized.slice(1), strategy: 'mqtt' };
-  }
-  if (/^N[A-Z0-9]{6}$/.test(normalized)) {
-    return { roomId: normalized.slice(1), strategy: 'nostr' };
-  }
-  return { roomId, strategy: fallbackStrategy };
+  const stripped = stripPrefixedShortRoomCode(normalized);
+  return { roomId: stripped === normalized ? roomId : stripped, strategy: fallbackStrategy };
 }
 
-async function importTrysteroStrategy(strategy: P2PTransportStrategy): Promise<{ joinRoom: typeof import('trystero').joinRoom; selfId: string }> {
+export function trysteroConfigForStrategy(strategy: P2PTransportStrategy, options: TrysteroP2PTransportOptions = {}): TrysteroJoinConfig {
+  if (strategy === 'supabase') {
+    if (!options.supabaseUrl || !options.supabaseAnonKey) {
+      throw new Error('Supabase signaling is not configured. Set VITE_TRYSTERO_SUPABASE_URL and VITE_TRYSTERO_SUPABASE_ANON_KEY.');
+    }
+    return {
+      appId: options.supabaseUrl,
+      relayConfig: {
+        supabaseKey: options.supabaseAnonKey
+      }
+    };
+  }
+  return {
+    appId: options.appId ?? 'daggerheart-play'
+  };
+}
+
+async function importTrysteroStrategy(strategy: P2PTransportStrategy): Promise<{ joinRoom: TrysteroJoinRoom; selfId: string }> {
+  if (strategy === 'supabase') {
+    return await import('@trystero-p2p/supabase') as unknown as { joinRoom: TrysteroJoinRoom; selfId: string };
+  }
   if (strategy === 'torrent') {
-    return await import('@trystero-p2p/torrent');
+    return await import('@trystero-p2p/torrent') as unknown as { joinRoom: TrysteroJoinRoom; selfId: string };
   }
   if (strategy === 'mqtt') {
-    return await import('@trystero-p2p/mqtt');
+    return await import('@trystero-p2p/mqtt') as unknown as { joinRoom: TrysteroJoinRoom; selfId: string };
   }
-  return await import('trystero');
+  return await import('trystero') as unknown as { joinRoom: TrysteroJoinRoom; selfId: string };
 }

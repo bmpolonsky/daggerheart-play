@@ -145,7 +145,9 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     contentService.setSelectedCollection(routedUi.libraryCollection);
   }, [content.selectedCollection, routedUi.libraryCollection]);
 
-  const sceneBackgroundImage = `linear-gradient(180deg, rgba(7, 9, 12, 0.06), rgba(7, 9, 12, 0.34)), url("${cssImageUrl(model.scene.imageUrl)}")`;
+  const sceneBackgroundImage = model.scene.imageUrl
+    ? `url("${cssImageUrl(model.scene.imageUrl)}")`
+    : 'none';
   const openActor = useCallback((actor: PlayerViewedActor) => {
     if (role === 'player' && (actor.kind !== 'character' || actor.actorId !== playerCharacterId)) {
       return;
@@ -278,7 +280,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         aria-hidden="true"
         style={{ backgroundImage: sceneBackgroundImage }}
       />
-      <div className="player-view__backdrop" aria-hidden="true" />
+      <div className="player-view__scene-dim" aria-hidden="true" />
       <PlayerConnectionStatus hasCharacter={Boolean(model.character)} hasSessionRoom={Boolean(sessionRoomId)} role={role} />
       <PlayerTopBar model={model} role={role} />
       <Tabs className="player-mobile-layer-tabs" label="Слой интерфейса">

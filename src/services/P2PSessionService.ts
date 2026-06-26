@@ -8,7 +8,7 @@ import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
-import type { SyncTargetPeer, TableParticipant } from '../domain/tabletop/types';
+import type { SyncEventContext, SyncTargetPeer, TableParticipant } from '../domain/tabletop/types';
 import type { Character, CharacterCondition, FeedEntry } from '../domain/rules/types';
 import { gameStore, charactersStore, resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
 import { hydratePersistedState, snapshotPersistedState } from '../stores/persistedState';
@@ -103,6 +103,11 @@ export interface PlayerActorContext {
   actorName?: string | null;
 }
 
+interface RemotePeerContext {
+  logicalPeerId?: string;
+  verifiedPeerId?: string;
+}
+
 const AUTO_SNAPSHOT_DELAY_MS = 350;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
 const ROOM_CODE_REFRESH_COOLDOWN_MS = 30_000;
@@ -139,6 +144,7 @@ export class P2PSessionService {
   private suppressPlayerStoreForwarding = false;
   private playerActorContext: PlayerActorContext = {};
   private localParticipantId: string | null = null;
+  private actorOwnerVerifiedPeers = new Map<string, string>();
 
   constructor(
     private syncService: SyncService,
@@ -360,25 +366,25 @@ export class P2PSessionService {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Токен игрока перемещен.' });
       void this.publishSnapshot();
     }));
-    this.subscriptions.add(this.syncService.subscribePlayerRestChoices((message) => {
-      if (!this.applyPlayerRestChoice(message)) {
-        this.patchSession({ lastRequestAt: nowIso(), message: 'Выбор отдыха отклонен.' });
+    this.subscriptions.add(this.syncService.subscribePlayerRestChoices((message, _event, context) => {
+      if (!this.applyPlayerRestChoice(message, remotePeerContext(context))) {
+        this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Выбор отдыха отклонен') });
         return;
       }
       this.patchSession({ lastRequestAt: nowIso(), message: 'Выбор отдыха игрока обновлен.' });
       void this.publishSnapshot();
     }));
-    this.subscriptions.add(this.syncService.subscribePlayerRollIntents((message) => {
-      if (!this.applyPlayerRollIntent(message)) {
-        this.patchSession({ lastRequestAt: nowIso(), message: 'Бросок игрока отклонен.' });
+    this.subscriptions.add(this.syncService.subscribePlayerRollIntents((message, _event, context) => {
+      if (!this.applyPlayerRollIntent(message, remotePeerContext(context))) {
+        this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Бросок игрока отклонен') });
         return;
       }
       this.patchSession({ lastRequestAt: nowIso(), message: 'Бросок игрока выполнен.' });
       void this.publishSnapshot();
     }));
-    this.subscriptions.add(this.syncService.subscribePlayerDecisions((message) => {
-      if (!this.applyPlayerDecision(message)) {
-        this.patchSession({ lastRequestAt: nowIso(), message: 'Выбор игрока отклонен.' });
+    this.subscriptions.add(this.syncService.subscribePlayerDecisions((message, _event, context) => {
+      if (!this.applyPlayerDecision(message, remotePeerContext(context))) {
+        this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Выбор игрока отклонен') });
         return;
       }
       this.patchSession({ lastRequestAt: nowIso(), message: 'Выбор игрока ожидает подтверждения мастера.' });
@@ -396,12 +402,12 @@ export class P2PSessionService {
       this.playerActivationQueueService.receiveRemote(message);
       this.patchSession({ lastRequestAt: nowIso(), message: message.type === 'raise' ? 'Игрок поднял руку.' : 'Очередь активаций обновлена.' });
     }));
-    this.subscriptions.add(this.syncService.subscribePlayerPresence((presence) => {
+    this.subscriptions.add(this.syncService.subscribePlayerPresence((presence, _event, context) => {
       this.playerPresenceService.upsert(presence);
-      this.upsertParticipantFromPlayerPresence(presence);
+      this.upsertParticipantFromPlayerPresence(presence, remotePeerContext(context));
     }));
-    this.subscriptions.add(this.syncService.subscribePlayerCharacterResources((message) => {
-      if (!this.applyPlayerCharacterResources(message)) {
+    this.subscriptions.add(this.syncService.subscribePlayerCharacterResources((message, _event, context) => {
+      if (!this.applyPlayerCharacterResources(message, remotePeerContext(context))) {
         return;
       }
       this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурсы персонажа игрока обновлены.' });
@@ -585,6 +591,7 @@ export class P2PSessionService {
     this.publishingPlayerFeedEntryIds.clear();
     this.playerCharacterResourceSignatures.clear();
     this.processedPlayerCharacterCreateIds.clear();
+    this.actorOwnerVerifiedPeers.clear();
     this.suppressPlayerStoreForwarding = false;
     this.playerActorContext = {};
     this.localParticipantId = null;
@@ -979,8 +986,8 @@ export class P2PSessionService {
     }
   }
 
-  private applyPlayerCharacterResources(message: PlayerCharacterResourcesMessage): boolean {
-    if (!this.participantOwnsActor(message.participantId, message.actorId)) {
+  private applyPlayerCharacterResources(message: PlayerCharacterResourcesMessage, peerContext?: RemotePeerContext): boolean {
+    if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурсы персонажа отклонены.' });
       return false;
     }
@@ -1109,15 +1116,15 @@ export class P2PSessionService {
     return true;
   }
 
-  private applyPlayerRestChoice(message: PlayerRestChoiceMessage): boolean {
-    if (!this.participantOwnsActor(message.participantId, message.actorId)) {
+  private applyPlayerRestChoice(message: PlayerRestChoiceMessage, peerContext?: RemotePeerContext): boolean {
+    if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) {
       return false;
     }
     return Boolean(this.feedService.updateRestParticipantChoices(message.restEntryId, message.actorId, message.choices));
   }
 
-  private applyPlayerDecision(message: PlayerDecisionMessage): boolean {
-    if (!this.participantOwnsActor(message.participantId, message.actorId)) {
+  private applyPlayerDecision(message: PlayerDecisionMessage, peerContext?: RemotePeerContext): boolean {
+    if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) {
       return false;
     }
     if (message.decision.kind === 'deathMove') {
@@ -1135,8 +1142,8 @@ export class P2PSessionService {
     return false;
   }
 
-  private applyPlayerRollIntent(message: PlayerRollIntentMessage): boolean {
-    if (!this.diceService || !this.participantOwnsActor(message.participantId, message.actorId)) {
+  private applyPlayerRollIntent(message: PlayerRollIntentMessage, peerContext?: RemotePeerContext): boolean {
+    if (!this.diceService || !this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) {
       return false;
     }
     if (message.resourcePatch) {
@@ -1300,16 +1307,17 @@ export class P2PSessionService {
       this.mediaCallService?.removeRemotePeer(event.peerId);
       this.playerPresenceService.markDisconnectedByPeer(event.peerId);
       this.sceneTableService.markParticipantDisconnectedByPeer(event.peerId);
+      const playerLostGm = event.role === 'gm' && !this.activeRoomConnection?.gmPeerId();
       this.patchSession((state) => ({
         ...state,
         peers: event.peers,
         routes,
         routePeers,
-        status: state.role === 'player' && state.connected && (event.role === 'gm' || event.peers.length === 0) ? 'degraded' : state.status,
+        status: state.role === 'player' && state.connected && (playerLostGm || event.peers.length === 0) ? 'degraded' : state.status,
         message:
           state.role === 'gm'
             ? 'Игрок отключился.'
-            : event.role === 'gm' || event.peers.length === 0
+            : playerLostGm || event.peers.length === 0
               ? 'Соединение с мастером прервалось.'
               : state.message
       }));
@@ -1364,6 +1372,7 @@ export class P2PSessionService {
       await this.publishSnapshot({ targetPeer: routeSwitch.peerId });
       return;
     }
+    await this.republishPlayerPresence();
     await this.requestSnapshotFromGm('peer-reconnect');
     await this.republishPendingRequests();
     await this.republishRaisedHand();
@@ -1423,7 +1432,7 @@ export class P2PSessionService {
     });
   }
 
-  private upsertParticipantFromPlayerPresence(presence: PlayerPresence): void {
+  private upsertParticipantFromPlayerPresence(presence: PlayerPresence, peerContext?: RemotePeerContext): void {
     const participant = this.findExistingParticipantForPresence({
       participantId: presence.requesterId,
       actorId: presence.actorId,
@@ -1440,6 +1449,9 @@ export class P2PSessionService {
       peerId: presence.peerId,
       connected: presence.connected
     });
+    if (peerContext?.verifiedPeerId && (!participant.peerId || participant.peerId === peerContext.logicalPeerId || participant.peerId === presence.peerId) && presence.peerId === peerContext.logicalPeerId) {
+      this.actorOwnerVerifiedPeers.set(presence.actorId, peerContext.verifiedPeerId);
+    }
   }
 
   private findExistingParticipantForPresence(input: { participantId?: string; actorId?: string; peerId?: string }): TableParticipant | null {
@@ -1476,6 +1488,24 @@ export class P2PSessionService {
     }
     await this.syncService.publishPlayerActivation({ type: 'raise', request: current });
     this.patchSession({ lastRequestAt: nowIso(), message: 'Поднятая рука отправлена мастеру.' });
+  }
+
+  private async republishPlayerPresence(): Promise<void> {
+    const participantId = this.playerActorContext.participantId?.trim();
+    const actorId = this.playerActorContext.actorId?.trim();
+    if (!participantId || !actorId) {
+      return;
+    }
+    const participant = this.sceneTableService.sceneTable$.get().participants[participantId];
+    await this.publishPresence({
+      requesterId: participantId,
+      actorId,
+      actorName: this.playerActorContext.actorName?.trim() || participant?.name || 'Игрок',
+      playerName: participant?.name || this.playerActorContext.actorName?.trim() || 'Игрок',
+      connected: true,
+      voiceMuted: false,
+      voiceLive: false
+    });
   }
 
   private async requestSnapshotFromGm(reason: 'join' | 'peer-reconnect' | 'manual'): Promise<void> {
@@ -1534,6 +1564,76 @@ export class P2PSessionService {
     return participant?.role === 'player' && participant.actorIds.includes(actorId);
   }
 
+  private authorizePlayerActor(participantId: string, actorId: string, peerContext?: RemotePeerContext): boolean {
+    const logicalPeerId = peerContext?.logicalPeerId;
+    const verifiedPeerId = peerContext?.verifiedPeerId;
+    const requester = this.sceneTableService.sceneTable$.get().participants[participantId];
+    if (this.participantOwnsActor(participantId, actorId)) {
+      const peerParticipant = logicalPeerId ? this.participantForPeer(logicalPeerId) : null;
+      if (peerParticipant && peerParticipant.id !== participantId) {
+        return false;
+      }
+      const verifiedPeerId = this.actorOwnerVerifiedPeers.get(actorId);
+      if (peerContext?.verifiedPeerId && verifiedPeerId && verifiedPeerId !== peerContext.verifiedPeerId) {
+        return false;
+      }
+      if (peerContext?.verifiedPeerId && !verifiedPeerId && (!requester?.peerId || requester.peerId !== logicalPeerId)) {
+        return false;
+      }
+      this.bindActorOwnerPeer(actorId, peerContext);
+      return true;
+    }
+    if (requester?.role === 'player') {
+      return false;
+    }
+    const owner = this.ownerParticipantForActor(actorId);
+    if (!owner) {
+      return false;
+    }
+    const peerParticipant = logicalPeerId ? this.participantForPeer(logicalPeerId) : null;
+    if (peerParticipant && peerParticipant.id !== owner.id) {
+      return false;
+    }
+    if (peerContext?.verifiedPeerId) {
+      const verifiedPeerId = this.actorOwnerVerifiedPeers.get(actorId);
+      if (verifiedPeerId && verifiedPeerId !== peerContext.verifiedPeerId) {
+        return false;
+      }
+      if (!verifiedPeerId && (!owner.peerId || owner.peerId !== logicalPeerId)) {
+        return false;
+      }
+    }
+    this.bindActorOwnerPeer(actorId, peerContext);
+    return true;
+  }
+
+  private bindActorOwnerPeer(actorId: string, peerContext?: RemotePeerContext): void {
+    if (!peerContext?.verifiedPeerId) {
+      return;
+    }
+    this.actorOwnerVerifiedPeers.set(actorId, peerContext.verifiedPeerId);
+    const owner = this.ownerParticipantForActor(actorId);
+    if (!owner) {
+      return;
+    }
+  }
+
+  private playerActorRejectionMessage(participantId: string, actorId: string, prefix: string): string {
+    const participants = this.sceneTableService.sceneTable$.get().participants;
+    const requester = participants[participantId];
+    const owner = this.ownerParticipantForActor(actorId);
+    if (!requester && owner) {
+      return `${prefix}: участник не найден, персонаж назначен "${owner.name}".`;
+    }
+    if (requester && owner && requester.id !== owner.id) {
+      return `${prefix}: "${requester.name}" не владеет персонажем "${owner.name}".`;
+    }
+    if (requester) {
+      return `${prefix}: персонаж не назначен "${requester.name}".`;
+    }
+    return `${prefix}: персонаж не назначен этому игроку.`;
+  }
+
   private applyPlayerCharacterResourcePatch(actorId: string, resources: PlayerCharacterResourcePatch, updatedAt: string): boolean {
     return this.applyPlayerCharacterResources({
       type: 'playerCharacterResources',
@@ -1545,9 +1645,17 @@ export class P2PSessionService {
   }
 
   private ownerParticipantIdForActor(actorId: string): string | null {
-    const participant = Object.values(this.sceneTableService.sceneTable$.get().participants)
-      .find((item) => item.role === 'player' && item.actorIds.includes(actorId));
-    return participant?.id ?? null;
+    return this.ownerParticipantForActor(actorId)?.id ?? null;
+  }
+
+  private ownerParticipantForActor(actorId: string): TableParticipant | null {
+    return Object.values(this.sceneTableService.sceneTable$.get().participants)
+      .find((item) => item.role === 'player' && item.actorIds.includes(actorId)) ?? null;
+  }
+
+  private participantForPeer(peerId: string): TableParticipant | null {
+    return Object.values(this.sceneTableService.sceneTable$.get().participants)
+      .find((item) => item.role === 'player' && item.peerId === peerId) ?? null;
   }
 }
 
@@ -1581,6 +1689,16 @@ function playerCharacterResourceSignature(character: Character): string {
 
 function playerFeedEntrySignature(entry: FeedEntry): string {
   return JSON.stringify(entry);
+}
+
+function remotePeerContext(context?: SyncEventContext): RemotePeerContext | undefined {
+  if (!context?.sourcePeerId && !context?.verifiedSourcePeerId) {
+    return undefined;
+  }
+  return {
+    logicalPeerId: context.sourcePeerId,
+    verifiedPeerId: context.verifiedSourcePeerId ?? context.sourcePeerId
+  };
 }
 
 function createPlayerCharacterResourcesMessage(character: Character, participantId: string): PlayerCharacterResourcesMessage {

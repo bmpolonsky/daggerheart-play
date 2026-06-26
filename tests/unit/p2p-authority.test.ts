@@ -280,6 +280,20 @@ test('P2P GM executes player roll intents authoritatively and rejects tampered a
       assert.equal((playerSync.getTransport() as P2PRoomConnection).peers().length, 1);
       assert.equal(gm.session$.get().peers.length, 1);
     });
+    assert.equal(await playerSync.publishPlayerPresence({
+      peerId: (playerSync.getTransport() as P2PRoomConnection).peerId,
+      requesterId: participant.id,
+      actorId: character.id,
+      actorName: character.name,
+      playerName: 'Игрок',
+      connected: true,
+      voiceMuted: false,
+      voiceLive: false,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    }), true);
+    await waitFor(() => {
+      assert.equal(Boolean(sceneTableStore.get().participants[participant.id]?.peerId), true);
+    });
 
     const originalRandom = Math.random;
     Math.random = () => 0;
@@ -316,6 +330,19 @@ test('P2P GM executes player roll intents authoritatively and rejects tampered a
 
     assert.equal(await playerSync.publishPlayerRollIntent({
       type: 'playerRollIntent',
+      intentId: 'intent-orphan-seat',
+      participantId: 'stale-local-player-seat',
+      actorId: character.id,
+      actorName: character.name,
+      publication: 'public',
+      createdAt: '2026-05-26T00:00:00.500Z',
+      intent: { type: 'manualDice', formula: '1d20', label: 'Recovered owner seat' }
+    }), true);
+    assert.equal(rollLogService.rollLog$.get().length, 2);
+    assert.equal(rollLogService.rollLog$.get()[0]?.type, 'manual');
+
+    assert.equal(await playerSync.publishPlayerRollIntent({
+      type: 'playerRollIntent',
       intentId: 'intent-2',
       participantId: participant.id,
       actorId: other.id,
@@ -324,9 +351,77 @@ test('P2P GM executes player roll intents authoritatively and rejects tampered a
       createdAt: '2026-05-26T00:00:01.000Z',
       intent: { type: 'manualDice', formula: '1d20', label: 'Tampered actor' }
     }), true);
-    assert.equal(rollLogService.rollLog$.get().length, 1);
+    assert.equal(rollLogService.rollLog$.get().length, 2);
   } finally {
     await playerSync.disconnect().catch(() => undefined);
+    await gm.stop().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
+test('P2P GM rejects player roll intents spoofing another connected owner', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const character = characterService.createCharacter({ name: 'Ари' });
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gm = createTestP2PSession(network, { dice: true });
+  const player = createTestP2PSession(network);
+  const rogueSync = createTestPlayerSync(network);
+
+  try {
+    await gm.startGmRoom({ roomId: 'spoof-roll-room', participantName: 'GM' });
+    const participant = Object.values(sceneTableStore.get().participants).find((seat) => seat.actorIds.includes(character.id));
+    assert.ok(participant);
+    await player.startPlayerRoom({
+      roomId: 'SPOOF-ROLL-ROOM',
+      participantId: participant.id,
+      participantName: 'Игрок',
+      actorIds: [character.id]
+    });
+    await waitFor(() => {
+      assert.equal(player.session$.get().connected, true);
+      assert.equal(gm.session$.get().peers.length, 1);
+    });
+    assert.equal(await player.publishPresence({
+      requesterId: participant.id,
+      actorId: character.id,
+      actorName: character.name,
+      playerName: 'Игрок',
+      connected: true,
+      voiceMuted: false,
+      voiceLive: false
+    }), true);
+    await waitFor(() => {
+      assert.equal(Boolean(sceneTableStore.get().participants[participant.id]?.peerId), true);
+    });
+
+    await rogueSync.connectReadOnly('SPOOF-ROLL-ROOM', {
+      id: 'rogue',
+      name: 'Другой игрок',
+      role: 'player',
+      actorIds: [],
+      connected: true,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    });
+    await waitFor(() => {
+      assert.equal(gm.session$.get().peers.length, 2);
+    });
+
+    assert.equal(await rogueSync.publishPlayerRollIntent({
+      type: 'playerRollIntent',
+      intentId: 'spoofed-owner-intent',
+      participantId: participant.id,
+      actorId: character.id,
+      actorName: character.name,
+      publication: 'public',
+      createdAt: '2026-05-26T00:00:01.000Z',
+      intent: { type: 'manualDice', formula: '1d20', label: 'Spoofed owner' }
+    }), true);
+
+    assert.equal(rollLogService.rollLog$.get().length, 0);
+  } finally {
+    await rogueSync.disconnect().catch(() => undefined);
+    await player.stop().catch(() => undefined);
     await gm.stop().catch(() => undefined);
     restoreWindow();
   }
@@ -356,6 +451,20 @@ test('P2P GM clamps owned resource patches and rejects patches for another actor
     await waitFor(() => {
       assert.equal((playerSync.getTransport() as P2PRoomConnection).peers().length, 1);
       assert.equal(gm.session$.get().peers.length, 1);
+    });
+    assert.equal(await playerSync.publishPlayerPresence({
+      peerId: (playerSync.getTransport() as P2PRoomConnection).peerId,
+      requesterId: participant.id,
+      actorId: character.id,
+      actorName: character.name,
+      playerName: 'Игрок',
+      connected: true,
+      voiceMuted: false,
+      voiceLive: false,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    }), true);
+    await waitFor(() => {
+      assert.equal(Boolean(sceneTableStore.get().participants[participant.id]?.peerId), true);
     });
 
     assert.equal(await playerSync.publishPlayerCharacterResources({

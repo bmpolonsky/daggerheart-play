@@ -6,11 +6,12 @@ import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, write
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
 import { feedService, mediaCallService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
 import { toastService } from '../../services/ToastService';
-import type { CallParticipant, MediaCallState } from '../../services/MediaCallService';
+import type { CallParticipant } from '../../services/MediaCallService';
 import { P2PHealthIndicator } from '../p2p/P2PHealthIndicator';
 import { cssImageUrl } from '../vtt/playerView/helpers';
 import { Avatar, Badge, Button, ChoiceCard, EmptyState, Field, IconButton, ListItem, SectionHeader, Surface, TextControl, Toolbar } from '../components/common';
 import { MediaStreamVideo } from './MediaStreamVideo';
+import { buildCallParticipants, findLocalTableParticipant } from './callParticipants';
 import './call-room.css';
 
 interface CallRoomAppProps {
@@ -46,15 +47,19 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const connectedToRoom = session.connected && session.roomId === roomId;
   const connectingToRoom = session.status === 'connecting' && session.roomId === roomId;
   const liveScene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
-  const sceneBackgroundImage = liveScene
-    ? `linear-gradient(180deg, rgba(7, 9, 12, 0.08), rgba(7, 9, 12, 0.38)), url("${cssImageUrl(liveScene.backgroundUrl || defaultSceneImageUrl(liveScene))}")`
-    : '';
+  const sceneBackgroundUrl = liveScene?.backgroundUrl || (liveScene?.backgroundAssetId ? '' : liveScene ? defaultSceneImageUrl(liveScene) : '');
+  const sceneBackgroundImage = sceneBackgroundUrl
+    ? `url("${cssImageUrl(sceneBackgroundUrl)}")`
+    : 'none';
   const playerSeats = useMemo(() => Object.values(sceneTable.participants).filter((participant) => participant.role === 'player'), [sceneTable.participants]);
   const feedMessages = feed.filter((entry) => entry.type === 'message').slice(-8);
-  const participantsList = useMemo(() => [
-    localParticipantFromCall(call),
-    ...Object.values(call.remoteParticipants).filter((participant) => participant.connected)
-  ], [call]);
+  const participantsList = useMemo(() => buildCallParticipants({
+    call,
+    connectedToRoom,
+    feedEntries: feedMessages,
+    sessionPeerId: session.peerId,
+    tableParticipants: sceneTable.participants
+  }), [call, connectedToRoom, feedMessages, sceneTable.participants, session.peerId]);
   const focusedParticipant = layoutMode === 'focus'
     ? pickFocusedParticipant(participantsList, focusedParticipantId, call.localParticipantId)
     : null;
@@ -90,6 +95,20 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
       autoJoinKey.current = null;
     });
   }, [connectedToRoom, connectingToRoom, roomId]);
+
+  useEffect(() => {
+    if (!roomId || !connectedToRoom || call.roomId !== roomId || call.active) return;
+    const localParticipant = findLocalTableParticipant(sceneTable.participants, call.localParticipantId, session.peerId);
+    const displayName = call.displayName.trim() || localParticipant?.name || storedSession?.participantName || (session.role === 'gm' ? 'Мастер' : 'Игрок');
+    mediaCallService.setRoom({
+      roomId,
+      participantId: localParticipant?.id,
+      displayName,
+      role: session.role === 'gm' ? 'gm' : 'player',
+      active: true
+    });
+    p2pSessionService.renameLocalParticipant(displayName);
+  }, [call.active, call.displayName, call.localParticipantId, call.roomId, connectedToRoom, roomId, sceneTable.participants, session.peerId, session.role, storedSession?.participantName]);
 
   useEffect(() => {
     if (!focusedParticipantId) return;
@@ -396,21 +415,6 @@ function resolveCallRoomId(input: { bareCallsPath: boolean; inviteRoomId: string
 
 function mediaStreamRenderKey(stream: MediaStream): string {
   return `${stream.id}:${stream.getVideoTracks().map((track) => track.id).join(',')}`;
-}
-
-function localParticipantFromCall(call: MediaCallState): CallParticipant {
-  return {
-    type: 'callPresence',
-    participantId: call.localParticipantId,
-    displayName: call.displayName || 'Вы',
-    role: call.role,
-    connected: Boolean(call.roomId),
-    micMuted: call.micMuted,
-    cameraOff: call.cameraOff,
-    handRaised: call.handRaised,
-    updatedAt: '',
-    stream: call.localStream
-  };
 }
 
 function isBareCallsPath(pathname: string, basePath: string): boolean {

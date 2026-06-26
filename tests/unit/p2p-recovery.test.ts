@@ -430,7 +430,7 @@ test('P2P session coalesces duplicate same-room starts', async () => {
   }
 });
 
-test('P2P active session keeps prefixed torrent room code for restore', async () => {
+test('P2P active session normalizes prefixed room code for restore', async () => {
   resetAllStores();
   const restoreWindow = installPersistentStorageWindow();
   const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
@@ -438,18 +438,18 @@ test('P2P active session keeps prefixed torrent room code for restore', async ()
   const restoredGm = createTestP2PSession(network, { dice: true });
 
   try {
-    writeP2PNetworkSettings({ strategy: 'torrent' });
+    writeP2PNetworkSettings({ strategy: 'torrent' as never });
     await gm.startGmRoom({ roomId: '7K2QAB', participantName: 'GM' });
 
-    assert.equal(gm.session$.get().roomId, 'T7K2QAB');
-    assert.equal(readActiveSession()?.roomId, 'T7K2QAB');
+    assert.equal(gm.session$.get().roomId, '7K2QAB');
+    assert.equal(readActiveSession()?.roomId, '7K2QAB');
 
     await gm.stop({ forgetSession: false });
-    writeP2PNetworkSettings({ strategy: 'nostr' });
+    writeP2PNetworkSettings({ strategy: 'nostr' as never });
 
     assert.equal(await restoredGm.restoreActiveSession('gm', 'GM'), true);
     assert.equal(restoredGm.session$.get().roomId, '7K2QAB');
-    assert.equal(readP2PNetworkSettings().strategy, 'nostr');
+    assert.equal(readP2PNetworkSettings().strategy, 'auto');
   } finally {
     await restoredGm.stop().catch(() => undefined);
     await gm.stop().catch(() => undefined);
@@ -458,18 +458,49 @@ test('P2P active session keeps prefixed torrent room code for restore', async ()
   }
 });
 
-test('P2P player start keeps an explicit torrent selection for clean room codes', async () => {
+test('P2P player stays connected when a fresh GM replaces a stale GM peer', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gm = createTestP2PSession(network, { dice: true });
+  const player = createTestP2PSession(network);
+  const reopenedGm = createTestP2PSession(network, { dice: true });
+
+  try {
+    await gm.startGmRoom({ roomId: 'gm-replace-room', participantName: 'GM' });
+    await player.startPlayerRoom({ roomId: 'GM-REPLACE-ROOM', participantName: 'Player' });
+    await waitFor(() => {
+      assert.equal(player.session$.get().connected, true);
+      assert.equal(player.session$.get().peers.length, 1);
+    });
+
+    await reopenedGm.startGmRoom({ roomId: 'GM-REPLACE-ROOM', participantName: 'GM' });
+    await waitFor(() => {
+      assert.equal(player.session$.get().connected, true);
+      assert.equal(player.session$.get().status, 'connected');
+      assert.equal(player.session$.get().peers.length, 1);
+      assert.notEqual(player.session$.get().message, 'Соединение с мастером прервалось.');
+    });
+  } finally {
+    await reopenedGm.stop().catch(() => undefined);
+    await player.stop().catch(() => undefined);
+    await gm.stop().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
+test('P2P player start keeps clean room codes and auto network settings', async () => {
   resetAllStores();
   const restoreWindow = installTimerWindow();
   const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
   const player = createTestP2PSession(network);
 
   try {
-    writeP2PNetworkSettings({ strategy: 'torrent' });
+    writeP2PNetworkSettings({ strategy: 'torrent' as never });
     await player.startPlayerRoom({ roomId: '7K2QAB', participantName: 'Player' });
 
-    assert.equal(player.session$.get().roomId, 'T7K2QAB');
-    assert.equal(readP2PNetworkSettings().strategy, 'torrent');
+    assert.equal(player.session$.get().roomId, '7K2QAB');
+    assert.equal(readP2PNetworkSettings().strategy, 'auto');
   } finally {
     await player.stop().catch(() => undefined);
     writeP2PNetworkSettings({ strategy: 'auto' });

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
 import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$ } from '../../../domain/p2p/networkSettings';
-import type { P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
+import type { P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
 import type { Character, GameState } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
 import {
@@ -187,7 +187,7 @@ export function SharedToolsConnectionSettingsPanel({
       <div className="player-tools-auto-network">
         <span>Сигналинг</span>
         <strong>Auto</strong>
-        <small>Nostr / MQTT / Torrent</small>
+        <small>Supabase / Nostr / MQTT / BT tracker</small>
       </div>
       <div className="player-tools-sync__summary">
         <div>
@@ -241,6 +241,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     peerId: p2pPeerId,
     peers: p2pPeers,
     role: p2pRole,
+    routes: p2pRoutes,
     routePeers: p2pRoutePeers,
     roomId: p2pActiveRoomId,
     status: p2pStatus
@@ -271,45 +272,76 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         <div><dt>Логических peer</dt><dd aria-label="Логических peer">{p2pPeers.length}</dd></div>
         <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
       </dl>
-      <div className="player-tools-route-table" role="table" aria-label="Маршруты соединений">
-        <div className="player-tools-route-table__row player-tools-route-table__row--head" role="row">
-          <span role="columnheader">Подключение</span>
-          {P2P_ROUTE_COLUMNS.map((strategy) => (
-            <span key={strategy} role="columnheader">{P2P_NETWORK_STRATEGY_LABELS[strategy]}</span>
-          ))}
-        </div>
-        {visibleRoutePeers.map((peer) => (
-          <div className="player-tools-route-table__row" role="row" key={peer.peerId}>
-            <span role="cell" title={peer.peerId}>
-              <strong>{peerNames.get(peer.peerId) ?? fallbackPeerName(peer.peerId, role)}</strong>
-              <small>{shortPeerId(peer.peerId)}</small>
-            </span>
-            {P2P_ROUTE_COLUMNS.map((strategy) => {
-              const route = peer.routes.find((item) => item.strategy === strategy);
-              return (
-                <span
-                  key={strategy}
-                  role="cell"
-                  className={`player-tools-route-table__route ${routeStatusClass(route)}`}
-                  title={formatPeerRouteTitle(route)}
-                >
-                  {formatPeerRouteDiagnostic(route)}
-                </span>
-              );
-            })}
-          </div>
-        ))}
-        {visibleRoutePeers.length === 0 && (
-          <div className="player-tools-route-table__empty" role="row">
-            <span role="cell">Подключений пока нет.</span>
-          </div>
-        )}
+      <div
+        className="player-tools-route-table"
+        aria-label="Маршруты соединений"
+      >
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Подключение</th>
+              {P2P_ROUTE_COLUMNS.map((strategy) => (
+                <th key={strategy} scope="col">{P2P_ROUTE_LABELS[strategy]}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRoutePeers.map((peer) => (
+              <tr key={peer.peerId}>
+                <th scope="row" title={peer.peerId}>
+                  <strong>{peerNames.get(peer.peerId) ?? fallbackPeerName(peer.peerId, role)}</strong>
+                  <small>{shortPeerId(peer.peerId)}</small>
+                </th>
+                {P2P_ROUTE_COLUMNS.map((strategy) => {
+                  const route = peer.routes.find((item) => item.strategy === strategy);
+                  return (
+                    <td key={strategy}>
+                      <span
+                        className={`player-tools-route-table__route ${routeStatusClass(route)}`}
+                        title={formatPeerRouteTitle(route)}
+                      >
+                        {formatPeerRouteDiagnostic(route)}
+                      </span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+            {visibleRoutePeers.length === 0 && (
+              <tr>
+                <th scope="row">
+                  <strong>Маршруты</strong>
+                  <small>peer не найден</small>
+                </th>
+                {P2P_ROUTE_COLUMNS.map((strategy) => {
+                  const route = p2pRoutes.find((item) => item.strategy === strategy);
+                  return (
+                    <td key={strategy}>
+                      <span
+                        className={`player-tools-route-table__route ${routeDiagnosticStatusClass(route)}`}
+                        title={formatRouteDiagnosticTitle(route)}
+                      >
+                        {formatRouteDiagnostic(route)}
+                      </span>
+                    </td>
+                  );
+                })}
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </section>
   );
 }
 
-const P2P_ROUTE_COLUMNS: P2PTransportStrategy[] = ['nostr', 'mqtt', 'torrent'];
+const P2P_ROUTE_COLUMNS: P2PTransportStrategy[] = ['supabase', 'nostr', 'mqtt', 'torrent'];
+const P2P_ROUTE_LABELS: Record<P2PTransportStrategy, string> = {
+  supabase: 'Supabase',
+  nostr: 'Nostr',
+  mqtt: 'MQTT',
+  torrent: 'Torrent'
+};
 
 function createEmptyPeerDiagnostic(peerId: string): P2PTransportPeerDiagnostic {
   return {
@@ -347,6 +379,24 @@ function formatPeerRouteDiagnostic(route?: P2PTransportPeerRouteDiagnostic): str
   return parts.join(' / ');
 }
 
+function formatRouteDiagnostic(route?: P2PTransportRouteDiagnostic): string {
+  if (!route) return 'нет';
+  if (route.error) return `${formatRouteStatus(route.status)} / ${route.error}`;
+  return formatRouteStatus(route.status);
+}
+
+function formatRouteDiagnosticTitle(route?: P2PTransportRouteDiagnostic): string {
+  if (!route) return 'Маршрут не найден';
+  const parts = [
+    `Статус: ${formatRouteStatus(route.status)}`,
+    `Активных peer: ${route.activePeers.length}`,
+    route.rttMs !== null ? `Пинг: ${Math.round(route.rttMs)} ms` : 'Пинг: нет',
+    route.lastSeenAt ? `Последний сигнал: ${new Date(route.lastSeenAt).toLocaleTimeString()}` : 'Последний сигнал: нет'
+  ];
+  if (route.error) parts.push(`Ошибка: ${route.error}`);
+  return parts.join('\n');
+}
+
 function formatPeerRouteTitle(route?: P2PTransportPeerRouteDiagnostic): string {
   if (!route) return 'Маршрут не найден';
   const parts = [
@@ -366,6 +416,27 @@ function routeStatusClass(route?: P2PTransportPeerRouteDiagnostic): string {
   if (route.status === 'failed') return 'is-failed';
   if (route.status === 'unknown') return 'is-empty';
   return 'is-lost';
+}
+
+function routeDiagnosticStatusClass(route?: P2PTransportRouteDiagnostic): string {
+  if (!route) return 'is-empty';
+  if (route.status === 'ready') return 'is-ready';
+  if (route.status === 'failed') return 'is-failed';
+  if (route.status === 'degraded') return 'is-lost';
+  return 'is-empty';
+}
+
+function formatRouteStatus(status: P2PTransportRouteDiagnostic['status']): string {
+  switch (status) {
+    case 'ready':
+      return 'готов';
+    case 'probing':
+      return 'проверка';
+    case 'failed':
+      return 'ошибка';
+    case 'degraded':
+      return 'нестабильно';
+  }
 }
 
 function formatPeerRouteStatus(status: P2PTransportPeerRouteDiagnostic['status']): string {

@@ -111,6 +111,7 @@ export type SyncTargetPeer = string | undefined;
 
 export interface SyncEventContext {
   sourcePeerId?: string;
+  verifiedSourcePeerId?: string;
 }
 
 export interface SyncTransport {

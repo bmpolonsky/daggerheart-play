@@ -1,7 +1,7 @@
 import { createId } from '../../core/utils/id';
 import { nowIso } from '../../core/utils/date';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableParticipant } from '../../domain/tabletop/types';
-import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PTargetPeer, P2PTransportAdapter, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent, P2PWireEnvelope, P2PWireRole } from './P2PTransportAdapter';
+import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent, P2PWireEnvelope, P2PWireRole } from './P2PTransportAdapter';
 
 export type P2PRoomConnectionStatus = 'connected' | 'degraded';
 
@@ -168,7 +168,7 @@ export class P2PRoomConnection implements SyncTransport {
 
   private bindAdapterEvents(): void {
     this.unsubscribeAdapter.push(
-      this.adapter.subscribe((envelope) => this.handleEnvelope(envelope)),
+      this.adapter.subscribe((envelope, context) => this.handleEnvelope(envelope, context)),
       this.adapter.onPeerJoin((peerId) => this.handlePeerJoin(peerId)),
       this.adapter.onPeerLeave((peerId) => this.removePeer(peerId)),
       this.adapter.onError((message) => this.emitRoomEvent({ type: 'error', message })),
@@ -184,24 +184,26 @@ export class P2PRoomConnection implements SyncTransport {
     );
   }
 
-  private handleEnvelope(envelope: P2PWireEnvelope): void {
-    if (!this.role || envelope.sender.peerId === this.peerId) {
+  private handleEnvelope(envelope: P2PWireEnvelope, transportContext?: P2PTransportMessageContext): void {
+    const peerId = transportContext?.sourcePeerId || envelope.sender.peerId;
+    const verifiedSourcePeerId = transportContext?.verifiedSourcePeerId || peerId;
+    if (!this.role || peerId === this.peerId) {
       return;
     }
-    const peerWasAdded = this.rememberPeer(envelope.sender.peerId, Date.now(), envelope.sender.role);
+    const peerWasAdded = this.rememberPeer(peerId, Date.now(), envelope.sender.role);
     if (peerWasAdded && envelope.sender.role === 'gm' && this.role === 'player') {
-      this.markGmSeen(envelope.sender.peerId);
+      this.markGmSeen(peerId);
     }
     if (envelope.channel === 'control') {
-      this.handleControl(envelope);
+      this.handleControl(envelope, peerId);
       return;
     }
     const event = envelope.payload;
     if (isSyncEvent(event)) {
       if (envelope.sender.role === 'gm' && this.role === 'player') {
-        this.markGmSeen(envelope.sender.peerId);
+        this.markGmSeen(peerId);
       }
-      const context: SyncEventContext = { sourcePeerId: envelope.sender.peerId };
+      const context: SyncEventContext = { sourcePeerId: peerId, verifiedSourcePeerId };
       this.dataListeners.forEach((listener) => listener(event, context));
     }
   }
@@ -214,14 +216,14 @@ export class P2PRoomConnection implements SyncTransport {
     this.binaryListeners.forEach((listener) => listener(data, peerId, metadata));
   }
 
-  private handleControl(envelope: P2PWireEnvelope): void {
+  private handleControl(envelope: P2PWireEnvelope, peerId: string): void {
     const payload = envelope.payload;
     if (!payload || typeof payload !== 'object') {
       return;
     }
     const type = (payload as { type?: unknown }).type;
     if (type === 'goodbye') {
-      this.removePeer(envelope.sender.peerId);
+      this.removePeer(peerId);
       return;
     }
     if (this.role === 'gm' && envelope.sender.role === 'player' && (type === 'hello' || type === 'player-ping')) {
@@ -229,7 +231,7 @@ export class P2PRoomConnection implements SyncTransport {
       return;
     }
     if (this.role === 'player' && envelope.sender.role === 'gm' && (type === 'hello' || type === 'gm-pong')) {
-      this.markGmSeen(envelope.sender.peerId);
+      this.markGmSeen(peerId);
     }
   }
 
@@ -281,10 +283,26 @@ export class P2PRoomConnection implements SyncTransport {
     this.lastGmSignalAt = Date.now();
     this.hasGmSignal = true;
     this.status = 'connected';
+    this.replaceStaleGmPeers(peerId);
     this.rememberPeer(peerId, this.lastGmSignalAt, 'gm');
     if (shouldEmitRestored) {
       this.emitRoomEvent({ type: 'gm-restored', peerId, peers: this.peers() });
     }
+  }
+
+  private replaceStaleGmPeers(activePeerId: string): void {
+    if (this.role !== 'player') {
+      return;
+    }
+    const stalePeerIds = Array.from(this.peerRoles.entries())
+      .filter(([peerId, role]) => role === 'gm' && peerId !== activePeerId)
+      .map(([peerId]) => peerId);
+    stalePeerIds.forEach((peerId) => {
+      this.peerIds.delete(peerId);
+      this.peerSignals.delete(peerId);
+      this.peerRoles.delete(peerId);
+      this.emitRoomEvent({ type: 'peer-left', peerId, role: 'gm', peers: this.peers() });
+    });
   }
 
   private startHeartbeat(): void {

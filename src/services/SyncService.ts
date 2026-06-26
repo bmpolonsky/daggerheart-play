@@ -278,7 +278,7 @@ export class SyncService {
     return this.publishChannel(syncChannels.playerPresence, presence);
   }
 
-  subscribePlayerPresence(listener: (presence: PlayerPresence, event: SyncEvent) => void): () => void {
+  subscribePlayerPresence(listener: (presence: PlayerPresence, event: SyncEvent, context?: SyncEventContext) => void): () => void {
     return this.subscribeChannel(syncChannels.playerPresence, listener);
   }
 
@@ -322,7 +322,7 @@ export class SyncService {
     });
   }
 
-  subscribePlayerRestChoices(listener: (message: PlayerRestChoiceMessage, event: SyncEvent) => void): () => void {
+  subscribePlayerRestChoices(listener: (message: PlayerRestChoiceMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
     return this.subscribeChannel(syncChannels.playerRestChoice, listener);
   }
 
@@ -330,7 +330,7 @@ export class SyncService {
     return this.publishChannel(syncChannels.playerRollIntent, message);
   }
 
-  subscribePlayerRollIntents(listener: (message: PlayerRollIntentMessage, event: SyncEvent) => void): () => void {
+  subscribePlayerRollIntents(listener: (message: PlayerRollIntentMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
     return this.subscribeChannel(syncChannels.playerRollIntent, listener);
   }
 
@@ -338,7 +338,7 @@ export class SyncService {
     return this.publishChannel(syncChannels.playerDecision, message);
   }
 
-  subscribePlayerDecisions(listener: (message: PlayerDecisionMessage, event: SyncEvent) => void): () => void {
+  subscribePlayerDecisions(listener: (message: PlayerDecisionMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
     return this.subscribeChannel(syncChannels.playerDecision, listener);
   }
 
@@ -363,7 +363,7 @@ export class SyncService {
     return this.publishChannel(syncChannels.playerCharacterResources, message);
   }
 
-  subscribePlayerCharacterResources(listener: (message: PlayerCharacterResourcesMessage, event: SyncEvent) => void): () => void {
+  subscribePlayerCharacterResources(listener: (message: PlayerCharacterResourcesMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
     return this.subscribeChannel(syncChannels.playerCharacterResources, listener);
   }
 

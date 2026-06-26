@@ -1,27 +1,8 @@
 import type { Character } from '../rules/types';
 import type { TableScene } from './types';
 
-export const DEFAULT_LOBBY_SCENE_IMAGE = '/image/environment/cliffside-tavern.png';
-
-const DEFAULT_SCENE_IMAGE_POOL = [
-  './image/environment/abandoned-grove.png',
-  './image/environment/outpost-town-river.png',
-  './image/environment/hallow-temple.png',
-  './image/environment/mountain.png',
-  './image/environment/pitched-battle.png'
-] as const;
-
-const SCENE_KEYWORD_IMAGES: Array<{ patterns: string[]; imageUrl: string }> = [
-  { patterns: ['tavern', 'таверн', 'inn', 'трактир'], imageUrl: './image/environment/cliffside-tavern.png' },
-  { patterns: ['river', 'река', 'рек', 'water', 'вода'], imageUrl: './image/environment/raging-river.png' },
-  { patterns: ['grove', 'лес', 'роща', 'forest'], imageUrl: './image/environment/abandoned-grove.png' },
-  { patterns: ['temple', 'храм', 'sanctuary'], imageUrl: './image/environment/hallow-temple.png' },
-  { patterns: ['city', 'город', 'mountain', 'гора', 'горн'], imageUrl: './image/environment/haunted-city-mountain.png' },
-  { patterns: ['battle', 'бой', 'битв', 'combat'], imageUrl: './image/environment/pitched-battle.png' },
-  { patterns: ['cult', 'ритуал'], imageUrl: './image/environment/cult-ritual.png' },
-  { patterns: ['castle', 'замок', 'siege', 'осад'], imageUrl: './image/environment/castle-siege-battle.png' },
-  { patterns: ['chaos', 'хаос'], imageUrl: './image/environment/chaos-realm.png' }
-];
+export const DEFAULT_LOBBY_SCENE_IMAGE = '/image/environment/cliffside-tavern.webp';
+export const DEFAULT_SCENE_IMAGE = './image/environment/hallow-temple.webp';
 
 const DEFAULT_CHARACTER_PORTRAIT_POOL = [
   './image/ancestry/card/human.jpg',
@@ -73,12 +54,8 @@ const ANCESTRY_PORTRAITS: Record<string, string> = {
   эльф: './image/ancestry/card/elf.jpg'
 };
 
-export function defaultSceneImageUrl(scene: Pick<TableScene, 'id' | 'name' | 'subtitle' | 'mode'>): string {
-  const searchable = normalizeArtKey(`${scene.name} ${scene.subtitle}`);
-  const keyword = SCENE_KEYWORD_IMAGES.find((item) => item.patterns.some((pattern) => searchable.includes(pattern)));
-  if (keyword) return keyword.imageUrl;
-  if (scene.mode === 'tactical') return './image/environment/pitched-battle.png';
-  return DEFAULT_SCENE_IMAGE_POOL[stableIndex(`${scene.id}:${scene.name}`, DEFAULT_SCENE_IMAGE_POOL.length)];
+export function defaultSceneImageUrl(_scene: Pick<TableScene, 'id' | 'name' | 'subtitle' | 'mode'>): string {
+  return DEFAULT_SCENE_IMAGE;
 }
 
 type DefaultCharacterPortraitInput = Pick<Character, 'id' | 'name'> & {

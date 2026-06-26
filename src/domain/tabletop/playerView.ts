@@ -192,6 +192,7 @@ export function resolveSceneImageUrl(scene: TableScene, assets: Record<string, P
     const asset = assets[scene.backgroundAssetId];
     const url = asset?.storage === 'indexeddb' ? assetUrls[scene.backgroundAssetId] : asset?.url;
     if (url) return url;
+    if (asset) return scene.backgroundUrl;
   }
   return scene.backgroundUrl || defaultSceneImageUrl(scene);
 }

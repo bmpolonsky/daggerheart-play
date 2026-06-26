@@ -61,24 +61,14 @@
   pointer-events: none;
 }
 
-.player-view::after,
-.player-view__backdrop {
-  content: "";
+.player-view__scene-dim {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-}
-
-.player-view::after {
   z-index: 1;
+  pointer-events: none;
   background:
-    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.12), transparent 34%),
     linear-gradient(90deg, rgba(7, 9, 12, 0.54), transparent 28%, transparent 72%, rgba(7, 9, 12, 0.54)),
     linear-gradient(180deg, rgba(7, 9, 12, 0.18), rgba(7, 9, 12, 0) 40%, rgba(7, 9, 12, 0.66));
-}
-
-.player-view__backdrop {
-  z-index: 1;
   box-shadow: 0 0 82px rgba(0, 0, 0, 0.52) inset;
 }
 
@@ -134,12 +124,6 @@
 @media (max-width: 640px) {
   .player-view__scene-image {
     background-position: center top;
-  }
-
-  .player-view::after {
-    background:
-      radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.1), transparent 34%),
-      linear-gradient(180deg, rgba(7, 9, 12, 0.12), rgba(7, 9, 12, 0) 48%, rgba(7, 9, 12, 0.46));
   }
 }
 

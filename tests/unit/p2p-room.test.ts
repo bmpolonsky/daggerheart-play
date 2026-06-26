@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { snapshotPersistedState } from "../../src/stores/persistedState";
 import { SyncService } from "../../src/services/SyncService";
 import { P2PRoomConnection } from "../../src/services/p2p/P2PRoomConnection";
+import type { P2PTransportAdapter, P2PWireEnvelope } from "../../src/services/p2p/P2PTransportAdapter";
 import { installTimerWindow, ScriptedP2PNetwork, waitFor } from "./helpers";
 
 test('readonly sync catches snapshots published during transport connect', async () => {
@@ -101,6 +102,7 @@ test('P2P room connection tracks peers and heartbeats independently from product
       });
       await waitFor(() => {
         assert.equal(playerEvents.includes('gm-restored'), true);
+        assert.deepEqual(playerRoom.peers(), [reopenedGm.peerId]);
       }, 1000);
     } finally {
       await reopenedGm.disconnect().catch(() => undefined);
@@ -108,6 +110,53 @@ test('P2P room connection tracks peers and heartbeats independently from product
   } finally {
     await playerRoom.disconnect().catch(() => undefined);
     await gmRoom.disconnect().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
+test('P2P room connection trusts adapter source peer over spoofable wire sender', async () => {
+  const restoreWindow = installTimerWindow();
+  const adapter = new ContextProbeTransport();
+  const room = new P2PRoomConnection(adapter);
+  const receivedSources: Array<string | undefined> = [];
+  room.subscribe((_event, context) => {
+    receivedSources.push(context?.sourcePeerId);
+  });
+
+  try {
+    await room.connect('source-context-room', {
+      id: 'gm',
+      name: 'GM',
+      role: 'gm',
+      actorIds: [],
+      connected: true,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    });
+
+    adapter.emit({
+      version: 2,
+      id: 'spoofed-event',
+      channel: 'data',
+      sender: {
+        peerId: 'spoofed-peer',
+        role: 'player'
+      },
+      sentAt: '2026-05-26T00:00:01.000Z',
+      payload: {
+        id: 'sync-spoofed',
+        kind: 'snapshotRequest',
+        createdAt: '2026-05-26T00:00:01.000Z',
+        authorId: 'player',
+        value: {
+          requestedAt: '2026-05-26T00:00:01.000Z',
+          reason: 'manual'
+        }
+      }
+    }, 'transport-peer');
+
+    assert.deepEqual(receivedSources, ['transport-peer']);
+  } finally {
+    await room.disconnect().catch(() => undefined);
     restoreWindow();
   }
 });
@@ -156,6 +205,42 @@ test('P2P room connection forwards media streams through the adapter', async () 
     restoreWindow();
   }
 });
+
+class ContextProbeTransport implements P2PTransportAdapter {
+  readonly id = 'context-probe';
+  readonly label = 'Context Probe';
+  peerId = 'local-peer';
+  private listeners = new Set<(envelope: P2PWireEnvelope, context?: { sourcePeerId?: string }) => void>();
+
+  async connect(): Promise<void> {}
+
+  async disconnect(): Promise<void> {
+    this.listeners.clear();
+  }
+
+  async send(): Promise<void> {}
+
+  subscribe(listener: (envelope: P2PWireEnvelope, context?: { sourcePeerId?: string }) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  onPeerJoin(): () => void {
+    return () => undefined;
+  }
+
+  onPeerLeave(): () => void {
+    return () => undefined;
+  }
+
+  onError(): () => void {
+    return () => undefined;
+  }
+
+  emit(envelope: P2PWireEnvelope, sourcePeerId: string): void {
+    this.listeners.forEach((listener) => listener(envelope, { sourcePeerId }));
+  }
+}
 
 test('P2P room connection marks GM lost even when another player remains connected', async () => {
   const restoreWindow = installTimerWindow();

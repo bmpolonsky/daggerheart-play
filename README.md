@@ -51,6 +51,17 @@ npm run typecheck
 npm run test:unit
 ```
 
+## P2P signaling
+
+P2P-сессии используют Trystero. По умолчанию auto-режим пробует публичные стратегии `nostr`, `mqtt` и `torrent`. Если настроить Supabase, auto-режим сначала использует Supabase как signaling backend, а затем откатывается к публичным стратегиям.
+
+Supabase нужен только для WebRTC signaling и не заменяет TURN-релей для сложных сетей. Для локальной разработки добавьте в `.env.local`, для деплоя задайте те же переменные в окружении сборки:
+
+```bash
+VITE_TRYSTERO_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_TRYSTERO_SUPABASE_ANON_KEY=your-anon-public-key
+```
+
 ## Кэш справочников
 
 Перед `dev` и `build` запускается:

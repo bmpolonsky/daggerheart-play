@@ -30,17 +30,8 @@ export function buildPlayerInviteUrl(input: PlayerInviteUrlInput): string {
 }
 
 export function buildPlayerInviteRoomCode(roomId: string, networkSettings?: P2PNetworkSettings): string {
-  const normalizedRoomId = normalizeLogicalRoomId(roomId);
-  if (networkSettings?.strategy === 'torrent' && isShortInviteRoomId(normalizedRoomId)) {
-    return `T${normalizedRoomId}`;
-  }
-  if (networkSettings?.strategy === 'mqtt' && isShortInviteRoomId(normalizedRoomId)) {
-    return `M${normalizedRoomId}`;
-  }
-  if (networkSettings?.strategy === 'nostr' && /^N[A-Z0-9]{6}$/.test(normalizeSessionRoomId(roomId))) {
-    return normalizeSessionRoomId(roomId);
-  }
-  return normalizedRoomId;
+  void networkSettings;
+  return normalizeLogicalRoomId(roomId);
 }
 
 export function rebasePlayerInviteRoomCode(roomId: string, networkSettings: P2PNetworkSettings): string {
@@ -137,12 +128,14 @@ function stripBasePath(pathname: string, basePath = ''): string {
   return stripped.startsWith('/') ? stripped : `/${stripped}`;
 }
 
-function isShortInviteRoomId(roomId: string): boolean {
-  return /^[A-Z0-9]{6}$/.test(roomId);
-}
-
 export function normalizeLogicalRoomId(roomId: string, fallback = createFallbackRoomId()): string {
   const normalizedRoomId = normalizeSessionRoomId(roomId, fallback);
-  const match = normalizedRoomId.match(/^[MNT]([A-Z0-9]{6})$/);
-  return match?.[1] ?? normalizedRoomId;
+  return stripPrefixedShortRoomCode(normalizedRoomId);
+}
+
+export function stripPrefixedShortRoomCode(roomId: string): string {
+  if (/^[A-Z0-9]{7}$/.test(roomId)) {
+    return roomId.slice(1);
+  }
+  return roomId;
 }

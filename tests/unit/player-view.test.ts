@@ -5,7 +5,7 @@ import { createGameHandout, createGameState, createInventoryItem } from "../../s
 import { ActorStatus } from "../../src/domain/rules/statuses";
 import { buildPlayerViewModel } from "../../src/domain/tabletop/playerView";
 import { defaultCharacterPortraitUrl, defaultSceneImageUrl } from "../../src/domain/tabletop/defaultArt";
-import { createTableScene, createTokenState } from "../../src/domain/tabletop/factories";
+import { createMapAsset, createTableScene, createTokenState } from "../../src/domain/tabletop/factories";
 import { resetAllStores, charactersStore, sceneTableStore } from "../../src/stores/gameStores";
 import { gameService, characterService, encounterService, sceneTableService } from "../../src/services/serviceRegistry";
 import { buildSessionRosterActors } from "../../src/ui/vtt/playerView/helpers";
@@ -182,12 +182,12 @@ test('mini dice tray bonus mode follows actual tray dice', () => {
   assert.equal(resolveMiniDiceTrayBonusMode({ hasHope: false, hasFear: false, dieSides: [20, 20] }), 'mixed');
 });
 
-test('default table art varies by scene context and character ancestry', () => {
+test('default table art uses one stable scene fallback and character ancestry', () => {
   resetAllStores();
   const tavernScene = createTableScene({ name: 'Сцена в таверне', backgroundUrl: '' });
   const tacticalScene = createTableScene({ name: 'Безымянная схватка', mode: 'tactical', backgroundUrl: '' });
-  assert.equal(defaultSceneImageUrl(tavernScene), './image/environment/cliffside-tavern.png');
-  assert.equal(defaultSceneImageUrl(tacticalScene), './image/environment/pitched-battle.png');
+  assert.equal(defaultSceneImageUrl(tavernScene), './image/environment/hallow-temple.webp');
+  assert.equal(defaultSceneImageUrl(tacticalScene), './image/environment/hallow-temple.webp');
 
   const elf = characterService.createCharacter({ name: 'Лея', ancestry: 'Эльф', portraitUrl: '' });
   const unknown = characterService.createCharacter({ name: 'Без портрета', ancestry: '', portraitUrl: '' });
@@ -208,9 +208,45 @@ test('default table art varies by scene context and character ancestry', () => {
     rollLog: [],
     playerCharacterId: elf.id
   });
-  assert.equal(model.scene.imageUrl, './image/environment/abandoned-grove.png');
+  assert.equal(model.scene.imageUrl, './image/environment/hallow-temple.webp');
   assert.equal(model.character?.portraitUrl, './image/ancestry/card/elf.jpg');
   assert.equal(model.tokens[0]?.imageUrl, './image/ancestry/card/elf.jpg');
+});
+
+test('player view waits for referenced scene asset instead of showing fallback art', () => {
+  resetAllStores();
+  const asset = createMapAsset({
+    id: 'scene-bg-asset',
+    name: 'Сцена мастера',
+    mimeType: 'image/webp',
+    storage: 'indexeddb'
+  });
+  const scene = createTableScene({
+    backgroundAssetId: asset.id,
+    backgroundUrl: ''
+  });
+
+  const pendingModel = buildPlayerViewModel({
+    game: createGameState(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
+    liveScene: scene,
+    assets: { [asset.id]: asset },
+    assetUrls: {},
+    rollLog: []
+  });
+  assert.equal(pendingModel.scene.imageUrl, '');
+
+  const readyModel = buildPlayerViewModel({
+    game: createGameState(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
+    liveScene: scene,
+    assets: { [asset.id]: asset },
+    assetUrls: { [asset.id]: 'blob:http://localhost/scene-bg-asset' },
+    rollLog: []
+  });
+  assert.equal(readyModel.scene.imageUrl, 'blob:http://localhost/scene-bg-asset');
 });
 
 test('player view model does not fall back to GM-selected or unassigned characters', () => {

@@ -19,6 +19,8 @@ export type P2PRouteDiagnostic = P2PTransportRouteDiagnostic;
 
 export interface MultiStrategyP2PTransportOptions {
   appId?: string;
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
   mode?: P2PTransportMode;
   candidates?: P2PTransportStrategy[];
   ackTimeoutMs?: number;
@@ -33,6 +35,7 @@ interface RouteState {
   rttMs: number | null;
   error?: string;
   unsubscriptions: Array<() => void>;
+  connectAttempt: number;
 }
 
 interface PendingAck {
@@ -56,6 +59,7 @@ interface MultiRouteAck {
 }
 
 const DEFAULT_CANDIDATES: P2PTransportStrategy[] = ['nostr', 'mqtt', 'torrent'];
+const SUPABASE_CANDIDATES: P2PTransportStrategy[] = ['supabase', ...DEFAULT_CANDIDATES];
 const DEFAULT_ACK_TIMEOUT_MS = 4000;
 
 export class MultiStrategyP2PTransport implements P2PTransportAdapter {
@@ -84,49 +88,105 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
   private seenMediaOrder: string[] = [];
   private rememberedControlEnvelopes: P2PWireEnvelope[] = [];
   private publishedMediaStreams = new Map<MediaStream, unknown>();
+  private connectionEpoch = 0;
 
   private readonly candidates: P2PTransportStrategy[];
   private readonly ackTimeoutMs: number;
   private readonly createTransport: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter;
 
   constructor(options: MultiStrategyP2PTransportOptions = {}) {
-    this.candidates = options.mode && options.mode !== 'auto' ? [options.mode] : options.candidates ?? DEFAULT_CANDIDATES;
+    this.candidates = resolveTrysteroCandidates(options);
     this.ackTimeoutMs = options.ackTimeoutMs ?? DEFAULT_ACK_TIMEOUT_MS;
     this.createTransport = options.createTransport ?? ((transportOptions) => new TrysteroP2PTransport(transportOptions));
     for (const strategy of this.candidates) {
       this.routes.set(strategy, {
         strategy,
-        transport: this.createTransport({ appId: options.appId, strategy }),
+        transport: this.createTransport({
+          appId: options.appId,
+          supabaseUrl: options.supabaseUrl,
+          supabaseAnonKey: options.supabaseAnonKey,
+          strategy
+        }),
         status: 'probing',
         lastSeenAt: null,
         rttMs: null,
-        unsubscriptions: []
+        unsubscriptions: [],
+        connectAttempt: 0
       });
     }
   }
 
   async connect(roomId: string): Promise<void> {
     await this.disconnect();
+    const epoch = ++this.connectionEpoch;
     const logicalRoomId = normalizeLogicalRoomId(roomId);
-    await Promise.allSettled(Array.from(this.routes.values(), async (route) => {
-      route.status = 'probing';
-      this.bindRoute(route);
-      try {
-        await route.transport.connect(logicalRoomId);
-        route.status = 'ready';
-        this.emitDiagnosticsChange();
-      } catch (error) {
-        route.status = 'failed';
-        route.error = error instanceof Error ? error.message : 'Unable to connect route.';
-        this.emitDiagnosticsChange();
+    const routeConnections = Array.from(this.routes.values(), (route) => this.connectRoute(route, logicalRoomId, epoch));
+    await this.waitForFirstReadyRoute(routeConnections);
+  }
+
+  private async connectRoute(route: RouteState, logicalRoomId: string, epoch: number): Promise<P2PTransportStrategy> {
+    const connectAttempt = route.connectAttempt + 1;
+    route.connectAttempt = connectAttempt;
+    route.status = 'probing';
+    route.error = undefined;
+    this.bindRoute(route);
+    this.emitDiagnosticsChange();
+    try {
+      await route.transport.connect(logicalRoomId);
+      if (this.connectionEpoch !== epoch) {
+        await this.disconnectStaleRoute(route, connectAttempt);
+        throw new Error('Stale P2P route connection.');
       }
-    }));
-    if (!Array.from(this.routes.values()).some((route) => route.status === 'ready')) {
-      throw new Error('No P2P signaling routes are available.');
+      route.status = 'ready';
+      this.emitDiagnosticsChange();
+      return route.strategy;
+    } catch (error) {
+      if (this.connectionEpoch !== epoch) {
+        throw error;
+      }
+      route.status = 'failed';
+      route.error = error instanceof Error ? error.message : 'Unable to connect route.';
+      this.emitDiagnosticsChange();
+      throw error;
     }
   }
 
+  private async waitForFirstReadyRoute(routeConnections: Array<Promise<P2PTransportStrategy>>): Promise<void> {
+    if (routeConnections.length === 0) {
+      throw new Error('No P2P signaling routes are available.');
+    }
+    await new Promise<void>((resolve, reject) => {
+      let pending = routeConnections.length;
+      let settled = false;
+      routeConnections.forEach((connection) => {
+        connection.then(() => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        }).catch(() => {
+          pending -= 1;
+          if (!settled && pending === 0) {
+            reject(new Error('No P2P signaling routes are available.'));
+          }
+        });
+      });
+    });
+  }
+
+  private async disconnectStaleRoute(route: RouteState, connectAttempt: number): Promise<void> {
+    if (route.connectAttempt !== connectAttempt) {
+      return;
+    }
+    route.unsubscriptions.splice(0).forEach((unsubscribe) => unsubscribe());
+    await route.transport.disconnect().catch(() => undefined);
+    route.status = 'probing';
+    route.lastSeenAt = null;
+    route.rttMs = null;
+    route.error = undefined;
+  }
+
   async disconnect(): Promise<void> {
+    this.connectionEpoch += 1;
     this.pendingAcks.forEach((pending) => {
       window.clearTimeout(pending.timeout);
       pending.resolve(null);
@@ -319,8 +379,8 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     route.status = 'ready';
     route.lastSeenAt = Date.now();
     const logicalPeerId = envelope.sender.peerId;
-    if (physicalPeerId) {
-      this.rememberRoutePeer(route.strategy, logicalPeerId, physicalPeerId);
+    if (physicalPeerId && !this.rememberRoutePeer(route.strategy, logicalPeerId, physicalPeerId)) {
+      return;
     }
     if (isRouteAck(envelope.payload)) {
       this.handleAck(route, logicalPeerId, envelope.payload);
@@ -335,12 +395,17 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
       return;
     }
     this.activateRoute(logicalPeerId, route.strategy, { force: envelope.channel === 'data' });
-    this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: logicalPeerId }));
+    const verifiedSourcePeerId = physicalPeerId ? routePeerKey(route.strategy, physicalPeerId) : logicalPeerId;
+    this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: logicalPeerId, verifiedSourcePeerId }));
   }
 
-  private rememberRoutePeer(strategy: P2PTransportStrategy, logicalPeerId: string, physicalPeerId: string): void {
+  private rememberRoutePeer(strategy: P2PTransportStrategy, logicalPeerId: string, physicalPeerId: string): boolean {
     const key = routePeerKey(strategy, physicalPeerId);
-    const wasKnown = this.logicalPeerByPhysicalPeer.has(key);
+    const knownLogicalPeerId = this.logicalPeerByPhysicalPeer.get(key);
+    if (knownLogicalPeerId && knownLogicalPeerId !== logicalPeerId) {
+      return false;
+    }
+    const wasKnown = Boolean(knownLogicalPeerId);
     this.logicalPeerByPhysicalPeer.set(key, logicalPeerId);
     const peersByRoute = this.physicalPeerByLogicalPeer.get(logicalPeerId) ?? new Map<P2PTransportStrategy, string>();
     peersByRoute.set(strategy, physicalPeerId);
@@ -348,6 +413,7 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     if (!wasKnown && !this.activeRouteByPeer.has(logicalPeerId)) {
       this.peerJoinListeners.forEach((listener) => listener(logicalPeerId));
     }
+    return true;
   }
 
   private activateRoute(logicalPeerId: string, strategy: P2PTransportStrategy, options: { force?: boolean } = {}): void {
@@ -649,9 +715,25 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
 
 export function createConfiguredP2PTransport(options: TrysteroP2PTransportOptions = {}): P2PTransportAdapter {
   if (!options.strategy || options.strategy === 'auto') {
-    return new MultiStrategyP2PTransport({ appId: options.appId, mode: 'auto' });
+    return new MultiStrategyP2PTransport({
+      appId: options.appId,
+      supabaseUrl: options.supabaseUrl,
+      supabaseAnonKey: options.supabaseAnonKey,
+      candidates: options.candidates,
+      mode: 'auto'
+    });
   }
   return new TrysteroP2PTransport(options);
+}
+
+export function resolveTrysteroCandidates(options: Pick<MultiStrategyP2PTransportOptions, 'candidates' | 'mode' | 'supabaseAnonKey' | 'supabaseUrl'> = {}): P2PTransportStrategy[] {
+  if (options.mode && options.mode !== 'auto') {
+    return [options.mode];
+  }
+  if (options.candidates) {
+    return options.candidates;
+  }
+  return options.supabaseUrl && options.supabaseAnonKey ? SUPABASE_CANDIDATES : DEFAULT_CANDIDATES;
 }
 
 function routePeerKey(strategy: P2PTransportStrategy, peerId: string): string {
