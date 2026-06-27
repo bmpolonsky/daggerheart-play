@@ -43,6 +43,22 @@ test('call roster does not duplicate message authors already present in table pa
   assert.equal(participants.filter((participant) => participant.displayName === 'Элина').length, 1);
 });
 
+test('call roster ignores message authors without participant identity', () => {
+  const participants = buildCallParticipants({
+    call: createCallState(),
+    connectedToRoom: true,
+    feedEntries: [
+      createMessageEntry({ authorName: 'Заброшенная роща' })
+    ],
+    sessionPeerId: 'peer-gm',
+    tableParticipants: {
+      'local-gm': createTableParticipant({ id: 'local-gm', name: 'Леся', peerId: 'peer-gm', role: 'gm' })
+    }
+  });
+
+  assert.deepEqual(participants.map((participant) => participant.displayName), ['Леся']);
+});
+
 function createCallState(): MediaCallState {
   return {
     roomId: '4XZCSU',

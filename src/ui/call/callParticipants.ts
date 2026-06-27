@@ -91,14 +91,15 @@ function addMessageParticipants(participants: CallParticipant[], feedEntries: Fe
       const authorName = entry.authorName.trim();
       if (!authorName) return;
       const participantId = entry.participantId?.trim();
+      if (!participantId) return;
       const alreadyListed = participants.some((participant) => {
-        if (participantId && participant.participantId === participantId) return true;
+        if (participant.participantId === participantId) return true;
         return normalizeParticipantName(participant.displayName) === normalizeParticipantName(authorName);
       });
       if (alreadyListed) return;
       participants.push({
         type: 'callPresence',
-        participantId: participantId || `message:${normalizeParticipantName(authorName)}`,
+        participantId,
         displayName: authorName,
         role: 'guest',
         connected: true,
