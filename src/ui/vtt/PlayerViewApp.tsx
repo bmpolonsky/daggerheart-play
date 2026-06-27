@@ -281,7 +281,12 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         style={{ backgroundImage: sceneBackgroundImage }}
       />
       <div className="player-view__scene-dim" aria-hidden="true" />
-      <PlayerConnectionStatus hasCharacter={Boolean(model.character)} hasSessionRoom={Boolean(sessionRoomId)} role={role} />
+      <PlayerConnectionStatus
+        hasCharacter={Boolean(model.character)}
+        hasSelectedPlayerSeat={Boolean(selectedPlayerSeatId)}
+        hasSessionRoom={Boolean(sessionRoomId)}
+        role={role}
+      />
       <PlayerTopBar model={model} role={role} />
       <Tabs className="player-mobile-layer-tabs" label="Слой интерфейса">
         <TabButton active={mobileLayer === 'feed'} onClick={() => setMobileLayer('feed')}>

@@ -1,13 +1,36 @@
 /** @jsxImportSource preact */
+import { useEffect, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { p2pSessionService } from '../../../services/serviceRegistry';
 import type { TableViewRole } from './types';
 
-export function PlayerConnectionStatus({ hasCharacter, hasSessionRoom, role }: { hasCharacter: boolean; hasSessionRoom: boolean; role: TableViewRole }) {
+const INITIAL_SNAPSHOT_OVERLAY_TIMEOUT_MS = 5000;
+
+export function PlayerConnectionStatus({
+  hasCharacter,
+  hasSelectedPlayerSeat,
+  hasSessionRoom,
+  role
+}: {
+  hasCharacter: boolean;
+  hasSelectedPlayerSeat: boolean;
+  hasSessionRoom: boolean;
+  role: TableViewRole;
+}) {
   const p2pSession = useStream(p2pSessionService.session$);
-  const waitingForInitialSnapshot = role === 'player' && hasSessionRoom && !p2pSession.lastSnapshotAt;
+  const hasMasterPeer = p2pSession.role === 'player' && p2pSession.peers.length > 0;
+  const waitingForInitialSnapshot = role === 'player' && hasSessionRoom && hasSelectedPlayerSeat && hasMasterPeer && !p2pSession.lastSnapshotAt;
+  const [initialSnapshotWaitExpired, setInitialSnapshotWaitExpired] = useState(false);
+
+  useEffect(() => {
+    setInitialSnapshotWaitExpired(false);
+    if (!waitingForInitialSnapshot) return;
+    const timeoutId = window.setTimeout(() => setInitialSnapshotWaitExpired(true), INITIAL_SNAPSHOT_OVERLAY_TIMEOUT_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [waitingForInitialSnapshot]);
+
   const showConnectionOverlay = role === 'player' && hasSessionRoom && (
-    waitingForInitialSnapshot ||
+    (waitingForInitialSnapshot && !initialSnapshotWaitExpired) ||
     hasCharacter && (
     !p2pSession.connected ||
     p2pSession.status === 'connecting' ||
