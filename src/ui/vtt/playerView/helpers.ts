@@ -8,6 +8,7 @@ import { defaultCharacterPortraitUrl } from '../../../domain/tabletop/defaultArt
 import { inferBasePathFromWorkspacePath } from '../../../domain/p2p/sessionLinks';
 import { publicAssetUrl } from '../../../domain/content/publicAssets';
 import { classLabel } from '../../../domain/rules/constants';
+import { appBasePath } from '../../../app/routing';
 import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
 
 export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: CharactersState | null = null, adversaries: Record<string, Adversary> | null = null, environments: Record<string, EncounterEnvironment> | null = null): PlayerRosterActor[] {
@@ -313,11 +314,8 @@ export function openWorkspace(workspace: 'combat' | 'cards'): void {
 
 export function openWorkspaceInNewTab(workspace: 'combat' | 'cards'): void {
   if (typeof window === 'undefined') return;
-  const basePath = inferBasePathFromWorkspacePath(window.location.pathname)
-    .replace(/\/tools\/(?:cards|combat)\/?$/, '')
-    .replace(/\/$/, '');
   const route = workspace === 'cards' ? '/tools/cards' : '/tools/combat';
-  const url = new URL(`${basePath}${route}`, window.location.origin);
+  const url = new URL(`${appBasePath()}${route}`, window.location.origin);
   window.open(url.toString(), '_blank', 'noopener,noreferrer');
 }
 
