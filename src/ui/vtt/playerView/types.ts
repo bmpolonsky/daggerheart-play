@@ -14,6 +14,10 @@ export type PlayerRosterActor = {
   subtitle: string;
   imageUrl: string;
   isOnScene: boolean;
+  hidden?: boolean;
+  hope?: { value: number; max: number };
+  hp?: { marked: number; max: number };
+  stress?: { marked: number; max: number };
   activationRequest?: PlayerActivationQueueItem;
   presence?: PlayerPresence;
 };

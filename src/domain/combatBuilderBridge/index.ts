@@ -1,6 +1,6 @@
 import { createAdversary } from '../rules/factories';
 import type { Adversary, AdversaryFeature, AdversaryType, DamageType, EncounterState } from '../rules/types';
-import { inferExplicitAdversaryFeatureCost } from '../rules/adversaries';
+import { battlePointsForAdversaryType, inferExplicitAdversaryFeatureCost } from '../rules/adversaries';
 
 export interface CombatBuilderFeature {
   id: number | string;
@@ -90,7 +90,7 @@ export function buildCoreAdversariesFromCombatBuilder(snapshot: CombatBuilderEnc
 
   return {
     adversaries,
-    battlePointBudget: snapshot.entries.reduce((sum, entry) => sum + Math.max(0, entry.count) * battlePointsForType(coerceType(entry.adversary?.roleId, entry.adversary?.roleName)), 0),
+    battlePointBudget: snapshot.entries.reduce((sum, entry) => sum + Math.max(0, entry.count) * battlePointsForAdversaryType(coerceType(entry.adversary?.roleId, entry.adversary?.roleName)), 0),
     warnings
   };
 }
@@ -288,15 +288,6 @@ function coerceType(roleId = '', roleName = ''): AdversaryType {
   if (TYPE_BY_ROLE[normalized]) return TYPE_BY_ROLE[normalized];
   const byName = Object.values(TYPE_BY_ROLE).find((type) => type.toLowerCase() === roleName.toLowerCase());
   return byName ?? 'Custom';
-}
-
-function battlePointsForType(type: AdversaryType): number {
-  if (type === 'Minion' || type === 'Social' || type === 'Support') return 1;
-  if (type === 'Horde' || type === 'Ranged' || type === 'Skulk' || type === 'Standard') return 2;
-  if (type === 'Leader') return 3;
-  if (type === 'Bruiser') return 4;
-  if (type === 'Solo') return 5;
-  return 2;
 }
 
 function coerceDamageType(input = ''): DamageType {

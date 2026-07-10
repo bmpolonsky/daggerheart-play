@@ -1,7 +1,7 @@
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { pauseSceneMusic, playSceneMusic, setSceneMusicTrack, setSceneMusicVolume, stopSceneMusic } from '../domain/audio/sceneAudio';
-import { arrangedTokenPositionForActor, createLocalParticipant, createTableScene, createTokenState } from '../domain/tabletop/factories';
+import { createLocalParticipant, createTableScene, createTokenState, nextArrangedTokenPositionForActor, randomAvailableTokenPosition } from '../domain/tabletop/factories';
 import {
   autoArrangeTokens,
   DEFAULT_SCENE_HEIGHT,
@@ -27,6 +27,12 @@ export interface ParticipantPresenceInput {
   actorIds?: string[];
   peerId?: string;
   connected: boolean;
+}
+
+export interface AddActorTokenOptions {
+  hidden?: boolean;
+  placement?: 'arranged' | 'random';
+  random?: () => number;
 }
 
 export class SceneTableService {
@@ -227,22 +233,60 @@ export class SceneTableService {
   }
 
   updateTokenFlags(tokenId: string, patch: TokenFlagPatch): TokenState | null {
+    return this.updateTokenFlagsInScene(sceneTableStore.get().activeSceneId, tokenId, patch);
+  }
+
+  updateTokenFlagsInScene(sceneId: string, tokenId: string, patch: TokenFlagPatch): TokenState | null {
     let updated: TokenState | null = null;
-    this.updateActiveScene((scene) => {
-      let changed = false;
-      const tokens = scene.tokens.map((token) => {
-        if (token.id !== tokenId) return token;
-        changed = true;
-        updated = patchTokenFlags(token, patch);
-        return updated;
+    sceneTableStore.update((state) => {
+      const scene = state.scenes[sceneId];
+      if (!scene) return state;
+      const tokenIndex = scene.tokens.findIndex((token) => token.id === tokenId);
+      if (tokenIndex < 0) return state;
+      const tokens = [...scene.tokens];
+      updated = patchTokenFlags(tokens[tokenIndex], patch);
+      tokens[tokenIndex] = updated;
+      return cleanTokenFocus({
+        ...state,
+        scenes: {
+          ...state.scenes,
+          [sceneId]: { ...scene, tokens, updatedAt: nowIso() }
+        },
+        updatedAt: nowIso()
       });
-      return changed ? { ...scene, tokens } : scene;
     });
     return updated;
   }
 
   setTokenHidden(tokenId: string, hidden: boolean): TokenState | null {
     return this.updateTokenFlags(tokenId, { hidden });
+  }
+
+  setTokenHiddenInScene(sceneId: string, tokenId: string, hidden: boolean): TokenState | null {
+    return this.updateTokenFlagsInScene(sceneId, tokenId, { hidden });
+  }
+
+  setActorTokensHidden(actor: ActorRef, hidden: boolean): number {
+    let updatedTokens = 0;
+    sceneTableStore.update((state) => {
+      const updatedAt = nowIso();
+      let changed = false;
+      const scenes = Object.fromEntries(Object.entries(state.scenes).map(([sceneId, scene]) => {
+        let sceneChanged = false;
+        const tokens = scene.tokens.map((token) => {
+          if (token.actor.kind !== actor.kind || token.actor.id !== actor.id || token.hidden === hidden) return token;
+          updatedTokens += 1;
+          sceneChanged = true;
+          return { ...token, hidden };
+        });
+        if (!sceneChanged) return [sceneId, scene];
+        changed = true;
+        return [sceneId, { ...scene, tokens, updatedAt }];
+      }));
+      if (!changed) return state;
+      return cleanTokenFocus({ ...state, scenes, updatedAt });
+    });
+    return updatedTokens;
   }
 
   setTokenLocked(tokenId: string, locked: boolean): TokenState | null {
@@ -253,7 +297,7 @@ export class SceneTableService {
     return this.updateTokenFlags(tokenId, { ownership: { visibility } });
   }
 
-  addActorTokenToScene(sceneId: string, actor: ActorRef): TokenState | null {
+  addActorTokenToScene(sceneId: string, actor: ActorRef, options: AddActorTokenOptions = {}): TokenState | null {
     let placed: TokenState | null = null;
     sceneTableStore.update((state) => {
       const scene = state.scenes[sceneId];
@@ -262,7 +306,8 @@ export class SceneTableService {
       const tokens = existing
         ? scene.tokens.map((token) => {
             if (token.id !== existing.id) return token;
-            const nextToken = token.hidden ? { ...token, hidden: false } : token;
+            const nextHidden = options.hidden ?? false;
+            const nextToken = token.hidden === nextHidden ? token : { ...token, hidden: nextHidden };
             placed = nextToken;
             return nextToken;
           })
@@ -270,7 +315,12 @@ export class SceneTableService {
             ...scene.tokens,
             createTokenState(
               actor,
-              arrangedTokenPositionForActor(actor, scene.tokens.filter((token) => token.actor.kind === actor.kind).length)
+              {
+                ...(options.placement === 'random'
+                  ? randomAvailableTokenPosition(scene.tokens, options.random)
+                  : nextArrangedTokenPositionForActor(actor, scene.tokens)),
+                hidden: options.hidden ?? false
+              }
             )
           ];
       if (!placed) placed = tokens[tokens.length - 1] ?? null;

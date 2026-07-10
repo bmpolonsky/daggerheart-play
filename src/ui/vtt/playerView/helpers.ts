@@ -9,6 +9,7 @@ import { inferBasePathFromWorkspacePath } from '../../../domain/p2p/sessionLinks
 import { publicAssetUrl } from '../../../domain/content/publicAssets';
 import { classLabel } from '../../../domain/rules/constants';
 import { appBasePath } from '../../../app/routing';
+import { buildEffectiveCharacterStats } from '../../../domain/rules/effects';
 import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
 
 export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: CharactersState | null = null, adversaries: Record<string, Adversary> | null = null, environments: Record<string, EncounterEnvironment> | null = null): PlayerRosterActor[] {
@@ -26,7 +27,8 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
     name: token.name,
     subtitle: token.subtitle,
     imageUrl: token.imageUrl,
-    isOnScene: true
+    isOnScene: true,
+    hidden: token.hidden
   }));
   if (characters) {
     characters.order.forEach((id) => {
@@ -42,7 +44,8 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
         name: character.name,
         subtitle: `${classLabel(character.className)} ${character.level}`,
         imageUrl: defaultCharacterPortraitUrl(character),
-        isOnScene: placed.has(key)
+        isOnScene: placed.has(key),
+        hidden: false
       });
     });
   }
@@ -58,7 +61,8 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
         name: adversary.name,
         subtitle: `Ранг ${adversary.tier} / ${adversary.type}`,
         imageUrl: adversary.imageUrl ?? '',
-        isOnScene: placed.has(key)
+        isOnScene: placed.has(key),
+        hidden: false
       });
     });
   }
@@ -74,11 +78,32 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
         name: environment.name,
         subtitle: environment.difficulty ? `Сложность ${environment.difficulty}` : 'Окружение',
         imageUrl: environment.imageUrl ?? '',
-        isOnScene: placed.has(key)
+        isOnScene: placed.has(key),
+        hidden: false
       });
     });
   }
-  return actors;
+  if (!characters && !environments) return actors;
+  return actors.map((actor) => {
+    if (actor.kind === 'environment') {
+      const environment = environments?.[actor.actorId];
+      if (!environment) return actor;
+      return {
+        ...actor,
+        subtitle: environment.difficulty ? `Сложность ${environment.difficulty}` : 'Окружение'
+      };
+    }
+    if (actor.kind !== 'character') return actor;
+    const character = characters?.entities[actor.actorId];
+    if (!character) return actor;
+    const effective = buildEffectiveCharacterStats(character);
+    return {
+      ...actor,
+      hope: { ...effective.hope },
+      hp: { ...effective.hp },
+      stress: { ...effective.stress }
+    };
+  });
 }
 
 export function buildSessionRosterActors(input: {
@@ -164,7 +189,7 @@ export function toolTabLabel(tab: SharedToolsTab): string {
   const labels: Record<SharedToolsTab, string> = {
     scenes: 'Сцены',
     characters: 'Персонажи',
-    combat: 'Конструктор боя',
+    combat: 'Бой',
     cards: 'Редактор карт',
     library: 'Компендиумы',
     notes: 'Заметки',

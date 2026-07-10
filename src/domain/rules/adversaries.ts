@@ -1,5 +1,5 @@
 import { clamp, toSafeInteger } from '../../core/utils/clamp';
-import type { AdversaryFeature } from './types';
+import type { AdversaryFeature, AdversaryType } from './types';
 
 export interface AdversaryFeatureCost {
   fear: number;
@@ -9,6 +9,15 @@ export interface AdversaryFeatureCost {
 export interface ExplicitAdversaryFeatureCost {
   kind?: Extract<AdversaryFeature['kind'], 'fear'>;
   cost: string;
+}
+
+export function battlePointsForAdversaryType(type: AdversaryType): number {
+  if (type === 'Minion' || type === 'Social' || type === 'Support') return 1;
+  if (type === 'Horde' || type === 'Ranged' || type === 'Skulk' || type === 'Standard') return 2;
+  if (type === 'Leader') return 3;
+  if (type === 'Bruiser') return 4;
+  if (type === 'Solo') return 5;
+  return 2;
 }
 
 export function inferExplicitAdversaryFeatureCost(input: string): ExplicitAdversaryFeatureCost {

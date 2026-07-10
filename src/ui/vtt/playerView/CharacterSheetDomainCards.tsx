@@ -4,10 +4,6 @@ import type { PlayerViewDomainCard } from "./domainCards/types";
 import { AssetImage } from "../../components/common/AssetImage";
 import { ListItem } from "../../components/common/ListItem";
 
-type EventWithTarget = {
-  target: EventTarget | null;
-};
-
 export function CharacterSheetDomainCards({
   cards,
   onPreview,
@@ -17,12 +13,6 @@ export function CharacterSheetDomainCards({
   onPreview: (cardId: string) => void;
   onTokenChange: (cardId: string, value: number) => void;
 }) {
-  const openCardPreview = (event: EventWithTarget, cardId: string) => {
-    const target = event.target;
-    if (target instanceof HTMLElement && target.closest('button, input, select, textarea, a')) return;
-    onPreview(cardId);
-  };
-
   return (
     <>
       {cards.map((card) => (
@@ -41,14 +31,7 @@ export function CharacterSheetDomainCards({
               onSet={(next) => onTokenChange(card.id, next)}
             />
           )}
-          onClick={(event) => openCardPreview(event, card.id)}
-          onKeyDown={(event) => {
-            const target = event.target;
-            if (target instanceof HTMLElement && target.closest('button, input, select, textarea, a')) return;
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            onPreview(card.id);
-          }}
+          onClick={() => onPreview(card.id)}
         />
       ))}
     </>

@@ -25,6 +25,7 @@ import {
   SharedToolsNotesTab,
   SharedToolsScenesTab
 } from './SharedToolsTabs';
+import { SharedToolsCombatTab } from './sharedTools/SharedToolsCombatTab';
 import type { SharedToolsTab, TableViewRole } from './types';
 import type { ContentCollectionKey } from '../../../domain/content/types';
 import './player-tools.css';
@@ -56,18 +57,10 @@ export function SharedToolsModal({
   const specialTabs: SharedToolsTab[] = role === 'gm' ? ['combat', 'cards'] : [];
   const gameLibraryTabs = role === 'gm' ? GM_GAME_LIBRARY_TABS : PLAYER_GAME_LIBRARY_TABS;
   const standaloneTabs = tabs.filter((item) => !gameLibraryTabs.includes(item));
-  const game = useStream(gameService.game$);
-  const characters = useStream(characterService.characters$);
-  const encounter = useStream(encounterService.encounter$);
-  const sceneTable = useStream(sceneTableService.sceneTable$);
   const content = useStream(contentService.content$);
   const libraryView = contentService.buildLibraryView(content);
   const compendiumCollections = role === 'player' ? PLAYER_COMPENDIUM_COLLECTIONS : COMPENDIUM_COLLECTIONS;
   const activeTab = tabs.includes(tab) ? tab : tabs[0];
-  const characterOptions = characters.order.map((id) => characters.entities[id]).filter(Boolean);
-  const playerSeats = Object.values(sceneTable.participants).filter((participant) => participant.role === 'player');
-  const scenes = sceneTable.sceneOrder.map((id) => sceneTable.scenes[id]).filter(Boolean);
-  const [characterBuilderOpen, setCharacterBuilderOpen] = useState(false);
   const [gameNavCollapsed, setGameNavCollapsed] = useState(!gameLibraryTabs.includes(activeTab));
   const [compendiumNavCollapsed, setCompendiumNavCollapsed] = useState(activeTab !== 'library');
   const [settingsNavCollapsed, setSettingsNavCollapsed] = useState(activeTab !== 'settings');
@@ -102,15 +95,6 @@ export function SharedToolsModal({
       onTabChange('settings');
     }
   };
-  const createCharacterFromBuilder = (input: Partial<Character> & { className?: DaggerheartClass }) => {
-    const { character } = tabletopService.createCharacterOnActiveScene(input);
-    sceneTableService.createPlayerSeat({
-      name: character.name,
-      characterId: character.id
-    });
-    setCharacterBuilderOpen(false);
-  };
-
   return (
     <section className="player-tools-modal" role="dialog" aria-modal="true" aria-label="Библиотека">
       <div className="player-tools-modal__backdrop" onClick={onClose} />
@@ -193,51 +177,114 @@ export function SharedToolsModal({
                 if (item === 'combat' || item === 'cards') openWorkspaceInNewTab(item);
               }}
             >
-              {toolTabLabel(item)}
+              {externalToolTabLabel(item)}
             </TabButton>
           ))}
         </Tabs>
         <div className="player-tools-modal__body" role="region" aria-label="Содержимое библиотеки">
           {activeTab === 'scenes' && (
-            <SharedToolsScenesTab
-              characters={characters.entities}
-              encounter={encounter}
-              scenes={scenes}
-            />
+            <SharedToolsScenesTabHost />
           )}
           {activeTab === 'characters' && role === 'gm' && (
-            <SharedToolsCharactersTab
-              characterBuilderOpen={characterBuilderOpen}
-              characterOptions={characterOptions}
-              content={content}
-              onCharacterBuilderClose={() => setCharacterBuilderOpen(false)}
-              onCharacterBuilderCreate={createCharacterFromBuilder}
-              onCharacterBuilderOpen={() => setCharacterBuilderOpen(true)}
-              playerSeats={playerSeats}
-              sceneTable={sceneTable}
-            />
+            <SharedToolsCharactersTabHost />
+          )}
+          {activeTab === 'combat' && role === 'gm' && (
+            <SharedToolsCombatTab />
           )}
           {activeTab === 'library' && (
             <SharedToolsLibraryTab libraryView={libraryView} targetCharacterId={targetCharacterId} />
           )}
           {activeTab === 'notes' && role === 'gm' && (
-            <SharedToolsNotesTab game={game} />
+            <SharedToolsNotesTabHost />
           )}
           {activeTab === 'handouts' && (
-            <SharedToolsHandoutsTab game={game} role={role} />
+            <SharedToolsHandoutsTabHost role={role} />
           )}
           {activeTab === 'settings' && (
-            <SharedToolsSettingsTab
-              activeSection={normalizedSettingsSection}
-              game={game}
-              characterOptions={characterOptions}
-              playerSeats={playerSeats}
-              role={role}
-            />
+            <SharedToolsSettingsTabHost activeSection={normalizedSettingsSection} role={role} />
           )}
         </div>
       </Surface>
     </section>
+  );
+}
+
+function SharedToolsScenesTabHost() {
+  const characters = useStream(characterService.characters$);
+  const encounter = useStream(encounterService.encounter$);
+  const sceneTable = useStream(sceneTableService.sceneTable$);
+  const scenes = sceneTable.sceneOrder.map((id) => sceneTable.scenes[id]).filter(Boolean);
+
+  return (
+    <SharedToolsScenesTab
+      characters={characters.entities}
+      encounter={encounter}
+      scenes={scenes}
+    />
+  );
+}
+
+function SharedToolsCharactersTabHost() {
+  const characters = useStream(characterService.characters$);
+  const content = useStream(contentService.content$);
+  const sceneTable = useStream(sceneTableService.sceneTable$);
+  const characterOptions = characters.order.map((id) => characters.entities[id]).filter(Boolean);
+  const playerSeats = Object.values(sceneTable.participants).filter((participant) => participant.role === 'player');
+  const [characterBuilderOpen, setCharacterBuilderOpen] = useState(false);
+  const createCharacterFromBuilder = (input: Partial<Character> & { className?: DaggerheartClass }) => {
+    const { character } = tabletopService.createCharacterOnActiveScene(input);
+    sceneTableService.createPlayerSeat({
+      name: character.name,
+      characterId: character.id
+    });
+    setCharacterBuilderOpen(false);
+  };
+
+  return (
+    <SharedToolsCharactersTab
+      characterBuilderOpen={characterBuilderOpen}
+      characterOptions={characterOptions}
+      content={content}
+      onCharacterBuilderClose={() => setCharacterBuilderOpen(false)}
+      onCharacterBuilderCreate={createCharacterFromBuilder}
+      onCharacterBuilderOpen={() => setCharacterBuilderOpen(true)}
+      playerSeats={playerSeats}
+      sceneTable={sceneTable}
+    />
+  );
+}
+
+function SharedToolsNotesTabHost() {
+  const game = useStream(gameService.game$);
+  return <SharedToolsNotesTab game={game} />;
+}
+
+function SharedToolsHandoutsTabHost({ role }: { role: TableViewRole }) {
+  const game = useStream(gameService.game$);
+  return <SharedToolsHandoutsTab game={game} role={role} />;
+}
+
+function SharedToolsSettingsTabHost({
+  activeSection,
+  role
+}: {
+  activeSection: SettingsSectionId;
+  role: TableViewRole;
+}) {
+  const game = useStream(gameService.game$);
+  const characters = useStream(characterService.characters$);
+  const sceneTable = useStream(sceneTableService.sceneTable$);
+  const characterOptions = characters.order.map((id) => characters.entities[id]).filter(Boolean);
+  const playerSeats = Object.values(sceneTable.participants).filter((participant) => participant.role === 'player');
+
+  return (
+    <SharedToolsSettingsTab
+      activeSection={activeSection}
+      game={game}
+      characterOptions={characterOptions}
+      playerSeats={playerSeats}
+      role={role}
+    />
   );
 }
 
@@ -411,9 +458,13 @@ function renderNavItem(
           onTabChange(item);
         }}
       >
-        <span>{toolTabLabel(item)}</span>
+        <span>{external ? externalToolTabLabel(item) : toolTabLabel(item)}</span>
         {external && <ExternalLink size={14} aria-hidden="true" />}
       </NavButton>
     </div>
   );
+}
+
+function externalToolTabLabel(item: SharedToolsTab): string {
+  return item === 'combat' ? 'Конструктор боя' : toolTabLabel(item);
 }

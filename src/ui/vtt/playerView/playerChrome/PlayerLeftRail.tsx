@@ -61,8 +61,16 @@ export function PlayerLeftRail({
   const hasClearableActivity = activity.some((event) => event.id !== 'feed-empty');
 
   useEffect(() => {
-    activityRef.current?.scrollTo({ top: activityRef.current.scrollHeight });
-  }, [visibleActivity.length]);
+    const frame = window.requestAnimationFrame(() => {
+      const activityElement = activityRef.current;
+      if (!activityElement) return;
+      activityElement.scrollTo({
+        top: activityElement.scrollHeight,
+        behavior: ephemeralFeedItem ? 'smooth' : 'auto'
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [ephemeralFeedItem?.id, visibleActivity.length]);
 
   useEffect(() => {
     setRevealedRollIds((current) => unrevealedRollIdsFromCompleted(current, completedDiceRollIds) ?? current);

@@ -39,9 +39,9 @@ export function SidebarContainer() {
 
   const customItemsCount = useMemo(() => items.filter((item) => item.isCustom).length, [items]);
 
-  const handleExportCustom = () => {
+  const handleExportCustom = async () => {
     try {
-      const content = adversariesService.exportCustomAdversaries();
+      const content = await adversariesService.exportCustomAdversaries();
       const blob = new Blob([content], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -63,7 +63,7 @@ export function SidebarContainer() {
     if (!file) return;
 
     try {
-      const importedCount = adversariesService.importCustomAdversaries(await file.text());
+      const importedCount = await adversariesService.importCustomAdversaries(await file.text());
       setCatalogNotice({ tone: "info", message: `Импортировано: ${importedCount}` });
     } catch (err) {
       setCatalogNotice({

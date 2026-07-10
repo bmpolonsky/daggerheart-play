@@ -18,4 +18,8 @@ export type LibraryEntry = {
   stats: string[];
   sections: LibraryDetailSection[];
   actions: LibraryDetailAction[];
+  custom?: {
+    kind: 'adversary' | 'environment';
+    id: string;
+  };
 };

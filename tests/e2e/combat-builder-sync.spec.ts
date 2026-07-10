@@ -24,21 +24,16 @@ async function addRedOoze(page: Page): Promise<void> {
   await redOoze.getByTitle('Добавить в бой').click();
 }
 
-async function openNpcRoster(page: Page): Promise<void> {
-  await page.locator('.player-roster-tabs').getByRole('button', { name: 'Сцена' }).click();
-}
-
 test.describe('combat builder sync', () => {
-  test('uses the core encounter as the shared source for builder and GM tabs', async ({ context }) => {
+  test('uses the core encounter as the shared source for builder and the unified GM roster', async ({ context }) => {
     const builder = await openCombatBuilder(context);
     const gm = await openGmTable(context);
 
-    await openNpcRoster(gm);
-    await expect(gm.locator('.player-roster-empty')).toContainText('На сцене еще никого нет.');
+    await expect(gm.locator('.player-participant-feed__empty')).toContainText('Участников пока нет');
 
     await addRedOoze(builder);
     await expect(builder.locator('.combat-encounter-panel')).toContainText('1 противников');
-    await expect(gm.locator('.player-roster__row').filter({ hasText: 'Алая Слизь' })).toBeVisible();
+    await expect(gm.locator('.player-combat-tracker__entry').filter({ hasText: 'Алая Слизь' })).toBeVisible();
 
     const secondBuilder = await openCombatBuilder(context);
     await expect(secondBuilder.locator('.combat-encounter-panel')).toContainText('Алая Слизь');
@@ -52,6 +47,6 @@ test.describe('combat builder sync', () => {
     await secondBuilder.getByTitle('Уменьшить / Удалить').first().click();
 
     await expect(builder.locator('.combat-encounter-panel')).toContainText('0 противников');
-    await expect(gm.locator('.player-roster-empty')).toContainText('На сцене еще никого нет.');
+    await expect(gm.locator('.player-participant-feed__empty')).toContainText('Участников пока нет');
   });
 });

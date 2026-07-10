@@ -18,6 +18,7 @@ import type {
   ApiPayload,
   ContentCollectionKey,
   ContentManifest,
+  ContentSourceFilter,
   ContentState,
   GenericLibraryItem,
   LibraryAdversary,
@@ -43,7 +44,9 @@ export interface ContentLibraryView {
   selectedCollection: ContentCollectionKey;
   title: string;
   searchTerm: string;
+  sourceFilter: ContentSourceFilter;
   tierFilter: number | 'all';
+  levelFilter: number | 'all';
   isLoading: boolean;
   error: string | null;
   lastLoadedAt: string | null;
@@ -59,6 +62,7 @@ export interface ContentLibraryView {
   genericItems: GenericLibraryItem[];
   collectionCounts: Record<ContentCollectionKey, number>;
   tierOptions: number[];
+  levelOptions: number[];
 }
 
 export class ContentService {
@@ -111,18 +115,23 @@ export class ContentService {
 
       const customAdversaries = customContent.adversaries
         .filter(isRawAdversary)
+        .map(markCustomRawAdversary)
         .map((item) => mapRawAdversary(item));
+      const customEnvironments = (customContent.environments ?? [])
+        .filter(isRawEnvironment)
+        .map(markCustomRawEnvironment)
+        .map((item) => mapRawEnvironmentItem(item));
       const customCards = readRawCustomCardCollections(customContent);
       const adversaries = [...customAdversaries, ...(adversaryPayload.data ?? []).map(mapRawAdversary)].sort(sortAdversaries);
       const classes = (classesPayload.data ?? []).map(mapRawClassItem).sort(sortClasses);
       const rules = (rulesPayload.data ?? []).map(mapRawRuleItem).filter((item) => !item.hidden).sort(sortRules);
-      const environments = (environmentsPayload.data ?? []).map(mapRawEnvironmentItem).sort(sortEnvironments);
+      const environments = [...customEnvironments, ...(environmentsPayload.data ?? []).map(mapRawEnvironmentItem)].sort(sortEnvironments);
       const beastforms = (beastformsPayload.data ?? []).map(mapRawBeastformItem).sort(sortBeastforms);
       const generic = {
-        ancestries: [...(ancestriesPayload.data ?? []), ...customCards.ancestries].map((item) => mapGenericItem(item, 'ancestry')).sort(sortGenericItems),
-        communities: [...(communitiesPayload.data ?? []), ...customCards.communities].map((item) => mapGenericItem(item, 'community')).sort(sortGenericItems),
-        subclasses: [...(subclassesPayload.data ?? []), ...customCards.subclasses].map((item) => mapGenericItem(item, 'subclass')).sort(sortGenericItems),
-        domainCards: [...(domainCardsPayload.data ?? []), ...customCards.domainCards].map((item) => mapGenericItem(item, 'domain-card')).sort(sortGenericItems)
+        ancestries: [...(ancestriesPayload.data ?? []), ...customCards.ancestries.map(markCustomRawContent)].map((item) => mapGenericItem(item, 'ancestry')).sort(sortGenericItems),
+        communities: [...(communitiesPayload.data ?? []), ...customCards.communities.map(markCustomRawContent)].map((item) => mapGenericItem(item, 'community')).sort(sortGenericItems),
+        subclasses: [...(subclassesPayload.data ?? []), ...customCards.subclasses.map(markCustomRawContent)].map((item) => mapGenericItem(item, 'subclass')).sort(sortGenericItems),
+        domainCards: [...(domainCardsPayload.data ?? []), ...customCards.domainCards.map(markCustomRawContent)].map((item) => mapGenericItem(item, 'domain-card')).sort(sortGenericItems)
       };
       const equipment = (equipmentPayload.data ?? []).map(mapRawEquipmentItem).sort(sortEquipment);
 
@@ -154,7 +163,7 @@ export class ContentService {
   }
 
   setSelectedCollection(selectedCollection: ContentCollectionKey): void {
-    contentStore.update((state) => ({ ...state, selectedCollection, searchTerm: '' }));
+    contentStore.update((state) => ({ ...state, selectedCollection, searchTerm: '', sourceFilter: 'all', tierFilter: 'all', levelFilter: 'all' }));
   }
 
   setSearchTerm(searchTerm: string): void {
@@ -163,6 +172,14 @@ export class ContentService {
 
   setTierFilter(tierFilter: number | 'all'): void {
     contentStore.update((state) => ({ ...state, tierFilter }));
+  }
+
+  setLevelFilter(levelFilter: number | 'all'): void {
+    contentStore.update((state) => ({ ...state, levelFilter }));
+  }
+
+  setSourceFilter(sourceFilter: ContentSourceFilter): void {
+    contentStore.update((state) => ({ ...state, sourceFilter, tierFilter: 'all', levelFilter: 'all' }));
   }
 
   addAdversaryToEncounter(libraryAdversaryId: string): boolean {
@@ -207,45 +224,78 @@ export class ContentService {
       domainCards: state.generic.domainCards.length,
       equipment: state.equipment.length
     };
-    const tierOptions = Array.from(new Set(state.adversaries.map((item) => item.tier))).sort((left, right) => left - right);
+    const selectedGeneric = GENERIC_KEYS.includes(state.selectedCollection as GenericCollectionKey)
+      ? state.generic[state.selectedCollection as GenericCollectionKey]
+      : [];
+    const selectedTierItems = tierItemsForCollection(state);
+    const selectedLevelItems = levelItemsForCollection(state, selectedGeneric);
+    const tierOptions = Array.from(new Set(selectedTierItems
+      .filter((item) => sourceMatches(item.raw, state.sourceFilter))
+      .map((item) => item.tier)
+      .filter(isNumber))).sort((left, right) => left - right);
+    const levelOptions = Array.from(new Set(selectedLevelItems
+      .filter((item) => sourceMatches(item.raw, state.sourceFilter))
+      .map((item) => item.level)
+      .filter(isNumber))).sort((left, right) => left - right);
 
     const adversaries = state.adversaries.filter((item) => {
       const matchesSearch = normalizedSearch
         ? normalizeSearch([item.name, item.roleName, item.summary, item.motives, item.experiencesText].join(' ')).includes(normalizedSearch)
         : true;
       const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
-      return matchesSearch && matchesTier;
+      return matchesSearch && matchesTier && sourceMatches(item.raw, state.sourceFilter);
     });
 
-    const classes = state.classes.filter((item) =>
-      normalizedSearch ? normalizeSearch([item.name, item.domains.join(' '), item.body, item.classItems.join(' ')].join(' ')).includes(normalizedSearch) : true
-    );
-    const rules = state.rules.filter((item) =>
-      normalizedSearch ? normalizeSearch([item.name, item.frameName, item.summary, item.body].join(' ')).includes(normalizedSearch) : true
-    );
-    const environments = state.environments.filter((item) =>
-      normalizedSearch ? normalizeSearch([item.name, item.typeName, item.summary, item.body, item.featureText, item.impulses].join(' ')).includes(normalizedSearch) : true
-    );
-    const beastforms = state.beastforms.filter((item) =>
-      normalizedSearch ? normalizeSearch([item.name, item.summary, item.examples, item.advantages, item.featureText].join(' ')).includes(normalizedSearch) : true
-    );
-    const equipment = state.equipment.filter((item) =>
-      normalizedSearch ? normalizeSearch([item.name, item.typeName, item.featureText, item.damageFormula, item.range].join(' ')).includes(normalizedSearch) : true
-    );
+    const classes = state.classes.filter((item) => {
+      const matchesSearch = normalizedSearch
+        ? normalizeSearch([item.name, item.domains.join(' '), item.body, item.classItems.join(' ')].join(' ')).includes(normalizedSearch)
+        : true;
+      return matchesSearch && sourceMatches(item.raw, state.sourceFilter);
+    });
+    const rules = state.rules.filter((item) => {
+      const matchesSearch = normalizedSearch
+        ? normalizeSearch([item.name, item.frameName, item.summary, item.body].join(' ')).includes(normalizedSearch)
+        : true;
+      return matchesSearch && sourceMatches(item.raw, state.sourceFilter);
+    });
+    const environments = state.environments.filter((item) => {
+      const matchesSearch = normalizedSearch
+        ? normalizeSearch([item.name, item.typeName, item.summary, item.body, item.featureText, item.impulses].join(' ')).includes(normalizedSearch)
+        : true;
+      const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
+      return matchesSearch && matchesTier && sourceMatches(item.raw, state.sourceFilter);
+    });
+    const beastforms = state.beastforms.filter((item) => {
+      const matchesSearch = normalizedSearch
+        ? normalizeSearch([item.name, item.summary, item.examples, item.advantages, item.featureText].join(' ')).includes(normalizedSearch)
+        : true;
+      const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
+      const matchesLevel = state.levelFilter === 'all' || item.level === state.levelFilter;
+      return matchesSearch && matchesTier && matchesLevel && sourceMatches(item.raw, state.sourceFilter);
+    });
+    const equipment = state.equipment.filter((item) => {
+      const matchesSearch = normalizedSearch
+        ? normalizeSearch([item.name, item.typeName, item.featureText, item.damageFormula, item.range].join(' ')).includes(normalizedSearch)
+        : true;
+      const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
+      return matchesSearch && matchesTier && sourceMatches(item.raw, state.sourceFilter);
+    });
 
-    const selectedGeneric = GENERIC_KEYS.includes(state.selectedCollection as GenericCollectionKey)
-      ? state.generic[state.selectedCollection as GenericCollectionKey]
-      : [];
-
-    const genericItems = selectedGeneric.filter((item) =>
-      normalizedSearch ? normalizeSearch([item.name, item.subtitle, item.body].join(' ')).includes(normalizedSearch) : true
-    );
+    const genericItems = selectedGeneric.filter((item) => {
+      const matchesSearch = normalizedSearch
+        ? normalizeSearch([item.name, item.subtitle, item.body].join(' ')).includes(normalizedSearch)
+        : true;
+      const matchesLevel = state.levelFilter === 'all' || item.level === state.levelFilter;
+      return matchesSearch && matchesLevel && sourceMatches(item.raw, state.sourceFilter);
+    });
 
     return {
       selectedCollection: state.selectedCollection,
       title: collectionTitle(state.selectedCollection),
       searchTerm: state.searchTerm,
+      sourceFilter: state.sourceFilter,
       tierFilter: state.tierFilter,
+      levelFilter: state.levelFilter,
       isLoading: state.isLoading,
       error: state.error,
       lastLoadedAt: state.lastLoadedAt,
@@ -260,7 +310,8 @@ export class ContentService {
       equipment,
       genericItems,
       collectionCounts,
-      tierOptions
+      tierOptions,
+      levelOptions
     };
   }
 
@@ -335,6 +386,73 @@ function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function markCustomRawContent(item: RawContentItem): RawContentItem {
+  const sourceSlugs = Array.isArray(item.source_slugs) ? item.source_slugs : [];
+  return sourceSlugs.includes('custom') ? item : { ...item, source_slugs: [...sourceSlugs, 'custom'] };
+}
+
+function markCustomRawAdversary(item: RawAdversary): RawAdversary {
+  const sourceSlugs = Array.isArray(item.source_slugs) ? item.source_slugs : [];
+  return sourceSlugs.includes('custom') ? item : { ...item, source_slugs: [...sourceSlugs, 'custom'] };
+}
+
+function markCustomRawEnvironment(item: RawEnvironmentItem): RawEnvironmentItem {
+  const sourceSlugs = Array.isArray(item.source_slugs) ? item.source_slugs : [];
+  return sourceSlugs.includes('custom') ? item : { ...item, source_slugs: [...sourceSlugs, 'custom'] };
+}
+
+function sourceMatches(raw: { source_slugs?: unknown }, filter: ContentSourceFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'homebrew') return isCustomSource(raw.source_slugs);
+  if (filter === 'core') return isCorebookSource(raw.source_slugs);
+  return isVoidSource(raw.source_slugs);
+}
+
+function isCustomSource(sourceSlugs: unknown): boolean {
+  return Array.isArray(sourceSlugs) && sourceSlugs.includes('custom');
+}
+
+function isCorebookSource(sourceSlugs: unknown): boolean {
+  return Array.isArray(sourceSlugs) && sourceSlugs.some((source) => source === 'core' || source === 'srd');
+}
+
+function isVoidSource(sourceSlugs: unknown): boolean {
+  return Array.isArray(sourceSlugs) && sourceSlugs.includes('playtest-the-void');
+}
+
+function tierItemsForCollection(state: ContentState): Array<{ tier: number | null; raw: { source_slugs?: unknown } }> {
+  switch (state.selectedCollection) {
+    case 'adversaries':
+      return state.adversaries;
+    case 'environments':
+      return state.environments;
+    case 'beastforms':
+      return state.beastforms;
+    case 'equipment':
+      return state.equipment;
+    default:
+      return [];
+  }
+}
+
+function levelItemsForCollection(state: ContentState, selectedGeneric: GenericLibraryItem[]): Array<{ level?: number | null; raw: { source_slugs?: unknown } }> {
+  switch (state.selectedCollection) {
+    case 'beastforms':
+      return state.beastforms;
+    case 'ancestries':
+    case 'communities':
+    case 'subclasses':
+    case 'domainCards':
+      return selectedGeneric;
+    default:
+      return [];
+  }
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 function sortAdversaries(left: LibraryAdversary, right: LibraryAdversary): number {
   if (left.tier !== right.tier) return left.tier - right.tier;
   return left.name.localeCompare(right.name, 'ru');
@@ -344,6 +462,12 @@ function isRawAdversary(value: unknown): value is RawAdversary {
   if (!value || typeof value !== 'object') return false;
   const adversary = value as Record<string, unknown>;
   return typeof adversary.name === 'string' && adversary.name.trim().length > 0;
+}
+
+function isRawEnvironment(value: unknown): value is RawEnvironmentItem {
+  if (!value || typeof value !== 'object') return false;
+  const environment = value as Record<string, unknown>;
+  return typeof environment.name === 'string' && environment.name.trim().length > 0;
 }
 
 function sortGenericItems(left: GenericLibraryItem, right: GenericLibraryItem): number {

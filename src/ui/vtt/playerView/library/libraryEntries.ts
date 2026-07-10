@@ -61,6 +61,9 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
     imageUrl: item.imageUrl,
     stats,
     sections,
+    custom: isCustomLibrarySource(item.raw.source_slugs) && item.sourceId !== undefined
+      ? { kind: 'adversary', id: String(item.sourceId) }
+      : undefined,
     actions: [
       {
         label: 'Добавить в столкновение',
@@ -123,6 +126,9 @@ function environmentEntry(item: LibraryEnvironment): LibraryEntry {
     imageUrl: item.imageUrl,
     stats,
     sections,
+    custom: isCustomLibrarySource(item.raw.source_slugs)
+      ? { kind: 'environment', id: item.id }
+      : undefined,
     actions: [
       {
         label: 'Добавить в столкновение',
@@ -263,6 +269,10 @@ function equipmentActionMessage(item: LibraryEquipmentItem, characterName: strin
   if (item.type === 'armor') return `${item.name} надето: ${characterName}`;
   if (item.type === 'primary-weapon' || item.type === 'secondary-weapon') return `${item.name} экипировано: ${characterName}`;
   return `${item.name} добавлено в инвентарь: ${characterName}`;
+}
+
+function isCustomLibrarySource(sourceSlugs: unknown): boolean {
+  return Array.isArray(sourceSlugs) && sourceSlugs.includes('custom');
 }
 
 function compactSections(sections: Array<[string, string]>): LibraryDetailSection[] {

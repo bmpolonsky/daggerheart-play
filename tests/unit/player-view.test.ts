@@ -342,6 +342,10 @@ test('player session roster exposes only the assigned character', () => {
     presence: {}
   });
   assert.ok(gmRoster.some((actor) => actor.actorId === other.id));
+  const ownGmActor = gmRoster.find((actor) => actor.actorId === own.id);
+  assert.deepEqual(ownGmActor?.hope, own.hope);
+  assert.deepEqual(ownGmActor?.hp, own.hp);
+  assert.deepEqual(ownGmActor?.stress, own.stress);
 });
 
 test('player view model exposes adversary details only to GM role', () => {
@@ -413,8 +417,21 @@ test('player view model exposes environment tokens but keeps environment details
   };
 
   const playerModel = buildPlayerViewModel({ ...baseInput, role: 'player' });
+  const gmModel = buildPlayerViewModel({ ...baseInput, role: 'gm' });
 
   assert.deepEqual(playerModel.tokens.map((token) => `${token.kind}:${token.name}`), ['environment:Штормовой мост']);
+  assert.equal(playerModel.tokens[0]?.subtitle, '');
+  assert.equal(gmModel.tokens[0]?.subtitle, '');
+  const gmRoster = buildSessionRosterActors({
+    tokens: gmModel.tokens,
+    characters: charactersStore.get(),
+    adversaries: encounterService.encounter$.get().adversaries,
+    environments: encounterService.encounter$.get().environments,
+    role: 'gm',
+    activationQueue: [],
+    presence: {}
+  });
+  assert.equal(gmRoster.find((actor) => actor.actorId === environment.id)?.subtitle, 'Сложность 15');
   assert.equal(encounterService.encounter$.get().environments[environment.id]?.featureText, '**Потратьте Страх**, чтобы сорвать крепление.');
 });
 

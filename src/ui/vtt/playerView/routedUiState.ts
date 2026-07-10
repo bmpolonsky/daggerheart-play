@@ -48,7 +48,7 @@ const SETTINGS_BY_SLUG = Object.fromEntries(
 
 export function sharedToolsTabsForRole(role: TableViewRole): SharedToolsTab[] {
   return role === 'gm'
-    ? ['scenes', 'characters', 'library', 'notes', 'handouts', 'settings']
+    ? ['scenes', 'characters', 'combat', 'library', 'notes', 'handouts', 'settings']
     : ['handouts', 'library', 'settings'];
 }
 
@@ -78,6 +78,14 @@ export function parseRoutedPlayerViewState(pathname: string, role: TableViewRole
       toolsOpen: true,
       toolsTab: 'library',
       libraryCollection: collectionFromSlug(subsection),
+      settingsSection: null
+    };
+  }
+  if (section === 'custom') {
+    return {
+      toolsOpen: true,
+      toolsTab: 'library',
+      libraryCollection: 'adversaries',
       settingsSection: null
     };
   }

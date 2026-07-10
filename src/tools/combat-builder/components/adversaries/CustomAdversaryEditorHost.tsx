@@ -10,24 +10,24 @@ export function CustomAdversaryEditorHost() {
 
   if (!editor) return null;
 
-  const handleSave = (payload: Partial<Adversary>) => {
+  const handleSave = async (payload: Partial<Adversary>) => {
     if (editor.mode === "edit" && editor.adversary) {
-      adversariesService.updateCustomAdversary(editor.adversary.id, payload);
+      await adversariesService.updateCustomAdversary(editor.adversary.id, payload);
       customAdversaryEditorService.close();
       return;
     }
 
-    const adversary = adversariesService.createCustomAdversary(payload);
+    const adversary = await adversariesService.createCustomAdversary(payload);
     customAdversaryEditorService.close();
     adversariesService.openDetails(adversary.id);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!window.confirm("Удалить кастомного противника из каталога? В текущем бою он останется.")) {
       return;
     }
 
-    adversariesService.removeCustomAdversary(id);
+    await adversariesService.removeCustomAdversary(id);
     customAdversaryEditorService.close();
   };
 

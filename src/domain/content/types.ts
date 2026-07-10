@@ -1,6 +1,7 @@
 import type { AdversaryType, DaggerheartClass, DamageType, DomainName, TraitId } from '../rules/types';
 
 export type ContentCollectionKey = 'adversaries' | 'classes' | 'rules' | 'environments' | 'beastforms' | 'ancestries' | 'communities' | 'subclasses' | 'domainCards' | 'equipment';
+export type ContentSourceFilter = 'all' | 'core' | 'void' | 'homebrew';
 
 export interface ApiPayload<T> {
   result?: 'ok' | 'error';
@@ -34,6 +35,7 @@ export interface ContentManifest {
 export interface RawContentItem {
   id?: string | number;
   slug?: string;
+  source_slugs?: string[];
   name?: string;
   title?: string;
   type_name?: string;
@@ -351,7 +353,9 @@ export interface ContentState {
   sourceWarnings: string[];
   selectedCollection: ContentCollectionKey;
   searchTerm: string;
+  sourceFilter: ContentSourceFilter;
   tierFilter: number | 'all';
+  levelFilter: number | 'all';
   adversaries: LibraryAdversary[];
   classes: LibraryClassItem[];
   rules: LibraryRuleEntry[];

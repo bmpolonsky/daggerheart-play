@@ -110,6 +110,20 @@ export function readCustomAdversariesSnapshot(): unknown[] {
   return [...projectContentCache.adversaries];
 }
 
+export async function loadCustomEnvironments(): Promise<unknown[]> {
+  const content = await loadBrowserCustomContent();
+  return [...(content.environments ?? [])];
+}
+
+export function saveCustomEnvironments(environments: unknown[]): void {
+  setProjectContentCache({ ...projectContentCache, environments });
+  void persistCustomContentDocument(customContentStore);
+}
+
+export function readCustomEnvironmentsSnapshot(): unknown[] {
+  return [...(projectContentCache.environments ?? [])];
+}
+
 export function subscribeCustomContentChanges(topic: CustomContentTopic, listener: () => void): () => void {
   if (!customContentStore) {
     return () => undefined;
@@ -191,7 +205,8 @@ function cloneProjectContent(content: GameCustomContent): GameCustomContent {
     subclasses: [...content.subclasses],
     domainCards: [...content.domainCards],
     cardDomains: [...content.cardDomains],
-    adversaries: [...content.adversaries]
+    adversaries: [...content.adversaries],
+    environments: [...(content.environments ?? [])]
   };
 }
 
@@ -210,7 +225,8 @@ function isEmptyCustomContentDocument(document: BrowserCustomContentDocument): b
     document.subclasses.length === 0 &&
     document.domainCards.length === 0 &&
     document.cardDomains.length === 0 &&
-    document.adversaries.length === 0
+    document.adversaries.length === 0 &&
+    (document.environments ?? []).length === 0
   );
 }
 

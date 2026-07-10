@@ -297,7 +297,7 @@ export function buildPlayerTokens(tokens: TokenState[], characters: Record<strin
         actorId: environment.id,
         kind: 'environment',
         name: environment.name,
-        subtitle: role === 'gm' ? environmentSubtitle(environment) : '',
+        subtitle: '',
         imageUrl: environment.imageUrl ?? '',
         x: token.x,
         y: token.y,
@@ -322,11 +322,7 @@ function adversarySubtitle(adversary: Pick<Adversary, 'tier' | 'type'>): string 
   return `Ранг ${adversary.tier} / ${adversaryTypeLabel(adversary.type)}`;
 }
 
-function environmentSubtitle(environment: Pick<EncounterEnvironment, 'difficulty'>): string {
-  return environment.difficulty ? `Сложность ${environment.difficulty}` : 'Окружение';
-}
-
-function adversaryTypeLabel(type: Adversary['type']): string {
+export function adversaryTypeLabel(type: Adversary['type']): string {
   const labels: Record<Adversary['type'], string> = {
     Bruiser: 'Громила',
     Horde: 'Орда',

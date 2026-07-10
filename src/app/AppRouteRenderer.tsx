@@ -38,7 +38,7 @@ export function AppRouteRenderer({ activeLocation, activeRoute, onNavigateRoute 
       {(activeRoute === 'entry' || activeRoute === 'join') && (
         <RoleEntry key={activeLocation} basePath={basePath} onSelectRole={onNavigateRoute} />
       )}
-      {activeRoute === 'game' && <PlayerViewApp key={activeLocation} />}
+      {activeRoute === 'game' && <PlayerViewApp />}
       {activeRoute === 'call' && <CallRoomApp key={activeLocation} basePath={basePath} />}
       {activeRoute === 'combat' && <CombatBuilderTool />}
       {activeRoute === 'cards' && <CardCreatorTool />}

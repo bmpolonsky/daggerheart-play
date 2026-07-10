@@ -71,7 +71,8 @@ test('persistence mirrors the exported game document into IndexedDB with custom 
     subclasses: [],
     domainCards: [{ id: 'custom-card-1', name: 'Custom Card' }],
     cardDomains: [{ id: 'custom-domain-1' }],
-    adversaries: [{ id: 42, name: 'Custom Adversary' }]
+    adversaries: [{ id: 42, name: 'Custom Adversary' }],
+    environments: [{ id: 'custom-environment-1', name: 'Custom Environment' }]
   });
   const fakeWindow = createFakeWindow(memory);
   Object.defineProperty(globalThis, 'window', { value: fakeWindow, configurable: true });
@@ -88,13 +89,14 @@ test('persistence mirrors the exported game document into IndexedDB with custom 
     assert.deepEqual(documentStore.state?.files['content/custom-domain-cards.json'], [{ id: 'custom-card-1', name: 'Custom Card' }]);
     assert.deepEqual(documentStore.state?.files['content/custom-card-domains.json'], [{ id: 'custom-domain-1' }]);
     assert.deepEqual(documentStore.state?.files['content/custom-adversaries.json'], [{ id: 42, name: 'Custom Adversary' }]);
+    assert.deepEqual(documentStore.state?.files['content/custom-environments.json'], [{ id: 'custom-environment-1', name: 'Custom Environment' }]);
     assert.equal(memory.has('daggerheart-play:v3:game:local'), false);
 
     service.resetEverything();
     await Promise.resolve();
     assert.equal(documentStore.state, null);
   } finally {
-    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [] });
+    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [], environments: [] });
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });
@@ -363,7 +365,8 @@ test('persistence hydration does not overwrite custom tool content from game doc
     subclasses: [],
     domainCards: [{ id: 'tool-card-kept', name: 'Tool card kept' }],
     cardDomains: [{ id: 'tool-domain-kept' }],
-    adversaries: [{ id: -42, name: 'Tool adversary kept' }]
+    adversaries: [{ id: -42, name: 'Tool adversary kept' }],
+    environments: [{ id: 'tool-environment-kept', name: 'Tool environment kept' }]
   });
   const originalWindow = globalThis.window;
   const documentStore = new MemoryGameDocumentStore();
@@ -372,6 +375,7 @@ test('persistence hydration does not overwrite custom tool content from game doc
   document.files['content/custom-domain-cards.json'] = [];
   document.files['content/custom-card-domains.json'] = [];
   document.files['content/custom-adversaries.json'] = [];
+  document.files['content/custom-environments.json'] = [];
   documentStore.state = document;
   Object.defineProperty(globalThis, 'window', {
     value: createFakeWindow(),
@@ -387,9 +391,10 @@ test('persistence hydration does not overwrite custom tool content from game doc
     assert.deepEqual(readBrowserCustomContent().domainCards, [{ id: 'tool-card-kept', name: 'Tool card kept' }]);
     assert.deepEqual(readBrowserCustomContent().cardDomains, [{ id: 'tool-domain-kept' }]);
     assert.deepEqual(readBrowserCustomContent().adversaries, [{ id: -42, name: 'Tool adversary kept' }]);
+    assert.deepEqual(readBrowserCustomContent().environments, [{ id: 'tool-environment-kept', name: 'Tool environment kept' }]);
   } finally {
     service?.stop();
-    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [] });
+    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [], environments: [] });
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });

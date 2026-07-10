@@ -14,6 +14,7 @@ export function migrateV0ToV1CustomContentDocument(
     subclasses: Array.isArray(document.subclasses) ? document.subclasses : [],
     domainCards: Array.isArray(document.domainCards) ? document.domainCards : [],
     cardDomains: Array.isArray(document.cardDomains) ? document.cardDomains : [],
-    adversaries: Array.isArray(document.adversaries) ? document.adversaries : []
+    adversaries: Array.isArray(document.adversaries) ? document.adversaries : [],
+    environments: Array.isArray(document.environments) ? document.environments : []
   };
 }

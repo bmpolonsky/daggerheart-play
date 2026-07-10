@@ -15,8 +15,8 @@ interface CustomAdversaryModalProps {
   adversary?: Adversary | null;
   mode?: "create" | "edit";
   onClose: () => void;
-  onSave: (payload: Partial<Adversary>) => void;
-  onDelete?: (id: number) => void;
+  onSave: (payload: Partial<Adversary>) => void | Promise<void>;
+  onDelete?: (id: number) => void | Promise<void>;
 }
 
 interface FeatureDraft {
@@ -222,11 +222,9 @@ export function CustomAdversaryModal({
     }
 
     setError(null);
-    try {
-      onSave(buildPayload(state));
-    } catch (err) {
+    void Promise.resolve(onSave(buildPayload(state))).catch((err) => {
       setError(err instanceof Error ? err.message : "Не удалось сохранить противника");
-    }
+    });
   };
 
   return (
@@ -503,7 +501,11 @@ export function CustomAdversaryModal({
                 type="button"
                 variant="danger"
                 iconBefore={<IconTrash size={15} />}
-                onClick={() => onDelete(adversary.id)}
+                onClick={() => {
+                  void Promise.resolve(onDelete(adversary.id)).catch((err) => {
+                    setError(err instanceof Error ? err.message : "Не удалось удалить противника");
+                  });
+                }}
               >
                 Удалить
               </Button>

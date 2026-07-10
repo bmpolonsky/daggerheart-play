@@ -133,8 +133,8 @@ export function EncounterPanel({
 
   return (
     <div className="combat-encounter-panel flex h-full w-full flex-col bg-dagger-panel">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 p-4 shadow-xs">
-        <div className="min-w-0 flex-1">
+      <div className="combat-encounter-panel__header flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 p-4 shadow-xs">
+        <div className="combat-encounter-panel__title min-w-0 flex-1">
           <span className="block text-sm font-bold uppercase tracking-wider text-slate-300">
             Бой
           </span>
@@ -142,7 +142,7 @@ export function EncounterPanel({
             {totalEntries} противников · {summary.totalCost}/{summary.finalBudget} ОБ
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="combat-encounter-panel__header-actions flex items-center gap-2">
           <IconButton
             type="button"
             onClick={() => setShowModifiers(!showModifiers)}
@@ -170,8 +170,8 @@ export function EncounterPanel({
       </div>
 
       {showModifiers && (
-        <div className="animate-in slide-in-from-top-2 space-y-4 border-b border-slate-700 bg-slate-800/50 p-4 duration-200">
-          <div>
+        <div className="combat-encounter-panel__settings animate-in slide-in-from-top-2 space-y-4 border-b border-slate-700 bg-slate-800/50 p-4 duration-200">
+          <div className="combat-encounter-panel__settings-group">
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Настройка сложности
             </span>
@@ -189,7 +189,7 @@ export function EncounterPanel({
             />
           </div>
 
-          <div>
+          <div className="combat-encounter-panel__settings-group">
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Ручные модификаторы
             </span>
@@ -211,7 +211,7 @@ export function EncounterPanel({
             </div>
           </div>
 
-          <div>
+          <div className="combat-encounter-panel__settings-group">
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Авто-модификаторы
             </span>
@@ -237,9 +237,9 @@ export function EncounterPanel({
         </div>
       )}
 
-      <div className="custom-scrollbar grow space-y-3 overflow-y-auto p-4">
+      <div className="combat-encounter-panel__entries custom-scrollbar grow space-y-3 overflow-y-auto p-4">
         {entries.length === 0 ? (
-          <div className="mx-2 rounded-lg border-2 border-dashed border-slate-800 py-12 text-center italic text-slate-600">
+          <div className="combat-encounter-panel__empty mx-2 rounded-lg border-2 border-dashed border-slate-800 py-12 text-center italic text-slate-600">
             <p>Противники не выбраны.</p>
             <p className="mt-2 text-xs text-slate-700">
               Нажмите "Добавить в бой" на карточках.
@@ -253,8 +253,9 @@ export function EncounterPanel({
                 key={entry.adversary.id}
                 tone="subtle"
                 padding="sm"
+                className="combat-encounter-entry"
               >
-                <div className="flex items-start gap-3">
+                <div className="combat-encounter-entry__header flex items-start gap-3">
                   <Button
                     type="button"
                     onClick={() => onOpenDetails(entry.adversary.id)}
@@ -262,12 +263,12 @@ export function EncounterPanel({
                     variant="secondary"
                     title="Посмотреть свойства"
                     aria-label="Посмотреть свойства"
-                    className="shrink-0"
+                    className="combat-encounter-entry__cost shrink-0"
                   >
                     {cost}
                   </Button>
 
-                  <div className="min-w-0 grow">
+                  <div className="combat-encounter-entry__identity min-w-0 grow">
                     <Button
                       type="button"
                       variant="ghost"
@@ -284,7 +285,7 @@ export function EncounterPanel({
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="combat-encounter-entry__count flex shrink-0 items-center gap-1">
                     <IconButton
                       type="button"
                       onClick={() => onUpdateCount(entry.adversary.id, -1)}
@@ -311,7 +312,7 @@ export function EncounterPanel({
                   </div>
                 </div>
 
-                <div className="mt-2 space-y-1.5">
+                <div className="combat-encounter-entry__tracks mt-2 space-y-1.5">
                   {entry.instances.map((instance) => (
                     <div key={instance.id} className="grid gap-2 sm:grid-cols-2">
                         <Track
@@ -342,8 +343,8 @@ export function EncounterPanel({
         )}
       </div>
 
-      <div className="relative z-10 shrink-0 border-t border-dagger-gold/20 bg-slate-900 p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="combat-encounter-panel__footer relative z-10 shrink-0 border-t border-dagger-gold/20 bg-slate-900 p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
+        <div className="combat-encounter-panel__party mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-300">
             <IconUsers size={18} />
             <span className="text-sm font-medium">Размер группы</span>
@@ -383,7 +384,7 @@ export function EncounterPanel({
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="combat-encounter-panel__budget space-y-2">
           <div className="flex items-end justify-between">
             <span className="text-sm font-medium text-slate-400">Очки боя (ОБ)</span>
             <div className="flex items-baseline gap-1 text-right">

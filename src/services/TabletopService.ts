@@ -6,7 +6,7 @@ import { DiceService } from './DiceService';
 import { EncounterService } from './EncounterService';
 import { FeedService } from './FeedService';
 import { RollLogService } from './RollLogService';
-import { SceneTableService } from './SceneTableService';
+import { SceneTableService, type AddActorTokenOptions } from './SceneTableService';
 import type { Adversary, Character, FormulaTermRoll, RestChoiceResult, TraitId } from '../domain/rules/types';
 import type { EncounterFlowAction } from '../domain/rules/encounterFlow';
 import type { ActorRef, TableScene, TokenState } from '../domain/tabletop/types';
@@ -86,8 +86,12 @@ export class TabletopService {
     return this.placeActorOnScene({ kind: 'adversary', id: adversaryId }) ?? tokenIdFor('adversary', adversaryId);
   }
 
-  placeActorOnScene(actor: ActorRef, sceneId = this.dependencies.sceneTableService.sceneTable$.get().activeSceneId): string | null {
-    const token = this.dependencies.sceneTableService.addActorTokenToScene(sceneId, actor);
+  placeActorOnScene(
+    actor: ActorRef,
+    sceneId = this.dependencies.sceneTableService.sceneTable$.get().activeSceneId,
+    options: AddActorTokenOptions = {}
+  ): string | null {
+    const token = this.dependencies.sceneTableService.addActorTokenToScene(sceneId, actor, options);
     if (token && this.dependencies.sceneTableService.sceneTable$.get().activeSceneId === sceneId) {
       this.dependencies.sceneTableService.selectToken(token.id);
     }

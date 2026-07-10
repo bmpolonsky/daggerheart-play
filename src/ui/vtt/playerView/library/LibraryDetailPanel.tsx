@@ -10,11 +10,13 @@ export function LibraryDetailPanel({
   actionMessage,
   entry,
   onAction,
+  onEditCustom,
   onClose
 }: {
   actionMessage: string;
   entry: LibraryEntry | null;
   onAction: (message: string) => void;
+  onEditCustom?: (custom: NonNullable<LibraryEntry['custom']>) => void;
   onClose: () => void;
 }) {
   if (!entry) return null;
@@ -57,8 +59,15 @@ export function LibraryDetailPanel({
             </section>
           ))}
         </div>
-        {entry.actions.length > 0 && (
+        {(entry.actions.length > 0 || (entry.custom && onEditCustom)) && (
           <div className="player-library-detail__actions">
+            {entry.custom && onEditCustom && (
+              <Button size="sm" variant="primary" type="button" onClick={() => {
+                if (entry.custom) onEditCustom(entry.custom);
+              }}>
+                Редактировать
+              </Button>
+            )}
             {entry.actions.map((action) => (
               <Button size="sm" variant="secondary" type="button" key={action.label} onClick={() => {
                 const message = action.onClick();

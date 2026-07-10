@@ -5,8 +5,17 @@ import { ListDetailLayout } from '../../../components/common';
 import { LibraryDetailPanel } from './LibraryDetailPanel';
 import { buildLibraryEntries } from './libraryEntries';
 import { LibraryMiniCard } from './LibraryMiniCard';
+import type { LibraryEntry } from './libraryDetailTypes';
 
-export function LibraryResults({ libraryView, targetCharacterId }: { libraryView: ContentLibraryView; targetCharacterId?: string | null }) {
+export function LibraryResults({
+  libraryView,
+  onEditCustom,
+  targetCharacterId
+}: {
+  libraryView: ContentLibraryView;
+  onEditCustom?: (custom: NonNullable<LibraryEntry['custom']>) => void;
+  targetCharacterId?: string | null;
+}) {
   const entries = useMemo(() => buildLibraryEntries(libraryView, targetCharacterId), [libraryView, targetCharacterId]);
   const [selectedId, setSelectedId] = useState('');
   const [actionMessage, setActionMessage] = useState('');
@@ -47,6 +56,7 @@ export function LibraryResults({ libraryView, targetCharacterId }: { libraryView
           actionMessage={actionMessage}
           entry={selectedEntry}
           onAction={setActionMessage}
+          onEditCustom={onEditCustom}
           onClose={() => {
             setSelectedId('');
             setActionMessage('');

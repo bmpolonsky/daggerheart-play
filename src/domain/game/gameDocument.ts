@@ -19,6 +19,7 @@ export interface GameCustomContent {
   domainCards: unknown[];
   cardDomains: unknown[];
   adversaries: unknown[];
+  environments?: unknown[];
 }
 
 export interface GameResources {
@@ -42,6 +43,7 @@ export interface GameDocument {
     'content/custom-domain-cards.json': unknown[];
     'content/custom-card-domains.json': unknown[];
     'content/custom-adversaries.json': unknown[];
+    'content/custom-environments.json': unknown[];
     'resources/assets.json': MapAsset[];
   };
 }
@@ -79,6 +81,7 @@ export function createGameDocument(state: PersistedState, customContent: GameCus
       'content/custom-domain-cards.json': customContent.domainCards,
       'content/custom-card-domains.json': customContent.cardDomains,
       'content/custom-adversaries.json': customContent.adversaries,
+      'content/custom-environments.json': customContent.environments ?? [],
       'resources/assets.json': Object.values(state.sceneTable.assets).map(assetWithResourcePath)
     }
   });
@@ -112,7 +115,8 @@ export function emptyCustomContent(): GameCustomContent {
     subclasses: [],
     domainCards: [],
     cardDomains: [],
-    adversaries: []
+    adversaries: [],
+    environments: []
   };
 }
 
@@ -123,7 +127,8 @@ export function gameDocumentCustomContent(document: GameDocument): GameCustomCon
     subclasses: document.files['content/custom-subclasses.json'],
     domainCards: document.files['content/custom-domain-cards.json'],
     cardDomains: document.files['content/custom-card-domains.json'],
-    adversaries: document.files['content/custom-adversaries.json']
+    adversaries: document.files['content/custom-adversaries.json'],
+    environments: document.files['content/custom-environments.json'] ?? []
   };
 }
 
@@ -144,6 +149,7 @@ export function isGameDocument(value: unknown): value is GameDocument {
     Array.isArray(value.files['content/custom-domain-cards.json']) &&
     Array.isArray(value.files['content/custom-card-domains.json']) &&
     Array.isArray(value.files['content/custom-adversaries.json']) &&
+    (value.files['content/custom-environments.json'] === undefined || Array.isArray(value.files['content/custom-environments.json'])) &&
     Array.isArray(value.files['resources/assets.json']);
 }
 

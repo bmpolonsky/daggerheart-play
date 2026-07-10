@@ -2,6 +2,7 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import { ContentService } from "../../src/services/ContentService";
 import { applyBrowserCustomContent } from "../../src/core/persistence/browserProjectContent";
+import { createContentState } from "../../src/stores/contentStore";
 import { cleanRulesText, coerceDomainName, domainCardFromLibrary, isDomainCardForDomains, isSubclassForClass } from "../../src/domain/characterBuilder/index";
 import { queryLibraryContent } from "../../src/domain/content/query";
 import { mapRawEquipmentItem } from "../../src/domain/content/mappers";
@@ -79,6 +80,26 @@ test('content library query searches all compendium sections outside UI', () => 
   assert.deepEqual(queried.adversaries.map((item) => item.id), ['adv:1']);
   assert.deepEqual(queried.domainCards.map((item) => item.id), ['card']);
   assert.equal(queried.references.length, 0);
+});
+
+test('content library source filter separates corebook void and homebrew', () => {
+  const service = new ContentService();
+  const state = createContentState();
+  state.selectedCollection = 'domainCards';
+  state.generic.domainCards = [
+    genericItem({ id: 'domain-card:core', name: 'Core Card', raw: { source_slugs: ['core', 'srd'] } }),
+    genericItem({ id: 'domain-card:void', name: 'Void Card', raw: { source_slugs: ['playtest-the-void'] } }),
+    genericItem({ id: 'domain-card:homebrew', name: 'Homebrew Card', raw: { source_slugs: ['custom'] } })
+  ];
+
+  state.sourceFilter = 'core';
+  assert.deepEqual(service.buildLibraryView(state).genericItems.map((item) => item.id), ['domain-card:core']);
+
+  state.sourceFilter = 'void';
+  assert.deepEqual(service.buildLibraryView(state).genericItems.map((item) => item.id), ['domain-card:void']);
+
+  state.sourceFilter = 'homebrew';
+  assert.deepEqual(service.buildLibraryView(state).genericItems.map((item) => item.id), ['domain-card:homebrew']);
 });
 
 test('equipment mapper preserves consumable uses', () => {
@@ -177,6 +198,15 @@ test('content service normalizes custom tool content into library collections du
       tier: 2,
       type_slug: 'standard',
       type_name: 'Рядовой'
+    }],
+    environments: [{
+      id: 'custom-library-environment',
+      slug: 'custom-library-environment',
+      name: 'Custom Library Environment',
+      tier: 3,
+      difficulty: 14,
+      type_name: 'Опасность',
+      short_description: 'Custom environment summary.'
     }]
   });
   try {
@@ -186,6 +216,13 @@ test('content service normalizes custom tool content into library collections du
     const view = buildView();
     assert.equal(view.genericItems.some((item) => item.id === 'domain-card:custom-library-card'), true);
     assert.equal(view.collectionCounts.domainCards >= view.genericItems.length, true);
+    service.setSourceFilter('homebrew');
+    assert.deepEqual(buildView().levelOptions, [2]);
+    service.setLevelFilter(2);
+    const homebrewDomainCardsView = buildView();
+    assert.deepEqual(homebrewDomainCardsView.genericItems.map((item) => item.id), ['domain-card:custom-library-card']);
+    service.setSourceFilter('all');
+    service.setLevelFilter('all');
     service.setSelectedCollection('ancestries');
     assert.equal(buildView().genericItems.some((item) => item.id === 'ancestry:custom-library-ancestry'), true);
     service.setSelectedCollection('communities');
@@ -195,10 +232,21 @@ test('content service normalizes custom tool content into library collections du
     assert.equal(subclassView.genericItems.some((item) => item.id === 'subclass:custom-library-subclass'), true);
     assert.equal(isSubclassForClass(subclassView.genericItems.find((item) => item.id === 'subclass:custom-library-subclass')!, 'Bard'), true);
     service.setSelectedCollection('adversaries');
+    service.setSourceFilter('homebrew');
+    assert.deepEqual(buildView().tierOptions, [2]);
+    service.setTierFilter(2);
     const adversaryView = buildView();
     assert.equal(adversaryView.adversaries.some((item) => item.name === 'Custom Library Adversary'), true);
+    assert.equal(adversaryView.adversaries.every((item) => item.raw.source_slugs?.includes('custom') && item.tier === 2), true);
+    service.setSelectedCollection('environments');
+    service.setSourceFilter('homebrew');
+    assert.deepEqual(buildView().tierOptions, [3]);
+    service.setTierFilter(3);
+    const environmentView = buildView();
+    assert.equal(environmentView.environments.some((item) => item.name === 'Custom Library Environment'), true);
+    assert.equal(environmentView.environments.every((item) => item.raw.source_slugs?.includes('custom') && item.tier === 3), true);
   } finally {
-    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [] });
+    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [], environments: [] });
     globalThis.fetch = originalFetch;
   }
 });

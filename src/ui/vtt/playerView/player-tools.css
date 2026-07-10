@@ -127,11 +127,11 @@
   min-height: 38px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   border-radius: 8px;
   color: rgba(243, 234, 216, 0.72);
   padding: 0 10px;
-  text-align: center;
+  text-align: left;
   overflow: hidden;
 }
 
@@ -147,7 +147,7 @@
 .player-tools-modal__nav > .player-tools-modal__nav-stack > .player-tools-modal__nav-group > button {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 7px;
 }
 
@@ -155,6 +155,18 @@
   justify-content: space-between;
   padding: 0 12px;
   width: 100%;
+}
+
+.player-tools-modal__nav > .player-tools-modal__nav-stack--external > .player-tools-modal__nav-group > button > svg {
+  position: static;
+  flex: 0 0 auto;
+}
+
+.player-tools-modal__nav > .player-tools-modal__nav-stack--external > .player-tools-modal__nav-group > button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-tools-modal__nav button:hover {
@@ -323,7 +335,7 @@
   height: 100%;
   min-height: 0;
   align-content: start;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -373,6 +385,10 @@
 .player-library-controls .player-tools-field:first-child {
   flex: 1 1 320px;
   max-width: 460px;
+}
+
+.player-library-create {
+  margin-bottom: 1px;
 }
 
 .player-tools-row,
@@ -2034,4 +2050,561 @@
   color: #fff4d6;
   padding: 9px;
   font: inherit;
+}
+
+.player-tools-section--embedded-combat {
+  height: 100%;
+  min-height: min(680px, calc(100vh - 180px));
+  padding: 0;
+  overflow: hidden;
+}
+
+.player-combat-layout {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 390px);
+  gap: 12px;
+}
+
+.player-combat-layout--with-detail {
+  grid-template-columns: minmax(300px, 1fr) clamp(300px, 28vw, 410px) clamp(300px, 24vw, 370px);
+}
+
+.player-combat-catalog,
+.player-combat-encounter {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.player-combat-detail {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.player-combat-panel-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(243, 234, 216, 0.055);
+  background: rgba(6, 8, 12, 0.16);
+}
+
+.player-combat-panel-header > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.player-combat-panel-header span {
+  color: var(--dh-paper-faint);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.player-combat-panel-header strong {
+  color: var(--dh-paper-100);
+  font-size: 0.98rem;
+  line-height: 1.15;
+}
+
+.player-combat-panel-header--encounter strong {
+  font-size: 0.9rem;
+}
+
+.player-combat-filters {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(128px, 0.24fr) minmax(150px, 0.28fr);
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(243, 234, 216, 0.05);
+}
+
+.player-combat-catalog > .dh-notice {
+  margin: 10px 12px 0;
+}
+
+.player-combat-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  align-content: start;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.player-combat-card {
+  position: relative;
+  min-width: 0;
+  min-height: 236px;
+  display: grid;
+  grid-template-rows: 108px minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(10, 13, 17, 0.42), rgba(7, 9, 12, 0.28)),
+    rgba(243, 234, 216, 0.035);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.18);
+  text-align: left;
+}
+
+.player-combat-card.dh-is-selected,
+.player-combat-card.dh-is-selected:hover {
+  background:
+    linear-gradient(180deg, rgba(30, 27, 18, 0.58), rgba(9, 10, 12, 0.38)),
+    rgba(240, 201, 106, 0.08);
+}
+
+.player-combat-card__open.dh-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 236px;
+  display: grid;
+  grid-template-rows: 108px minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+  justify-items: stretch;
+  padding: 0;
+  border-radius: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.player-combat-card:hover {
+  background:
+    linear-gradient(180deg, rgba(14, 18, 24, 0.52), rgba(7, 9, 12, 0.34)),
+    rgba(243, 234, 216, 0.052);
+}
+
+.player-combat-card__media {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 90%, rgba(216, 173, 83, 0.16), transparent 58%),
+    rgba(0, 0, 0, 0.14);
+  color: rgba(243, 234, 216, 0.28);
+}
+
+.player-combat-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+}
+
+.player-combat-card__body {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 10px;
+}
+
+.player-combat-card__meta,
+.player-combat-card__tags {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.player-combat-card__meta {
+  justify-content: space-between;
+}
+
+.player-combat-card__meta > span:last-child,
+.player-combat-card__tags span {
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 3px 7px;
+  color: rgba(243, 234, 216, 0.68);
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.player-combat-card__meta > span:last-child {
+  background: var(--dh-gold-soft);
+  color: var(--dh-gold-400);
+}
+
+.player-combat-card h3 {
+  margin: 0;
+  color: var(--dh-paper-100);
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+.player-combat-card p {
+  min-height: 2.35em;
+  margin: 0;
+  color: var(--dh-paper-muted);
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.player-combat-card__add {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+}
+
+.player-combat-settings,
+.player-combat-budget {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(243, 234, 216, 0.055);
+}
+
+.player-combat-setting-row,
+.player-combat-budget__top,
+.player-combat-entry header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.player-combat-setting-row > span,
+.player-combat-budget__top > span:last-child {
+  color: var(--dh-paper-faint);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.player-combat-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 2px;
+}
+
+.player-combat-stepper strong {
+  min-width: 22px;
+  color: var(--dh-paper-100);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.player-combat-modifiers {
+  display: grid;
+  gap: 6px;
+}
+
+.player-combat-budget__bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.player-combat-budget__bar span {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--dh-gold-500), #f0c96a);
+}
+
+.player-combat-budget__modifiers {
+  min-height: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.player-combat-difficulty {
+  color: var(--dh-paper-100);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.player-combat-difficulty--good,
+.player-combat-difficulty--balanced {
+  color: #bfe3c2;
+}
+
+.player-combat-difficulty--warning {
+  color: #f0c96a;
+}
+
+.player-combat-difficulty--danger,
+.player-combat-difficulty--extreme {
+  color: #f08d72;
+}
+
+.player-combat-entries {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.player-combat-entry {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(16, 20, 27, 0.42), rgba(7, 9, 12, 0.28)),
+    rgba(243, 234, 216, 0.04);
+  padding: 9px;
+}
+
+.player-combat-entry__cost {
+  flex: 0 0 auto;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--dh-gold-500);
+  color: #111318;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.player-combat-entry__title {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+
+.player-combat-entry__title strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dh-paper-100);
+  font-size: 0.84rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-combat-entry__title span {
+  color: var(--dh-paper-faint);
+  font-size: 0.68rem;
+}
+
+@media (max-width: 1100px) {
+  .player-tools-section--embedded-combat {
+    min-height: 720px;
+  }
+
+  .player-combat-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .player-combat-detail {
+    min-height: 520px;
+  }
+
+  .player-combat-encounter {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 760px) {
+  .player-tools-section--embedded-combat {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .player-combat-layout {
+    height: auto;
+  }
+
+  .player-combat-catalog,
+  .player-combat-encounter {
+    overflow: visible;
+  }
+
+  .player-combat-catalog {
+    min-height: 650px;
+  }
+
+  .player-combat-cards {
+    flex: none;
+    height: 430px;
+    max-height: 430px;
+    overflow-y: auto;
+  }
+
+  .player-combat-entries {
+    flex: none;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+
+  .player-combat-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .player-combat-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .player-combat-panel-header,
+  .player-combat-entry header {
+    align-items: flex-start;
+  }
+}
+
+.player-custom-compendium-section {
+  min-height: 0;
+  max-height: min(620px, calc(100vh - 230px));
+  gap: 10px;
+  padding: 4px 0 2px;
+  overflow: hidden;
+}
+
+.player-custom-compendium-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(210px, 0.34fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.player-custom-compendium-sidebar,
+.player-custom-compendium-editor {
+  min-width: 0;
+  min-height: 0;
+}
+
+.player-custom-compendium-sidebar {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.player-custom-compendium-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.player-custom-compendium-list__item {
+  min-height: 58px;
+  gap: 4px;
+  padding: 10px;
+}
+
+.player-custom-compendium-list__item strong,
+.player-custom-compendium-list__item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-custom-compendium-list__item strong {
+  color: var(--dh-paper-100);
+  font-size: 0.82rem;
+}
+
+.player-custom-compendium-list__item span {
+  color: var(--dh-paper-muted);
+  font-size: 0.7rem;
+}
+
+.player-custom-compendium-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.player-custom-compendium-editor > .dh-notice {
+  margin-bottom: -4px;
+}
+
+.player-custom-compendium-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.player-custom-compendium-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.player-custom-compendium-grid--title {
+  grid-template-columns: minmax(190px, 1fr) minmax(72px, 0.24fr) minmax(140px, 0.38fr);
+}
+
+.player-custom-compendium-grid--media {
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.34fr);
+}
+
+.player-custom-compendium-grid--stats {
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+}
+
+.player-custom-compendium-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+@media (max-width: 860px) {
+  .player-custom-compendium-section {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .player-custom-compendium-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .player-custom-compendium-sidebar {
+    grid-template-rows: auto auto;
+  }
+
+  .player-custom-compendium-list {
+    max-height: 220px;
+  }
+
+  .player-custom-compendium-grid--title,
+  .player-custom-compendium-grid--media {
+    grid-template-columns: 1fr;
+  }
 }

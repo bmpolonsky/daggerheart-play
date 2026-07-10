@@ -5,7 +5,7 @@ import type { PlayerViewAdversarySummary } from "../../../domain/tabletop/player
 import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import type { DamageType } from "../../../domain/rules/types";
-import { diceService, encounterService, feedService, gameService } from "../../../services/serviceRegistry";
+import { diceService, encounterService, feedService, gameService, sceneTableService } from "../../../services/serviceRegistry";
 import { compactDamageTypeLabel, signed } from "./helpers";
 import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
@@ -25,6 +25,9 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
       return;
     }
     encounterService.addCondition(adversary.id, name);
+    if (normalizeStatusTag(name) === ActorStatus.Hidden) {
+      sceneTableService.setActorTokensHidden({ kind: 'adversary', id: adversary.id }, true);
+    }
   };
   const removeStatus = (conditionId: string) => {
     const condition = adversary.conditions.find((item) => item.id === conditionId);

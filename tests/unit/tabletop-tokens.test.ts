@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createGameState } from "../../src/domain/rules/factories";
 import { buildPlayerViewModel } from "../../src/domain/tabletop/playerView";
 import { autoArrangeTokens, measureRange, syncSceneTokens } from "../../src/domain/tabletop/logic";
-import { createTableScene, createTokenState } from "../../src/domain/tabletop/factories";
+import { arrangedTokenPositionForActor, createTableScene, createTokenState, nextArrangedTokenPositionForActor, randomAvailableTokenPosition } from "../../src/domain/tabletop/factories";
 import { clientPointToWorld, rangeLabelStyle, rangeLineStyle, tokenPositionStyle, worldToPercent } from "../../src/domain/tabletop/viewport";
 import { resetAllStores, charactersStore, sceneTableStore } from "../../src/stores/gameStores";
 import { characterService, encounterService, sceneTableService, tabletopService } from "../../src/services/serviceRegistry";
@@ -44,10 +44,10 @@ test('syncSceneTokens creates missing actor tokens in safe tactical placement co
   const heroTokens = synced.tokens.filter((token) => token.actor.kind === 'character');
   const adversaryTokens = synced.tokens.filter((token) => token.actor.kind === 'adversary');
 
-  assert.deepEqual(heroTokens.map((token) => token.x), [360, 360]);
-  assert.deepEqual(adversaryTokens.map((token) => token.x), [600, 600]);
-  assert.deepEqual(heroTokens.map((token) => token.y), [380, 472]);
-  assert.deepEqual(adversaryTokens.map((token) => token.y), [380, 466]);
+  assert.deepEqual(heroTokens.map((token) => token.x), [420, 420]);
+  assert.deepEqual(adversaryTokens.map((token) => token.x), [540, 540]);
+  assert.deepEqual(heroTokens.map((token) => token.y), [200, 360]);
+  assert.deepEqual(adversaryTokens.map((token) => token.y), [200, 360]);
 });
 
 test('autoArrangeTokens moves characters and adversaries into safe tactical placement columns', () => {
@@ -58,9 +58,35 @@ test('autoArrangeTokens moves characters and adversaries into safe tactical plac
     createTokenState({ kind: 'adversary', id: 'safe-raider-b' }, { x: 1240, y: 680, hidden: true })
   ]);
 
-  assert.deepEqual(arranged.map((token) => token.x), [360, 600, 360, 600]);
-  assert.deepEqual(arranged.map((token) => token.y), [380, 380, 472, 466]);
+  assert.deepEqual(arranged.map((token) => token.x), [420, 540, 420, 540]);
+  assert.deepEqual(arranged.map((token) => token.y), [200, 200, 360, 360]);
   assert.deepEqual(arranged.map((token) => token.hidden), [false, false, false, false]);
+});
+
+test('arranged token positions wrap into visible columns instead of running below the board', () => {
+  const actor = { kind: 'adversary', id: 'wrapped-raider' } as const;
+
+  assert.deepEqual(arrangedTokenPositionForActor(actor, 0), { x: 540, y: 200 });
+  assert.deepEqual(arrangedTokenPositionForActor(actor, 3), { x: 540, y: 680 });
+  assert.deepEqual(arrangedTokenPositionForActor(actor, 4), { x: 720, y: 200 });
+  assert.deepEqual(arrangedTokenPositionForActor(actor, 11), { x: 900, y: 680 });
+});
+
+test('next arranged token position fills a free slot instead of overlapping another token', () => {
+  const actor = { kind: 'adversary', id: 'next-raider' } as const;
+  const tokens = [
+    createTokenState({ kind: 'adversary', id: 'existing-a' }, arrangedTokenPositionForActor(actor, 0)),
+    createTokenState({ kind: 'adversary', id: 'existing-c' }, arrangedTokenPositionForActor(actor, 2))
+  ];
+
+  assert.deepEqual(nextArrangedTokenPositionForActor(actor, tokens), arrangedTokenPositionForActor(actor, 1));
+});
+
+test('random token position stays in the safe area and retries an occupied point', () => {
+  const values = [0, 0, 0.5, 0.5];
+  const occupied = createTokenState({ kind: 'adversary', id: 'occupied' }, { x: 320, y: 160 });
+
+  assert.deepEqual(randomAvailableTokenPosition([occupied], () => values.shift() ?? 0.5), { x: 640, y: 360 });
 });
 
 test('locked tabletop tokens cannot be moved through the service', () => {
@@ -201,6 +227,99 @@ test('placing actors on a scene is idempotent and supports adversaries', () => {
   assert.equal(secondTokenId, firstTokenId);
   assert.equal(tokens.length, 1);
   assert.equal(encounterService.getAdversary(adversary.id)?.id, adversary.id);
+});
+
+test('placing an actor after a removal reuses the free slot without stacking tokens', () => {
+  resetAllStores();
+  const first = encounterService.createAdversary({ name: 'Первый' });
+  const second = encounterService.createAdversary({ name: 'Второй' });
+  const third = encounterService.createAdversary({ name: 'Третий' });
+  const replacement = encounterService.createAdversary({ name: 'Замена' });
+  const scene = sceneTableService.getActiveScene();
+
+  tabletopService.placeActorOnScene({ kind: 'adversary', id: first.id }, scene.id);
+  const secondTokenId = tabletopService.placeActorOnScene({ kind: 'adversary', id: second.id }, scene.id);
+  tabletopService.placeActorOnScene({ kind: 'adversary', id: third.id }, scene.id);
+  assert.ok(secondTokenId);
+  tabletopService.removeTokenFromScene(secondTokenId, scene.id);
+  tabletopService.placeActorOnScene({ kind: 'adversary', id: replacement.id }, scene.id);
+
+  const adversaryTokens = sceneTableService.getActiveScene().tokens.filter((token) => token.actor.kind === 'adversary');
+  assert.deepEqual(adversaryTokens.map((token) => [token.x, token.y]), [
+    [540, 200],
+    [540, 520],
+    [540, 360]
+  ]);
+  assert.equal(new Set(adversaryTokens.map((token) => `${token.x}:${token.y}`)).size, adversaryTokens.length);
+});
+
+test('placing a hidden actor randomly does not move existing tokens and can be revealed in the target scene', () => {
+  resetAllStores();
+  const first = encounterService.createAdversary({ name: 'Стоящий на месте' });
+  const second = encounterService.createAdversary({ name: 'Новый скрытый' });
+  const scene = sceneTableService.getActiveScene();
+  const firstTokenId = tabletopService.placeActorOnScene({ kind: 'adversary', id: first.id }, scene.id);
+  assert.ok(firstTokenId);
+  tabletopService.moveToken(firstTokenId, 440, 280);
+
+  const secondTokenId = tabletopService.placeActorOnScene(
+    { kind: 'adversary', id: second.id },
+    scene.id,
+    { hidden: true, placement: 'random', random: () => 0.75 }
+  );
+  assert.ok(secondTokenId);
+
+  const placedScene = sceneTableService.getActiveScene();
+  const firstToken = placedScene.tokens.find((token) => token.id === firstTokenId);
+  const secondToken = placedScene.tokens.find((token) => token.id === secondTokenId);
+  assert.deepEqual(firstToken && [firstToken.x, firstToken.y], [440, 280]);
+  assert.deepEqual(secondToken && [secondToken.x, secondToken.y, secondToken.hidden], [800, 460, true]);
+
+  const revealed = sceneTableService.setTokenHiddenInScene(scene.id, secondTokenId, false);
+  assert.equal(revealed?.hidden, false);
+  const unmovedFirstToken = sceneTableService.getActiveScene().tokens.find((token) => token.id === firstTokenId);
+  assert.deepEqual(unmovedFirstToken && [unmovedFirstToken.x, unmovedFirstToken.y], [440, 280]);
+});
+
+test('deleting and re-adding an actor creates it at a new random position', () => {
+  resetAllStores();
+  const adversary = encounterService.createAdversary({ name: 'Возвращающийся' });
+  const scene = sceneTableService.getActiveScene();
+  const firstTokenId = tabletopService.placeActorOnScene(
+    { kind: 'adversary', id: adversary.id },
+    scene.id,
+    { hidden: true, placement: 'random', random: () => 0.1 }
+  );
+  assert.ok(firstTokenId);
+  const firstPosition = sceneTableService.getActiveScene().tokens.find((token) => token.id === firstTokenId);
+  assert.ok(firstPosition);
+
+  assert.equal(tabletopService.removeTokenFromScene(firstTokenId, scene.id), true);
+  const secondTokenId = tabletopService.placeActorOnScene(
+    { kind: 'adversary', id: adversary.id },
+    scene.id,
+    { hidden: true, placement: 'random', random: () => 0.9 }
+  );
+  assert.equal(secondTokenId, firstTokenId);
+  const secondPosition = sceneTableService.getActiveScene().tokens.find((token) => token.id === secondTokenId);
+  assert.ok(secondPosition);
+
+  assert.notDeepEqual([secondPosition.x, secondPosition.y], [firstPosition.x, firstPosition.y]);
+  assert.equal(secondPosition.hidden, true);
+});
+
+test('hiding an actor hides its tokens without moving them', () => {
+  resetAllStores();
+  const adversary = encounterService.createAdversary({ name: 'Уходящий в тень' });
+  const scene = sceneTableService.getActiveScene();
+  const tokenId = tabletopService.placeActorOnScene({ kind: 'adversary', id: adversary.id }, scene.id);
+  assert.ok(tokenId);
+  tabletopService.moveToken(tokenId, 710, 390);
+
+  assert.equal(sceneTableService.setActorTokensHidden({ kind: 'adversary', id: adversary.id }, true), 1);
+  const hiddenToken = sceneTableService.getActiveScene().tokens.find((token) => token.id === tokenId);
+
+  assert.deepEqual(hiddenToken && [hiddenToken.x, hiddenToken.y, hiddenToken.hidden], [710, 390, true]);
 });
 
 test('token delete shortcut ignores editable targets', () => {

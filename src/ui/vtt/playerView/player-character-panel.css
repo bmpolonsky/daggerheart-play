@@ -56,15 +56,48 @@
 .player-gm-overview__actors {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 12px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 9px;
   overflow: hidden;
 }
 
-.player-gm-overview__actors > .player-roster,
-.player-gm-overview__actors > .player-roster-empty {
+.player-participant-feed {
   min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
   overflow: auto;
+  padding-right: 2px;
+}
+
+.player-participant-group {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.player-participant-group__header {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0 4px;
+  color: var(--dh-paper-faint);
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.player-participant-group__header strong {
+  color: rgba(243, 234, 216, 0.36);
+  font-size: inherit;
+}
+
+.player-participant-feed__empty {
+  min-height: 130px;
 }
 
 .player-character-panel__hero {
@@ -213,16 +246,25 @@
 .player-roster {
   display: grid;
   align-content: start;
-  grid-auto-rows: minmax(58px, auto);
-  gap: 7px;
+  grid-auto-rows: minmax(48px, auto);
+  gap: 4px;
   padding: 0;
 }
 
-.player-roster__row {
-  min-height: 58px;
-  padding: 8px 10px 8px 9px;
+.player-roster__item {
+  min-width: 0;
+  border-radius: 8px;
   background: var(--player-item-glass);
   backdrop-filter: blur(14px) saturate(1.12);
+  overflow: hidden;
+}
+
+.player-roster__row {
+  min-height: 48px;
+  padding: 6px 7px;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .player-roster__row .dh-list-item__content {
@@ -242,7 +284,12 @@
   text-transform: uppercase;
 }
 
-.player-roster__row.dh-is-selected {
+.player-roster__tracks {
+  margin: 0;
+  padding: 0 8px 8px;
+}
+
+.player-roster__item.dh-is-selected {
   background: var(--player-item-glass-active);
 }
 
@@ -267,7 +314,6 @@
   box-shadow: 0 0 0 3px rgba(214, 91, 91, 0.12);
 }
 
-.player-roster-tabs,
 .player-roster-gm-dock__tabs {
   width: 100%;
 }
@@ -282,6 +328,146 @@
   font-size: 0.74rem;
   line-height: 1.35;
   text-align: center;
+}
+
+.player-combat-tracker {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.player-combat-tracker__entry {
+  display: grid;
+  min-height: 70px;
+  gap: 3px;
+  border-radius: 8px;
+  background: var(--player-item-glass);
+  padding: 6px 7px;
+  backdrop-filter: blur(14px) saturate(1.12);
+}
+
+.player-combat-tracker__entry.dh-is-selected {
+  background: var(--player-item-glass-active);
+}
+
+.player-combat-tracker__entry-header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px;
+}
+
+.player-combat-tracker__entry-name {
+  min-width: 0;
+  max-width: 100%;
+  display: block;
+  overflow: hidden;
+  color: var(--dh-paper-100);
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-combat-tracker__entry-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.player-combat-tracker__tracks,
+.player-roster__tracks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.player-roster__tracks {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.player-roster__tracks .resource-title span {
+  font-size: 0.52rem;
+  letter-spacing: 0.04em;
+}
+
+.player-roster__tracks .resource-title strong {
+  font-size: 0.6rem;
+}
+
+.player-combat-tracker .resource-pips,
+.player-roster__tracks .resource-pips {
+  display: grid;
+  gap: 4px;
+}
+
+.player-combat-tracker .resource-title,
+.player-roster__tracks .resource-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.player-combat-tracker .resource-title span,
+.player-roster__tracks .resource-title span {
+  color: var(--dh-paper-faint);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.player-combat-tracker .resource-title strong,
+.player-roster__tracks .resource-title strong {
+  color: var(--dh-paper-100);
+  font-size: 0.66rem;
+}
+
+.player-combat-tracker .pips,
+.player-roster__tracks .pips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.player-combat-tracker .pip,
+.player-roster__tracks .pip {
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(243, 234, 216, 0.11);
+  cursor: pointer;
+  padding: 0;
+}
+
+.player-combat-tracker .pip-active.pip-marked,
+.player-roster__tracks .pip-active.pip-marked {
+  background: rgba(214, 91, 91, 0.78);
+  box-shadow: 0 0 0 2px rgba(214, 91, 91, 0.12);
+}
+
+.player-combat-tracker .resource-pips--stress .pip-active.pip-marked,
+.player-roster__tracks .resource-pips--stress .pip-active.pip-marked {
+  background: rgba(240, 201, 106, 0.78);
+  box-shadow: 0 0 0 2px rgba(240, 201, 106, 0.1);
+}
+
+.player-roster__tracks .pips {
+  gap: 2px;
+}
+
+.player-roster__tracks .pip {
+  width: 8px;
+  height: 8px;
+}
+
+.player-roster__tracks .resource-pips--hope .pip-active {
+  background: var(--dh-gold-400);
+  box-shadow: 0 0 0 2px rgba(240, 201, 106, 0.1);
 }
 
 .player-roster-gm-dock {
@@ -1695,8 +1881,7 @@
     overflow: hidden;
   }
 
-  .player-character-panel--gm-overview .player-character-panel__section-title,
-  .player-character-panel--gm-overview .player-roster-tabs button {
+  .player-character-panel--gm-overview .player-character-panel__section-title {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

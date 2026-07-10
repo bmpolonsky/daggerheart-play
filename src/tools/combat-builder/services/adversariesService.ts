@@ -173,8 +173,8 @@ export class AdversariesService {
     return adversariesStore.get().items.find((item) => item.id === id) ?? null;
   }
 
-  createCustomAdversary(payload: Partial<Adversary>) {
-    this.ensureCustomLoaded();
+  async createCustomAdversary(payload: Partial<Adversary>) {
+    await this.ensureCustomLoaded();
     const existingIds = new Set(adversariesStore.get().items.map((item) => item.id));
     const adversary = normalizeCustomAdversary(
       {
@@ -193,8 +193,8 @@ export class AdversariesService {
     return adversary;
   }
 
-  updateCustomAdversary(id: number, payload: Partial<Adversary>) {
-    this.ensureCustomLoaded();
+  async updateCustomAdversary(id: number, payload: Partial<Adversary>) {
+    await this.ensureCustomLoaded();
     const current = this.customItems.find((item) => item.id === id);
     if (!current) {
       throw new Error("Кастомный противник не найден");
@@ -227,8 +227,8 @@ export class AdversariesService {
     return adversary;
   }
 
-  removeCustomAdversary(id: number) {
-    this.ensureCustomLoaded();
+  async removeCustomAdversary(id: number) {
+    await this.ensureCustomLoaded();
     const target = this.customItems.find((item) => item.id === id);
     if (!target) return;
 
@@ -242,13 +242,13 @@ export class AdversariesService {
     }));
   }
 
-  exportCustomAdversaries() {
-    this.ensureCustomLoaded();
+  async exportCustomAdversaries() {
+    await this.ensureCustomLoaded();
     return JSON.stringify(buildCustomAdversaryExport(this.customItems), null, 2);
   }
 
-  importCustomAdversaries(raw: string) {
-    this.ensureCustomLoaded();
+  async importCustomAdversaries(raw: string) {
+    await this.ensureCustomLoaded();
     const source = extractCustomAdversaryItems(JSON.parse(raw));
     if (!source) {
       throw new Error("Некорректный формат файла");
