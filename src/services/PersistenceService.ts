@@ -225,6 +225,7 @@ export class PersistenceService {
       this.lastDocumentSignature = stableJsonSignature(document);
       this.applyStoredDocument(document);
       await this.assetService?.normalizeEmbeddedSceneAssets();
+      await this.assetService?.optimizeStoredImages();
       await loadBrowserCustomContent();
       this.persistNow();
       return true;

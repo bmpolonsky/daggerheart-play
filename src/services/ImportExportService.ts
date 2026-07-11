@@ -68,12 +68,14 @@ export class ImportExportService {
     }
     await this.importGameAssets(result.document, result.entries);
     await this.persistenceService.importGameDocument(result.document);
+    await this.assetService?.optimizeStoredImages();
     return { ok: true };
   }
 
   async exportGameBundle(): Promise<Blob> {
     await loadBrowserCustomContent();
     await this.assetService?.normalizeEmbeddedSceneAssets();
+    await this.assetService?.optimizeStoredImages();
     const document = this.buildGameDocument();
     const jsonEntries: ZipFileEntry[] = Object.entries(document.files).map(([path, value]) => ({
       path,
