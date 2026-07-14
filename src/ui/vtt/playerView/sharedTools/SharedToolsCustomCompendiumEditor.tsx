@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { Plus, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Adversary, AdversaryFeature } from '@combat/lib/api';
 import { ADVERSARY_ROLE_OPTIONS } from '@combat/lib/customAdversaries';
 import { encounterService as combatEncounterService } from '@combat/services/encounterService';
@@ -10,7 +10,7 @@ import { createId } from '../../../../core/utils/id';
 import { loadCustomEnvironments, saveCustomEnvironments } from '../../../../core/persistence/browserProjectContent';
 import type { LibraryEnvironment, RawAdversaryFeature, RawEnvironmentItem } from '../../../../domain/content/types';
 import { contentService } from '../../../../services/serviceRegistry';
-import { Button, ChoiceCard, Field, IconButton, ImageFilePicker, Notice, SearchField, SelectControl, Surface, TextAreaControl, TextControl } from '../../../components/common';
+import { Button, ConfirmDialog, Field, IconButton, ImageFilePicker, ListItem, Notice, SearchField, SectionHeader, SelectControl, TextAreaControl, TextControl, Toolbar } from '../../../components/common';
 import { readFileAsDataUrl } from './readFileAsDataUrl';
 
 type EntityKind = 'adversary' | 'environment';
@@ -72,7 +72,9 @@ export function SharedToolsCustomCompendiumEditor({
   const customEnvironments = content.environments.filter(isCustomEnvironment);
   const [selectedId, setSelectedId] = useState<string>('new');
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'info' | 'success' | 'error'; message: string } | null>(null);
+  const draftDirtyRef = useRef(false);
   const selectedAdversary = kind === 'adversary' && selectedId !== 'new'
     ? customAdversaries.find((item) => String(item.id) === selectedId) ?? null
     : null;
@@ -89,15 +91,35 @@ export function SharedToolsCustomCompendiumEditor({
   )), [customEnvironments, normalizedSearch]);
 
   useEffect(() => {
+    if (selectedId === 'new' && draftDirtyRef.current) return;
     if (kind === 'adversary') setDraft(adversaryDraftFromItem(selectedAdversary));
     if (kind === 'environment') setDraft(environmentDraftFromItem(selectedEnvironment));
   }, [kind, selectedAdversary, selectedEnvironment, selectedId]);
 
   useEffect(() => {
+    draftDirtyRef.current = false;
     setSelectedId(initialId || 'new');
+    setDraft(createDraft(kind));
     setSearchTerm('');
     setNotice(null);
   }, [initialId, kind]);
+
+  const startNewDraft = () => {
+    draftDirtyRef.current = false;
+    setSelectedId('new');
+    setDraft(createDraft(kind));
+    setNotice(null);
+  };
+
+  const selectExisting = (id: string) => {
+    draftDirtyRef.current = false;
+    setSelectedId(id);
+  };
+
+  const updateDraft = (patch: Partial<AdversaryDraft> | Partial<EnvironmentDraft>) => {
+    draftDirtyRef.current = true;
+    setDraft((current) => ({ ...current, ...patch }) as Draft);
+  };
 
   const save = async () => {
     try {
@@ -108,11 +130,13 @@ export function SharedToolsCustomCompendiumEditor({
           ? await adversariesService.updateCustomAdversary(adversaryDraft.id, payload)
           : await adversariesService.createCustomAdversary(payload);
         await contentService.reload();
+        draftDirtyRef.current = false;
         setSelectedId(String(saved.id));
         setNotice({ tone: 'success', message: 'Противник сохранен.' });
       } else {
         const saved = await saveEnvironmentDraft(draft as EnvironmentDraft);
         await contentService.reload();
+        draftDirtyRef.current = false;
         setSelectedId(`environment:${saved.id ?? saved.slug}`);
         setNotice({ tone: 'success', message: 'Окружение сохранено.' });
       }
@@ -152,12 +176,10 @@ export function SharedToolsCustomCompendiumEditor({
 
   return (
     <section className="player-tools-section player-custom-compendium-section">
-      <header>
-        <div>
-          <strong>{kind === 'adversary' ? 'Homebrew противники' : 'Homebrew окружения'}</strong>
-          <span>{hasExisting ? 'Редактирование записи компендиума' : 'Новая запись компендиума'}</span>
-        </div>
-        <div className="player-tools-actions">
+      <SectionHeader
+        title={kind === 'adversary' ? 'Свои противники' : 'Свои окружения'}
+        actions={(
+          <Toolbar aria-label="Действия редактора справочника">
           {onClose && (
             <IconButton type="button" variant="ghost" size="sm" title="Закрыть редактор" aria-label="Закрыть редактор" onClick={onClose}>
               <X size={15} aria-hidden="true" />
@@ -168,58 +190,73 @@ export function SharedToolsCustomCompendiumEditor({
             variant="primary"
             type="button"
             iconBefore={<Plus size={15} aria-hidden="true" />}
-            onClick={() => {
-              setSelectedId('new');
-              setNotice(null);
-            }}
+            onClick={startNewDraft}
           >
             Новая
           </Button>
-        </div>
-      </header>
+          </Toolbar>
+        )}
+      />
 
-      <div className="player-custom-compendium-layout">
-        <Surface as="aside" tone="subtle" padding="sm" className="player-custom-compendium-sidebar">
+      {kind === 'adversary' && adversariesState.isLoading ? (
+        <Notice tone="info">Загружаем противников…</Notice>
+      ) : <div className="player-custom-compendium-layout">
+        <aside className="player-custom-compendium-sidebar">
           <SearchField value={searchTerm} onInput={(event) => setSearchTerm(event.currentTarget.value)} placeholder="Поиск..." />
           <div className="player-custom-compendium-list">
-            <EntityListButton active={selectedId === 'new'} title="Новая запись" subtitle={kind === 'adversary' ? 'Homebrew противник' : 'Homebrew окружение'} onClick={() => setSelectedId('new')} />
+            <EntityListButton active={selectedId === 'new'} title="Новая запись" subtitle={kind === 'adversary' ? 'Homebrew противник' : 'Homebrew окружение'} onClick={startNewDraft} />
             {kind === 'adversary' && filteredAdversaries.map((item) => (
-              <EntityListButton key={item.id} active={selectedId === String(item.id)} title={item.name} subtitle={`Ранг ${item.tier} / ${item.roleName}`} onClick={() => setSelectedId(String(item.id))} />
+              <EntityListButton key={item.id} active={selectedId === String(item.id)} title={item.name} subtitle={`Ранг ${item.tier} / ${item.roleName}`} onClick={() => selectExisting(String(item.id))} />
             ))}
             {kind === 'environment' && filteredEnvironments.map((item) => (
-              <EntityListButton key={item.id} active={selectedId === item.id} title={item.name} subtitle={`Ранг ${item.tier} / ${item.typeName}`} onClick={() => setSelectedId(item.id)} />
+              <EntityListButton key={item.id} active={selectedId === item.id} title={item.name} subtitle={`Ранг ${item.tier} / ${item.typeName}`} onClick={() => selectExisting(item.id)} />
             ))}
           </div>
-        </Surface>
+        </aside>
 
-        <Surface as="div" tone="subtle" padding="sm" className="player-custom-compendium-editor">
+        <div className="player-custom-compendium-editor">
           {notice && <Notice tone={notice.tone}>{notice.message}</Notice>}
           {kind === 'adversary'
-            ? <AdversaryForm draft={draft as AdversaryDraft} onChange={(patch) => setDraft((current) => ({ ...(current as AdversaryDraft), ...patch }))} />
-            : <EnvironmentForm draft={draft as EnvironmentDraft} onChange={(patch) => setDraft((current) => ({ ...(current as EnvironmentDraft), ...patch }))} />}
-          <div className="player-custom-compendium-actions">
+            ? <AdversaryForm draft={draft as AdversaryDraft} onChange={updateDraft} />
+            : <EnvironmentForm draft={draft as EnvironmentDraft} onChange={updateDraft} />}
+          <Toolbar className="player-custom-compendium-actions" aria-label="Сохранение записи справочника">
             {kind === 'adversary' && hasExisting && (
               <Button type="button" variant="secondary" onClick={addToEncounter}>В бой</Button>
             )}
             {hasExisting && (
-              <IconButton type="button" variant="danger" size="sm" title="Удалить" aria-label="Удалить запись" onClick={() => void remove()}>
+              <IconButton type="button" variant="danger" size="sm" title="Удалить" aria-label="Удалить запись" onClick={() => setDeleteOpen(true)}>
                 <Trash2 size={15} aria-hidden="true" />
               </IconButton>
             )}
             <Button type="button" variant="primary" onClick={() => void save()}>Сохранить</Button>
-          </div>
-        </Surface>
-      </div>
+          </Toolbar>
+        </div>
+      </div>}
+      {deleteOpen && (
+        <ConfirmDialog
+          title={`Удалить ${kind === 'adversary' ? 'противника' : 'окружение'} «${draft.name || 'Без названия'}»?`}
+          body="Пользовательская запись исчезнет из справочника. Это действие нельзя отменить."
+          onCancel={() => setDeleteOpen(false)}
+          onConfirm={() => {
+            setDeleteOpen(false);
+            void remove();
+          }}
+        />
+      )}
     </section>
   );
 }
 
 function EntityListButton({ active, title, subtitle, onClick }: { active: boolean; title: string; subtitle: string; onClick: () => void }) {
   return (
-    <ChoiceCard className="player-custom-compendium-list__item" selected={active} type="button" onClick={onClick}>
-      <strong>{title}</strong>
-      <span>{subtitle}</span>
-    </ChoiceCard>
+    <ListItem
+      className={`player-custom-compendium-list__item ${active ? 'dh-is-selected' : ''}`}
+      title={title}
+      subtitle={subtitle}
+      lines={2}
+      align="start"
+      onClick={onClick}
+    />
   );
 }
 

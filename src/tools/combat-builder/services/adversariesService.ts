@@ -38,6 +38,7 @@ export class AdversariesService {
   ensureLoaded() {
     if (this.bootstrapped) return;
     this.bootstrapped = true;
+    adversariesStore.update((state) => ({ ...state, isLoading: true, error: null }));
     this.subscribeCustomChanges();
     void this.ensureCustomLoaded().then(() => this.reload());
   }

@@ -1,7 +1,8 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export async function openGmGame(page: Page): Promise<void> {
   await page.goto('/game');
+  await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
 }
 
 export async function openPlayerGame(page: Page, roomId = 'TEST-ROOM'): Promise<void> {
@@ -20,4 +21,5 @@ export async function openPlayerGame(page: Page, roomId = 'TEST-ROOM'): Promise<
     }));
   }, roomId);
   await page.goto('/game');
+  await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
 }

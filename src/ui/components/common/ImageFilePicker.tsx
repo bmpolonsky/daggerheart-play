@@ -12,6 +12,7 @@ export interface FilePickerProps {
   className?: string;
   aspectRatio?: string;
   size?: 'default' | 'compact';
+  hideLabel?: boolean;
   icon?: 'image' | 'music';
   onFileSelect: (file: File) => void | Promise<void>;
   onClear?: () => void;
@@ -26,6 +27,7 @@ export function FilePicker({
   className = '',
   aspectRatio = '1 / 1',
   size = 'default',
+  hideLabel = false,
   icon = 'image',
   onFileSelect,
   onClear
@@ -53,7 +55,7 @@ export function FilePicker({
 
   return (
     <div className={rootClassName} style={style}>
-      <span className={`image-file-picker__label ${styles.label}`}>{label}</span>
+      <span className={`image-file-picker__label ${styles.label} ${hideLabel ? styles.visuallyHidden : ''}`}>{label}</span>
       <div className={`image-file-picker__frame ${styles.frame}`}>
         <label className={`image-file-picker__upload-target ${styles.uploadTarget}`}>
           {resolvedPreviewUrl ? (

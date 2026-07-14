@@ -1,5 +1,5 @@
 import { createGameDocumentStore, type GameDocumentStore } from '../core/persistence/gameDocumentStore';
-import { applyBrowserCustomContent, loadBrowserCustomContent, readBrowserCustomContent } from '../core/persistence/browserProjectContent';
+import { applyBrowserCustomContent, loadBrowserCustomContent, readBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../domain/p2p/sessionLinks';
 import { createGameDocument, isGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState } from '../domain/game/gameDocument';
 import type { GameDocument } from '../domain/game/gameDocument';
@@ -44,7 +44,10 @@ export class PersistenceService {
       this.clearLocalStorageSnapshots();
       this.readyPromise = this.hydrateFromIndexedDb().then(() => {
         this.subscribeDocumentChanges();
-        this.unsubscribeCallbacks = subscribeToSyncedGameStores(() => this.schedulePersist());
+        this.unsubscribeCallbacks = [
+          ...subscribeToSyncedGameStores(() => this.schedulePersist()),
+          subscribeCustomContentChanges('all', () => this.schedulePersist())
+        ];
         window.addEventListener('pagehide', this.flushPendingPersist);
         window.addEventListener('beforeunload', this.flushPendingPersist);
       });

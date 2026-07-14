@@ -3,10 +3,10 @@ import { Bed, Coffee, Hourglass, Swords, Users } from "lucide-react";
 import { useStream } from "../../../../core/hooks/useStream";
 import type { RestType } from "../../../../domain/rules/rest";
 import { characterService, feedService } from "../../../../services/serviceRegistry";
-import { ChoiceCard } from "../../../components/common/ChoiceCard";
+import { ListItem } from "../../../components/common/ListItem";
 import { playerViewUiActions } from "../playerViewUiState";
 
-export function GmActionsPanel() {
+export function GmActionsPanel({ onOpenChronicle }: { onOpenChronicle?: () => void }) {
   const charactersState = useStream(characterService.characters$);
   const actorOptions = charactersState.order.flatMap((characterId) => {
     const character = charactersState.entities[characterId];
@@ -21,6 +21,7 @@ export function GmActionsPanel() {
       requestedBy: { actorName: 'Мастер', actorType: 'system' },
       participants: actorOptions
     });
+    onOpenChronicle?.();
   };
   const requestTeamwork = (kind: 'groupAction' | 'tagTeam') => {
     feedService.requestTeamworkRoll({
@@ -29,6 +30,7 @@ export function GmActionsPanel() {
       availableActors: actorOptions,
       publication: 'public'
     });
+    onOpenChronicle?.();
   };
   return (
     <section className="player-gm-actions" aria-label="Действия мастера">
@@ -37,12 +39,7 @@ export function GmActionsPanel() {
         <RestRow restType="long" onRequest={() => requestRest('long')} />
         <TeamworkRow kind="groupAction" onRequest={() => requestTeamwork('groupAction')} />
         <TeamworkRow kind="tagTeam" onRequest={() => requestTeamwork('tagTeam')} />
-        <ChoiceCard className="player-gm-actions__rest-row" type="button" onClick={() => playerViewUiActions.openCountdownComposer()}>
-          <Hourglass size={16} aria-hidden="true" />
-          <span>
-            <strong>Создать отсчет</strong>
-          </span>
-        </ChoiceCard>
+        <ListItem className="player-gm-actions__rest-row" leftAccessory={<Hourglass size={16} aria-hidden="true" />} title="Создать отсчет" onClick={() => { playerViewUiActions.openCountdownComposer(); onOpenChronicle?.(); }} />
       </div>
     </section>
   );
@@ -57,12 +54,12 @@ function RestRow({
 }) {
   const Icon = restType === 'short' ? Coffee : Bed;
   return (
-    <ChoiceCard className="player-gm-actions__rest-row" type="button" onClick={onRequest}>
-      <Icon size={16} aria-hidden="true" />
-      <span>
-        <strong>{restType === 'short' ? 'Короткий отдых' : 'Продолжительный отдых'}</strong>
-      </span>
-    </ChoiceCard>
+    <ListItem
+      className="player-gm-actions__rest-row"
+      leftAccessory={<Icon size={16} aria-hidden="true" />}
+      title={restType === 'short' ? 'Короткий отдых' : 'Продолжительный отдых'}
+      onClick={onRequest}
+    />
   );
 }
 
@@ -75,11 +72,11 @@ function TeamworkRow({
 }) {
   const Icon = kind === 'groupAction' ? Users : Swords;
   return (
-    <ChoiceCard className="player-gm-actions__rest-row" type="button" onClick={onRequest}>
-      <Icon size={16} aria-hidden="true" />
-      <span>
-        <strong>{kind === 'groupAction' ? 'Групповой бросок' : 'Командный бросок'}</strong>
-      </span>
-    </ChoiceCard>
+    <ListItem
+      className="player-gm-actions__rest-row"
+      leftAccessory={<Icon size={16} aria-hidden="true" />}
+      title={kind === 'groupAction' ? 'Групповой бросок' : 'Командный бросок'}
+      onClick={onRequest}
+    />
   );
 }

@@ -1,20 +1,20 @@
 import { expect, test } from '@playwright/test';
 import { openGmGame, openPlayerGame } from './game-route-helpers';
-import { expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
+import { expectInsideHorizontalBounds, expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
 
 test.describe('VTT detail composition', () => {
-  test('desktop scene stays between activity feed and character panel', async ({ page }) => {
+  test('desktop keeps the scene primary and overlays optional workspaces', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
     const root = page.locator('.player-view--gm');
-    const feed = page.getByLabel('Чат игры');
+    const feed = page.getByLabel('Хроника игры');
     const scene = page.getByLabel('Игровая сцена');
     const panel = page.getByLabel('Инструменты сцены');
 
     await expect(root).toBeVisible();
-    await expect(feed).toBeVisible();
     await expect(scene).toBeVisible();
+    await expect(feed).toBeVisible();
     await expect(panel).toBeVisible();
     await expectInsideViewport(page, feed);
     await expectInsideViewport(page, scene);
@@ -26,14 +26,14 @@ test.describe('VTT detail composition', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const feed = page.getByLabel('Чат игры');
+    const feed = page.getByLabel('Хроника игры');
     const panel = page.getByLabel('Инструменты сцены');
-    const gmDock = panel.getByLabel('Библиотека');
+    const contextTabs = panel.getByLabel('Контекст мастера');
 
     await expect(feed).toBeVisible();
     await expect(panel).toBeVisible();
-    await expect(gmDock).toBeVisible();
-    await gmDock.getByRole('button', { name: 'Раздатка' }).click();
+    await expect(contextTabs).toBeVisible();
+    await contextTabs.getByRole('button', { name: 'Материалы' }).click();
     await expect(panel.getByRole('region', { name: 'Раздатка' })).toBeVisible();
     await expectNoOverlap(feed, panel);
   });
@@ -47,7 +47,7 @@ test.describe('mobile VTT composition', () => {
 
     const root = page.locator('.player-view--player');
     const tabs = page.getByLabel('Слой интерфейса');
-    const feed = page.getByLabel('Чат игры');
+    const feed = page.getByLabel('Хроника игры');
     const scene = page.getByLabel('Игровая сцена');
     const sheet = page.getByLabel('Персонаж игрока');
     const dice = page.getByLabel('Бросок костей');
@@ -56,7 +56,7 @@ test.describe('mobile VTT composition', () => {
     await expect(scene).toBeVisible();
     await expectInsideViewport(page, tabs);
     await expectInsideViewport(page, dice);
-    await tabs.getByRole('button', { name: 'Чат' }).click();
+    await tabs.getByRole('button', { name: 'Хроника' }).click();
     await expect(root).toHaveClass(/player-view--mobile-feed/);
     await expectInsideViewport(page, feed);
     await tabs.getByRole('button', { name: 'Лист' }).click();
@@ -68,8 +68,8 @@ test.describe('mobile VTT composition', () => {
   test('tools modal opens above player layers and closes cleanly', async ({ page }) => {
     await openGmGame(page);
 
-    await page.getByRole('button', { name: 'Библиотека' }).click();
-    const modal = page.getByRole('dialog', { name: 'Библиотека' });
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
     await modal.getByRole('button', { name: 'Закрыть' }).click();
@@ -79,20 +79,48 @@ test.describe('mobile VTT composition', () => {
   test('GM tools mobile tabs expose character creation', async ({ page }) => {
     await openGmGame(page);
 
-    await page.getByRole('button', { name: 'Библиотека' }).click();
-    const modal = page.getByRole('dialog', { name: 'Библиотека' });
-    const mobileTabs = modal.getByRole('group', { name: 'Разделы библиотеки' });
-    const charactersTab = mobileTabs.getByRole('button', { name: 'Персонажи' });
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    const workspaceTabs = modal.getByRole('group', { name: 'Разделы рабочего пространства' });
+    const charactersTab = workspaceTabs.getByRole('button', { name: 'Персонажи' });
 
     await expect(modal).toBeVisible();
-    await expect(mobileTabs).toBeVisible();
-    await expectInsideViewport(page, mobileTabs);
+    await expect(workspaceTabs).toBeVisible();
+    await expectInsideViewport(page, workspaceTabs);
     await expect(charactersTab).toBeVisible();
-    await charactersTab.evaluate((button) => {
-      button.scrollIntoView({ block: 'nearest', inline: 'center' });
-    });
-    await expectInsideViewport(page, charactersTab);
-    await charactersTab.dispatchEvent('click');
+    await charactersTab.click();
     await expect(modal.getByRole('button', { name: 'Создать героя' })).toBeVisible();
+  });
+
+  test('GM can reach both external tools while dialog focus stays trapped', async ({ page }) => {
+    await openGmGame(page);
+
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    const workspaceTabs = modal.getByRole('group', { name: 'Разделы рабочего пространства' });
+    const combatTool = workspaceTabs.getByRole('button', { name: 'Конструктор боя', exact: true });
+    const cardTool = workspaceTabs.getByRole('button', { name: 'Редактор карт', exact: true });
+    const visibleFocusable = modal.locator('button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [href]:visible, [tabindex]:not([tabindex="-1"]):visible');
+
+    await combatTool.scrollIntoViewIfNeeded();
+    await expectInsideHorizontalBounds(workspaceTabs, combatTool);
+
+    await visibleFocusable.first().focus();
+    await page.keyboard.press('Shift+Tab');
+    await expect(visibleFocusable.last()).toBeFocused();
+
+    const combatPopupPromise = page.waitForEvent('popup');
+    await combatTool.click();
+    const combatPopup = await combatPopupPromise;
+    await expect(combatPopup).toHaveURL(/\/tools\/combat$/);
+    await combatPopup.close();
+
+    await cardTool.scrollIntoViewIfNeeded();
+    await expectInsideHorizontalBounds(workspaceTabs, cardTool);
+    const cardPopupPromise = page.waitForEvent('popup');
+    await cardTool.click();
+    const cardPopup = await cardPopupPromise;
+    await expect(cardPopup).toHaveURL(/\/tools\/cards$/);
+    await cardPopup.close();
   });
 });

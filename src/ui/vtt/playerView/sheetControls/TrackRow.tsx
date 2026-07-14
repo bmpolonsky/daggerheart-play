@@ -7,7 +7,7 @@ export function TrackRow({ icon, label, value, max, tone = 'hp', onSet }: { icon
     <div className="player-track-row">
       {icon}
       <span>{label}</span>
-      <TrackDots value={value} max={max} tone={tone} onSet={onSet} />
+      <TrackDots value={value} max={max} tone={tone} label={label} onSet={onSet} />
       <strong>{value}/{max}</strong>
     </div>
   );

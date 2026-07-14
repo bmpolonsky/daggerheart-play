@@ -3,6 +3,7 @@ import { useStream } from '../../../../../core/hooks/useStream';
 import type { CharacterWealth } from '../../../../../domain/rules/types';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { characterService, gameService } from '../../../../../services/serviceRegistry';
+import { NumberField } from '../../../../components/common/Field';
 import { FeedCardHeader } from './RollFeedCard';
 
 type WealthFieldKind = keyof CharacterWealth;
@@ -56,15 +57,13 @@ function WealthInput({
 }) {
   const max = kind === 'chests' ? 1 : 9;
   return (
-    <label className="feed-wealth-editor__field">
-      <span>{label}</span>
-      <input
-        type="number"
-        min={0}
-        max={max}
-        value={value}
-        onInput={(event) => characterId && characterService.updateWealth(characterId, { [kind]: Number(event.currentTarget.value) } as Partial<CharacterWealth>)}
-      />
-    </label>
+    <NumberField
+      className="feed-wealth-editor__field"
+      label={label}
+      min={0}
+      max={max}
+      value={value}
+      onInput={(event) => characterId && characterService.updateWealth(characterId, { [kind]: Number(event.currentTarget.value) } as Partial<CharacterWealth>)}
+    />
   );
 }

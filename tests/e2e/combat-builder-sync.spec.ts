@@ -14,6 +14,7 @@ async function openGmTable(context: BrowserContext): Promise<Page> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openGmGame(page);
   await expect(page.locator('.player-view--gm')).toBeVisible();
+  await expect(page.getByLabel('Контекст мастера')).toBeVisible();
   return page;
 }
 
@@ -29,7 +30,7 @@ test.describe('combat builder sync', () => {
     const builder = await openCombatBuilder(context);
     const gm = await openGmTable(context);
 
-    await expect(gm.locator('.player-participant-feed__empty')).toContainText('Участников пока нет');
+    await expect(gm.locator('.player-participant-feed__empty')).toContainText('Сцена пока пуста');
 
     await addRedOoze(builder);
     await expect(builder.locator('.combat-encounter-panel')).toContainText('1 противников');
@@ -47,6 +48,6 @@ test.describe('combat builder sync', () => {
     await secondBuilder.getByTitle('Уменьшить / Удалить').first().click();
 
     await expect(builder.locator('.combat-encounter-panel')).toContainText('0 противников');
-    await expect(gm.locator('.player-participant-feed__empty')).toContainText('Участников пока нет');
+    await expect(gm.locator('.player-participant-feed__empty')).toContainText('Сцена пока пуста');
   });
 });

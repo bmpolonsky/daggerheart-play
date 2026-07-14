@@ -13,6 +13,7 @@ import {
 } from "@combat/components/icons";
 import { Button } from "../../../../ui/components/common/Button";
 import { Checkbox } from "../../../../ui/components/common/Checkbox";
+import { ConfirmDialog } from "../../../../ui/components/common/ConfirmDialog";
 import { IconButton } from "../../../../ui/components/common/IconButton";
 import { SegmentedControl } from "../../../../ui/components/common/SegmentedControl";
 import { Surface } from "../../../../ui/components/common/Surface";
@@ -117,6 +118,7 @@ export function EncounterPanel({
   onToggleLowerTierUsed,
 }: EncounterPanelProps) {
   const [showModifiers, setShowModifiers] = useState(true);
+  const [clearOpen, setClearOpen] = useState(false);
   const totalEntries = entries.reduce((sum, entry) => sum + entry.count, 0);
 
   const autoModifiers = useMemo(
@@ -157,7 +159,7 @@ export function EncounterPanel({
           {entries.length > 0 && (
             <IconButton
               type="button"
-              onClick={onClear}
+              onClick={() => setClearOpen(true)}
               variant="danger"
               size="sm"
               title="Очистить бой"
@@ -168,6 +170,19 @@ export function EncounterPanel({
           )}
         </div>
       </div>
+
+      {clearOpen && (
+        <ConfirmDialog
+          title="Очистить бой?"
+          body="Все добавленные противники и отмеченные ресурсы будут удалены из текущего боя. Это действие нельзя отменить."
+          confirmLabel="Очистить"
+          onCancel={() => setClearOpen(false)}
+          onConfirm={() => {
+            setClearOpen(false);
+            onClear();
+          }}
+        />
+      )}
 
       {showModifiers && (
         <div className="combat-encounter-panel__settings animate-in slide-in-from-top-2 space-y-4 border-b border-slate-700 bg-slate-800/50 p-4 duration-200">

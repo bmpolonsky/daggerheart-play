@@ -10,6 +10,7 @@ export interface ListDetailLayoutProps extends Omit<HTMLAttributes<HTMLDivElemen
   detailClassName?: string;
   listLabel?: string;
   detailLabel?: string;
+  narrowDetailOpen?: boolean;
 }
 
 export function ListDetailLayout({
@@ -19,15 +20,19 @@ export function ListDetailLayout({
   detailClassName = '',
   listLabel,
   detailLabel,
+  narrowDetailOpen,
   className = '',
   style,
   ...props
 }: ListDetailLayoutProps) {
   const hasDetail = Boolean(detail);
+  const showNarrowDetail = narrowDetailOpen ?? hasDetail;
   const rootClassName = [
     'dh-list-detail-layout',
     styles.root,
     hasDetail ? styles.withDetail : '',
+    hasDetail && showNarrowDetail ? styles.narrowDetailOpen : '',
+    hasDetail && !showNarrowDetail ? styles.narrowListOpen : '',
     styles.detailFirst,
     className
   ].filter(Boolean).join(' ');

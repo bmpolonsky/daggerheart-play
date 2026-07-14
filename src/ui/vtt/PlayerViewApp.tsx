@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
-import { MessageCircle, ScrollText, Swords } from 'lucide-react';
+import { BookOpenText, ScrollText, Swords } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import {
   buildCharacterSummary,
@@ -21,8 +21,9 @@ import { SceneAudioRuntime } from './playerView/SceneAudioRuntime';
 import { PlayerActionDock } from './playerView/PlayerActionDock';
 import { PlayerConnectionStatus } from './playerView/PlayerConnectionStatus';
 import { PlayerSessionRuntime } from './playerView/PlayerSessionRuntime';
+import { SessionFocusControls } from './playerView/SessionFocusControls';
 import { FloatingCallWidget } from '../call/FloatingCallWidget';
-import { P2PHealthIndicator } from '../p2p/P2PHealthIndicator';
+import { buildP2PHealthSummary } from '../p2p/P2PHealthIndicator';
 import { useLiveSceneAssetUrls } from './playerView/useLiveSceneAssetUrls';
 import {
   cssImageUrl,
@@ -60,17 +61,29 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const playerCharacterId = playerCharacterIdFromParticipants(sceneTable.participants, characters.entities, role === 'player' ? selectedPlayerSeatId : null);
   const [viewedActor, setViewedActor] = useState<PlayerViewedActor | null>(null);
   const [mobileLayer, setMobileLayer] = useState<PlayerMobileLayer>('scene');
+  const [desktopLayout, setDesktopLayout] = useState(isDesktopLayout);
+  const [activityOpen, setActivityOpen] = useState(defaultActivityPanelOpen);
+  const [panelOpen, setPanelOpen] = useState(defaultDetailPanelOpen);
   const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(typeof window === 'undefined' ? '' : window.location.pathname, role));
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role);
   const viewedCharacterId = viewedActor?.kind === 'character' ? viewedActor.actorId : null;
   const viewedAdversaryId = viewedActor?.kind === 'adversary' ? viewedActor.actorId : null;
   const viewedEnvironmentId = viewedActor?.kind === 'environment' ? viewedActor.actorId : null;
+  const p2pHealth = useMemo(() => buildP2PHealthSummary(p2pSession), [p2pSession]);
 
   useEffect(() => {
     playerViewUiActions.reset();
     return () => playerViewUiActions.reset();
   }, [role, sessionRoomId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const desktopPanels = window.matchMedia('(min-width: 921px)');
+    const handlePanelModeChange = (event: MediaQueryListEvent) => setDesktopLayout(event.matches);
+    desktopPanels.addEventListener('change', handlePanelModeChange);
+    return () => desktopPanels.removeEventListener('change', handlePanelModeChange);
+  }, []);
 
   useEffect(() => {
     if (role !== 'player' || !sessionRoomId) return;
@@ -153,6 +166,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       return;
     }
     setViewedActor(actor);
+    setPanelOpen(true);
     setMobileLayer('sheet');
   }, [playerCharacterId, role]);
   const completeDiceRoll = useCallback((rollId: string) => playerViewUiActions.completeDiceRoll(rollId), []);
@@ -225,6 +239,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         actorType: 'character'
       }
     }));
+    setActivityOpen(true);
     setMobileLayer('feed');
   }, []);
   const previewCharacterFeature = useCallback((character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => {
@@ -245,6 +260,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         actorType: 'character'
       }
     }));
+    setActivityOpen(true);
     setMobileLayer('feed');
   }, []);
   const editCharacterWealth = useCallback((character: PlayerViewCharacterSummary) => {
@@ -259,12 +275,13 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         actorType: 'character'
       }
     }));
+    setActivityOpen(true);
     setMobileLayer('feed');
   }, []);
   const needsSeatSelection = role === 'player' && playerSeats.length > 0 && !selectedPlayerSeat;
 
   return (
-    <main className={`player-view player-view--${role} player-view--mobile-${mobileLayer} ${model.handout ? 'dh-has-handout' : ''}`} data-vtt-root>
+    <main className={`player-view player-view--${role} player-view--mobile-${mobileLayer} ${activityOpen ? 'player-view--activity-open' : ''} ${panelOpen ? 'player-view--panel-open' : ''} ${!activityOpen && !panelOpen ? 'player-view--focus' : ''} ${model.handout ? 'dh-has-handout' : ''}`} data-vtt-root>
       <PlayerSessionRuntime
         displayedCharacter={displayedCharacter}
         gameGmName={game.gmName}
@@ -287,11 +304,25 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         hasSessionRoom={Boolean(sessionRoomId)}
         role={role}
       />
+      <SessionFocusControls
+        activityOpen={activityOpen}
+        connectionLabel={p2pHealth.label}
+        connectionTone={p2pHealth.tone}
+        panelOpen={panelOpen}
+        role={role}
+        onActivityToggle={() => setActivityOpen((current) => !current)}
+        onPanelToggle={() => setPanelOpen((current) => !current)}
+      />
       <PlayerTopBar model={model} role={role} />
       <Tabs className="player-mobile-layer-tabs" label="Слой интерфейса">
-        <TabButton active={mobileLayer === 'feed'} onClick={() => setMobileLayer('feed')}>
-          <MessageCircle size={18} aria-hidden="true" />
-          <span>Чат</span>
+        <TabButton
+          active={mobileLayer === 'feed'}
+          aria-label={`Хроника. Соединение: ${p2pHealth.label}`}
+          onClick={() => setMobileLayer('feed')}
+        >
+          <BookOpenText size={18} aria-hidden="true" />
+          <span>Хроника</span>
+          <span className={`player-connection-status-dot is-${p2pHealth.tone}`} aria-hidden="true" />
         </TabButton>
         <TabButton active={mobileLayer === 'scene'} onClick={() => setMobileLayer('scene')}>
           <Swords size={18} aria-hidden="true" />
@@ -303,6 +334,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         </TabButton>
       </Tabs>
       <PlayerLeftRail
+        accessible={desktopLayout ? activityOpen : mobileLayer === 'feed'}
         macroCharacter={displayedCharacter ?? model.character}
         macroCharacters={macroCharacters}
         model={model}
@@ -328,28 +360,34 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         selectedPlayerSeatId={selectedPlayerSeatId}
         onOpenTools={openTools}
       />
-      <P2PHealthIndicator role={role} />
       <FloatingCallWidget />
-      <PlayerCharacterPanel
-        activeCharacterId={displayedCharacter?.id ?? null}
-        activeAdversaryId={displayedAdversary?.id ?? null}
-        adversary={displayedAdversary}
-        environment={displayedEnvironment}
-        character={displayedCharacter}
-        emptyActionLabel={role === 'player' ? 'Создать персонажа' : undefined}
-        emptyState={model.emptyCharacterState}
-        role={role}
-        sceneId={model.scene.id}
-        sceneTable={sceneTable}
-        onClearActivationRequest={(request) => void p2pSessionService.clearRaisedHand(request)}
-        onClearActor={() => setViewedActor(null)}
-        onDomainCardPreview={previewDomainCard}
-        onFeaturePreview={previewCharacterFeature}
-        onWealthEdit={editCharacterWealth}
-        onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
-        onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
-        onOpenActor={openActor}
-      />
+      <div
+        className="player-character-panel-a11y-guard"
+        aria-hidden={!(desktopLayout ? panelOpen : mobileLayer === 'sheet')}
+        inert={!(desktopLayout ? panelOpen : mobileLayer === 'sheet')}
+      >
+        <PlayerCharacterPanel
+          activeCharacterId={displayedCharacter?.id ?? null}
+          activeAdversaryId={displayedAdversary?.id ?? null}
+          adversary={displayedAdversary}
+          environment={displayedEnvironment}
+          character={displayedCharacter}
+          emptyActionLabel={role === 'player' ? 'Создать персонажа' : undefined}
+          emptyState={model.emptyCharacterState}
+          role={role}
+          sceneId={model.scene.id}
+          sceneTable={sceneTable}
+          onClearActivationRequest={(request) => void p2pSessionService.clearRaisedHand(request)}
+          onClearActor={() => setViewedActor(null)}
+          onDomainCardPreview={previewDomainCard}
+          onFeaturePreview={previewCharacterFeature}
+          onOpenChronicle={() => { setActivityOpen(true); setMobileLayer('feed'); }}
+          onWealthEdit={editCharacterWealth}
+          onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
+          onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
+          onOpenActor={openActor}
+        />
+      </div>
       {routedUi.toolsOpen && (
         <SharedToolsModal
           role={role}
@@ -373,6 +411,18 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       )}
     </main>
   );
+}
+
+function isDesktopLayout(): boolean {
+  return typeof window === 'undefined' || window.matchMedia('(min-width: 921px)').matches;
+}
+
+function defaultActivityPanelOpen(): boolean {
+  return typeof window === 'undefined' || window.matchMedia('(min-width: 1200px)').matches;
+}
+
+function defaultDetailPanelOpen(): boolean {
+  return isDesktopLayout();
 }
 
 function toDomainCardRecord(card: PlayerViewDomainCard): DomainCardRecord {

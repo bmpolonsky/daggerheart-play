@@ -14,12 +14,15 @@ import { AdversarySheet } from "./AdversarySheet";
 import { CharacterSheet } from "./CharacterSheet";
 import { EnvironmentSheet } from "./EnvironmentSheet";
 import type { PlayerViewDomainCard } from "./domainCards/types";
-import { RosterGmDock } from "./gmPanel/RosterGmDock";
+import { GmActionsPanel } from "./gmPanel/GmActionsPanel";
+import { GmHandoutsPanel } from "./gmPanel/GmHandoutsPanel";
+import { LiveSceneSwitcher } from "./gmPanel/LiveSceneSwitcher";
 import { SceneMusicControls } from "./gmPanel/SceneMusicControls";
-import { SectionTitle } from "./gmPanel/SectionTitle";
-import type { GmDockTab } from "./gmPanel/types";
 import { GmCombatTracker } from "./gmPanel/GmCombatTracker";
 import { EmptyState } from "../../components/common/EmptyState";
+import { TabButton, Tabs } from "../../components/common/Tabs";
+
+type GmPanelView = 'cast' | 'scenes' | 'actions' | 'media';
 
 export function GmRightPanel({
   activeAdversaryId,
@@ -35,6 +38,7 @@ export function GmRightPanel({
   onClearActor,
   onDomainCardPreview,
   onFeaturePreview,
+  onOpenChronicle,
   onForceMutePlayer,
   onWealthEdit,
   onOpenActor
@@ -52,13 +56,14 @@ export function GmRightPanel({
   onClearActor: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
+  onOpenChronicle?: () => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
   const { handouts } = useStream(gameService.game$);
   const encounter = useStream(encounterService.encounter$);
-  const [activeGmPanelTab, setActiveGmPanelTab] = useState<GmDockTab>('scenes');
+  const [activeView, setActiveView] = useState<GmPanelView>('cast');
   if (adversary) {
     return <AdversarySheet adversary={adversary} onBack={onClearActor} />;
   }
@@ -75,86 +80,84 @@ export function GmRightPanel({
   const rosterIsEmpty = playerActors.length === 0 && environmentActors.length === 0 && adversaryCount === 0;
   return (
     <aside className="player-character-panel player-character-panel--gm-overview" aria-label="Инструменты сцены" data-vtt-side-panel>
-      <section className="player-gm-overview__actors" aria-label="Участники">
-        <SectionTitle>Участники</SectionTitle>
-        <div className="player-participant-feed">
-          {playerActors.length > 0 && (
-            <RosterGroup label="Игроки" count={playerActors.length}>
-              <PlayerRoster
-                actors={playerActors}
-                activeAdversaryId={activeAdversaryId}
-                activeCharacterId={activeCharacterId}
-                role="gm"
-                sceneId={sceneId}
-                onAddActorToScene={(actor, targetSceneId) => tabletopService.placeActorOnScene({ kind: actor.kind, id: actor.actorId }, targetSceneId)}
-                onRemoveActorFromScene={(actor, targetSceneId) => tabletopService.removeTokenFromScene(actor.tokenId, targetSceneId)}
-                onClearActivationRequest={onClearActivationRequest}
-                onForceMutePlayer={onForceMutePlayer}
-                onSetResource={(actor, resource, next) => {
-                  if (resource === 'hope') {
-                    characterService.setHope(actor.actorId, next);
-                    return;
-                  }
-                  const current = actor[resource]?.marked ?? 0;
-                  characterService.markSlots(actor.actorId, resource, next - current);
-                }}
-                onOpenActor={onOpenActor}
-              />
-            </RosterGroup>
-          )}
-          {environmentActors.length > 0 && (
-            <RosterGroup label="Окружение" count={environmentActors.length}>
-              <PlayerRoster
-                actors={environmentActors}
-                activeAdversaryId={activeAdversaryId}
-                activeCharacterId={activeCharacterId}
-                role="gm"
-                sceneId={sceneId}
-                onAddActorToScene={(actor, targetSceneId) => tabletopService.placeActorOnScene(
-                  { kind: actor.kind, id: actor.actorId },
-                  targetSceneId,
-                  { hidden: true, placement: 'random' }
-                )}
-                onRemoveActorFromScene={(actor, targetSceneId) => tabletopService.removeTokenFromScene(actor.tokenId, targetSceneId)}
-                onSetActorHidden={(actor, hidden, targetSceneId) => sceneTableService.setTokenHiddenInScene(targetSceneId, actor.tokenId, hidden)}
-                onOpenActor={onOpenActor}
-              />
-            </RosterGroup>
-          )}
-          <GmCombatTracker
-            activeAdversaryId={activeAdversaryId}
-            sceneId={sceneId}
-            onOpenActor={onOpenActor}
-          />
-          {rosterIsEmpty && (
-            <EmptyState
-              className="player-participant-feed__empty"
-              tone="subtle"
-              size="sm"
-              icon={<Users size={18} />}
-              title="Участников пока нет"
-              body="Добавьте персонажей, окружение или противников."
-            />
-          )}
-        </div>
-      </section>
-      <RosterGmDock
-        activeTab={activeGmPanelTab}
-        handouts={handouts}
-        sceneTable={sceneTable}
-        onTabChange={setActiveGmPanelTab}
-      />
-      <SceneMusicControls sceneTable={sceneTable} />
+      <Tabs className="player-context-tabs" label="Контекст мастера" layout="equal">
+        <TabButton active={activeView === 'cast'} onClick={() => setActiveView('cast')}>Участники</TabButton>
+        <TabButton active={activeView === 'scenes'} onClick={() => setActiveView('scenes')}>Сцены</TabButton>
+        <TabButton active={activeView === 'actions'} onClick={() => setActiveView('actions')}>Действия</TabButton>
+        <TabButton active={activeView === 'media'} onClick={() => setActiveView('media')}>Материалы</TabButton>
+      </Tabs>
+      <div className="player-context-body">
+        {activeView === 'cast' && (
+          <section className="player-gm-overview__actors" aria-label="Участники">
+            <div className="player-participant-feed">
+              {playerActors.length > 0 && (
+                <RosterGroup label="Игроки">
+                  <PlayerRoster
+                    actors={playerActors}
+                    activeAdversaryId={activeAdversaryId}
+                    activeCharacterId={activeCharacterId}
+                    role="gm"
+                    sceneId={sceneId}
+                    onAddActorToScene={(actor, targetSceneId) => tabletopService.placeActorOnScene({ kind: actor.kind, id: actor.actorId }, targetSceneId)}
+                    onRemoveActorFromScene={(actor, targetSceneId) => tabletopService.removeTokenFromScene(actor.tokenId, targetSceneId)}
+                    onClearActivationRequest={onClearActivationRequest}
+                    onForceMutePlayer={onForceMutePlayer}
+                    onSetResource={(actor, resource, next) => {
+                      if (resource === 'hope') {
+                        characterService.setHope(actor.actorId, next);
+                        return;
+                      }
+                      const current = actor[resource]?.marked ?? 0;
+                      characterService.markSlots(actor.actorId, resource, next - current);
+                    }}
+                    onOpenActor={onOpenActor}
+                  />
+                </RosterGroup>
+              )}
+              {environmentActors.length > 0 && (
+                <RosterGroup label="Окружение">
+                  <PlayerRoster
+                    actors={environmentActors}
+                    activeAdversaryId={activeAdversaryId}
+                    activeCharacterId={activeCharacterId}
+                    role="gm"
+                    sceneId={sceneId}
+                    onAddActorToScene={(actor, targetSceneId) => tabletopService.placeActorOnScene(
+                      { kind: actor.kind, id: actor.actorId },
+                      targetSceneId,
+                      { hidden: true, placement: 'random' }
+                    )}
+                    onRemoveActorFromScene={(actor, targetSceneId) => tabletopService.removeTokenFromScene(actor.tokenId, targetSceneId)}
+                    onSetActorHidden={(actor, hidden, targetSceneId) => sceneTableService.setTokenHiddenInScene(targetSceneId, actor.tokenId, hidden)}
+                    onOpenActor={onOpenActor}
+                  />
+                </RosterGroup>
+              )}
+              <GmCombatTracker activeAdversaryId={activeAdversaryId} sceneId={sceneId} onOpenActor={onOpenActor} />
+              {rosterIsEmpty && (
+                <EmptyState className="player-participant-feed__empty" tone="transparent" size="sm" icon={<Users size={18} />} title="Сцена пока пуста" body="Добавьте героя, противника или окружение." />
+              )}
+            </div>
+          </section>
+        )}
+        {activeView === 'scenes' && <LiveSceneSwitcher sceneTable={sceneTable} />}
+        {activeView === 'actions' && <GmActionsPanel onOpenChronicle={onOpenChronicle} />}
+        {activeView === 'media' && (
+          <div className="player-context-media">
+            <GmHandoutsPanel handouts={handouts} onOpenChronicle={onOpenChronicle} />
+            <SceneMusicControls sceneTable={sceneTable} />
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
 
-function RosterGroup({ label, count, children }: { label: string; count: number; children: ComponentChildren }) {
+function RosterGroup({ label, children }: { label: string; children: ComponentChildren }) {
   return (
     <section className="player-participant-group" aria-label={label}>
       <header className="player-participant-group__header">
         <span>{label}</span>
-        <strong>{count}</strong>
       </header>
       {children}
     </section>

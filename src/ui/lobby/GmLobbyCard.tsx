@@ -1,10 +1,10 @@
 /** @jsxImportSource preact */
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { Copy, Crown, RefreshCw, Trash2 } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { p2pNetworkSettings$ } from '../../domain/p2p/networkSettings';
 import { characterService, gameService, gmLobbyService, sceneTableService } from '../../services/serviceRegistry';
-import { Button, EmptyState, IconButton, SectionHeader, SelectControl, Surface, TextControl, Toolbar } from '../components/common';
+import { Button, ConfirmDialog, EmptyState, IconButton, SectionHeader, SelectControl, Surface, TextControl, Toolbar } from '../components/common';
 import type { LobbyInviteContext } from './SessionLobby';
 
 interface GmLobbyCardProps {
@@ -19,6 +19,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
   const lobby = useStream(gmLobbyService.lobby$);
   useStream(p2pNetworkSettings$);
   const restoreAttempted = useRef(false);
+  const [roomRefreshOpen, setRoomRefreshOpen] = useState(false);
   const characterOptions = characterOrder.map((id) => characterEntities[id]).filter(Boolean);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');
   const displayedInviteUrl = gmLobbyService.previewInviteUrl(inviteContext, lobby);
@@ -47,14 +48,12 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
     });
   };
 
-  const refreshRoomCode = async () => {
-    if (
-      gmLobbyService.hasConnectedPlayers()
-      && !window.confirm('Игроки будут отключены от старой комнаты. Создать новый код и новую ссылку?')
-    ) {
+  const requestRoomCodeRefresh = () => {
+    if (gmLobbyService.hasConnectedPlayers()) {
+      setRoomRefreshOpen(true);
       return;
     }
-    await gmLobbyService.refreshRoomCode();
+    void gmLobbyService.refreshRoomCode();
   };
 
   const enterGm = () => {
@@ -78,7 +77,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
               title={roomCodeRefreshTitle}
               aria-label="Обновить код комнаты"
               disabled={isRoomCodeRefreshCoolingDown}
-              onClick={() => void refreshRoomCode()}
+              onClick={requestRoomCodeRefresh}
             >
               <RefreshCw size={15} aria-hidden="true" />
             </IconButton>
@@ -132,6 +131,19 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
           Открыть игру
         </Button>
       </Toolbar>
+      {roomRefreshOpen && (
+        <ConfirmDialog
+          title="Создать новый код комнаты?"
+          body="Подключённые игроки будут отключены от старой комнаты. Им понадобится новая ссылка."
+          confirmLabel="Обновить код"
+          destructive={false}
+          onCancel={() => setRoomRefreshOpen(false)}
+          onConfirm={() => {
+            setRoomRefreshOpen(false);
+            void gmLobbyService.refreshRoomCode();
+          }}
+        />
+      )}
     </Surface>
   );
 }

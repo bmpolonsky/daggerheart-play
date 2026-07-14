@@ -1,0 +1,36 @@
+.shell {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.title {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.title span {
+  color: var(--dh-gold-400);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title strong {
+  color: var(--dh-paper-100);
+  font-size: 1.04rem;
+  line-height: 1.2;
+}
+
+.body {
+  margin: 0;
+  color: var(--dh-paper-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

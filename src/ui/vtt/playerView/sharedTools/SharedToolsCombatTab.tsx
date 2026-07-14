@@ -13,6 +13,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  ConfirmDialog,
   EmptyState,
   IconButton,
   Notice,
@@ -46,6 +47,7 @@ export function SharedToolsCombatTab() {
   const [selectedAdversaryId, setSelectedAdversaryId] = useState<number | null>(null);
   const [detailMessage, setDetailMessage] = useState('');
   const [playerCountManuallyAdjusted, setPlayerCountManuallyAdjusted] = useState(false);
+  const [clearEncounterOpen, setClearEncounterOpen] = useState(false);
   const { filteredItems, roleOptions } = adversariesService.buildBrowserView();
   const tierOptions = useMemo(
     () => Array.from(new Set(adversariesState.items.map((item) => item.tier))).sort((left, right) => left - right),
@@ -82,7 +84,6 @@ export function SharedToolsCombatTab() {
           <header className="player-combat-panel-header">
             <div>
               <span>Противники</span>
-              <strong>{filteredItems.length} результатов</strong>
             </div>
             {adversariesState.isLoading && <Badge tone="blue">Загрузка</Badge>}
           </header>
@@ -160,14 +161,13 @@ export function SharedToolsCombatTab() {
           <header className="player-combat-panel-header player-combat-panel-header--encounter">
             <div>
               <span>Состав боя</span>
-              <strong>{summary.totalUnits} противников · {summary.totalCost}/{summary.finalBudget} ОБ</strong>
             </div>
             <Button
               variant="ghost"
               size="xs"
               iconBefore={<Trash2 size={14} />}
               disabled={encounter.entries.length === 0}
-              onClick={() => encounterService.clear()}
+              onClick={() => setClearEncounterOpen(true)}
             >
               Очистить
             </Button>
@@ -263,6 +263,18 @@ export function SharedToolsCombatTab() {
           </div>
         </Surface>
       </div>
+      {clearEncounterOpen && (
+        <ConfirmDialog
+          title="Очистить состав боя?"
+          body="Все противники будут удалены из подготовленного состава. Это действие нельзя отменить."
+          confirmLabel="Очистить"
+          onCancel={() => setClearEncounterOpen(false)}
+          onConfirm={() => {
+            setClearEncounterOpen(false);
+            encounterService.clear();
+          }}
+        />
+      )}
     </section>
   );
 }

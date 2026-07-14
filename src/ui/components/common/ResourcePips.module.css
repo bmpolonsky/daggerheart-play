@@ -1,0 +1,80 @@
+.root {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.title {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title span {
+  min-width: 0;
+  color: var(--dh-paper-muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.title strong {
+  color: var(--dh-paper-100);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pips {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pip {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(243, 234, 216, 0.11);
+}
+
+button.pip {
+  cursor: pointer;
+}
+
+button.pip:hover {
+  background: rgba(243, 234, 216, 0.2);
+}
+
+button.pip:focus-visible {
+  outline: none;
+  box-shadow: var(--dh-focus);
+}
+
+.active.available,
+.hope .active {
+  background: var(--dh-gold-400);
+}
+
+.active.marked,
+.hp .active.marked {
+  background: rgba(214, 91, 91, 0.84);
+}
+
+.stress .active.marked {
+  background: rgba(124, 58, 237, 0.86);
+}
+
+.armor .active.marked {
+  background: rgba(217, 119, 6, 0.88);
+}
+
+.fear .active {
+  background: #7f5fc8;
+}

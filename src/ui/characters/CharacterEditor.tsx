@@ -1,12 +1,15 @@
 import { Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Dialog } from '../components/common/Dialog';
 import { NumberField, SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
 import { InlineStat } from '../components/common/InlineStat';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
+import { SectionHeader } from '../components/common/SectionHeader';
+import { TabButton, Tabs } from '../components/common/Tabs';
+import { Toolbar } from '../components/common/Toolbar';
 import { WizardStepButton } from '../components/common/WizardStepButton';
 import { CLASS_LABELS, DAGGERHEART_CLASSES, DOMAIN_LABELS, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
@@ -21,8 +24,12 @@ import { ResourcePanel } from './ResourcePanel';
 import { ExperienceList } from './ExperienceList';
 import { LoadoutPanel } from './LoadoutPanel';
 
+type CharacterEditorSection = 'identity' | 'stats' | 'resources' | 'loadout' | 'notes';
+
 export function CharacterEditor({ character, content }: { character: Character; content?: ContentState }) {
   const [levelUpOpen, setLevelUpOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [section, setSection] = useState<CharacterEditorSection>('identity');
   const builderContent = content ? filterBuilderContent(content.generic) : null;
   const classSubclasses = builderContent?.subclasses.filter((item) => isSubclassForClass(item, character.className)) ?? [];
   const selectedAncestryId = itemIdByName(builderContent?.ancestries, character.ancestry);
@@ -33,188 +40,138 @@ export function CharacterEditor({ character, content }: { character: Character; 
   const domains = content ? classDomainsFor(content.classes, character.className) : character.domains;
 
   return (
-    <div className="stack gap-lg character-editor-compact">
-      <Card
-        title={character.name}
-        subtitle={`${CLASS_LABELS[character.className]} · Уровень ${character.level}`}
-        actions={
-          <div className="button-row">
-            {character.level < 10 && <Button variant="primary" onClick={() => setLevelUpOpen(true)}>Повысить уровень</Button>}
-            <Button onClick={() => characterService.duplicateCharacter(character.id)}>Дублировать</Button>
-            <IconButton variant="danger" size="sm" type="button" title="Удалить персонажа" aria-label={`Удалить персонажа ${character.name}`} onClick={() => characterService.deleteCharacter(character.id)}>
-              <Trash2 size={15} aria-hidden="true" />
-            </IconButton>
-          </div>
-        }
-      >
-        <div className="character-editor-identity">
-          <PortraitPicker character={character} />
-          <div className="character-editor-fields">
-            <div className="grid-4">
-              <TextField
-                label="Имя"
-                value={character.name}
-                onChange={(event) => characterService.updateIdentity(character.id, { name: event.currentTarget.value })}
-              />
-              <TextField
-                label="Местоимения"
-                value={character.pronouns}
-                onChange={(event) => characterService.updateIdentity(character.id, { pronouns: event.currentTarget.value })}
-              />
-              <NumberField
-                label="Уровень"
-                value={character.level}
-                min={1}
-                max={10}
-                onChange={(event) => characterService.updateLevel(character.id, Number(event.currentTarget.value))}
-              />
-            </div>
-            <div className="grid-4">
-              <SelectField
-                label="Класс"
-                value={character.className}
-                onChange={(event) => characterService.updateClass(character.id, event.currentTarget.value as DaggerheartClass)}
-              >
-                {DAGGERHEART_CLASSES.filter((className) => className !== 'Custom').map((className) => <option key={className} value={className}>{CLASS_LABELS[className]}</option>)}
-              </SelectField>
-              {builderContent ? (
-                <SelectField
-                  label="Родословная"
-                  value={selectedAncestryId}
-                  onChange={(event) => updateIdentityFromLibrary(character.id, 'ancestry', builderContent.ancestries, event.currentTarget.value)}
-                >
-                  <option value="">{character.ancestry || 'Не выбрана'}</option>
-                  {builderContent.ancestries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </SelectField>
-              ) : (
-                <TextField label="Родословная" value={character.ancestry} onChange={(event) => characterService.updateIdentity(character.id, { ancestry: event.currentTarget.value })} />
-              )}
-              {builderContent ? (
-                <SelectField
-                  label="Сообщество"
-                  value={selectedCommunityId}
-                  onChange={(event) => updateIdentityFromLibrary(character.id, 'community', builderContent.communities, event.currentTarget.value)}
-                >
-                  <option value="">{character.community || 'Не выбрано'}</option>
-                  {builderContent.communities.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </SelectField>
-              ) : (
-                <TextField label="Сообщество" value={character.community} onChange={(event) => characterService.updateIdentity(character.id, { community: event.currentTarget.value })} />
-              )}
-              {builderContent ? (
-                <SelectField
-                  label="Подкласс"
-                  value={selectedSubclassId}
-                  onChange={(event) => updateIdentityFromLibrary(character.id, 'subclassName', classSubclasses, event.currentTarget.value)}
-                >
-                  <option value="">{character.subclassName || 'Не выбран'}</option>
-                  {classSubclasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </SelectField>
-              ) : (
-                <TextField label="Подкласс" value={character.subclassName} onChange={(event) => characterService.updateIdentity(character.id, { subclassName: event.currentTarget.value })} />
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="stat-strip">
+    <div className="character-editor-compact">
+      <header className="character-editor-hero">
+        <PortraitPicker character={character} />
+        <SectionHeader
+          className="character-editor-heading"
+          eyebrow={`${CLASS_LABELS[character.className]} · ${character.ancestry || 'Родословная не выбрана'}`}
+          title={character.name}
+          subtitle={`${character.subclassName || 'Без подкласса'} · уровень ${character.level}`}
+          actions={(
+            <Toolbar aria-label="Действия с персонажем">
+              {character.level < 10 && <Button variant="primary" onClick={() => setLevelUpOpen(true)}>Новый уровень</Button>}
+              <Button onClick={() => characterService.duplicateCharacter(character.id)}>Копия</Button>
+              <IconButton variant="danger" size="sm" type="button" title="Удалить персонажа" aria-label={`Удалить персонажа ${character.name}`} onClick={() => setDeleteOpen(true)}>
+                <Trash2 size={15} aria-hidden="true" />
+              </IconButton>
+            </Toolbar>
+          )}
+        />
+        <div className="character-editor-vitals" aria-label="Ключевые параметры">
+          <InlineStat label="Уклонение" value={character.evasion} />
+          <InlineStat label="Броня" value={`${Math.max(0, character.armor.score - character.armor.markedSlots)}/${character.armor.score}`} />
           <InlineStat label="Домены" value={domains.map((domain) => DOMAIN_LABELS[domain]).join(' + ')} />
         </div>
-      </Card>
+      </header>
+
+      {deleteOpen && (
+        <ConfirmDialog
+          title={`Удалить персонажа «${character.name}»?`}
+          body="Лист персонажа и его данные будут удалены из игры. Это действие нельзя отменить."
+          onCancel={() => setDeleteOpen(false)}
+          onConfirm={() => {
+            setDeleteOpen(false);
+            characterService.deleteCharacter(character.id);
+          }}
+        />
+      )}
 
       {levelUpOpen && <LevelUpPanel character={character} content={content} domains={domains} onClose={() => setLevelUpOpen(false)} />}
 
-      <Card title="Характеристики">
-        <TraitGrid character={character} />
-        <div className="stat-strip top-gap">
-          <InlineStat label="Броня" value={`${Math.max(0, character.armor.score - character.armor.markedSlots)}/${character.armor.score}`} />
-          <InlineStat label="Уклонение" value={character.evasion} />
-          <InlineStat label="Ощутимый" value={character.thresholds.major} />
-          <InlineStat label="Тяжелый" value={character.thresholds.severe} />
-        </div>
-        <div className="grid-3 top-gap">
-          <NumberField
-            label="Уклонение"
-            value={character.evasion}
-            onChange={(event) => characterService.updateEvasion(character.id, Number(event.currentTarget.value))}
-          />
-          <NumberField
-            label="Мастерство"
-            value={character.proficiency}
-            onChange={(event) => characterService.updateProficiency(character.id, Number(event.currentTarget.value))}
-          />
-          {armorOptions.length > 0 ? (
-            <SelectField
-              label="Броня"
-              value={selectedArmorId}
-              onChange={(event) => applyArmorFromCatalog(character.id, armorOptions, event.currentTarget.value)}
-            >
-              <option value="">{armorLabel(character.armor.name)}</option>
-              {armorOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </SelectField>
-          ) : (
-            <TextField
-              label="Броня"
-              value={armorLabel(character.armor.name)}
-              onChange={(event) => characterService.updateArmor(character.id, { name: event.currentTarget.value }, false)}
-            />
-          )}
-        </div>
-        <details className="stack top-gap">
-          <summary className="section-subtitle">Дополнительно</summary>
-          <div className="grid-5">
-            <NumberField
-              label="Порог Ощутимого урона"
-              value={character.thresholds.major}
-              onChange={(event) => characterService.updateThresholds(character.id, { major: Number(event.currentTarget.value) })}
-            />
-            <NumberField
-              label="Порог Тяжелого урона"
-              value={character.thresholds.severe}
-              onChange={(event) => characterService.updateThresholds(character.id, { severe: Number(event.currentTarget.value) })}
-            />
-            <NumberField
-              label="База Ощутимого"
-              value={character.armor.baseMajor}
-              onChange={(event) => characterService.updateArmor(character.id, { baseMajor: Number(event.currentTarget.value) })}
-            />
-            <NumberField
-              label="База Тяжелого"
-              value={character.armor.baseSevere}
-              onChange={(event) => characterService.updateArmor(character.id, { baseSevere: Number(event.currentTarget.value) })}
-            />
-            <NumberField
-              label="Показатель Брони"
-              value={character.armor.score}
-              onChange={(event) => characterService.updateArmor(character.id, { score: Number(event.currentTarget.value) }, false)}
-            />
-          </div>
-          <TextField
-            label="Свойство Брони"
-            value={character.armor.feature ?? character.armor.featureText ?? ''}
-            onChange={(event) => characterService.updateArmor(character.id, { feature: event.currentTarget.value, featureText: event.currentTarget.value }, false)}
-          />
-        </details>
-      </Card>
+      <Tabs align="start" className="character-editor-tabs" label="Разделы листа персонажа">
+        <TabButton active={section === 'identity'} onClick={() => setSection('identity')}>Образ</TabButton>
+        <TabButton active={section === 'stats'} onClick={() => setSection('stats')}>Характеристики</TabButton>
+        <TabButton active={section === 'resources'} onClick={() => setSection('resources')}>Ресурсы</TabButton>
+        <TabButton active={section === 'loadout'} onClick={() => setSection('loadout')}>Снаряжение</TabButton>
+        <TabButton active={section === 'notes'} onClick={() => setSection('notes')}>Заметки</TabButton>
+      </Tabs>
 
-      <Card title="Ресурсы">
-        <ResourcePanel character={character} />
-      </Card>
+      <div className="character-editor-workspace">
+        {section === 'identity' && (
+          <section className="character-editor-section" aria-label="Образ персонажа">
+            <div className="grid-3">
+              <TextField label="Имя" value={character.name} onChange={(event) => characterService.updateIdentity(character.id, { name: event.currentTarget.value })} />
+              <TextField label="Местоимения" value={character.pronouns} onChange={(event) => characterService.updateIdentity(character.id, { pronouns: event.currentTarget.value })} />
+              <NumberField label="Уровень" value={character.level} min={1} max={10} onChange={(event) => characterService.updateLevel(character.id, Number(event.currentTarget.value))} />
+              <SelectField label="Класс" value={character.className} onChange={(event) => characterService.updateClass(character.id, event.currentTarget.value as DaggerheartClass)}>
+                {DAGGERHEART_CLASSES.filter((className) => className !== 'Custom').map((className) => <option key={className} value={className}>{CLASS_LABELS[className]}</option>)}
+              </SelectField>
+              {builderContent ? (
+                <SelectField label="Родословная" value={selectedAncestryId} onChange={(event) => updateIdentityFromLibrary(character.id, 'ancestry', builderContent.ancestries, event.currentTarget.value)}>
+                  <option value="">{selectedAncestryId ? 'Не выбрана' : (character.ancestry || 'Не выбрана')}</option>
+                  {builderContent.ancestries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </SelectField>
+              ) : <TextField label="Родословная" value={character.ancestry} onChange={(event) => characterService.updateIdentity(character.id, { ancestry: event.currentTarget.value })} />}
+              {builderContent ? (
+                <SelectField label="Сообщество" value={selectedCommunityId} onChange={(event) => updateIdentityFromLibrary(character.id, 'community', builderContent.communities, event.currentTarget.value)}>
+                  <option value="">{selectedCommunityId ? 'Не выбрано' : (character.community || 'Не выбрано')}</option>
+                  {builderContent.communities.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
+              ) : <TextField label="Сообщество" value={character.community} onChange={(event) => characterService.updateIdentity(character.id, { community: event.currentTarget.value })} />}
+              {builderContent ? (
+                <SelectField label="Подкласс" value={selectedSubclassId} onChange={(event) => updateIdentityFromLibrary(character.id, 'subclassName', classSubclasses, event.currentTarget.value)}>
+                  <option value="">{selectedSubclassId ? 'Не выбран' : (character.subclassName || 'Не выбран')}</option>
+                  {classSubclasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
+              ) : <TextField label="Подкласс" value={character.subclassName} onChange={(event) => characterService.updateIdentity(character.id, { subclassName: event.currentTarget.value })} />}
+            </div>
+          </section>
+        )}
 
-      <Card title="Опыты / навыки">
-        <ExperienceList character={character} />
-      </Card>
+        {section === 'stats' && (
+          <section className="character-editor-section" aria-label="Характеристики персонажа">
+            <TraitGrid character={character} />
+            <div className="character-editor-statline">
+              <InlineStat label="Ощутимый" value={character.thresholds.major} />
+              <InlineStat label="Тяжелый" value={character.thresholds.severe} />
+              <InlineStat label="Мастерство" value={character.proficiency} />
+            </div>
+            <div className="grid-3">
+              <NumberField label="Уклонение" value={character.evasion} onChange={(event) => characterService.updateEvasion(character.id, Number(event.currentTarget.value))} />
+              <NumberField label="Мастерство" value={character.proficiency} onChange={(event) => characterService.updateProficiency(character.id, Number(event.currentTarget.value))} />
+              {armorOptions.length > 0 ? (
+                <SelectField label="Броня" value={selectedArmorId} onChange={(event) => applyArmorFromCatalog(character.id, armorOptions, event.currentTarget.value)}>
+                  <option value="">{armorLabel(character.armor.name)}</option>
+                  {armorOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
+              ) : <TextField label="Броня" value={armorLabel(character.armor.name)} onChange={(event) => characterService.updateArmor(character.id, { name: event.currentTarget.value }, false)} />}
+            </div>
+            <details className="character-editor-advanced">
+              <summary>Тонкая настройка брони и порогов</summary>
+              <div className="grid-5">
+                <NumberField label="Порог Ощутимого урона" value={character.thresholds.major} onChange={(event) => characterService.updateThresholds(character.id, { major: Number(event.currentTarget.value) })} />
+                <NumberField label="Порог Тяжелого урона" value={character.thresholds.severe} onChange={(event) => characterService.updateThresholds(character.id, { severe: Number(event.currentTarget.value) })} />
+                <NumberField label="База Ощутимого" value={character.armor.baseMajor} onChange={(event) => characterService.updateArmor(character.id, { baseMajor: Number(event.currentTarget.value) })} />
+                <NumberField label="База Тяжелого" value={character.armor.baseSevere} onChange={(event) => characterService.updateArmor(character.id, { baseSevere: Number(event.currentTarget.value) })} />
+                <NumberField label="Показатель Брони" value={character.armor.score} onChange={(event) => characterService.updateArmor(character.id, { score: Number(event.currentTarget.value) }, false)} />
+              </div>
+              <TextField label="Свойство Брони" value={character.armor.feature ?? character.armor.featureText ?? ''} onChange={(event) => characterService.updateArmor(character.id, { feature: event.currentTarget.value, featureText: event.currentTarget.value }, false)} />
+            </details>
+          </section>
+        )}
 
-      <Card title="Снаряжение">
-        <LoadoutPanel character={character} content={content} />
-      </Card>
+        {section === 'resources' && (
+          <section className="character-editor-section character-editor-section--split" aria-label="Ресурсы и опыты персонажа">
+            <div>
+              <ResourcePanel character={character} />
+            </div>
+            <div>
+              <SectionHeader title="Опыты" />
+              <ExperienceList character={character} />
+            </div>
+          </section>
+        )}
 
-      <Card title="Заметки">
-        <TextAreaField
-          label="Заметки персонажа"
-          value={character.notes}
-          onChange={(event) => characterService.updateIdentity(character.id, { notes: event.currentTarget.value })}
-        />
-      </Card>
+        {section === 'loadout' && (
+          <section className="character-editor-section" aria-label="Снаряжение персонажа">
+            <LoadoutPanel character={character} content={content} />
+          </section>
+        )}
+
+        {section === 'notes' && (
+          <section className="character-editor-section" aria-label="Заметки персонажа">
+            <TextAreaField label="Заметки персонажа" rows={12} value={character.notes} onChange={(event) => characterService.updateIdentity(character.id, { notes: event.currentTarget.value })} />
+          </section>
+        )}
+      </div>
     </div>
   );
 }
@@ -490,6 +447,7 @@ function PortraitPicker({ character }: { character: Character }) {
     <ImageFilePicker
       className="character-portrait-picker"
       label="Портрет"
+      hideLabel
       imageUrl={character.portraitUrl}
       onFileSelect={handlePortraitChange}
       onClear={() => characterService.updateIdentity(character.id, { portraitUrl: '' })}

@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { openGmGame, openPlayerGame } from './game-route-helpers';
-import { expectInsideViewport, expectNoOverlap } from './layout-helpers';
+import { expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
 
 async function expectNoHorizontalOverflow(page: Page, width: number): Promise<void> {
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
@@ -45,21 +45,20 @@ test.describe('dark glass visual system smoke', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const feed = page.getByLabel('Чат игры');
+    const feed = page.getByLabel('Хроника игры');
     const scene = page.getByLabel('Игровая сцена');
     const sheet = page.getByLabel('Инструменты сцены');
 
     await expectInsideViewport(page, feed);
     await expectInsideViewport(page, scene);
     await expectInsideViewport(page, sheet);
-    await expectStableButton(page.getByRole('button', { name: 'Библиотека' }));
+    await expectStableButton(page.getByRole('button', { name: 'Инструменты' }));
 
-    await page.getByRole('button', { name: 'Библиотека' }).click();
-    const modal = page.getByRole('dialog', { name: 'Библиотека' });
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
-    await expect(modal.getByLabel('Разделы библиотеки')).toBeHidden();
-    await modal.getByLabel('Разделы инструментов').getByRole('button', { name: 'Персонажи' }).click();
+    await modal.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
     const createHeroButton = modal.getByRole('button', { name: 'Создать героя' }).first();
     await expectStableButton(createHeroButton);
     await createHeroButton.click();
@@ -67,7 +66,7 @@ test.describe('dark glass visual system smoke', () => {
     const builder = page.getByRole('dialog', { name: 'Новый герой' });
     await expect(builder).toBeVisible();
     await expectInsideViewport(page, builder);
-    await expect(builder.getByLabel('Предпросмотр героя')).toHaveCSS('color', /rgb\(243, 234, 216\)|rgb\(255, 247, 231\)/);
+    await expect(builder.getByLabel('Сводка героя')).toHaveCSS('color', /rgb\(243, 234, 216\)|rgb\(255, 247, 231\)/);
     await expectNoHorizontalOverflow(page, 1440);
   });
 
@@ -75,17 +74,17 @@ test.describe('dark glass visual system smoke', () => {
     await page.setViewportSize({ width: 1024, height: 1200 });
     await openGmGame(page);
 
-    await page.getByRole('button', { name: 'Библиотека' }).click();
-    const modal = page.getByRole('dialog', { name: 'Библиотека' });
-    const nav = modal.getByLabel('Разделы инструментов');
-    const body = modal.getByLabel('Содержимое библиотеки');
-    const mobileTabs = modal.getByLabel('Разделы библиотеки');
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    const nav = modal.getByLabel('Разделы рабочего пространства');
+    const body = modal.getByLabel('Содержимое рабочего пространства');
 
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
-    await expect(mobileTabs).toBeHidden();
+    await expect(nav).toBeVisible();
     await expectInsideViewport(page, body);
     await expectNoOverlap(nav, body, 2);
+    expect((await rect(nav)).height).toBeGreaterThanOrEqual(42);
     await expectNoHorizontalOverflow(page, 1024);
   });
 
@@ -95,8 +94,8 @@ test.describe('dark glass visual system smoke', () => {
 
     const tabs = page.getByLabel('Слой интерфейса');
     await expectInsideViewport(page, tabs);
-    await tabs.getByRole('button', { name: 'Чат' }).click();
-    await expectInsideViewport(page, page.getByLabel('Чат игры'));
+    await tabs.getByRole('button', { name: 'Хроника' }).click();
+    await expectInsideViewport(page, page.getByLabel('Хроника игры'));
     await tabs.getByRole('button', { name: 'Лист' }).click();
     await expectInsideViewport(page, page.getByLabel('Персонаж игрока'));
     await expectNoHorizontalOverflow(page, 390);

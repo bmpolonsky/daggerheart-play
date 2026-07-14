@@ -1,15 +1,16 @@
 /** @jsxImportSource preact */
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { Download, Trash2, Upload } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
 import { importExportService, persistenceService } from '../../services/serviceRegistry';
-import { Button, EmptyState, IconButton, ListItem, SectionHeader, Surface, Toolbar } from '../components/common';
+import { Button, ConfirmDialog, EmptyState, IconButton, ListItem, SectionHeader, Surface, Toolbar } from '../components/common';
 import type { StoredGameSummary } from '../../core/persistence/gameDocumentStore';
 
 export function StoredGamesCard() {
   const storedGames = useStream(persistenceService.storedGames$);
   const importFileRef = useRef<HTMLInputElement | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<StoredGameSummary | null>(null);
   const activeStoredGame = storedGames.find((game) => game.active) ?? null;
 
   useEffect(() => {
@@ -44,9 +45,6 @@ export function StoredGamesCard() {
   };
 
   const removeStoredGame = async (game: StoredGameSummary) => {
-    const name = game.name || 'Без названия';
-    const confirmed = window.confirm(`Удалить игру "${name}" из локального хранилища?`);
-    if (!confirmed) return;
     const ok = await persistenceService.removeStoredGame(game.id);
     if (!ok) return;
     await persistenceService.refreshStoredGames();
@@ -88,7 +86,7 @@ export function StoredGamesCard() {
                       Открыть
                     </Button>
                   )}
-                <IconButton variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => void removeStoredGame(game)}>
+                <IconButton variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => setPendingDelete(game)}>
                   <Trash2 size={14} aria-hidden="true" />
                 </IconButton>
                 </Toolbar>
@@ -99,12 +97,24 @@ export function StoredGamesCard() {
         </div>
         <input
           ref={importFileRef}
+          hidden
           type="file"
           accept="application/json,application/zip,.json,.zip,.dhgame"
-          style={{ display: 'none' }}
           onChange={importGameFile}
         />
       </Surface>
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Удалить игру «${pendingDelete.name || 'Без названия'}»?`}
+          body="Локальное сохранение и все данные кампании будут удалены с этого устройства. Это действие нельзя отменить."
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            const storedGame = pendingDelete;
+            setPendingDelete(null);
+            void removeStoredGame(storedGame);
+          }}
+        />
+      )}
     </>
   );
 }

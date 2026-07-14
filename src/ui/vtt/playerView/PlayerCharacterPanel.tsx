@@ -26,6 +26,7 @@ export function PlayerCharacterPanel({
   onClearActor,
   onDomainCardPreview,
   onFeaturePreview,
+  onOpenChronicle,
   onEmptyAction,
   onForceMutePlayer,
   onWealthEdit,
@@ -45,6 +46,7 @@ export function PlayerCharacterPanel({
   onClearActor: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
+  onOpenChronicle?: () => void;
   onEmptyAction?: () => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
@@ -85,6 +87,7 @@ export function PlayerCharacterPanel({
         onClearActor={onClearActor}
         onDomainCardPreview={onDomainCardPreview}
         onFeaturePreview={onFeaturePreview}
+        onOpenChronicle={onOpenChronicle}
         onForceMutePlayer={onForceMutePlayer}
         onWealthEdit={onWealthEdit}
         onOpenActor={onOpenActor}

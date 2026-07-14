@@ -1,186 +1,28 @@
-/* Drawer, modal, sheet, library, and character builder styles. */
-.cinematic-drawer {
-  position: fixed;
-  top: calc(var(--superapp-topbar-height, 58px) + 16px);
-  right: 18px;
-  bottom: 18px;
-  left: 18px;
-  z-index: var(--dh-z-drawer);
-  width: auto;
-  max-height: none;
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--dh-border-strong);
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(12, 16, 21, 0.98), rgba(7, 9, 12, 0.96)),
-    radial-gradient(120% 80% at 50% 0, rgba(240, 201, 106, 0.08), transparent 58%);
-  box-shadow: 0 34px 110px rgba(0, 0, 0, 0.68), inset 0 1px 0 rgba(243, 234, 216, 0.08);
-  backdrop-filter: blur(20px);
-  overflow: hidden;
-}
-
-.cinematic-drawer.dh-is-collapsed {
-  display: none;
-}
-
-.cinematic-drawer-context {
-  display: grid;
-  gap: 3px;
-  padding: 2px 2px 8px;
-  border-bottom: 1px solid rgba(240, 201, 106, 0.12);
-}
-
-.cinematic-drawer-context span {
-  color: var(--dh-gold-400);
-  font-size: 0.66rem;
-  font-weight: 950;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.cinematic-drawer-context strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--dh-paper-100);
-  font-family: "DH Eveleth", "DH Overpass", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.02rem;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cinematic-drawer-context small {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--dh-paper-muted);
-  font-size: 0.72rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cinematic-drawer-nav {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto repeat(6, auto) minmax(0, 1fr);
-  align-content: start;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid rgba(243, 234, 216, 0.1);
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(7, 9, 12, 0.74), rgba(13, 18, 24, 0.42)),
-    radial-gradient(100% 60% at 50% 0, rgba(240, 201, 106, 0.08), transparent 58%);
-}
-
-.cinematic-drawer-nav .dh-tab {
-  min-height: 42px;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 0 12px;
-  border: 1px solid rgba(243, 234, 216, 0.1);
-  border-radius: 10px;
-  background: rgba(7, 9, 12, 0.44);
-  color: rgba(243, 234, 216, 0.74);
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.cinematic-drawer-nav .dh-tab.dh-is-active,
-.cinematic-drawer-nav .dh-tab:hover {
-  border-color: rgba(240, 201, 106, 0.44);
-  background:
-    linear-gradient(90deg, rgba(17, 77, 122, 0.74), rgba(69, 48, 19, 0.7)),
-    rgba(7, 9, 12, 0.58);
-  color: #fff7e7;
-}
-
-.cinematic-drawer-close {
-  align-self: end;
-}
-
-.cinematic-drawer-content {
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.cinematic-drawer-content > .cinematic-library {
-  position: static;
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  display: flex;
-  border-color: rgba(243, 234, 216, 0.1);
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(11, 15, 20, 0.68), rgba(7, 9, 12, 0.4)),
-    radial-gradient(80% 40% at 50% 0, rgba(91, 159, 218, 0.08), transparent 60%);
-  box-shadow: inset 0 1px 0 rgba(243, 234, 216, 0.05);
-}
-
-.cinematic-drawer-content .cinematic-scene-list-card {
-  min-height: 136px;
-  align-content: start;
-  gap: 6px;
-}
-
-.cinematic-drawer-content .cinematic-drawer-list {
-  flex: 0 0 auto;
-}
-
-.cinematic-drawer-content .cinematic-scene-list-card .cinematic-card-actions {
-  position: static;
-  margin-top: 8px;
-}
-
-.cinematic-library {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: hidden;
-}
-
-.cinematic-library-grid {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  overflow: auto;
-  padding-right: 2px;
-}
-
-.cinematic-library-item {
-  display: grid;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--dh-border);
-  border-radius: var(--dh-radius-sm);
-  background: rgba(7, 9, 12, 0.38);
-}
+/* Character builder styles. */
 
 .dh-dialog.cinematic-builder {
-  width: min(1280px, 100%);
+  width: min(1160px, 100%);
   height: min(760px, calc(100dvh - 32px));
   max-height: calc(100dvh - 32px);
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr) 270px;
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
   border: 0;
   border-radius: var(--dh-radius, 8px);
   overflow: hidden;
 }
 
 .cinematic-builder {
-  width: min(1280px, 100%);
+  width: min(1160px, 100%);
   height: min(760px, calc(100dvh - 32px));
   max-height: calc(100dvh - 32px);
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr) 270px;
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
   border: 0;
   border-radius: var(--dh-radius, 8px);
   background:
@@ -193,10 +35,36 @@
 .cinematic-builder-nav {
   min-width: 0;
   display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 4px 12px 4px 0;
-  border-right: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding: 0;
+}
+
+.cinematic-builder-stepper {
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+
+.cinematic-builder-stepper::-webkit-scrollbar {
+  display: none;
+}
+
+.cinematic-builder-stepper .dh-wizard-step-button {
+  min-width: 72px;
+  flex: 1 1 0;
+  gap: 5px;
+  padding-inline: 6px;
+  font-size: 0.7rem;
+}
+
+.cinematic-builder-stepper .dh-wizard-step-button > span:first-child {
+  width: 22px;
+  height: 22px;
 }
 
 .cinematic-builder-panel {
@@ -209,17 +77,15 @@
 }
 
 .cinematic-builder-stage {
-  min-height: 88px;
+  min-height: 76px;
   display: grid;
   grid-template-columns: 68px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 10px;
+  padding: 4px 2px 8px;
   border: 0;
-  border-radius: 12px;
-  background:
-    linear-gradient(90deg, rgba(76, 49, 28, 0.3), rgba(15, 21, 30, 0.76)),
-    rgba(7, 9, 12, 0.42);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
@@ -292,22 +158,6 @@
 .cinematic-builder-quickstart {
   min-width: 0;
   white-space: nowrap;
-}
-
-.cinematic-builder-preview {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding: 10px;
-  border: 0;
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(18, 24, 30, 0.72), rgba(7, 9, 12, 0.66)),
-    rgba(7, 9, 12, 0.34);
-  box-shadow: none;
-  overflow: auto;
 }
 
 .cinematic-builder .cinematic-card-title {
@@ -409,8 +259,9 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
-  padding: 14px;
-  border-radius: 12px;
+  padding: 8px 2px 2px;
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
 
@@ -493,6 +344,16 @@
   align-content: start;
 }
 
+.cinematic-builder-question {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 16px;
+}
+
+.cinematic-builder-question + .cinematic-builder-question {
+  box-shadow: 0 -1px rgba(255, 255, 255, 0.045);
+}
+
 .cinematic-builder .dh-equipment-grid {
   align-content: start;
 }
@@ -547,17 +408,6 @@
   padding-top: 2px;
 }
 
-.cinematic-builder-summary {
-  max-width: 820px;
-  overflow: visible;
-}
-
-.cinematic-builder-summary span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.35;
-}
-
 .cinematic-builder-loadout-summary {
   display: grid;
   gap: 7px;
@@ -581,137 +431,6 @@
 
 .cinematic-builder-actions .dh-button {
   min-width: 104px;
-}
-
-.cinematic-builder-preview-art {
-  min-height: 96px;
-  position: relative;
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  align-items: end;
-  gap: 10px;
-  overflow: hidden;
-  padding: 10px;
-  border: 0;
-  border-radius: 10px;
-  background:
-    linear-gradient(90deg, rgba(216, 173, 83, 0.12), rgba(7, 9, 12, 0.36)),
-    rgba(7, 9, 12, 0.28);
-}
-
-.cinematic-builder-preview-art img {
-  position: relative;
-  z-index: 2;
-  width: 72px;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border: 0;
-  border-radius: 8px;
-}
-
-.cinematic-builder-preview-art::after {
-  display: none;
-}
-
-.cinematic-builder-preview-art > span {
-  place-self: center;
-  z-index: 2;
-  font-family: "DH Eveleth", Georgia, serif;
-  font-size: 1.4rem;
-  color: rgba(255, 247, 231, 0.76);
-}
-
-.cinematic-builder-preview-art div {
-  position: relative;
-  z-index: 2;
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-  padding: 0;
-  color: #fff7e7;
-}
-
-.cinematic-builder-preview-art strong {
-  font-family: "DH Eveleth", Georgia, serif;
-  font-size: 1rem;
-  line-height: 1.05;
-  text-transform: uppercase;
-}
-
-.cinematic-builder-preview-art span,
-.cinematic-builder-preview-line,
-.cinematic-builder-preview-cards,
-.cinematic-builder-readiness {
-  color: rgba(243, 234, 216, 0.66);
-  font-size: 0.76rem;
-}
-
-.cinematic-builder-preview-line,
-.cinematic-builder-preview-cards,
-.cinematic-builder-readiness {
-  display: grid;
-  gap: 6px;
-  padding: 9px;
-  border: 0;
-  border-radius: 8px;
-  background: rgba(7, 9, 12, 0.24);
-}
-
-.cinematic-builder-preview-line span,
-.cinematic-builder-preview-cards span {
-  color: rgba(255, 247, 231, 0.9);
-}
-
-.cinematic-builder-preview-stats {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.cinematic-builder-preview .dh-stat {
-  min-height: 46px;
-  border-color: transparent;
-  background: rgba(7, 9, 12, 0.24);
-}
-
-.cinematic-builder-preview .dh-stat strong {
-  color: #fff7e7;
-}
-
-.cinematic-builder-preview .dh-stat span {
-  color: rgba(243, 234, 216, 0.62);
-}
-
-.cinematic-builder-preview-traits {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.cinematic-builder-preview-traits span {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 8px;
-  border: 0;
-  border-radius: 7px;
-  background: rgba(7, 9, 12, 0.24);
-  color: rgba(255, 247, 231, 0.9);
-  font-size: 0.72rem;
-}
-
-.cinematic-builder-preview-cards strong,
-.cinematic-builder-readiness strong {
-  color: #fff7e7;
-  text-transform: uppercase;
-}
-
-.cinematic-builder-readiness.dh-is-ready {
-  border-color: transparent;
-  background: rgba(38, 105, 93, 0.22);
-}
-
-.cinematic-builder-stepper {
-  display: grid;
-  gap: 6px;
 }
 
 .cinematic-builder-issues {

@@ -22,15 +22,19 @@ export function SessionLobby({ inviteContext, onEnterGm, onJoinRoom, sceneImageU
       <div className="role-entry__content">
         <div className="role-entry__title">
           <div>
-            <h1>Лобби игры</h1>
+            <span>Нарративный стол</span>
+            <h1>Продолжите вашу историю</h1>
+            <p>Подготовьте сцену для группы или присоединитесь по коду комнаты.</p>
           </div>
         </div>
         <div className="role-entry__lobby-shell">
-          <div className="role-entry__actions role-entry__actions--lobby">
+          <div className="role-entry__primary-flow">
             <GmLobbyCard inviteContext={inviteContext} onEnterGm={onEnterGm} />
-            <PlayerQuickJoinCard onJoinRoom={onJoinRoom} />
           </div>
-          <StoredGamesCard />
+          <div className="role-entry__side-flow">
+            <PlayerQuickJoinCard onJoinRoom={onJoinRoom} />
+            <StoredGamesCard />
+          </div>
         </div>
       </div>
     </section>

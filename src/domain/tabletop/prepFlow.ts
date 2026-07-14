@@ -39,8 +39,8 @@ export function buildGmPrepChecklist(input: GmPrepChecklistInput): GmPrepCheckli
     },
     {
       id: 'sceneLive',
-      label: 'Сцена в эфире',
-      detail: input.activeScene.id === input.liveSceneId ? 'Игроки видят текущую сцену.' : 'Опубликуйте сцену перед началом.',
+      label: 'Сцена показана игрокам',
+      detail: input.activeScene.id === input.liveSceneId ? 'Игроки видят текущую сцену.' : 'Покажите подготовленную сцену игрокам перед началом.',
       ready: input.activeScene.id === input.liveSceneId
     },
     {
@@ -52,7 +52,7 @@ export function buildGmPrepChecklist(input: GmPrepChecklistInput): GmPrepCheckli
     {
       id: 'handout',
       label: 'Материал',
-      detail: liveHandout ? `В эфире: ${liveHandout.title || 'Материал'}.` : visibleHandouts.length > 0 ? 'Есть публичные материалы, но ничего не показано.' : 'Подготовьте публичный материал, улику или иллюстрацию.',
+      detail: liveHandout ? `Показан материал: ${liveHandout.title || 'Материал'}.` : visibleHandouts.length > 0 ? 'Есть публичные материалы, но ничего не показано.' : 'Подготовьте публичный материал, улику или иллюстрацию.',
       ready: Boolean(liveHandout)
     },
     {

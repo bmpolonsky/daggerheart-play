@@ -16,6 +16,10 @@
   display: none;
 }
 
+.start {
+  justify-content: flex-start;
+}
+
 .equal {
   width: 100%;
   gap: 10px;

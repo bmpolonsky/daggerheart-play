@@ -257,3 +257,38 @@
     display: none;
   }
 }
+
+@media (min-width: 921px) {
+  .player-view__scene-dim {
+    background:
+      linear-gradient(180deg, rgba(7, 9, 12, 0.2), transparent 32%, rgba(7, 9, 12, 0.5)),
+      radial-gradient(circle at 50% 48%, transparent 38%, rgba(7, 9, 12, 0.22) 100%);
+    box-shadow: 0 0 96px rgba(0, 0, 0, 0.34) inset;
+  }
+
+  .player-scene-stage {
+    --player-board-safe-top: 82px;
+    --player-board-safe-bottom: 92px;
+    --player-board-safe-inline: 120px;
+    --player-board-center-offset: 0px;
+  }
+
+  .player-view--activity-open:not(.player-view--panel-open) .player-scene-stage {
+    --player-board-safe-inline: 370px;
+    --player-board-center-offset: 175px;
+  }
+
+  .player-view--panel-open:not(.player-view--activity-open) .player-scene-stage {
+    --player-board-safe-inline: 390px;
+    --player-board-center-offset: -185px;
+  }
+
+  .player-view--activity-open.player-view--panel-open .player-scene-stage {
+    --player-board-safe-inline: 780px;
+    --player-board-center-offset: -8px;
+  }
+
+  .player-view--focus .player-token footer {
+    opacity: 0.76;
+  }
+}

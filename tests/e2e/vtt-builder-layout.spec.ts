@@ -4,12 +4,9 @@ import { expectAbove, expectInsideViewport, expectLeftOf, expectNoOverlap, rect 
 
 async function openBuilder(page: Page): Promise<void> {
   await openGmGame(page);
-  await page.getByRole('button', { name: 'Библиотека' }).click();
-  const toolsModal = page.getByRole('dialog', { name: 'Библиотека' });
-  const isMobileToolsModal = (page.viewportSize()?.width ?? 999) <= 680;
-  const tabs = isMobileToolsModal
-    ? toolsModal.getByRole('group', { name: 'Разделы библиотеки' })
-    : toolsModal.getByLabel('Разделы инструментов');
+  await page.getByRole('button', { name: 'Инструменты' }).click();
+  const toolsModal = page.getByRole('dialog', { name: 'Рабочее пространство' });
+  const tabs = toolsModal.getByRole('group', { name: 'Разделы рабочего пространства' });
   const charactersTab = tabs.getByRole('button', { name: 'Персонажи' });
   await charactersTab.evaluate((button) => {
     button.scrollIntoView({ block: 'nearest', inline: 'center' });
@@ -20,26 +17,25 @@ async function openBuilder(page: Page): Promise<void> {
 }
 
 test.describe('character builder composition', () => {
-  test('desktop keeps three-column wizard composition', async ({ page }) => {
+  test('desktop keeps a focused two-column choice composition', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openBuilder(page);
 
     const builder = page.getByRole('dialog', { name: 'Новый герой' });
     const nav = builder.getByRole('navigation', { name: 'Шаги создания' });
     const panel = builder.getByRole('region', { name: 'Шаг создания героя' });
-    const preview = builder.getByLabel('Предпросмотр героя');
     const stage = builder.getByLabel('Сводка героя');
     const workspace = builder.getByRole('region', { name: 'Выборы создания героя' });
     const choiceDetail = builder.getByLabel('Описание выбора');
+    const choiceArea = builder.getByRole('group', { name: 'Шаг: Класс' });
     const actions = builder.getByRole('toolbar', { name: 'Действия создания героя' });
 
     await expect(choiceDetail).toBeVisible();
     await expectInsideViewport(page, builder);
-    await expectLeftOf(nav, panel, 4);
-    await expectLeftOf(panel, preview, 4);
+    await expectAbove(nav, panel, 4);
     await expectAbove(stage, workspace, 4);
     await expectAbove(workspace, actions, 4);
-    await expect(choiceDetail).toBeVisible();
+    await expectLeftOf(choiceArea, choiceDetail, 4);
   });
 
   test('mobile keeps builder surfaces stacked and compact', async ({ page }) => {
@@ -50,7 +46,6 @@ test.describe('character builder composition', () => {
     const stage = builder.getByLabel('Сводка героя');
     const workspace = builder.getByRole('region', { name: 'Выборы создания героя' });
     const actions = builder.getByRole('toolbar', { name: 'Действия создания героя' });
-    const preview = builder.getByLabel('Предпросмотр героя');
     const choiceDetail = builder.getByLabel('Описание выбора');
 
     await builder.getByRole('button', { name: 'Быстрый старт' }).click();
@@ -62,7 +57,6 @@ test.describe('character builder composition', () => {
     await expectNoOverlap(choiceArea, choiceDetail, 2);
     await expectAbove(stage, workspace, 4);
     await expectAbove(workspace, actions, 4);
-    await expect(preview).toHaveCSS('display', 'none');
     expect((await rect(choiceArea)).height).toBeGreaterThanOrEqual(160);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
@@ -73,14 +67,15 @@ test.describe('character builder composition', () => {
 
     await page.getByLabel('Родословная').click();
     const builder = page.getByRole('dialog', { name: 'Новый герой' });
-    const workspace = builder.getByRole('region', { name: 'Выборы создания героя' });
-    const preview = builder.getByLabel('Предпросмотр героя');
+    const choiceDetail = builder.getByLabel('Описание выбора');
     const ancestryStep = builder.getByRole('group', { name: 'Шаг: Родословная' });
     const firstCard = ancestryStep.getByRole('button').first();
     const firstCardBody = firstCard.locator('span').last();
 
     await expectInsideViewport(page, builder);
-    await expectLeftOf(workspace, preview, 4);
+    await firstCard.click();
+    await expect(choiceDetail).toBeVisible();
+    await expectLeftOf(ancestryStep, choiceDetail, 4);
     await expect(firstCard).toBeVisible();
     const cardBox = await rect(firstCard);
     const bodyBox = await rect(firstCardBody);

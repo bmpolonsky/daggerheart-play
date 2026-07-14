@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { encounterService } from '../../../../../services/serviceRegistry';
 import { Button } from '../../../../components/common/Button';
+import { Checkbox } from '../../../../components/common/Checkbox';
 import { NumberControl, TextControl } from '../../../../components/common/Field';
 import { playerViewUiActions } from '../../playerViewUiState';
 import { FeedCardHeader } from './RollFeedCard';
@@ -49,10 +50,7 @@ export function CountdownComposerFeedCard({ item }: { item: TableFeedItem }) {
           </label>
         </div>
         <footer className="player-countdown-composer__footer">
-          <label className="player-countdown-composer__checkbox">
-            <input checked={privateToGm} type="checkbox" onChange={(event) => setPrivateToGm(event.currentTarget.checked)} />
-            <span>Приватно</span>
-          </label>
+          <Checkbox size="sm" checked={privateToGm} label="Только мастеру" onChange={(event) => setPrivateToGm(event.currentTarget.checked)} />
           <Button
             fullWidth
             size="lg"

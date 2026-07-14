@@ -10,10 +10,10 @@ export const PLAYER_DICE_ROLL_HOLD_AFTER_SETTLE_MS = 3000;
 export const PLAYER_DICE_ROLL_FADE_OUT_MS = 520;
 
 export const PLAYER_SHEET_SECTIONS: Array<{ id: PlayerSheetSectionId; label: string; target: string }> = [
-  { id: 'overview', label: 'Обзор', target: 'player-sheet-overview' },
-  { id: 'traits', label: 'Характеристики и опыт', target: 'player-sheet-traits' },
-  { id: 'actions', label: 'Действия', target: 'player-sheet-actions' },
+  { id: 'overview', label: 'Ресурсы', target: 'player-sheet-overview' },
+  { id: 'traits', label: 'Броски и опыт', target: 'player-sheet-traits' },
+  { id: 'actions', label: 'Оружие', target: 'player-sheet-actions' },
   { id: 'features', label: 'Особенности', target: 'player-sheet-features' },
-  { id: 'cards', label: 'Карты доменов', target: 'player-sheet-domain-cards' },
-  { id: 'gear', label: 'Инвентарь', target: 'player-sheet-gear' }
+  { id: 'cards', label: 'Карты', target: 'player-sheet-domain-cards' },
+  { id: 'gear', label: 'Снаряжение', target: 'player-sheet-gear' }
 ];

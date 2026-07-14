@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Eye, EyeOff, Hand, Mic, MicOff, PanelRightOpen, Plus, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Hand, Mic, MicOff, Plus, Trash2 } from 'lucide-react';
 import { Avatar } from '../../components/common/Avatar';
 import { IconButton } from '../../components/common/IconButton';
 import { ListItem } from '../../components/common/ListItem';
@@ -52,6 +52,10 @@ export function PlayerRoster({
           <div
             className={`player-roster__item ${active || Boolean(activationRequest) ? 'dh-is-selected' : ''}`}
             key={`${actor.kind}:${actor.actorId}`}
+            onClick={(event) => {
+              if (!opensSheet || (event.target as HTMLElement).closest('button, .player-roster__tracks')) return;
+              onOpenActor({ kind: actor.kind, actorId: actor.actorId });
+            }}
           >
             <ListItem
               className={`player-roster__row ${locked ? 'dh-is-locked' : ''} ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
@@ -71,22 +75,9 @@ export function PlayerRoster({
               )}
               disabled={locked}
               tooltip={opensSheet ? actor.name : 'Детали скрыты от игроков'}
+              onClick={opensSheet ? () => onOpenActor({ kind: actor.kind, actorId: actor.actorId }) : undefined}
               rightAccessory={role === 'gm' ? (
                 <>
-                  <IconButton
-                    aria-label={`Открыть лист ${actor.name}`}
-                    variant="ghost"
-                    size="xs"
-                    disabled={!opensSheet}
-                    title={opensSheet ? 'Открыть лист' : 'Детали скрыты от игроков'}
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (opensSheet) onOpenActor({ kind: actor.kind, actorId: actor.actorId });
-                    }}
-                  >
-                    <PanelRightOpen size={14} aria-hidden="true" />
-                  </IconButton>
                   {actor.kind === 'character' && (
                     <IconButton
                       aria-label={`Микрофон ${actor.name}`}
@@ -173,7 +164,7 @@ export function PlayerRoster({
               ) : undefined}
             />
             {hasResources && actor.hope && actor.hp && actor.stress && (
-              <div className="player-roster__tracks">
+              <div className="player-roster__tracks" onClick={(event) => event.stopPropagation()}>
                 <ResourcePips
                   label="Надежда"
                   current={actor.hope.value}

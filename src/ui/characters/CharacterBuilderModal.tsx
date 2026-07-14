@@ -17,10 +17,8 @@ import { Dialog } from '../components/common/Dialog';
 import { SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
-import { Surface } from '../components/common/Surface';
 import { WizardStepButton } from '../components/common/WizardStepButton';
 import { BuilderChoiceDetail } from './builder/BuilderChoiceDetail';
-import { BuilderLivePreview } from './builder/BuilderLivePreview';
 import { EditableBuilderStat } from './builder/EditableBuilderStat';
 import { domainLabel, initials, signed } from './builder/formatting';
 import { BUILDER_TRAIT_IDS } from './builder/traits';
@@ -220,6 +218,7 @@ export function CharacterBuilderModal({
                   <ImageFilePicker
                     className="character-builder-portrait-picker"
                     label="Портрет"
+                    hideLabel
                     imageUrl={fields.portraitUrl}
                     size="compact"
                     onFileSelect={handlePortraitUpload}
@@ -242,11 +241,11 @@ export function CharacterBuilderModal({
                   <TextAreaField className="dh-label--wide" label="Краткая предыстория" value={fields.backstory} onChange={(event) => handlers.setBackstory(event.currentTarget.value)} />
                   <div className="cinematic-card-list dh-label--wide">
                     {options.backgroundQuestions.map((question, index) => (
-                      <Surface as="label" tone="subtle" className="cinematic-card" key={question}>
+                      <section className="cinematic-builder-question" key={question}>
                         <span className="cinematic-card-meta">Вопрос {index + 1}</span>
                         <strong className="cinematic-card-title">{question}</strong>
                         <TextAreaField label="Ответ" value={fields.backgroundAnswers[index] ?? ''} onChange={(event) => handlers.setBackgroundAnswer(index, event.currentTarget.value)} />
-                      </Surface>
+                      </section>
                     ))}
                   </div>
                 </div>
@@ -261,12 +260,12 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="cinematic-card-list cinematic-builder-choice-area dh-scroll">
                   {options.connectionQuestions.map((question, index) => (
-                    <Surface as="article" tone="subtle" className="cinematic-card" key={question}>
+                    <section className="cinematic-builder-question" key={question}>
                       <span className="cinematic-card-meta">Связь {index + 1}</span>
                       <strong className="cinematic-card-title">{question}</strong>
                       <TextField label="Персонаж" value={fields.connectionAnswers[index]?.targetName ?? ''} onChange={(event) => handlers.setConnectionTarget(index, event.currentTarget.value)} />
                       <TextAreaField label="Ответ" value={fields.connectionAnswers[index]?.answer ?? ''} onChange={(event) => handlers.setConnectionAnswer(index, event.currentTarget.value)} />
-                    </Surface>
+                    </section>
                   ))}
                 </div>
               </section>
@@ -404,16 +403,6 @@ export function CharacterBuilderModal({
           </div>
         </div>
 
-        <BuilderLivePreview
-          draft={builderResult.draft}
-          classImageUrl={selectedClassOption?.imageUrl ?? null}
-          ancestryName={selectedAncestry?.name}
-          communityName={selectedCommunity?.name}
-          subclassName={selectedSubclass?.name}
-          cards={selectedCards}
-          canCreate={builder.canCreate}
-          blockingCount={blockingIssues.length}
-        />
     </Dialog>
   );
 }

@@ -9,7 +9,7 @@ export default defineConfig({
     timeout: 5_000
   },
   fullyParallel: false,
-  workers: 2,
+  workers: 1,
   reporter: [['list']],
   use: {
     baseURL: `http://127.0.0.1:${port}`,
@@ -27,6 +27,13 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome']
+      }
+    },
+    {
+      name: 'webkit-critical',
+      testMatch: /(?:critical-journeys|vtt-mobile-layout|p2p-session)\.spec\.ts/,
+      use: {
+        ...devices['Desktop Safari']
       }
     }
   ]

@@ -14,7 +14,6 @@ import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../doma
 import type { DamageType, TraitId } from "../../../domain/rules/types";
 import { formatWealthSummary } from "../../../domain/rules/wealthPresentation";
 import { gameService, characterService, diceService, feedService, p2pSessionService } from "../../../services/serviceRegistry";
-import { PLAYER_SHEET_SECTIONS } from "./constants";
 import { compactDamageTypeLabel, cssImageUrl, signed } from "./helpers";
 import { CharacterSheetDomainCards } from "./CharacterSheetDomainCards";
 import type { PlayerViewDomainCard } from "./domainCards/types";
@@ -27,6 +26,7 @@ import { ChoiceCard } from "../../components/common/ChoiceCard";
 import { SelectControl } from "../../components/common/Field";
 import { IconButton } from "../../components/common/IconButton";
 import { ListItem } from "../../components/common/ListItem";
+import { PLAYER_SHEET_SECTIONS } from "./constants";
 
 export function CharacterSheet({
   character,
@@ -48,8 +48,8 @@ export function CharacterSheet({
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
 }) {
   const game = useStream(gameService.game$);
-  const panelRef = useRef<HTMLElement>(null);
   const [activeSheetSection, setActiveSheetSection] = useState<PlayerSheetSectionId>('overview');
+  const sheetRef = useRef<HTMLElement | null>(null);
   const [rollDraft, setRollDraft] = useState<PlayerRollDraft | null>(null);
   const [selectedBeastformId, setSelectedBeastformId] = useState('');
   const [evolutionTrait, setEvolutionTrait] = useState(character.traits[0]?.id ?? 'agility');
@@ -63,36 +63,6 @@ export function CharacterSheet({
     /зверин|beastbound|beast bound/i.test(character.subtitle) ||
     character.features.some((feature) => /компаньон|companion|зверин/i.test(`${feature.name}\n${feature.text}`))
   );
-  const updateActiveSheetSection = () => {
-    const panel = panelRef.current;
-    if (!panel) return;
-    const atBottom = Math.ceil(panel.scrollTop + panel.clientHeight) >= panel.scrollHeight - 8;
-    if (atBottom) {
-      setActiveSheetSection('gear');
-      return;
-    }
-    const anchor = panel.scrollTop + 122;
-    const current = PLAYER_SHEET_SECTIONS.reduce<PlayerSheetSectionId>((active, section) => {
-      const element = panel.querySelector(`#${section.target}`);
-      if (!(element instanceof HTMLElement)) return active;
-      return element.offsetTop <= anchor ? section.id : active;
-    }, 'overview');
-    setActiveSheetSection(current);
-  };
-  const scrollToSheetSection = (sectionId: PlayerSheetSectionId) => {
-    const panel = panelRef.current;
-    if (!panel) return;
-    if (sectionId === 'overview') {
-      setActiveSheetSection(sectionId);
-      panel.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-    const section = PLAYER_SHEET_SECTIONS.find((item) => item.id === sectionId);
-    const target = section ? panel?.querySelector(`#${section.target}`) : null;
-    if (!(target instanceof HTMLElement)) return;
-    setActiveSheetSection(sectionId);
-    panel.scrollTo({ top: Math.max(0, target.offsetTop - 58), behavior: 'smooth' });
-  };
   const portraitUrl = defaultCharacterPortraitUrl(character);
   const heroStyle = {
     '--player-character-portrait': `url("${cssImageUrl(portraitUrl)}")`
@@ -118,10 +88,26 @@ export function CharacterSheet({
     }
     characterService.removeCondition(character.id, conditionId);
   };
+  const selectSheetSection = (sectionId: PlayerSheetSectionId) => {
+    setActiveSheetSection(sectionId);
+    const targetId = PLAYER_SHEET_SECTIONS.find((section) => section.id === sectionId)?.target;
+    if (!targetId) return;
+    sheetRef.current?.querySelector<HTMLElement>(`#${targetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const trackVisibleSection = (event: Event) => {
+    const sheet = event.currentTarget as HTMLElement;
+    const threshold = sheet.getBoundingClientRect().top + Math.min(110, sheet.clientHeight * 0.22);
+    let nextSection: PlayerSheetSectionId = 'overview';
+    PLAYER_SHEET_SECTIONS.forEach((section) => {
+      const target = sheet.querySelector<HTMLElement>(`#${section.target}`);
+      if (target && target.getBoundingClientRect().top <= threshold) nextSection = section.id;
+    });
+    setActiveSheetSection((current) => current === nextSection ? current : nextSection);
+  };
   return (
     <div className="player-character-panel-shell">
-      <PlayerSheetSectionRail activeSheetSection={activeSheetSection} onSelect={scrollToSheetSection} />
-      <aside ref={panelRef} className="player-character-panel" aria-label="Персонаж игрока" data-vtt-side-panel onScroll={updateActiveSheetSection}>
+      <PlayerSheetSectionRail activeSheetSection={activeSheetSection} onSelect={selectSheetSection} />
+      <aside ref={sheetRef} className="player-character-panel" aria-label="Персонаж игрока" data-vtt-side-panel onScroll={trackVisibleSection}>
         {showBackButton && (
           <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
             <ChevronLeft size={17} aria-hidden="true" />
@@ -209,7 +195,7 @@ export function CharacterSheet({
           } : undefined}
         />
         )}
-        <SheetSection id="player-sheet-overview" title="Обзор">
+        <SheetSection id="player-sheet-overview" title="Ресурсы">
         <section className="player-character-panel__hope">
           <header>
             <span>НАДЕЖДА</span>
@@ -219,6 +205,7 @@ export function CharacterSheet({
             value={character.hope.value}
             max={character.hope.max}
             tone="hope"
+            label="Надежда"
             onSet={(next) => characterService.adjustHope(character.id, next - character.hope.value)}
           />
           {character.scars.length > 0 && (
@@ -282,6 +269,7 @@ export function CharacterSheet({
               value={character.armor.marked}
               max={character.armor.score}
               tone="armor"
+              label="Броня"
               onSet={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
             />
           </div>
@@ -414,7 +402,7 @@ export function CharacterSheet({
           />
         </section>
         </SheetSection>
-      <SheetSection id="player-sheet-traits" title="Характеристики и опыт">
+      <SheetSection id="player-sheet-traits" title="Броски и опыт">
         <section className="player-trait-grid">
           {character.traits.map((trait) => (
             <ChoiceCard key={trait.id} onClick={() => setRollDraft({ kind: 'trait', title: trait.label, subtitle: `${character.name} / ${signed(trait.value)}`, trait: trait.id })}>
@@ -427,7 +415,7 @@ export function CharacterSheet({
           <ListItem key={experience.id} title={experience.name} value={signed(experience.modifier)} density="compact" />
         ))}
       </SheetSection>
-      <SheetSection id="player-sheet-actions" title="Действия" emptyLabel="Оружие не выбрано">
+      <SheetSection id="player-sheet-actions" title="Оружие" emptyLabel="Оружие не выбрано">
         {character.weapons.map((weapon) => (
           <ListItem
             key={weapon.id}
@@ -459,7 +447,7 @@ export function CharacterSheet({
           onTokenChange={(cardId, next) => characterService.updateDomainCardTokens(character.id, cardId, next)}
         />
       </SheetSection>
-      <SheetSection id="player-sheet-gear" title="Инвентарь">
+      <SheetSection id="player-sheet-gear" title="Снаряжение">
         <ListItem
           title="Деньги"
           subtitle={formatWealthSummary(character.wealth, { showCoins: game.showCoins })}

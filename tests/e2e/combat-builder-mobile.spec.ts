@@ -15,7 +15,7 @@ test.describe('Combat Builder mobile workspace', () => {
     const firstCard = viewport.locator('article').first();
     const addButton = firstCard.locator('button[title="Добавить в бой"]');
 
-    await expect(firstCard).toBeVisible();
+    await expect(firstCard).toBeVisible({ timeout: 15_000 });
     await expect(addButton).toBeVisible();
     await expectInsideViewport(page, addButton);
     await expect(sheet).toBeHidden();
@@ -30,5 +30,13 @@ test.describe('Combat Builder mobile workspace', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
 
     await expectInsideViewport(page, addButton);
+
+    await sheet.getByRole('button', { name: 'Очистить бой' }).click();
+    const confirmation = page.getByRole('dialog', { name: 'Очистить бой?' });
+    await expect(confirmation).toBeVisible();
+    await expect(confirmation.getByRole('button', { name: 'Отмена' })).toBeFocused();
+    await confirmation.getByRole('button', { name: 'Отмена' }).click();
+    await expect(confirmation).toHaveCount(0);
+    await expect(sheet.getByText(/1 противников/).first()).toBeVisible();
   });
 });

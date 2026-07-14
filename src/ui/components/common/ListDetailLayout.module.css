@@ -1,6 +1,7 @@
 .root {
   --dh-list-detail-gap: 14px;
   --dh-list-detail-list-min: 360px;
+  --dh-list-detail-list-max: 1fr;
   --dh-list-detail-detail-min: 420px;
   --dh-list-detail-detail-max: 920px;
 
@@ -15,7 +16,7 @@
 
 .withDetail {
   grid-template-columns:
-    minmax(var(--dh-list-detail-list-min), 1fr)
+    minmax(var(--dh-list-detail-list-min), var(--dh-list-detail-list-max))
     minmax(var(--dh-list-detail-detail-min), var(--dh-list-detail-detail-max));
 }
 
@@ -28,10 +29,11 @@
 @media (max-width: 1120px) {
   .withDetail {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 0.8fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
-  .detailFirst .detail {
-    order: -1;
+  .narrowDetailOpen .list,
+  .narrowListOpen .detail {
+    display: none;
   }
 }

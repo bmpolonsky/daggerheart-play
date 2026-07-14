@@ -52,7 +52,6 @@ export function SharedToolsSettingsTab({
 
   return (
     <section className="player-tools-section player-tools-settings-section">
-      <header><strong>Настройки</strong></header>
       <div className="player-tools-settings-body">
         {section === 'game' && role === 'gm' && (
           <SharedToolsGameSettingsPanel game={game} />

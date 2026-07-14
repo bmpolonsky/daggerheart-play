@@ -3,6 +3,8 @@ name: CI
 on:
   pull_request:
   push:
+  schedule:
+    - cron: "17 3 * * *"
 
 permissions:
   contents: read
@@ -47,7 +49,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: E2E tests
         run: npm run test:e2e
@@ -55,3 +57,4 @@ jobs:
           CONTENT_SOURCE: https://daggerheart.su
           CONTENT_LANG: ru
           CONTENT_CACHE_TTL_HOURS: "0"
+          RUN_P2P_E2E: ${{ github.event_name == 'schedule' && '1' || '0' }}

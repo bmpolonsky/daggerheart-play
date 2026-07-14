@@ -1,10 +1,11 @@
 /** @jsxImportSource preact */
-import { Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
 import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$ } from '../../../domain/p2p/networkSettings';
 import type { P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
+import type { P2PSessionState } from '../../../services/P2PSessionService';
 import type { Character, GameState } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
 import {
@@ -18,15 +19,16 @@ import {
   p2pStatusLabel
 } from './helpers';
 import { Button } from '../../components/common/Button';
+import { Badge, type BadgeTone } from '../../components/common/Badge';
+import { Card } from '../../components/common/Card';
+import { Checkbox } from '../../components/common/Checkbox';
 import { SelectControl, TextControl, TextField } from '../../components/common/Field';
 import { IconButton } from '../../components/common/IconButton';
-import { Surface } from '../../components/common/Surface';
 import type { TableViewRole } from './types';
 
 export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
   return (
     <section className="player-tools-settings-panel">
-      <header><strong>Игра</strong></header>
       <TextField
         className="player-tools-field player-tools-game-name"
         label="Название игры"
@@ -34,23 +36,29 @@ export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
         onInput={(event) => gameService.updateGame({ name: event.currentTarget.value })}
         placeholder="Без названия"
       />
-      <label className="player-tools-toggle">
-        <input
-          type="checkbox"
+      <div className="player-tools-setting-choices">
+        <Checkbox
+          layout="row"
           checked={game.autoApplyRollConsequences}
+          label={<SettingChoiceLabel title="Применять последствия бросков автоматически" body="Страх и другие результаты сразу меняют состояние игры." />}
           onChange={(event) => gameService.updateSettings({ autoApplyRollConsequences: event.currentTarget.checked })}
         />
-        <span>Автоматически применять последствия бросков</span>
-      </label>
-      <label className="player-tools-toggle">
-        <input
-          type="checkbox"
+        <Checkbox
+          layout="row"
           checked={game.showCoins}
+          label={<SettingChoiceLabel title="Использовать монеты" body="Показывать кошелёк и учитывать монеты в листах героев." />}
           onChange={(event) => gameService.updateSettings({ showCoins: event.currentTarget.checked })}
         />
-        <span>Использовать монеты</span>
-      </label>
+      </div>
     </section>
+  );
+}
+
+function SettingChoiceLabel({ title, body }: { title: string; body: string }) {
+  return (
+    <span className="player-tools-setting-copy" title={body}>
+      <strong>{title}</strong>
+    </span>
   );
 }
 
@@ -63,15 +71,14 @@ export function SharedToolsPlayersSettingsPanel({
 }) {
   return (
     <section className="player-tools-settings-panel">
-      <header>
-        <strong>Игроки</strong>
-        <Button size="sm" type="button" onClick={() => sceneTableService.createPlayerSeat({ name: `Игрок ${playerSeats.length + 1}`, characterId: characterOptions[playerSeats.length]?.id })}>
+      <div className="player-tools-section-actions">
+        <Button size="sm" type="button" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={() => sceneTableService.createPlayerSeat({ name: `Игрок ${playerSeats.length + 1}`, characterId: characterOptions[playerSeats.length]?.id })}>
           Добавить игрока
         </Button>
-      </header>
+      </div>
       <div className="player-tools-player-list">
         {playerSeats.map((seat) => (
-          <Surface as="article" tone="subtle" className="player-tools-player-row" key={seat.id}>
+          <article className="player-tools-player-row" key={seat.id}>
             <TextField label="Имя" value={seat.name} onInput={(event) => sceneTableService.updatePlayerSeat(seat.id, { name: event.currentTarget.value })} />
             <label className="dh-label">
               <span>Персонаж</span>
@@ -85,7 +92,7 @@ export function SharedToolsPlayersSettingsPanel({
             <IconButton variant="danger" size="sm" type="button" title="Удалить игрока" aria-label={`Удалить игрока ${seat.name}`} onClick={() => sceneTableService.removePlayerSeat(seat.id)}>
               <Trash2 size={15} aria-hidden="true" />
             </IconButton>
-          </Surface>
+          </article>
         ))}
         {playerSeats.length === 0 && <p className="player-tools-empty">Игроки еще не созданы.</p>}
       </div>
@@ -113,7 +120,7 @@ export function SharedToolsConnectionSettingsPanel({
   const displayedInviteLink = role === 'gm' ? p2pSessionService.previewInviteUrl(settingsInviteContext) : '';
   const syncRoomId = role === 'gm' ? p2pSessionService.getGmRoomId() : playerRoomId;
   const canDisconnectP2P = p2pConnected && role !== 'gm';
-  const hasConnectedPlayers = role !== 'gm' || p2pSessionService.hasConnectedPlayers();
+  const hasConnectedPlayers = role !== 'gm' || p2pPeers.length > 0;
   const canPublishSnapshot = role === 'gm' && p2pSessionService.canPublishSnapshotToPlayers();
   const displayedP2PStatus = role === 'gm' && p2pConnected && !hasConnectedPlayers ? 'Ожидает игроков' : p2pStatusLabel(p2pStatus);
   useEffect(() => {
@@ -154,16 +161,10 @@ export function SharedToolsConnectionSettingsPanel({
 
   return (
     <section className="player-tools-settings-panel">
-      <header>
-        <strong>{role === 'gm' ? 'Подключение игроков' : 'Подключение к мастеру'}</strong>
-        <span>{p2pMessage}</span>
-      </header>
+      {p2pMessage && <p className="player-tools-status" role="status">{p2pMessage}</p>}
       {role === 'gm' && (
         <div className="player-tools-invite">
-          <header>
-            <strong>Приглашение</strong>
-            <span>Ссылка открывает игру игрока и подключает его к комнате.</span>
-          </header>
+          <strong>Ссылка-приглашение</strong>
           <div className="player-tools-actions">
             <Button variant="primary" size="sm" type="button" onClick={() => void createInvite()}>
               Создать ссылку
@@ -234,10 +235,11 @@ export function SharedToolsConnectionSettingsPanel({
 }
 
 export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: { compact?: boolean; role: TableViewRole }) {
+  const liveSession = useStream(p2pSessionService.session$);
+  const session = e2eP2PDiagnosticsFixture() ?? liveSession;
   const {
     connected: p2pConnected,
     lastSnapshotAt: p2pLastSnapshotAt,
-    message: p2pMessage,
     peerId: p2pPeerId,
     peers: p2pPeers,
     role: p2pRole,
@@ -245,7 +247,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     routePeers: p2pRoutePeers,
     roomId: p2pActiveRoomId,
     status: p2pStatus
-  } = useStream(p2pSessionService.session$);
+  } = session;
   const networkSettings = useStream(p2pNetworkSettings$);
   const sceneTable = useStream(sceneTableService.sceneTable$);
   const hasConnectedPlayers = role !== 'gm' || p2pSessionService.hasConnectedPlayers();
@@ -256,13 +258,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   const peerNames = participantPeerNames(sceneTable.participants);
 
   return (
-    <section className="player-tools-settings-panel">
-      {!compact && (
-        <header>
-          <strong>Диагностика</strong>
-          <span>{p2pMessage}</span>
-        </header>
-      )}
+    <section className={`player-tools-settings-panel player-tools-diagnostics ${compact ? 'player-tools-diagnostics--compact' : ''}`}>
       <dl className="player-tools-sync__meta">
         {role === 'gm' && <div><dt>Активная комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>}
         <div><dt>Статус</dt><dd aria-label="Статус">{displayedP2PStatus}</dd></div>
@@ -272,67 +268,39 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         <div><dt>Логических peer</dt><dd aria-label="Логических peer">{p2pPeers.length}</dd></div>
         <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
       </dl>
-      <div
-        className="player-tools-route-table"
-        aria-label="Маршруты соединений"
-      >
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Подключение</th>
+      <div className="player-tools-peer-list" aria-label="Маршруты соединений">
+        {visibleRoutePeers.map((peer) => (
+          <Card
+            className="player-tools-peer-card"
+            key={peer.peerId}
+            title={peerNames.get(peer.peerId) ?? fallbackPeerName(peer.peerId, role)}
+            subtitle={<span title={peer.peerId}>{shortPeerId(peer.peerId)}</span>}
+            actions={<Badge tone={peer.activeStrategy ? 'gold' : 'neutral'}>{peer.activeStrategy ? P2P_ROUTE_LABELS[peer.activeStrategy] : 'Нет активного'}</Badge>}
+          >
+            <div className="player-tools-peer-routes">
               {P2P_ROUTE_COLUMNS.map((strategy) => (
-                <th key={strategy} scope="col">{P2P_ROUTE_LABELS[strategy]}</th>
+                <PeerRouteStatus key={strategy} route={peer.routes.find((item) => item.strategy === strategy)} strategy={strategy} />
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRoutePeers.map((peer) => (
-              <tr key={peer.peerId}>
-                <th scope="row" title={peer.peerId}>
-                  <strong>{peerNames.get(peer.peerId) ?? fallbackPeerName(peer.peerId, role)}</strong>
-                  <small>{shortPeerId(peer.peerId)}</small>
-                </th>
-                {P2P_ROUTE_COLUMNS.map((strategy) => {
-                  const route = peer.routes.find((item) => item.strategy === strategy);
-                  return (
-                    <td key={strategy}>
-                      <span
-                        className={`player-tools-route-table__route ${routeStatusClass(route)}`}
-                        title={formatPeerRouteTitle(route)}
-                      >
-                        {formatPeerRouteDiagnostic(route)}
-                      </span>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-            {visibleRoutePeers.length === 0 && (
-              <tr>
-                <th scope="row">
-                  <strong>Маршруты</strong>
-                  <small>peer не найден</small>
-                </th>
-                {P2P_ROUTE_COLUMNS.map((strategy) => {
-                  const route = p2pRoutes.find((item) => item.strategy === strategy);
-                  return (
-                    <td key={strategy}>
-                      <span
-                        className={`player-tools-route-table__route ${routeDiagnosticStatusClass(route)}`}
-                        title={formatRouteDiagnosticTitle(route)}
-                      >
-                        {formatRouteDiagnostic(route)}
-                      </span>
-                    </td>
-                  );
-                })}
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </div>
+          </Card>
+        ))}
+        {visibleRoutePeers.length === 0 && (
+          <Card className="player-tools-peer-card player-tools-peer-card--empty" title="Нет подключений" subtitle="Транспорты готовы к новому peer">
+            <div className="player-tools-peer-routes">
+              {P2P_ROUTE_COLUMNS.map((strategy) => (
+                <TransportRouteStatus key={strategy} route={p2pRoutes.find((item) => item.strategy === strategy)} strategy={strategy} />
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </section>
   );
+}
+
+function e2eP2PDiagnosticsFixture(): P2PSessionState | null {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined' || !navigator.webdriver) return null;
+  return (window as typeof window & { __DAGGERHEART_E2E_P2P_DIAGNOSTICS__?: P2PSessionState }).__DAGGERHEART_E2E_P2P_DIAGNOSTICS__ ?? null;
 }
 
 const P2P_ROUTE_COLUMNS: P2PTransportStrategy[] = ['supabase', 'nostr', 'mqtt', 'torrent'];
@@ -372,17 +340,69 @@ function fallbackPeerName(peerId: string, localRole: TableViewRole): string {
   return `Игрок ${shortPeerId(peerId)}`;
 }
 
-function formatPeerRouteDiagnostic(route?: P2PTransportPeerRouteDiagnostic): string {
-  if (!route) return 'нет';
-  const parts = [formatPeerRouteStatus(route.status)];
-  if (route.rttMs !== null) parts.push(`${route.status === 'lost' ? 'последний пинг' : 'пинг'} ${Math.round(route.rttMs)} ms`);
-  return parts.join(' / ');
+function PeerRouteStatus({ route, strategy }: { route?: P2PTransportPeerRouteDiagnostic; strategy: P2PTransportStrategy }) {
+  const detail = route ? peerRouteDetail(route) : '';
+  const label = P2P_ROUTE_LABELS[strategy];
+  const status = route ? formatPeerRouteStatus(route.status) : 'нет';
+  return (
+    <details className="player-tools-peer-route">
+      <summary aria-label={`${label}: ${status}`}>
+        <span>{label}</span>
+        <Badge tone={peerRouteTone(route)}>{status}</Badge>
+        {detail && <small>{detail}</small>}
+      </summary>
+      <small className="player-tools-peer-route__details">{formatPeerRouteTitle(route)}</small>
+    </details>
+  );
 }
 
-function formatRouteDiagnostic(route?: P2PTransportRouteDiagnostic): string {
-  if (!route) return 'нет';
-  if (route.error) return `${formatRouteStatus(route.status)} / ${route.error}`;
-  return formatRouteStatus(route.status);
+function TransportRouteStatus({ route, strategy }: { route?: P2PTransportRouteDiagnostic; strategy: P2PTransportStrategy }) {
+  const detail = route ? transportRouteDetail(route) : '';
+  const label = P2P_ROUTE_LABELS[strategy];
+  const status = route ? formatRouteStatus(route.status) : 'нет';
+  return (
+    <details className="player-tools-peer-route">
+      <summary aria-label={`${label}: ${status}`}>
+        <span>{label}</span>
+        <Badge tone={transportRouteTone(route)}>{status}</Badge>
+        {detail && <small>{detail}</small>}
+      </summary>
+      <small className="player-tools-peer-route__details">{formatRouteDiagnosticTitle(route)}</small>
+    </details>
+  );
+}
+
+function peerRouteDetail(route: P2PTransportPeerRouteDiagnostic): string {
+  if (route.error) return route.error;
+  const parts: string[] = [];
+  if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} ms`);
+  if (route.physicalPeerId) parts.push(shortPeerId(route.physicalPeerId));
+  return parts.join(' · ');
+}
+
+function transportRouteDetail(route: P2PTransportRouteDiagnostic): string {
+  if (route.error) return route.error;
+  const parts: string[] = [];
+  if (route.activePeers.length > 0) parts.push(`${route.activePeers.length} peer`);
+  if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} ms`);
+  return parts.join(' · ');
+}
+
+function peerRouteTone(route?: P2PTransportPeerRouteDiagnostic): BadgeTone {
+  if (!route || route.status === 'unknown') return 'neutral';
+  if (route.status === 'active') return 'gold';
+  if (route.status === 'available') return 'success';
+  if (route.status === 'failed') return 'danger';
+  if (route.status === 'lost') return 'gold';
+  return 'neutral';
+}
+
+function transportRouteTone(route?: P2PTransportRouteDiagnostic): BadgeTone {
+  if (!route) return 'neutral';
+  if (route.status === 'ready') return 'success';
+  if (route.status === 'probing') return 'blue';
+  if (route.status === 'failed') return 'danger';
+  return 'gold';
 }
 
 function formatRouteDiagnosticTitle(route?: P2PTransportRouteDiagnostic): string {
@@ -407,23 +427,6 @@ function formatPeerRouteTitle(route?: P2PTransportPeerRouteDiagnostic): string {
   ];
   if (route.error) parts.push(`Ошибка: ${route.error}`);
   return parts.join('\n');
-}
-
-function routeStatusClass(route?: P2PTransportPeerRouteDiagnostic): string {
-  if (!route) return 'is-empty';
-  if (route.status === 'active') return 'is-active';
-  if (route.status === 'available') return 'is-ready';
-  if (route.status === 'failed') return 'is-failed';
-  if (route.status === 'unknown') return 'is-empty';
-  return 'is-lost';
-}
-
-function routeDiagnosticStatusClass(route?: P2PTransportRouteDiagnostic): string {
-  if (!route) return 'is-empty';
-  if (route.status === 'ready') return 'is-ready';
-  if (route.status === 'failed') return 'is-failed';
-  if (route.status === 'degraded') return 'is-lost';
-  return 'is-empty';
 }
 
 function formatRouteStatus(status: P2PTransportRouteDiagnostic['status']): string {

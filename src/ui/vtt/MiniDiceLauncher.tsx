@@ -156,10 +156,10 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
 
   return (
     <section
-      className={`mini-dice-launcher ${open ? 'dh-is-open' : ''} ${dismissed ? 'dh-is-dismissed' : ''}`}
+      className={`mini-dice-launcher mini-dice-launcher--${role} ${open ? 'dh-is-open' : ''} ${dismissed ? 'dh-is-dismissed' : ''}`}
       aria-label="Бросок костей"
     >
-      <IconButton className="mini-dice-launcher__tools" variant="ghost" size="sm" type="button" title="Библиотека" aria-label="Библиотека" onClick={onOpenTools}>
+      <IconButton className="mini-dice-launcher__tools" variant="ghost" size="sm" type="button" title="Инструменты" aria-label="Инструменты" onClick={onOpenTools}>
         <LibraryBig size={16} aria-hidden="true" />
       </IconButton>
       <IconButton

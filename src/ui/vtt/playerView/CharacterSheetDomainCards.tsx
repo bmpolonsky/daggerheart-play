@@ -28,6 +28,7 @@ export function CharacterSheetDomainCards({
               value={card.tokens.value}
               max={card.tokens.max}
               tone="hope"
+              label={`Надежда карты ${card.name}`}
               onSet={(next) => onTokenChange(card.id, next)}
             />
           )}

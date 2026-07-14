@@ -67,6 +67,7 @@ Do not introduce new global color systems for screens. If a tool needs local ali
 - Use `ListDetailLayout` for responsive list/detail workspaces.
 - Use `ResourcePips` for hope, hp, stress, armor, and similar pip tracks.
 - Use `Dialog` for dialog windows: backdrop, glass surface, title/actions, and click-outside close.
+- Use `ConfirmDialog` before destructive actions that remove meaningful user content.
 
 ## What Not To Do
 
@@ -406,12 +407,14 @@ Props:
 
 - `list`, `detail`
 - `listClassName`, `detailClassName` for the content regions
+- `narrowDetailOpen`: keeps both panes on desktop while choosing which pane is visible at `<=1120px`.
 
 Guidance:
 
 - Keep selected/open state in the caller.
+- For mobile list → detail journeys, keep `detail` mounted and drive `narrowDetailOpen` from the caller so the list is the initial screen and a back command can restore it.
 - Use this for reusable layout behavior, not for styling individual cards.
-- Keep the split behavior standardized: full-width list without detail, list/detail split with detail, detail above list on narrow screens.
+- Keep the split behavior standardized: full-width list without detail, list/detail split with detail, detail replacing the list on narrow screens.
 - Do not duplicate split-grid CSS in screen files when this component fits.
 
 ### Tabs
@@ -419,7 +422,7 @@ Guidance:
 Use for tab navigation between content sections.
 
 ```tsx
-<Tabs label="Разделы" layout="equal">
+<Tabs label="Разделы" layout="equal" align="start">
   <TabButton active={tab === 'players'} onClick={...}>Игроки</TabButton>
   <TabButton active={tab === 'scene'} onClick={...}>Сцена</TabButton>
 </Tabs>
@@ -428,11 +431,13 @@ Use for tab navigation between content sections.
 Props:
 
 - `Tabs.layout`: `auto | equal`
+- `Tabs.align`: `center | start`; use `start` for rows that can overflow horizontally.
 - `TabButton.active`
 
 Guidance:
 
 - Active tab is a soft pill.
+- An active tab in an overflowing row is revealed automatically.
 - Inactive tab is text-only or very quiet.
 - Avoid wrapping tabs in another framed container.
 - Do not use tabs for picking a value like difficulty, attack mode, or roll type. Use `SegmentedControl`.
@@ -487,7 +492,7 @@ Use for section headings with optional actions.
 
 ### Dialog
 
-Use for dialog windows: backdrop, glass surface, optional title/actions, click-outside close.
+Use for dialog windows: backdrop, glass surface, optional title/actions, click-outside close, Escape close, trapped focus, and focus restoration.
 
 ```tsx
 <Dialog title={<h2>Библиотека</h2>} actions={<IconButton aria-label="Закрыть">...</IconButton>} onClose={close}>
@@ -500,6 +505,27 @@ Guidance:
 - Put modal content inside; do not create another full framed shell inside it.
 - Use `actions` for close buttons or compact modal commands.
 - If the modal needs tabs, place `Tabs` in content or header, not a custom row of buttons.
+- The first enabled control receives focus by default. Add `autoFocus` or `data-dialog-autofocus` when another initial target is more appropriate.
+
+### ConfirmDialog
+
+Use for destructive actions that cannot be undone, such as deleting a scene, character, handout, or saved game.
+
+```tsx
+<ConfirmDialog
+  title="Удалить сцену?"
+  body="Сцена и размещённые на ней токены будут удалены."
+  onCancel={() => setConfirmOpen(false)}
+  onConfirm={deleteScene}
+/>
+```
+
+Guidance:
+
+- Render it conditionally from the caller and keep the destructive command inside `onConfirm`.
+- Name the affected object in `title` or `body`.
+- Keep cancel as the initially focused action.
+- Do not use it for reversible toggles or frequent low-risk actions.
 
 ### Checkbox
 
@@ -531,9 +557,11 @@ Use for pip tracks.
 
 Props:
 
-- `tone`: `hope | hp | stress | armor`
+- `tone`: `hope | hp | stress | armor | fear`
 - `filledMeansMarked`: flips the visual meaning for available-vs-marked tracks.
 - `onChange`: optional; without it pips render read-only.
+- `showHeader`: hides the built-in label/value row when the surrounding composition already owns it.
+- `className`: integrates contextual pip sizing without duplicating interaction markup.
 
 ### ImageFilePicker and FilePicker
 
@@ -553,6 +581,7 @@ Props:
 - `emptyLabel`
 - `aspectRatio`
 - `size`: `default | compact`
+- `hideLabel`: hides the visible caption while preserving the file input's accessible name.
 - `icon`: `image | music`
 - `onFileSelect`, `onClear`
 

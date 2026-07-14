@@ -28,13 +28,16 @@ export function GmCombatTracker({
     <section className="player-participant-group" aria-label="Противники">
       <header className="player-participant-group__header">
         <span>Противники</span>
-        <strong>{entries.length}</strong>
       </header>
       <div className="player-combat-tracker" aria-label="Трекер боя">
         {entries.map((entry) => (
           <article
             className={`player-combat-tracker__entry ${entry.adversary.id === activeAdversaryId ? 'dh-is-selected' : ''}`}
             key={entry.adversary.id}
+            onClick={(event) => {
+              if ((event.target as HTMLElement).closest('button, .player-combat-tracker__tracks')) return;
+              onOpenActor({ kind: 'adversary', actorId: entry.adversary.id });
+            }}
           >
             <header className="player-combat-tracker__entry-header">
               <strong className="player-combat-tracker__entry-name">{entry.adversary.name}</strong>
@@ -101,7 +104,7 @@ export function GmCombatTracker({
                 )}
               </span>
             </header>
-            <div className="player-combat-tracker__tracks">
+            <div className="player-combat-tracker__tracks" onClick={(event) => event.stopPropagation()}>
               <ResourcePips
                 label="Раны"
                 current={entry.adversary.hp.marked}

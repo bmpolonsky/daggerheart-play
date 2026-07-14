@@ -77,8 +77,6 @@
 }
 
 .role-entry__players,
-.player-tools-row,
-.player-tools-grid > *,
 .player-sheet-row,
 .player-activity-card,
 .cinematic-sidecar-section,
@@ -86,43 +84,6 @@
   border-color: transparent;
   background: var(--dh-glass-subtle);
   box-shadow: none;
-}
-
-.cinematic-builder-preview {
-  border-color: transparent;
-  background:
-    linear-gradient(180deg, rgba(13, 18, 24, 0.74), rgba(7, 9, 12, 0.62)),
-    rgba(7, 9, 12, 0.48);
-  color: var(--dh-paper-100);
-  box-shadow: none;
-}
-
-.cinematic-builder-preview-art,
-.cinematic-builder-preview-line,
-.cinematic-builder-preview-cards,
-.cinematic-builder-readiness,
-.cinematic-builder-preview .dh-stat,
-.cinematic-builder-preview-traits span {
-  border-color: transparent;
-  background: rgba(243, 234, 216, 0.045);
-  color: var(--dh-paper-muted);
-}
-
-.cinematic-builder-preview-art div,
-.cinematic-builder-preview-art strong,
-.cinematic-builder-preview-line span,
-.cinematic-builder-preview-cards span,
-.cinematic-builder-preview .dh-stat strong,
-.cinematic-builder-preview-traits span,
-.cinematic-builder-preview-cards strong,
-.cinematic-builder-readiness strong {
-  color: var(--dh-paper-100);
-}
-
-.cinematic-builder-preview-art > span,
-.cinematic-builder-preview-art span,
-.cinematic-builder-preview .dh-stat span {
-  color: var(--dh-paper-muted);
 }
 
 .cinematic-card-rail .cinematic-card {

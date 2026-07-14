@@ -10,10 +10,12 @@ import type { LibraryEntry } from './libraryDetailTypes';
 export function LibraryResults({
   libraryView,
   onEditCustom,
+  onDetailOpenChange,
   targetCharacterId
 }: {
   libraryView: ContentLibraryView;
   onEditCustom?: (custom: NonNullable<LibraryEntry['custom']>) => void;
+  onDetailOpenChange?: (open: boolean) => void;
   targetCharacterId?: string | null;
 }) {
   const entries = useMemo(() => buildLibraryEntries(libraryView, targetCharacterId), [libraryView, targetCharacterId]);
@@ -25,6 +27,10 @@ export function LibraryResults({
     setSelectedId((current) => entries.some((entry) => entry.id === current) ? current : '');
     setActionMessage('');
   }, [entries]);
+
+  useEffect(() => {
+    onDetailOpenChange?.(Boolean(selectedEntry));
+  }, [onDetailOpenChange, selectedEntry]);
 
   if (entries.length === 0) {
     return <p className="player-tools-empty">Ничего не найдено.</p>;

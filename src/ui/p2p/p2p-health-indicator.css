@@ -16,6 +16,16 @@
   color: var(--dh-paper-100);
 }
 
+.p2p-health-indicator--chronicle.dh-icon-button {
+  position: static;
+  flex: 0 0 auto;
+  color: var(--dh-paper-faint);
+}
+
+.p2p-health-indicator--chronicle.dh-icon-button:hover:not(:disabled) {
+  color: var(--dh-paper-100);
+}
+
 .p2p-health-indicator__label,
 .p2p-health-indicator__detail {
   min-width: 0;
@@ -52,12 +62,20 @@
 }
 
 .p2p-health-dialog.dh-dialog {
-  width: min(1180px, calc(100vw - 28px));
+  width: min(760px, calc(100vw - 28px));
+  height: auto;
+  align-self: center;
+  justify-self: center;
+  grid-template-rows: auto;
 }
 
 .p2p-health-dialog .player-tools-settings-panel {
+  min-height: 0;
+  max-height: min(600px, calc(100dvh - 116px));
   background: transparent;
   padding: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 @media (max-width: 720px) {

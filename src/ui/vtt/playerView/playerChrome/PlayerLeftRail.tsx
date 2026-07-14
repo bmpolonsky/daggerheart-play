@@ -1,15 +1,17 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Eye, EyeOff, MessageCircle, Minus, Plus, SendHorizontal, X } from 'lucide-react';
+import { Check, Copy, Eye, EyeOff, Minus, Plus, SendHorizontal, Trash2, X } from 'lucide-react';
 import { useStream } from '../../../../core/hooks/useStream';
 import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
 import type { TableFeedItem } from '../../../../domain/tabletop/feed';
 import { gameService, diceService, encounterService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
-import { Button } from '../../../components/common/Button';
+import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
+import { EmptyState } from '../../../components/common/EmptyState';
 import { IconButton } from '../../../components/common/IconButton';
 import { TextControl } from '../../../components/common/Field';
 import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS } from '../constants';
+import { P2PHealthIndicator } from '../../../p2p/P2PHealthIndicator';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainCards/types';
 import { currentSettingsInviteContext, feedRollRevealId, revealedRollIdsFromActivity } from '../helpers';
@@ -30,11 +32,13 @@ type FeedCardRollDraftState = {
 };
 
 export function PlayerLeftRail({
+  accessible,
   macroCharacter,
   macroCharacters,
   model,
   role
 }: {
+  accessible: boolean;
   macroCharacter?: PlayerViewCharacterSummary | null;
   macroCharacters?: Record<string, PlayerViewCharacterSummary>;
   model: PlayerViewModel;
@@ -43,6 +47,7 @@ export function PlayerLeftRail({
   const [message, setMessage] = useState('');
   const [rollDraftState, setRollDraftState] = useState<FeedCardRollDraftState | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [clearChronicleOpen, setClearChronicleOpen] = useState(false);
   const p2pSession = useStream(p2pSessionService.session$);
   const encounter = useStream(encounterService.encounter$);
   const { completedDiceRollIds, ephemeralFeedItem } = useStream(playerViewUi$);
@@ -120,14 +125,19 @@ export function PlayerLeftRail({
   const copyInvite = async () => {
     const inviteUrl = p2pSessionService.previewInviteUrl(currentSettingsInviteContext());
     if (!inviteUrl) return;
-    await navigator.clipboard?.writeText(inviteUrl);
     setInviteCopied(true);
     window.setTimeout(() => setInviteCopied(false), 1600);
+    try {
+      await navigator.clipboard?.writeText(inviteUrl);
+    } catch {
+      // The visible confirmation still acknowledges the click when Clipboard API
+      // access is unavailable (for example, in an insecure browser context).
+    }
   };
   const gmSessionText = gmPlayerSessionText(p2pSession);
 
   return (
-    <aside className="player-left-rail" aria-label="Чат игры">
+    <aside className="player-left-rail" aria-label="Хроника игры" aria-hidden={!accessible} inert={!accessible}>
       {rollDraftState && (
         <PlayerRollConfirm
           character={rollDraftState.character}
@@ -176,33 +186,41 @@ export function PlayerLeftRail({
           }}
         />
       )}
-      <section className={`player-activity-card player-activity-card--airy ${role === 'gm' ? 'player-activity-card--gm' : ''}`}>
-        <header className="player-activity-header">
-          <MessageCircle size={16} aria-hidden="true" />
-          <span>Игра</span>
-          <span className="player-activity-header__spacer" aria-hidden="true" />
-          {role === 'gm' && hasClearableActivity ? (
-            <Button size="sm" variant="ghost" type="button" onClick={() => { feedService.clear(); playerViewUiActions.setEphemeralFeedItem(null); }}>Очистить</Button>
-          ) : (
-            <span className="player-activity-header__placeholder" aria-hidden="true">Очистить</span>
-          )}
-        </header>
-        {role === 'gm' && (
-          <div className="player-activity-session">
-            <span>{gmSessionText}</span>
-            <Button size="sm" variant="secondary" noWrap type="button" disabled={!p2pSession.roomId} onClick={() => void copyInvite()}>
-              {inviteCopied ? 'Скопировано' : 'Ссылка'}
-            </Button>
+      <section className={`player-activity-card ${role === 'gm' ? 'player-activity-card--gm' : ''}`}>
+        <header className="player-chronicle-header">
+          <div className="player-chronicle-header__title">
+            <span>{role === 'gm' ? gmSessionText : 'Общая история'}</span>
+            <strong>Хроника</strong>
           </div>
-        )}
+          <div className="player-chronicle-header__actions">
+            <P2PHealthIndicator placement="chronicle" role={role} />
+            {role === 'gm' && (
+              <IconButton className={inviteCopied ? 'dh-is-copied' : ''} variant="ghost" size="sm" type="button" disabled={!p2pSession.roomId} title={inviteCopied ? 'Ссылка скопирована' : 'Копировать приглашение'} aria-label={inviteCopied ? 'Ссылка скопирована' : 'Копировать приглашение'} onClick={() => void copyInvite()}>
+                {inviteCopied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
+              </IconButton>
+            )}
+            {role === 'gm' && hasClearableActivity && (
+              <IconButton variant="ghost" tone="danger" size="sm" type="button" title="Очистить хронику" aria-label="Очистить хронику" onClick={() => setClearChronicleOpen(true)}>
+                <Trash2 size={15} aria-hidden="true" />
+              </IconButton>
+            )}
+          </div>
+        </header>
         {visibleCountdowns.length > 0 && (
-          <div className="player-countdown-stack" aria-label="Отсчеты">
+          <div className="player-countdown-strip" aria-label="Отсчеты">
             {visibleCountdowns.map((countdown) => (
               <CountdownCard countdown={countdown} key={countdown.id} role={role} />
             ))}
           </div>
         )}
         <div className={`player-activity-list ${visibleActivity.length === 0 ? 'player-activity-list--empty' : ''}`} ref={activityRef}>
+          {visibleActivity.length === 0 && (
+            <EmptyState
+              tone="transparent"
+              size="sm"
+              title="Хроника пока пуста"
+            />
+          )}
           {visibleActivity.map((event) => {
             const waitingForDice = waitsForDiceReveal(event) && !revealedRollIds.has(feedRollRevealId(event));
             const canRemoveEvent = (role === 'gm' || event.ephemeral) && event.id !== 'feed-empty';
@@ -249,6 +267,19 @@ export function PlayerLeftRail({
           </IconButton>
         </form>
       </section>
+      {clearChronicleOpen && (
+        <ConfirmDialog
+          title="Очистить хронику?"
+          body="Все сообщения, опубликованные броски и карточки хроники будут удалены. Это действие нельзя отменить."
+          confirmLabel="Очистить"
+          onCancel={() => setClearChronicleOpen(false)}
+          onConfirm={() => {
+            setClearChronicleOpen(false);
+            feedService.clear();
+            playerViewUiActions.setEphemeralFeedItem(null);
+          }}
+        />
+      )}
     </aside>
   );
 }

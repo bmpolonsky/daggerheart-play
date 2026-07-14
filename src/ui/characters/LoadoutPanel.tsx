@@ -2,8 +2,7 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { NumberField, SelectControl, SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
-import { Surface } from '../components/common/Surface';
-import { DAMAGE_TYPE_LABELS, DOMAIN_LABELS, RANGE_LABELS, RANGES, TRAITS } from '../../domain/rules/constants';
+import { DAMAGE_TYPE_LABELS, DOMAIN_LABELS, RANGE_LABELS, RANGES, TRAITS, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
 import { domainCardFromLibrary, isDomainCardForDomains } from '../../domain/characterBuilder';
 import { buildEquipmentAttachmentPlan } from '../../domain/rules/equipment';
@@ -34,8 +33,13 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             <Button onClick={() => characterService.addWeapon(character.id)}>+ Своя атака</Button>
           </div>
         </div>
-        {character.weapons.map((weapon) => (
-          <Surface as="div" tone="subtle" key={weapon.id} className="nested-card">
+        {character.weapons.map((weapon, index) => (
+          <details className="character-editor-item" key={weapon.id} open={index === 0}>
+            <summary>
+              <strong>{weaponLabel(weapon.name)}</strong>
+              <span>{TRAIT_LABELS[weapon.trait]} · {RANGE_LABELS[weapon.range] ?? weapon.range} · {weapon.damageFormula}</span>
+            </summary>
+            <div className="character-editor-item__fields">
             <div className="grid-5">
               {weaponOptions.length > 0 ? (
                 <SelectField
@@ -109,7 +113,8 @@ export function LoadoutPanel({ character, content }: { character: Character; con
                 <Trash2 size={15} aria-hidden="true" />
               </IconButton>
             </div>
-          </Surface>
+            </div>
+          </details>
         ))}
       </section>
 
@@ -162,7 +167,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             <Button onClick={() => characterService.addInventoryItem(character.id)}>+ Свой предмет</Button>
           </div>
         </div>
-        <div className="nested-card">
+        <div className="character-editor-money">
           <h3>Деньги</h3>
           <div className={game.showCoins ? 'grid-4' : 'grid-3'}>
             {game.showCoins && (
@@ -198,8 +203,13 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             />
           </div>
         </div>
-        {character.inventory.map((item) => (
-          <Surface as="div" tone="subtle" key={item.id} className="nested-card">
+        {character.inventory.map((item, index) => (
+          <details className="character-editor-item" key={item.id} open={index === 0}>
+            <summary>
+              <strong>{item.name || 'Предмет без названия'}</strong>
+              <span>{inventoryKindLabel(item.kind)} · {item.quantity} шт.</span>
+            </summary>
+            <div className="character-editor-item__fields">
             <div className="grid-5">
               <TextField
                 label="Название"
@@ -246,7 +256,8 @@ export function LoadoutPanel({ character, content }: { character: Character; con
                 <Trash2 size={15} aria-hidden="true" />
               </IconButton>
             </div>
-          </Surface>
+            </div>
+          </details>
         ))}
       </section>
     </div>
@@ -307,6 +318,12 @@ function weaponLabel(name: string): string {
     'Standard Attack': 'Обычная атака'
   };
   return labels[name] ?? name;
+}
+
+function inventoryKindLabel(kind: Character['inventory'][number]['kind']): string {
+  if (kind === 'consumable') return 'Расходник';
+  if (kind === 'item') return 'Предмет';
+  return 'Другое';
 }
 
 function hasTwoHandedConflict(weapons: Character['weapons'], weaponId: string): boolean {

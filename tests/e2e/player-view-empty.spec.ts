@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openGmGame, openPlayerGame } from './game-route-helpers';
-import { expectInsideViewport } from './layout-helpers';
+import { expectHiddenSurface, expectInsideViewport } from './layout-helpers';
 
 async function openPlayerView(page: Page, viewport: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(viewport);
@@ -25,6 +25,7 @@ test.describe('Player View empty state', () => {
     await expect(page.locator('.superapp-tabs')).toHaveCount(0);
     await expect(page.locator('.player-title-stack')).toHaveCount(0);
     await expect(panel.getByRole('button', { name: 'К ростеру' })).toHaveCount(0);
+    await expect(page.getByLabel(/Страх \d+ из 12/).first().getByRole('button')).toHaveCount(0);
     await expectInsideViewport(page, panel);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 1280);
   });
@@ -91,10 +92,15 @@ test.describe('Player View empty state', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    await page.getByLabel('Библиотека').getByRole('button', { name: 'Действия' }).click();
+    await page.getByRole('button', { name: 'Скрыть хронику' }).click();
+    const chronicle = page.getByLabel('Хроника игры');
+    await expectHiddenSurface(chronicle);
+    await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Действия' }).click();
     await page.getByRole('button', { name: 'Создать отсчет' }).click();
 
     const composer = page.getByLabel('Создать отсчет');
+    await expect(chronicle).toHaveCSS('opacity', '1');
+    await expect(chronicle).not.toHaveAttribute('inert', '');
     const composerEvent = composer.locator('xpath=ancestor::article[contains(@class, "player-activity-event--countdownComposer")]');
     await expect(composer).toBeVisible();
     await expect(composerEvent).toBeVisible();
