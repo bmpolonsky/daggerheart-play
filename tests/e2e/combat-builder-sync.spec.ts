@@ -34,7 +34,17 @@ test.describe('combat builder sync', () => {
 
     await addRedOoze(builder);
     await expect(builder.locator('.combat-encounter-panel')).toContainText('1 противников');
-    await expect(gm.locator('.player-combat-tracker__entry').filter({ hasText: 'Алая Слизь' })).toBeVisible();
+    const gmAdversary = gm.locator('.player-combat-tracker__entry').filter({ hasText: 'Алая Слизь' });
+    await expect(gmAdversary).toBeVisible();
+    await expect(gmAdversary.locator('.player-combat-tracker__entry-actions').getByRole('button', { name: /Открыть лист/ })).toHaveCount(0);
+
+    const sheetTrigger = gmAdversary.getByRole('button', { name: 'Открыть лист Алая Слизь' });
+    await sheetTrigger.focus();
+    await expect(sheetTrigger).toBeFocused();
+    await gm.keyboard.press('Enter');
+    await expect(gm.getByLabel('Противник мастера')).toBeVisible();
+    await gm.getByRole('button', { name: 'К ростеру' }).click();
+    await expect(gmAdversary).toBeVisible();
 
     const secondBuilder = await openCombatBuilder(context);
     await expect(secondBuilder.locator('.combat-encounter-panel')).toContainText('Алая Слизь');

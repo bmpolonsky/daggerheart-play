@@ -207,6 +207,7 @@ test.describe('P2P session workflow', () => {
   });
 
   test('connection health opens a compact peer-centric diagnostic', async ({ page }) => {
+    await seedConnectedDiagnostics(page, []);
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 

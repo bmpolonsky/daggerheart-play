@@ -1,9 +1,9 @@
 /** @jsxImportSource preact */
-import { Eye, EyeOff, PanelRightOpen, Plus, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { useMemo } from 'preact/hooks';
 import { useStream } from '../../../../core/hooks/useStream';
 import { encounterService, sceneTableService, tabletopService } from '../../../../services/serviceRegistry';
-import { IconButton, ResourcePips } from '../../../components/common';
+import { Button, IconButton, ResourcePips } from '../../../components/common';
 import type { PlayerViewedActor } from '../types';
 import { buildCombatTrackerEntries } from './combatTrackerModel';
 
@@ -40,17 +40,18 @@ export function GmCombatTracker({
             }}
           >
             <header className="player-combat-tracker__entry-header">
-              <strong className="player-combat-tracker__entry-name">{entry.adversary.name}</strong>
+              <Button
+                variant="ghost"
+                size="xs"
+                noWrap
+                className="player-combat-tracker__entry-name"
+                aria-label={`Открыть лист ${entry.adversary.name}`}
+                title="Открыть лист"
+                onClick={() => onOpenActor({ kind: 'adversary', actorId: entry.adversary.id })}
+              >
+                {entry.adversary.name}
+              </Button>
               <span className="player-combat-tracker__entry-actions">
-                <IconButton
-                  variant="ghost"
-                  size="xs"
-                  aria-label={`Открыть лист ${entry.adversary.name}`}
-                  title="Открыть лист"
-                  onClick={() => onOpenActor({ kind: 'adversary', actorId: entry.adversary.id })}
-                >
-                  <PanelRightOpen size={14} aria-hidden="true" />
-                </IconButton>
                 {entry.tokenId ? (
                   <>
                     <IconButton

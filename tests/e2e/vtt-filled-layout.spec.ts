@@ -212,6 +212,8 @@ test.describe('filled VTT layout regressions', () => {
     await page.setViewportSize({ width: 1280, height: 860 });
     await openFilledGmGame(page);
 
+    await expect(page.getByLabel('Инструменты сцены').locator('.player-combat-tracker__entry-actions').getByRole('button', { name: /^Открыть лист / })).toHaveCount(0);
+
     const adversaryCard = page.locator('.player-combat-tracker__entry').first();
     await adversaryCard.click({ position: { x: 12, y: 14 } });
     await expect(page.getByLabel('Противник мастера')).toBeVisible();

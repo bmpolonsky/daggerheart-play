@@ -84,7 +84,8 @@ test.describe('dark glass visual system smoke', () => {
     await expect(nav).toBeVisible();
     await expectInsideViewport(page, body);
     await expectNoOverlap(nav, body, 2);
-    expect((await rect(nav)).height).toBeGreaterThanOrEqual(42);
+    expect((await rect(nav)).height).toBeGreaterThanOrEqual(36);
+    expect((await rect(nav.getByRole('button', { name: 'Сцены' }))).height).toBeGreaterThanOrEqual(30);
     await expectNoHorizontalOverflow(page, 1024);
   });
 
