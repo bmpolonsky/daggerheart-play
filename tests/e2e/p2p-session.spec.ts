@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import type { P2PSessionState } from '../../src/services/P2PSessionService';
-import { openGmGame, openPlayerGame } from './game-route-helpers';
+import { installDeterministicP2PTransport, openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectInsideBounds, expectInsideViewport, expectNoOverlap, expectTopLayerAtPoint, rect } from './layout-helpers';
 
 async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
@@ -14,8 +14,11 @@ async function openSharedSettings(page: Page, role: 'gm' | 'player', section: '�
 }
 
 async function openCurrentSettings(page: Page, section: 'Подключение' | 'Диагностика' | 'Игры проекта' = 'Подключение'): Promise<void> {
-  await page.getByRole('button', { name: 'Инструменты' }).click();
   const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
+  if (!(await modal.isVisible())) {
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+  }
+  await expect(modal).toBeVisible();
   await modal.getByRole('button', { name: 'Настройки' }).click();
   const sectionButton = modal.getByLabel('Разделы настроек').getByRole('button', { name: section });
   await sectionButton.click();
@@ -24,14 +27,17 @@ async function openCurrentSettings(page: Page, section: 'Подключение'
 }
 
 function sessionMeta(page: Page, label: string) {
-  return page.getByRole('definition', { name: label });
+  return page.locator(`dd[aria-label="${label}"]`);
 }
 
 async function createLobbyInvite(page: Page): Promise<string> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
-  const roomId = await page.getByLabel('Код комнаты').first().inputValue();
-  const invite = page.getByLabel('Ссылка приглашения');
+  const gmLobby = page.getByLabel('Создать сессию мастера');
+  await gmLobby.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await expect(gmLobby.getByLabel('Имя игрока')).toHaveValue('Игрок 1');
+  const roomId = await gmLobby.getByRole('textbox', { name: /^Код комнаты/ }).inputValue();
+  const invite = gmLobby.getByRole('textbox', { name: /^Ссылка приглашения/ });
   await expect(invite).toHaveValue(new RegExp(`/join/${roomId}$`));
   return invite.inputValue();
 }
@@ -252,19 +258,51 @@ test.describe('P2P session workflow', () => {
     await player.context().close();
   });
 
-  test('creates a Trystero room, joins as player and syncs GM approval', async ({ browser }) => {
+  test('automatic GM and player bootstrap use the configured transport without external relays', async ({ browser }) => {
+    const gm = await newSharedPage(browser);
+    await openSharedSettings(gm, 'gm', 'Диагностика');
+    await expect(sessionMeta(gm, 'Роль')).toHaveText('gm');
+    await expect(sessionMeta(gm, 'Статус')).toHaveText('Ожидает игроков');
+    await expect(sessionMeta(gm, 'ID подключения')).toHaveText('e2e-browser-peer');
+    await expect.poll(() => gm.evaluate(() => window.sessionStorage.getItem('e2e-p2p-connected-room'))).toMatch(/^[A-Z0-9]{6}$/);
+    await gm.context().close();
+
+    const player = await newSharedPage(browser);
+    await openSharedSettings(player, 'player', 'Диагностика');
+    await expect(sessionMeta(player, 'Роль')).toHaveText('player');
+    await expect(sessionMeta(player, 'ID подключения')).toHaveText('e2e-browser-peer');
+    await expect.poll(() => player.evaluate(() => window.sessionStorage.getItem('e2e-p2p-connected-room'))).toContain('TEST-ROOM');
+    await player.context().close();
+  });
+
+  test('entering the GM game does not announce routine invite creation', async ({ page }) => {
+    await installDeterministicP2PTransport(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Открыть игру' }).click();
+    await expect(page.locator('[data-vtt-root]')).toBeVisible();
+    await expect(page.getByText('Готовим ссылку...')).toHaveCount(0);
+    await expect(page.getByText('Ссылка готова. Игрок подключится автоматически.')).toHaveCount(0);
+  });
+
+  test('@live-p2p creates a Trystero room, joins a configured seat, and syncs chat after reload', async ({ browser, browserName }) => {
     test.skip(process.env.RUN_P2P_E2E !== '1', 'Real WebRTC relay smoke is opt-in to keep default e2e deterministic.');
-    test.setTimeout(60_000);
+    test.skip(browserName !== 'chromium', 'The external relay smoke runs once in Chromium; WebKit P2P UI is covered with deterministic fixtures.');
+    test.setTimeout(150_000);
 
     const gm = await newSharedPage(browser);
     const player = await newSharedPage(browser);
 
     const inviteLink = await createLobbyInvite(gm);
     await gm.getByRole('button', { name: 'Открыть игру' }).click();
+    const copyInvite = gm.getByRole('button', { name: 'Копировать приглашение' });
+    await expect(copyInvite).toBeEnabled();
+    await copyInvite.click();
+    await expect(gm.getByRole('button', { name: 'Ссылка скопирована' })).toBeVisible();
     await openCurrentSettings(gm, 'Диагностика');
     await player.goto(inviteLink);
+    await expect(player.getByText('Список получен от мастера.')).toBeVisible({ timeout: 30_000 });
     const seatButton = player.getByRole('button', { name: /Игрок 1/ });
-    await expect(seatButton).toBeVisible({ timeout: 15_000 });
+    await expect(seatButton).toBeVisible();
     await seatButton.click();
     await player.getByRole('button', { name: 'Войти за игрока' }).click();
     await openCurrentSettings(player, 'Диагностика');
@@ -273,11 +311,13 @@ test.describe('P2P session workflow', () => {
     await expect(sessionMeta(gm, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
     await expect(sessionMeta(player, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
 
+    await gm.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
     await gm.reload();
     await openCurrentSettings(gm, 'Диагностика');
     await expect(sessionMeta(gm, 'Роль')).toHaveText('gm', { timeout: 15_000 });
     await expect(sessionMeta(gm, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
 
+    await player.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
     await player.reload();
     await openCurrentSettings(player, 'Диагностика');
     await expect(sessionMeta(player, 'Роль')).toHaveText('player', { timeout: 15_000 });
@@ -285,7 +325,7 @@ test.describe('P2P session workflow', () => {
 
     await player.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
     await expect(player.getByLabel('Хроника игры')).toBeVisible();
-    const playerChat = `сообщение игрока ${Date.now().toString(36)}`;
+    const playerChat = 'сообщение игрока из live P2P smoke';
     await player.getByLabel('Сообщение игрока').fill(playerChat);
     await player.getByRole('button', { name: 'Отправить сообщение' }).click();
     await expect(gm.getByText(playerChat)).toBeVisible({ timeout: 15_000 });

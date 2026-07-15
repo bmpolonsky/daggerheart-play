@@ -10,6 +10,7 @@ import { FeedService } from './FeedService';
 import { ImportExportService } from './ImportExportService';
 import { MediaCallService } from './MediaCallService';
 import { P2PSessionService } from './P2PSessionService';
+import type { P2PTransportAdapter } from './p2p/P2PTransportAdapter';
 import { PersistenceService } from './PersistenceService';
 import { PlayerActionRequestService } from './PlayerActionRequestService';
 import { PlayerActivationQueueService } from './PlayerActivationQueueService';
@@ -37,7 +38,10 @@ export const sceneTableService = new SceneTableService();
 export const sceneAudioBroadcastService = new SceneAudioBroadcastService();
 export const syncService = new SyncService();
 export const mediaCallService = new MediaCallService(syncService);
-export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, undefined, undefined, mediaCallService);
+const e2eP2PTransportFactory = typeof window !== 'undefined' && navigator.webdriver
+  ? (window as typeof window & { __DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__?: () => P2PTransportAdapter }).__DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__
+  : undefined;
+export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, e2eP2PTransportFactory, undefined, mediaCallService);
 export const gmLobbyService = new GmLobbyService(p2pSessionService);
 characterService.setDeathMoveRequestHandler((character, transition) => {
   if (p2pSessionService.isConnectedPlayerSession()) return;

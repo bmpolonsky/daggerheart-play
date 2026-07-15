@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { filledCharacterName, openFilledGmGame, usesProvidedFilledGame } from './filled-game-helpers';
+import { filledCharacterName, filledCharacterResources, filledEnvironmentName, openFilledGmGame } from './filled-game-helpers';
 import { expectInsideHorizontalBounds, expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
 
 test.describe('filled VTT layout regressions', () => {
@@ -20,10 +20,8 @@ test.describe('filled VTT layout regressions', () => {
     await expect(feed).toHaveAttribute('aria-hidden', 'true');
     expect((await rect(board)).width).toBeGreaterThan(600);
     await expectNoOverlap(board, panel);
-    if (usesProvidedFilledGame) {
-      await expect.poll(() => page.locator('.player-token').count()).toBeGreaterThanOrEqual(6);
-      await expect.poll(() => page.locator('.player-view__scene-image').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
-    }
+    await expect(page.locator('.player-token')).toHaveCount(6);
+    await expect.poll(() => page.locator('.player-view__scene-image').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
   });
 
   test('keeps the dice dock centered and the complete character sheet scrollable on desktop and mobile', async ({ page }) => {
@@ -41,10 +39,8 @@ test.describe('filled VTT layout regressions', () => {
     await expectNoOverlap(dice, health);
     await expect(page.getByLabel('Хроника игры')).toBeVisible();
     await expect(page.getByLabel('Инструменты сцены')).toBeVisible();
-    if (usesProvidedFilledGame) {
-      await expect.poll(() => page.locator('.player-token').count()).toBeGreaterThanOrEqual(6);
-      await expect.poll(() => page.locator('.player-view__scene-image').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
-    }
+    await expect(page.locator('.player-token')).toHaveCount(6);
+    await expect.poll(() => page.locator('.player-view__scene-image').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
 
     const desktopRosterItem = page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledCharacterName }).first();
     await desktopRosterItem.click({ position: { x: 18, y: 28 } });
@@ -52,13 +48,13 @@ test.describe('filled VTT layout regressions', () => {
     const sectionRail = page.getByLabel('Разделы листа персонажа');
     await expect(sheet.locator('.player-sheet-section')).toHaveCount(6);
     const hopePips = sheet.getByRole('group', { name: 'Надежда', exact: true }).getByRole('button');
-    await expect(hopePips).toHaveCount(6);
+    await expect(hopePips).toHaveCount(filledCharacterResources.hope.max);
     await expect(hopePips.first()).toHaveAttribute('aria-pressed', 'true');
     await expect(hopePips.last()).toHaveAttribute('aria-pressed', 'false');
     const hopeColors = await hopePips.evaluateAll((buttons) => buttons.map((button) => getComputedStyle(button).backgroundColor));
     expect(hopeColors[0]).not.toBe(hopeColors.at(-1));
-    await expect(sheet.getByRole('group', { name: 'Раны', exact: true }).getByRole('button')).toHaveCount(6);
-    await expect(sheet.getByRole('group', { name: 'Стресс', exact: true }).getByRole('button')).toHaveCount(6);
+    await expect(sheet.getByRole('group', { name: 'Раны', exact: true }).getByRole('button')).toHaveCount(filledCharacterResources.hp.max);
+    await expect(sheet.getByRole('group', { name: 'Стресс', exact: true }).getByRole('button')).toHaveCount(filledCharacterResources.stress.max);
     const desktopScroll = await sheet.evaluate((element) => ({ client: element.clientHeight, scroll: element.scrollHeight }));
     expect(desktopScroll.scroll).toBeGreaterThan(desktopScroll.client + 400);
     await sectionRail.getByRole('button', { name: 'Снаряжение' }).click();
@@ -192,7 +188,7 @@ test.describe('filled VTT layout regressions', () => {
     const editor = workspace.getByLabel('Редактор персонажа');
     await expect(roster).toBeVisible();
     await expect(editor).toBeHidden();
-    if (usesProvidedFilledGame) await expect(roster.locator('.player-tools-character-card')).toHaveCount(3);
+    await expect(roster.locator('.player-tools-character-card')).toHaveCount(3);
 
     await roster.getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
     await expect(roster).toBeHidden();
@@ -208,7 +204,6 @@ test.describe('filled VTT layout regressions', () => {
   });
 
   test('opens adversary and environment sheets from the free area of their cards', async ({ page }) => {
-    test.skip(!usesProvidedFilledGame, 'Requires the provided populated campaign.');
     await page.setViewportSize({ width: 1280, height: 860 });
     await openFilledGmGame(page);
 
@@ -219,7 +214,7 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.getByLabel('Противник мастера')).toBeVisible();
     await page.getByRole('button', { name: 'К ростеру' }).click();
 
-    const environmentCard = page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: 'Заброшенная роща' });
+    const environmentCard = page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledEnvironmentName });
     await environmentCard.click({ position: { x: 16, y: 24 } });
     await expect(page.getByLabel('Окружение мастера')).toBeVisible();
   });

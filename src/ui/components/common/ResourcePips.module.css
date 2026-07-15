@@ -48,10 +48,6 @@ button.pip {
   cursor: pointer;
 }
 
-button.pip:hover {
-  background: rgba(243, 234, 216, 0.2);
-}
-
 button.pip:focus-visible {
   outline: none;
   box-shadow: var(--dh-focus);

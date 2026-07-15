@@ -189,7 +189,10 @@ test.describe('critical persisted journeys', () => {
     const roster = workspace.getByLabel('Ростер персонажей');
     await roster.getByRole('button', { name: /Эхо Северного ветра/ }).click();
     const editor = workspace.getByLabel('Редактор персонажа');
-    await editor.getByLabel('Имя').fill('Эхо из Белой башни');
+    const nameField = editor.getByLabel('Имя');
+    await nameField.fill('Эхо из Белой башни');
+    await expect(nameField).toHaveValue('Эхо из Белой башни');
+    await waitForStoredMarker(page, 'Эхо из Белой башни');
     await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Заметки' }).click();
     await editor.getByRole('textbox', { name: 'Заметки персонажа' }).fill('Помнит дорогу, которой больше нет.');
     await waitForStoredMarker(page, 'Помнит дорогу, которой больше нет.');
@@ -198,7 +201,9 @@ test.describe('critical persisted journeys', () => {
     await expect(workspace).toBeVisible();
     await selectWorkspaceTab(workspace, 'Персонажи');
     const restoredRoster = workspace.getByLabel('Ростер персонажей');
-    await restoredRoster.getByRole('button', { name: /Эхо из Белой башни/ }).click();
+    const restoredCharacter = restoredRoster.getByRole('button', { name: /Эхо из Белой башни/ });
+    await expect(restoredCharacter).toBeVisible();
+    await restoredCharacter.click();
     const restoredEditor = workspace.getByLabel('Редактор персонажа');
     await restoredEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Заметки' }).click();
     await expect(restoredEditor.getByRole('textbox', { name: 'Заметки персонажа' })).toHaveValue('Помнит дорогу, которой больше нет.');

@@ -253,7 +253,6 @@ export class P2PSessionService {
 
   async createGmInviteFromDraft(input: P2PInviteContext & { participantName?: string }): Promise<P2PSessionInvite> {
     const draft = this.inviteStore.get();
-    toastService.show('Готовим ссылку...');
     try {
       const active = this.sessionStore.get();
       const hasActiveGmRoom = active.role === 'gm' && (active.connected || active.status === 'connecting') && Boolean(active.roomId);
@@ -278,7 +277,6 @@ export class P2PSessionService {
         inviteUrl: invite.inviteUrl,
         roomCodeRefreshBlockedUntil: draft.roomCodeRefreshBlockedUntil
       });
-      toastService.show('Ссылка готова. Игрок подключится автоматически.', 'success');
       this.persistInviteDraft();
       return invite;
     } catch (error) {

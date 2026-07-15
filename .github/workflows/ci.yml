@@ -57,4 +57,23 @@ jobs:
           CONTENT_SOURCE: https://daggerheart.su
           CONTENT_LANG: ru
           CONTENT_CACHE_TTL_HOURS: "0"
-          RUN_P2P_E2E: ${{ github.event_name == 'schedule' && '1' || '0' }}
+          RUN_P2P_E2E: "0"
+
+      - name: Live P2P relay smoke
+        if: github.event_name == 'schedule'
+        run: npx playwright test tests/e2e/p2p-session.spec.ts --project=chromium --grep "@live-p2p"
+        env:
+          RUN_P2P_E2E: "1"
+
+  deploy-pages:
+    name: Deploy verified build to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [typecheck-and-unit, e2e]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml
+    with:
+      ci-verified: true
+    secrets: inherit

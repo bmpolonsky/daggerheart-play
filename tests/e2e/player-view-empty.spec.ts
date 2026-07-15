@@ -14,6 +14,40 @@ async function openAssignedPlayerView(page: Page, viewport: { width: number; hei
 }
 
 test.describe('Player View empty state', () => {
+  test('fresh browser context starts with no hidden campaign data', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (value: string) => window.sessionStorage.setItem('e2e-copied-invite', value)
+        }
+      });
+    });
+    await page.goto('/');
+
+    const gmLobby = page.getByLabel('Создать сессию мастера');
+    await expect(gmLobby.getByText('Добавьте игроков')).toBeVisible();
+    await expect(gmLobby.getByLabel('Имя игрока')).toHaveCount(0);
+    await expect(page.getByLabel('Управление сохранениями').getByText('Сохранений пока нет')).toBeVisible();
+    const copyInvite = gmLobby.getByRole('button', { name: 'Копировать ссылку игрока' });
+    await expect(copyInvite).toBeEnabled();
+    await copyInvite.click();
+    await expect(page.getByText('Ссылка скопирована.')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem('e2e-copied-invite'))).toContain('/join/');
+
+    await openGmGame(page);
+    await expect(page.locator('.player-token')).toHaveCount(0);
+    await expect(page.getByLabel('Хроника игры')).toContainText('Хроника пока пуста');
+    await expect(page.getByLabel('Инструменты сцены')).toContainText('Сцена пока пуста');
+
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    await expect(workspace.locator('.player-tools-character-card')).toHaveCount(0);
+    await expect(workspace.getByRole('button', { name: 'Создать героя' })).toBeVisible();
+  });
+
   test('assigned desktop player sees a character sheet lane, not GM controls', async ({ page }) => {
     await openAssignedPlayerView(page, { width: 1280, height: 720 });
 
@@ -83,6 +117,20 @@ test.describe('Player View empty state', () => {
 
     await fearTrack.getByRole('button', { name: 'Страх 3' }).click();
     await expect(fearTrack).toContainText('3/12');
+
+    const activeFear = fearTrack.getByRole('button', { name: 'Страх 3' });
+    const emptyFear = fearTrack.getByRole('button', { name: 'Страх 4' });
+    const visualState = (locator: typeof activeFear) => locator.evaluate((element) => ({
+      background: getComputedStyle(element).backgroundColor,
+      boxShadow: getComputedStyle(element).boxShadow,
+      transform: getComputedStyle(element).transform
+    }));
+    const activeBeforeHover = await visualState(activeFear);
+    await activeFear.hover();
+    expect(await visualState(activeFear)).toEqual(activeBeforeHover);
+    const emptyBeforeHover = await visualState(emptyFear);
+    await emptyFear.hover();
+    expect(await visualState(emptyFear)).toEqual(emptyBeforeHover);
 
     await fearTrack.getByRole('button', { name: 'Страх 3' }).click();
     await expect(fearTrack).toContainText('2/12');

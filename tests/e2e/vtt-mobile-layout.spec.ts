@@ -40,7 +40,20 @@ test.describe('VTT detail composition', () => {
 });
 
 test.describe('mobile VTT composition', () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('tapped Fear pip keeps its committed state without sticky hover', async ({ page }) => {
+    await openGmGame(page);
+
+    const fearTrack = page.getByLabel(/Страх \d+ из 12/).first();
+    await fearTrack.getByRole('button', { name: 'Страх 3' }).tap();
+    await expect(fearTrack).toContainText('3/12');
+    const pips = fearTrack.getByRole('button');
+    const colors = await pips.evaluateAll((buttons) => buttons.slice(0, 4).map((button) => getComputedStyle(button).backgroundColor));
+    expect(colors[2]).toBe(colors[1]);
+    expect(colors[2]).not.toBe(colors[3]);
+    await expect(pips.nth(2)).toHaveAttribute('aria-pressed', 'true');
+  });
 
   test('keeps scene primary and switches activity feed as one exclusive layer', async ({ page }) => {
     await openPlayerGame(page);
