@@ -60,6 +60,16 @@ export interface PlayerCharacterResourcesMessage {
   updatedAt: string;
 }
 
+export interface PlayerCharacterUpdateMessage {
+  type: 'playerCharacterUpdate';
+  participantId: string;
+  actorId: string;
+  actorName?: string;
+  character: Character;
+  revision: number;
+  updatedAt: string;
+}
+
 export interface PlayerCharacterCreateMessage {
   type: 'playerCharacterCreate';
   requestId: string;
@@ -134,7 +144,7 @@ export interface PlayerDecisionMessage {
   decision: PlayerDecision;
 }
 
-export type AssetRequestReason = 'scene-background';
+export type AssetRequestReason = 'scene-background' | 'scene-music';
 
 export interface AssetRequestMessage {
   type: 'request';
@@ -169,6 +179,7 @@ const syncChannels = {
   playerCharacterCreate: channel<PlayerCharacterCreateMessage>('playerCharacterCreate', isPlayerCharacterCreateMessage),
   snapshotRequest: channel<SnapshotRequestMessage>('snapshotRequest', isSnapshotRequestMessage),
   playerCharacterResources: channel<PlayerCharacterResourcesMessage>('actor', isPlayerCharacterResourcesMessage),
+  playerCharacterUpdate: channel<PlayerCharacterUpdateMessage>('actor', isPlayerCharacterUpdateMessage),
   asset: channel<AssetMessage>('asset', isAssetMessage)
 };
 
@@ -367,6 +378,14 @@ export class SyncService {
     return this.subscribeChannel(syncChannels.playerCharacterResources, listener);
   }
 
+  async publishPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage): Promise<boolean> {
+    return this.publishChannel(syncChannels.playerCharacterUpdate, message);
+  }
+
+  subscribePlayerCharacterUpdates(listener: (message: PlayerCharacterUpdateMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
+    return this.subscribeChannel(syncChannels.playerCharacterUpdate, listener);
+  }
+
   async publishAssetMessage(message: AssetMessage, targetPeer?: SyncTargetPeer): Promise<boolean> {
     return this.publishChannel(syncChannels.asset, message, targetPeer);
   }
@@ -525,6 +544,19 @@ function isPlayerCharacterResourcesMessage(value: unknown): value is PlayerChara
   );
 }
 
+function isPlayerCharacterUpdateMessage(value: unknown): value is PlayerCharacterUpdateMessage {
+  if (!isRecord(value) || value.type !== 'playerCharacterUpdate' || !isRecord(value.character)) return false;
+  return (
+    hasStringFields(value, ['participantId', 'actorId', 'updatedAt']) &&
+    (value.actorName === undefined || typeof value.actorName === 'string') &&
+    typeof value.character.id === 'string' &&
+    value.character.id === value.actorId &&
+    typeof value.revision === 'number' &&
+    Number.isSafeInteger(value.revision) &&
+    value.revision > 0
+  );
+}
+
 function isPlayerCharacterResourcePatch(value: unknown): value is PlayerCharacterResourcePatch {
   if (!isRecord(value)) return false;
   return (
@@ -639,5 +671,5 @@ function isAssetMessage(value: unknown): value is AssetMessage {
 }
 
 function isAssetRequestReason(value: unknown): value is AssetRequestReason {
-  return value === 'scene-background';
+  return value === 'scene-background' || value === 'scene-music';
 }

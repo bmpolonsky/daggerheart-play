@@ -1383,6 +1383,48 @@
   box-shadow: none;
 }
 
+.player-character-panel__edit {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+
+.player-domain-card-zones,
+.player-domain-card-zone {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.player-domain-card-zones {
+  gap: 14px;
+}
+
+.player-domain-card-row-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.player-domain-card-recall {
+  width: min(430px, calc(100vw - 24px));
+  display: grid;
+  gap: 14px;
+}
+
+.player-domain-card-dialog-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .player-domain-card-macro {
   display: inline;
   margin: 0;

@@ -1,0 +1,44 @@
+.root {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.header {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--dh-paper-muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.header output {
+  color: var(--dh-paper-100);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--dh-gold-500);
+  cursor: pointer;
+  outline: none;
+}
+
+.input:focus-visible {
+  border-radius: 999px;
+  box-shadow: var(--dh-focus);
+}
+
+.input:disabled {
+  cursor: default;
+  opacity: 0.45;
+}

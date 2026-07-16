@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { ChevronLeft, MinusCircle, Plus, UserRound } from 'lucide-react';
 import type { ContentState } from '../../../../domain/content/types';
-import type { Character, DaggerheartClass, SceneTableState } from '../../../../domain/rules/types';
+import type { Character, CharacterChangeActor, DaggerheartClass, SceneTableState } from '../../../../domain/rules/types';
 import { classLabel } from '../../../../domain/rules/constants';
 import { sceneTableService } from '../../../../services/serviceRegistry';
 import { CharacterBuilderModal } from '../../../characters/CharacterBuilderModal';
@@ -11,6 +11,7 @@ import { AssetImage, Button, EmptyState, ListDetailLayout, ListItem, Toolbar } f
 
 export function SharedToolsCharactersTab({
   characterBuilderOpen,
+  actor,
   characterOptions,
   content,
   onCharacterBuilderClose,
@@ -20,6 +21,7 @@ export function SharedToolsCharactersTab({
   sceneTable
 }: {
   characterBuilderOpen: boolean;
+  actor: CharacterChangeActor;
   characterOptions: Character[];
   content: ContentState;
   onCharacterBuilderClose: () => void;
@@ -119,7 +121,7 @@ export function SharedToolsCharactersTab({
               <span>{selectedCharacter?.name || 'Персонаж'}</span>
             </div>
             {selectedCharacter ? (
-              <CharacterEditor character={selectedCharacter} content={content} />
+              <CharacterEditor character={selectedCharacter} content={content} role="gm" actor={actor} />
             ) : (
               <EmptyState
                 className="player-tools-character-editor-empty"

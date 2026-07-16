@@ -41,7 +41,7 @@ export const mediaCallService = new MediaCallService(syncService);
 const e2eP2PTransportFactory = typeof window !== 'undefined' && navigator.webdriver
   ? (window as typeof window & { __DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__?: () => P2PTransportAdapter }).__DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__
   : undefined;
-export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, e2eP2PTransportFactory, undefined, mediaCallService);
+export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, e2eP2PTransportFactory, undefined, mediaCallService, characterService);
 export const gmLobbyService = new GmLobbyService(p2pSessionService);
 characterService.setDeathMoveRequestHandler((character, transition) => {
   if (p2pSessionService.isConnectedPlayerSession()) return;

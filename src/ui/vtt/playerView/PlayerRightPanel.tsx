@@ -16,7 +16,8 @@ export function PlayerRightPanel({
   onEmptyAction,
   onDomainCardPreview,
   onFeaturePreview,
-  onWealthEdit
+  onWealthEdit,
+  onEditCharacter
 }: {
   character: PlayerViewCharacterSummary | null;
   beastforms?: LibraryBeastform[];
@@ -26,9 +27,10 @@ export function PlayerRightPanel({
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
+  onEditCharacter?: () => void;
 }) {
   if (character) {
-    return <CharacterSheet character={character} beastforms={beastforms} role="player" onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} onWealthEdit={onWealthEdit} />;
+    return <CharacterSheet character={character} beastforms={beastforms} role="player" onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} onWealthEdit={onWealthEdit} onEdit={onEditCharacter} />;
   }
   return (
     <aside className="player-character-panel player-character-panel--empty" aria-label="Персонаж игрока" data-vtt-side-panel>

@@ -5,6 +5,7 @@ import { characterService, diceService, feedService, rollLogService } from "../.
 import { P2PRoomConnection } from "../../src/services/p2p/P2PRoomConnection";
 import { AssetService } from "../../src/services/AssetService";
 import type { AssetBlobStore } from "../../src/core/persistence/assetBlobStore";
+import type { CharacterChangeRecord } from "../../src/domain/rules/types";
 import { createTestP2PSession, createTestPlayerSync, installTimerWindow, ScriptedP2PNetwork, waitFor } from "./helpers";
 
 function createMemoryAssetService(blobs = new Map<string, Blob>()): { assetService: AssetService; blobs: Map<string, Blob> } {
@@ -192,7 +193,7 @@ test('P2P direct asset request transfers audio blobs without mime-specific handl
     });
     const asset = await gmAssets.assetService.saveFile(new File([new Uint8Array([4, 5, 6])], 'music.mp3', { type: 'audio/mpeg' }));
 
-    assert.equal(await player.requestAsset(asset.id, 'scene-background'), true);
+    assert.equal(await player.requestAsset(asset.id, 'scene-music'), true);
 
     assert.deepEqual(await blobBytes(await playerAssets.assetService.getBlob(asset.id)), [4, 5, 6]);
     assert.equal(network.dataMessages.asset, 1);
@@ -495,6 +496,197 @@ test('P2P GM clamps owned resource patches and rejects patches for another actor
       updatedAt: '2026-05-26T00:00:02.000Z'
     }), true);
     assert.equal(characterService.getCharacter(other.id)?.hope.value, other.hope.value);
+  } finally {
+    await playerSync.disconnect().catch(() => undefined);
+    await gm.stop().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
+test('P2P GM accepts an owned full-character update, replaces client audit data, and can undo it', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const character = characterService.createCharacter({ name: 'Ари', notes: 'Исходная заметка' });
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gm = createTestP2PSession(network, { characterService });
+  const playerSync = createTestPlayerSync(network);
+
+  try {
+    await gm.startGmRoom({ roomId: 'full-character-update-room', participantName: 'GM' });
+    const participant = Object.values(sceneTableStore.get().participants).find((seat) => seat.actorIds.includes(character.id));
+    assert.ok(participant);
+    await playerSync.connectReadOnly('FULL-CHARACTER-UPDATE-ROOM', {
+      id: participant.id,
+      name: 'Игрок Ари',
+      role: 'player',
+      actorIds: [character.id],
+      connected: true,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    });
+    await waitFor(() => {
+      assert.equal((playerSync.getTransport() as P2PRoomConnection).peers().length, 1);
+      assert.equal(gm.session$.get().peers.length, 1);
+    });
+    assert.equal(await playerSync.publishPlayerPresence({
+      peerId: (playerSync.getTransport() as P2PRoomConnection).peerId,
+      requesterId: participant.id,
+      actorId: character.id,
+      actorName: character.name,
+      playerName: 'Игрок Ари',
+      connected: true,
+      voiceMuted: false,
+      voiceLive: false,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    }), true);
+    await waitFor(() => {
+      assert.equal(Boolean(sceneTableStore.get().participants[participant.id]?.peerId), true);
+    });
+    const canonicalBeforeUpdate = characterService.getCharacter(character.id);
+    assert.ok(canonicalBeforeUpdate);
+
+    const injectedHistory: CharacterChangeRecord = {
+      id: 'client-supplied-history',
+      actor: { id: 'spoofed-gm', name: 'Поддельный мастер', role: 'gm' },
+      changedAt: '2026-05-26T00:00:00.500Z',
+      kind: 'freeform',
+      summary: 'Поддельная история',
+      changes: [{
+        path: ['name'],
+        beforeExists: true,
+        afterExists: true,
+        before: canonicalBeforeUpdate.name,
+        after: 'Поддельное имя'
+      }]
+    };
+    assert.equal(await playerSync.publishPlayerCharacterUpdate({
+      type: 'playerCharacterUpdate',
+      participantId: participant.id,
+      actorId: character.id,
+      actorName: 'Игрок Ари',
+      character: {
+        ...canonicalBeforeUpdate,
+        name: 'Ари после правки',
+        notes: 'Заметка игрока',
+        changeHistory: [injectedHistory]
+      },
+      revision: 2,
+      updatedAt: '2026-05-26T00:00:01.000Z'
+    }), true);
+
+    await waitFor(() => {
+      assert.equal(characterService.getCharacter(character.id)?.name, 'Ари после правки');
+    });
+    const updated = characterService.getCharacter(character.id);
+    assert.ok(updated);
+    assert.equal(updated.notes, 'Заметка игрока');
+    assert.deepEqual(updated.playerSyncRevision, { participantId: participant.id, revision: 2 });
+    assert.equal(updated.changeHistory?.length, 1);
+    const authorityRecord = updated.changeHistory?.[0];
+    assert.ok(authorityRecord);
+    assert.notEqual(authorityRecord.id, injectedHistory.id);
+    assert.deepEqual(authorityRecord.actor, {
+      id: participant.id,
+      name: 'Игрок Ари',
+      role: 'player'
+    });
+    assert.equal(authorityRecord.kind, 'edit');
+    assert.equal(authorityRecord.summary, 'Изменения игрока');
+    assert.deepEqual(authorityRecord.changes.map((change) => change.path.join('.')).sort(), ['name', 'notes']);
+
+    assert.equal(await playerSync.publishPlayerCharacterUpdate({
+      type: 'playerCharacterUpdate',
+      participantId: participant.id,
+      actorId: character.id,
+      actorName: 'Игрок Ари',
+      character: {
+        ...canonicalBeforeUpdate,
+        name: 'Запоздавшая старая правка',
+        notes: 'Эта ревизия не должна примениться'
+      },
+      revision: 1,
+      updatedAt: '2026-05-26T00:00:00.750Z'
+    }), true);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    const afterStaleUpdate = characterService.getCharacter(character.id);
+    assert.equal(afterStaleUpdate?.name, 'Ари после правки');
+    assert.equal(afterStaleUpdate?.notes, 'Заметка игрока');
+    assert.deepEqual(afterStaleUpdate?.playerSyncRevision, { participantId: participant.id, revision: 2 });
+    assert.equal(afterStaleUpdate?.changeHistory?.length, 1);
+
+    const undo = characterService.undoChange(character.id, authorityRecord.id, {
+      id: 'local-gm',
+      name: 'GM',
+      role: 'gm'
+    });
+    assert.equal(undo?.status, 'applied');
+    const reverted = characterService.getCharacter(character.id);
+    assert.ok(reverted);
+    assert.equal(reverted.name, character.name);
+    assert.equal(reverted.notes, character.notes);
+    assert.equal(reverted.changeHistory?.length, 2);
+    assert.deepEqual(reverted.changeHistory?.[1]?.actor, { id: 'local-gm', name: 'GM', role: 'gm' });
+    assert.equal(reverted.changeHistory?.[1]?.kind, 'undo');
+    assert.equal(reverted.changeHistory?.[1]?.undoesChangeId, authorityRecord.id);
+  } finally {
+    await playerSync.disconnect().catch(() => undefined);
+    await gm.stop().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
+test('P2P GM rejects a full-character update for an actor the sending player does not own', async () => {
+  resetAllStores();
+  const restoreWindow = installTimerWindow();
+  const ownedCharacter = characterService.createCharacter({ name: 'Ари' });
+  const otherCharacter = characterService.createCharacter({ name: 'Чужой герой' });
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gm = createTestP2PSession(network, { characterService });
+  const playerSync = createTestPlayerSync(network);
+
+  try {
+    await gm.startGmRoom({ roomId: 'foreign-character-update-room', participantName: 'GM' });
+    const participant = Object.values(sceneTableStore.get().participants).find((seat) => seat.actorIds.includes(ownedCharacter.id));
+    assert.ok(participant);
+    await playerSync.connectReadOnly('FOREIGN-CHARACTER-UPDATE-ROOM', {
+      id: participant.id,
+      name: 'Игрок Ари',
+      role: 'player',
+      actorIds: [ownedCharacter.id],
+      connected: true,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    });
+    await waitFor(() => {
+      assert.equal((playerSync.getTransport() as P2PRoomConnection).peers().length, 1);
+      assert.equal(gm.session$.get().peers.length, 1);
+    });
+    assert.equal(await playerSync.publishPlayerPresence({
+      peerId: (playerSync.getTransport() as P2PRoomConnection).peerId,
+      requesterId: participant.id,
+      actorId: ownedCharacter.id,
+      actorName: ownedCharacter.name,
+      playerName: 'Игрок Ари',
+      connected: true,
+      voiceMuted: false,
+      voiceLive: false,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    }), true);
+    await waitFor(() => {
+      assert.equal(Boolean(sceneTableStore.get().participants[participant.id]?.peerId), true);
+    });
+
+    assert.equal(await playerSync.publishPlayerCharacterUpdate({
+      type: 'playerCharacterUpdate',
+      participantId: participant.id,
+      actorId: otherCharacter.id,
+      actorName: 'Игрок Ари',
+      character: { ...otherCharacter, name: 'Украденный персонаж' },
+      revision: 1,
+      updatedAt: '2026-05-26T00:00:01.000Z'
+    }), true);
+
+    assert.equal(characterService.getCharacter(otherCharacter.id)?.name, otherCharacter.name);
+    assert.deepEqual(characterService.getCharacter(otherCharacter.id)?.changeHistory ?? [], []);
+    assert.match(gm.session$.get().message, /отклонены/i);
   } finally {
     await playerSync.disconnect().catch(() => undefined);
     await gm.stop().catch(() => undefined);

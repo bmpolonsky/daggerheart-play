@@ -159,9 +159,13 @@ test('player view model exposes only public live scene state', () => {
   assert.equal(assignedModel.character?.thresholds.major, 8);
   assert.deepEqual(assignedModel.character?.weapons.map((weapon) => weapon.name), ['Shortbow']);
   assert.deepEqual(assignedModel.character?.experiences.map((experience) => experience.name), ['Pyromaniac']);
-  assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.name), ['Flight', 'Archived Spell']);
-  assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.domain), ['Grace', 'Codex']);
-  assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.domainLabel), ['Грация', 'Кодекс']);
+  assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.name), ['Flight']);
+  assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.domain), ['Grace']);
+  assert.deepEqual(assignedModel.character?.loadoutCards.map((card) => card.domainLabel), ['Грация']);
+  assert.deepEqual(assignedModel.character?.domainCards.map((card) => [card.name, card.inHand]), [
+    ['Flight', true],
+    ['Archived Spell', false]
+  ]);
   assert.deepEqual(assignedModel.character?.features.map((feature) => feature.name), ['Ribbet Leap', 'Companion', 'Advanced Companion', 'Master Companion']);
   assert.deepEqual(assignedModel.character?.features.map((feature) => feature.subtitle), ['Ancestry', 'Основа', 'Специализация', 'Мастерство']);
   assert.deepEqual(assignedModel.character?.inventory.map((item) => item.name), ['Lantern', 'Rope']);

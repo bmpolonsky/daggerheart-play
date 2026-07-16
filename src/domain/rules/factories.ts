@@ -14,12 +14,17 @@ import {
   DEFAULT_TRAITS
 } from './constants';
 import { normalizeRangerCompanion } from './rangerCompanion';
+import { enforceCharacterHandLimit } from './cardLoadout';
+import { normalizeCharacterChangeHistory } from './characterHistory';
+import { normalizeCharacterUsageTrackers } from './usageTrackers';
+import { normalizeCharacterRuleModifiers } from './characterRuleModifiers';
 import { ActorStatus, normalizeStatusTag } from './statuses';
 import type {
   Adversary,
   GameState,
   GameHandout,
   Character,
+  CharacterAdvancementState,
   CharacterInventoryItem,
   CharacterSheetCard,
   CharacterWealth,
@@ -93,6 +98,7 @@ export function createCharacter(input?: CharacterInput): Character {
     feature: ''
   });
   const defaultWealth = input?.id && input?.createdAt ? EMPTY_WEALTH : DEFAULT_STARTING_WEALTH;
+  const ruleModifiers = normalizeCharacterRuleModifiers(input?.ruleModifiers);
 
   const character: Character = {
     id: input?.id ?? createId('pc'),
@@ -102,6 +108,7 @@ export function createCharacter(input?: CharacterInput): Character {
     portraitUrl: input?.portraitUrl ?? '',
     className,
     subclassName: input?.subclassName ?? '',
+    subclassSlug: input?.subclassSlug ?? '',
     ancestry: input?.ancestry ?? '',
     community: input?.community ?? '',
     level,
@@ -121,7 +128,12 @@ export function createCharacter(input?: CharacterInput): Character {
     actionTokens: input?.actionTokens ?? DEFAULT_ACTION_TOKENS,
     experiences: input?.experiences ?? [createExperience('Путешественник', 2)],
     weapons: input?.weapons ?? [createWeapon({ name: 'Основное оружие', trait: 'agility', damageFormula: '1d8+1' })],
-    domainCards: input?.domainCards ?? [],
+    domainCards: enforceCharacterHandLimit((input?.domainCards ?? []).map((card) => createDomainCard(card)), ruleModifiers),
+    ruleModifiers,
+    advancement: normalizeCharacterAdvancement(input?.advancement),
+    usageTrackers: normalizeCharacterUsageTrackers(input?.usageTrackers),
+    changeHistory: normalizeCharacterChangeHistory(input?.changeHistory),
+    playerSyncRevision: normalizePlayerSyncRevision(input?.playerSyncRevision),
     sheetCards: input?.sheetCards ?? [],
     inventory: sanitizeInventory(input?.inventory ?? [
       createInventoryItem({ name: 'Факел' }),
@@ -143,6 +155,14 @@ export function createCharacter(input?: CharacterInput): Character {
   };
 
   return character;
+}
+
+function normalizePlayerSyncRevision(value: unknown): Character['playerSyncRevision'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const input = value as { participantId?: unknown; revision?: unknown };
+  if (typeof input.participantId !== 'string' || !input.participantId.trim()) return undefined;
+  if (typeof input.revision !== 'number' || !Number.isSafeInteger(input.revision) || input.revision < 0) return undefined;
+  return { participantId: input.participantId.trim(), revision: input.revision };
 }
 
 export function sanitizeWealth(input: Partial<CharacterWealth> | null | undefined): CharacterWealth {
@@ -240,7 +260,9 @@ export function createDomainCard(input?: Partial<DomainCardRecord>): DomainCardR
     cost: input?.cost ?? '',
     recallCost: input?.recallCost ?? '',
     text: input?.text ?? '',
-    inLoadout: input?.inLoadout ?? true,
+    inLoadout: input?.permanentlyVaulted || input?.loadoutChoicePending ? false : input?.inLoadout ?? true,
+    permanentlyVaulted: input?.permanentlyVaulted ?? false,
+    loadoutChoicePending: !input?.permanentlyVaulted && Boolean(input?.loadoutChoicePending),
     imageUrl: input?.imageUrl ?? null,
     cardType: input?.cardType ?? '',
     sourceId: input?.sourceId,
@@ -248,6 +270,39 @@ export function createDomainCard(input?: Partial<DomainCardRecord>): DomainCardR
       value: clamp(toSafeInteger(input?.tokens?.value, 0), 0, clamp(toSafeInteger(input?.tokens?.max, 6), 0, 12)),
       max: clamp(toSafeInteger(input?.tokens?.max, 6), 0, 12)
     }
+  };
+}
+
+function normalizeCharacterAdvancement(value: unknown): CharacterAdvancementState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { choiceUsesByRank: {}, markedTraits: [], multiclass: null };
+  }
+  const input = value as Partial<CharacterAdvancementState>;
+  const markedTraits = Array.isArray(input.markedTraits)
+    ? input.markedTraits.filter((trait): trait is keyof Character['traits'] => (
+        trait === 'agility' || trait === 'strength' || trait === 'finesse' || trait === 'instinct' || trait === 'presence' || trait === 'knowledge'
+      ))
+    : [];
+  const choiceUsesByRank: CharacterAdvancementState['choiceUsesByRank'] = {};
+  const choices = ['traits', 'hp', 'stress', 'experience', 'domainCard', 'evasion', 'subclass', 'proficiency', 'multiclass'] as const;
+  for (const rank of [2, 3, 4] as const) {
+    const rawRank = input.choiceUsesByRank?.[rank];
+    if (!rawRank || typeof rawRank !== 'object') continue;
+    choiceUsesByRank[rank] = Object.fromEntries(choices.flatMap((choice) => {
+      const count = clamp(toSafeInteger(rawRank[choice], 0), 0, 99);
+      return count > 0 ? [[choice, count]] : [];
+    }));
+  }
+  const multiclass = input.multiclass &&
+    typeof input.multiclass === 'object' &&
+    typeof input.multiclass.className === 'string' &&
+    typeof input.multiclass.domain === 'string'
+    ? input.multiclass
+    : null;
+  return {
+    choiceUsesByRank,
+    markedTraits: [...new Set(markedTraits)],
+    multiclass
   };
 }
 

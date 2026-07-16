@@ -41,6 +41,10 @@ const sceneBackground = `data:image/svg+xml,${encodeURIComponent(`
 
 export async function openFilledGmGame(page: Page): Promise<void> {
   await openGmGame(page);
+  await importPopulatedGame(page);
+}
+
+export async function importPopulatedGame(page: Page): Promise<void> {
   if (await page.getByRole('button', { name: filledCharacterName, exact: true }).count()) return;
 
   await page.getByRole('button', { name: 'Инструменты' }).click();
@@ -57,7 +61,7 @@ export async function openFilledGmGame(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: filledCharacterName, exact: true }).first()).toBeVisible({ timeout: 15_000 });
 }
 
-function createPopulatedGameDocument() {
+export function createPopulatedGameDocument() {
   const characters = [
     createCharacter({
       id: 'e2e-character-cadsuane',
@@ -67,6 +71,15 @@ function createPopulatedGameDocument() {
       hope: filledCharacterResources.hope,
       hp: filledCharacterResources.hp,
       stress: filledCharacterResources.stress,
+      domainCards: Array.from({ length: 7 }, (_, index) => ({
+        id: `e2e-domain-card-${index + 1}`,
+        name: `Заклинание ${index + 1}`,
+        domain: 'Codex',
+        level: 1,
+        text: `Длинный тестовый эффект ${index + 1}.`,
+        inLoadout: true,
+        tokens: { value: 0, max: 0 }
+      })),
       notes: 'Хранительница забытых историй.'
     }),
     createCharacter({ id: 'e2e-character-ran', name: 'Ран', playerName: 'Игрок 2', className: 'Guardian', notes: 'Защитник каравана.' }),

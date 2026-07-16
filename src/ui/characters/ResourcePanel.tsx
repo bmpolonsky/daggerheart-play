@@ -5,7 +5,7 @@ import type { Character } from '../../domain/rules/types';
 import { gameService, characterService } from '../../services/serviceRegistry';
 import { useStream } from '../../core/hooks/useStream';
 
-export function ResourcePanel({ character }: { character: Character }) {
+export function ResourcePanel({ character, allowStructureEdit = false }: { character: Character; allowStructureEdit?: boolean }) {
   const game = useStream(gameService.game$);
   const effective = buildEffectiveCharacterStats(character);
   return (
@@ -41,31 +41,33 @@ export function ResourcePanel({ character }: { character: Character }) {
           onChange={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
         />
       </div>
-      <div className="grid-4">
-        <NumberField
-          label="Макс. Ран"
-          value={character.hp.max}
-          onChange={(event) => characterService.updateResourceMax(character.id, 'hp', Number(event.currentTarget.value))}
-        />
-        <NumberField
-          label="Макс. Стресса"
-          value={character.stress.max}
-          onChange={(event) => characterService.updateResourceMax(character.id, 'stress', Number(event.currentTarget.value))}
-        />
-        <NumberField
-          label="Макс. Надежды"
-          value={character.hope.max}
-          onChange={(event) => characterService.updateResourceMax(character.id, 'hope', Number(event.currentTarget.value))}
-        />
-        {game.showLegacyActionTokens && (
+      {allowStructureEdit && (
+        <div className="grid-4">
           <NumberField
-            label="Жетоны действия"
-            value={character.actionTokens}
-            onChange={(event) => characterService.setActionTokens(character.id, Number(event.currentTarget.value))}
-            hint="Устаревший опциональный счётчик; текущий SRD-поток использует Активацию."
+            label="Макс. Ран"
+            value={character.hp.max}
+            onChange={(event) => characterService.updateResourceMax(character.id, 'hp', Number(event.currentTarget.value))}
           />
-        )}
-      </div>
+          <NumberField
+            label="Макс. Стресса"
+            value={character.stress.max}
+            onChange={(event) => characterService.updateResourceMax(character.id, 'stress', Number(event.currentTarget.value))}
+          />
+          <NumberField
+            label="Макс. Надежды"
+            value={character.hope.max}
+            onChange={(event) => characterService.updateResourceMax(character.id, 'hope', Number(event.currentTarget.value))}
+          />
+          {game.showLegacyActionTokens && (
+            <NumberField
+              label="Жетоны действия"
+              value={character.actionTokens}
+              onChange={(event) => characterService.setActionTokens(character.id, Number(event.currentTarget.value))}
+              hint="Устаревший опциональный счётчик; текущий SRD-поток использует Активацию."
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { DamageType, TraitId } from '../rules/types';
 import type { SceneMusicState } from '../audio/sceneAudio';
+import type { SceneBackgroundFraming } from './sceneBackground';
 
 export type TableActorKind = 'character' | 'adversary' | 'environment' | 'npc' | 'companion';
 export type SceneLayerKind = 'background' | 'overlay' | 'fog' | 'annotation';
@@ -79,6 +80,7 @@ export interface TableScene {
   mode: 'scene' | 'tactical';
   backgroundAssetId?: string;
   backgroundUrl: string;
+  backgroundFraming: SceneBackgroundFraming;
   music: SceneMusicState;
   layers: SceneLayer[];
   tokens: TokenState[];

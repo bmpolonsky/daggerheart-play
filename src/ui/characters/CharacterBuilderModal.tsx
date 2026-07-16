@@ -58,6 +58,7 @@ export function CharacterBuilderModal({
     selectedCards,
     availableDomainCards: options.availableDomainCards,
     selectedCardIds: fields.selectedCardIds,
+    requiredDomainCardCount: options.requiredDomainCardCount,
     selectedArmor,
     selectedPrimaryWeapon,
     selectedSecondaryWeapon: options.showSecondaryWeapon ? selectedSecondaryWeapon : null,
@@ -332,7 +333,7 @@ export function CharacterBuilderModal({
               <section className="cinematic-builder-step" role="group" aria-label="Шаг: Стартовые карты доменов">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Стартовые карты доменов</h3>
-                  <p className="cinematic-builder-copy">Выберите 2 карты первого уровня из областей класса: {options.classDomains.map(domainLabel).join(' + ')}.</p>
+                  <p className="cinematic-builder-copy">Выберите {options.requiredDomainCardCount} {domainCardCountLabel(options.requiredDomainCardCount)} первого уровня из областей класса: {options.classDomains.map(domainLabel).join(' + ')}.</p>
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--cards cinematic-builder-choice-area dh-scroll">
                   {options.availableDomainCards.map((item) => (
@@ -405,4 +406,13 @@ export function CharacterBuilderModal({
 
     </Dialog>
   );
+}
+
+function domainCardCountLabel(count: number): string {
+  const mod100 = Math.abs(count) % 100;
+  const mod10 = mod100 % 10;
+  if (mod100 >= 11 && mod100 <= 14) return 'карт';
+  if (mod10 === 1) return 'карту';
+  if (mod10 >= 2 && mod10 <= 4) return 'карты';
+  return 'карт';
 }

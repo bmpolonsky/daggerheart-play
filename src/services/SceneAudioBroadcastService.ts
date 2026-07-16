@@ -10,10 +10,12 @@ export interface SceneAudioBroadcastState {
   sourceLabel: string;
   volume: number;
   remotePeerIds: string[];
+  deliveryKind: 'none' | 'scene-player' | 'display' | 'local-file';
+  remotePlaybackBlocked: boolean;
 }
 
 interface SceneAudioMediaTransport {
-  publishMediaStream(stream: MediaStream, metadata?: { kind: 'scene-audio'; label: string }): Promise<void>;
+  publishMediaStream(stream: MediaStream, metadata?: { kind: 'scene-audio'; label: string; deliveryKind: SceneAudioBroadcastState['deliveryKind'] }): Promise<void>;
   removeMediaStream(stream: MediaStream): void;
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void;
 }
@@ -23,7 +25,9 @@ const initialBroadcastState: SceneAudioBroadcastState = {
   message: 'Стрим музыки выключен.',
   sourceLabel: '',
   volume: 0.72,
-  remotePeerIds: []
+  remotePeerIds: [],
+  deliveryKind: 'none',
+  remotePlaybackBlocked: false
 };
 
 export class SceneAudioBroadcastService {
@@ -76,13 +80,14 @@ export class SceneAudioBroadcastService {
       this.patchBroadcast({
         status: 'idle',
         message: transport ? 'P2P transport не поддерживает audio broadcast.' : 'Стрим музыки выключен.',
-        sourceLabel: ''
+        sourceLabel: '',
+        deliveryKind: 'none'
       });
       return;
     }
     this.unsubscribeStreams = this.transport.subscribeMediaStreams((stream, peerId, metadata) => {
       if (!isSceneAudioMetadata(metadata)) return;
-      this.attachRemoteStream(peerId, stream, metadata.label);
+      this.attachRemoteStream(peerId, stream, metadata.label, metadata.deliveryKind);
     });
     if (this.localBroadcastStream) {
       void this.publishLocalStream();
@@ -116,7 +121,7 @@ export class SceneAudioBroadcastService {
       if (element.paused) {
         await element.play();
       }
-      await this.setLocalBroadcastStream(stream, label, 'Плеер сцены');
+      await this.setLocalBroadcastStream(stream, label, 'Плеер сцены', 'scene-player');
     } catch (error) {
       stopStreamTracks(stream);
       this.patchBroadcast({ status: 'error', message: error instanceof Error ? error.message : 'Не удалось раздать плеер сцены.' });
@@ -145,7 +150,7 @@ export class SceneAudioBroadcastService {
       if (stream.getAudioTracks().length === 0) {
         throw new Error('В файле не найден аудиотрек.');
       }
-      await this.setLocalBroadcastStream(stream, file.name || 'Локальный файл', 'Локальный файл');
+      await this.setLocalBroadcastStream(stream, file.name || 'Локальный файл', 'Локальный файл', 'local-file');
       this.localBroadcastElement = element;
       this.localBroadcastObjectUrl = objectUrl;
     } catch (error) {
@@ -184,7 +189,7 @@ export class SceneAudioBroadcastService {
         return;
       }
       const stream = new MediaStream(audioTracks);
-      await this.setLocalBroadcastStream(stream, label, 'Звук вкладки');
+      await this.setLocalBroadcastStream(stream, label, 'Звук вкладки', 'display');
       this.localCaptureStream = displayStream;
       displayStream.getTracks().forEach((track) => {
         track.addEventListener('ended', () => this.stopBroadcast());
@@ -206,7 +211,8 @@ export class SceneAudioBroadcastService {
     this.patchBroadcast({
       status: 'idle',
       message: 'Стрим музыки выключен.',
-      sourceLabel: ''
+      sourceLabel: '',
+      deliveryKind: 'none'
     });
   }
 
@@ -216,6 +222,15 @@ export class SceneAudioBroadcastService {
       this.broadcastGainNode.gain.value = nextVolume;
     }
     this.patchBroadcast({ volume: nextVolume });
+  }
+
+  async unlockRemotePlayback(): Promise<void> {
+    const results = await Promise.allSettled(Array.from(this.remoteAudioElements.values(), (element) => element.play()));
+    const blocked = results.some((result) => result.status === 'rejected');
+    this.patchBroadcast({
+      remotePlaybackBlocked: blocked,
+      message: blocked ? 'Браузер не разрешил включить входящую музыку.' : this.broadcastStore.get().message
+    });
   }
 
   removeRemotePeer(peerId: string): void {
@@ -237,10 +252,14 @@ export class SceneAudioBroadcastService {
 
   private async publishLocalStream(label = this.broadcastStore.get().sourceLabel || 'Музыка сцены'): Promise<void> {
     if (!this.transport || !this.localBroadcastStream) return;
-    await this.transport.publishMediaStream(this.localBroadcastStream, { kind: 'scene-audio', label });
+    await this.transport.publishMediaStream(this.localBroadcastStream, {
+      kind: 'scene-audio',
+      label,
+      deliveryKind: this.broadcastStore.get().deliveryKind
+    });
   }
 
-  private async setLocalBroadcastStream(sourceStream: MediaStream, label: string, source: string): Promise<void> {
+  private async setLocalBroadcastStream(sourceStream: MediaStream, label: string, source: string, deliveryKind: Exclude<SceneAudioBroadcastState['deliveryKind'], 'none'>): Promise<void> {
     if (!this.transport) return;
     if (this.localBroadcastStream) {
       this.transport.removeMediaStream(this.localBroadcastStream);
@@ -250,6 +269,7 @@ export class SceneAudioBroadcastService {
     applyMusicContentHint(broadcastStream);
     this.localSourceStream = sourceStream;
     this.localBroadcastStream = broadcastStream;
+    this.patchBroadcast({ deliveryKind });
     sourceStream.getTracks().forEach((track) => {
       track.addEventListener('ended', () => this.stopBroadcast());
     });
@@ -260,27 +280,35 @@ export class SceneAudioBroadcastService {
       stopStreamTracks(sourceStream);
       this.localBroadcastStream = null;
       this.localSourceStream = null;
+      this.patchBroadcast({ deliveryKind: 'none' });
       throw error;
     }
     this.patchBroadcast({
       status: 'live',
       message: `${source}: ${label}`,
-      sourceLabel: label
+      sourceLabel: label,
+      deliveryKind
     });
   }
 
-  private attachRemoteStream(peerId: string, stream: MediaStream, label = 'Музыка сцены'): void {
+  private attachRemoteStream(peerId: string, stream: MediaStream, label = 'Музыка сцены', deliveryKind: SceneAudioBroadcastState['deliveryKind'] = 'scene-player'): void {
     const current = this.remoteAudioElements.get(peerId) ?? new Audio();
     current.autoplay = true;
     current.srcObject = stream;
     this.remoteAudioElements.set(peerId, current);
-    void current.play().catch(() => {
-      this.patchBroadcast({ message: 'Нажмите звук сцены, чтобы разблокировать входящую музыку.' });
+    void current.play().then(() => {
+      this.patchBroadcast({ remotePlaybackBlocked: false });
+    }).catch(() => {
+      this.patchBroadcast({
+        remotePlaybackBlocked: true,
+        message: 'Нажмите звук сцены, чтобы разблокировать входящую музыку.'
+      });
     });
     this.patchBroadcast((state) => ({
       ...state,
       status: 'live',
       message: `Играет стрим: ${label}`,
+      deliveryKind,
       remotePeerIds: state.remotePeerIds.includes(peerId) ? state.remotePeerIds : [...state.remotePeerIds, peerId]
     }));
   }
@@ -314,7 +342,7 @@ export class SceneAudioBroadcastService {
       element.srcObject = null;
     });
     this.remoteAudioElements.clear();
-    this.patchBroadcast({ remotePeerIds: [] });
+    this.patchBroadcast({ remotePeerIds: [], remotePlaybackBlocked: false });
   }
 
   private patchBroadcast(patch: Partial<SceneAudioBroadcastState> | ((state: SceneAudioBroadcastState) => SceneAudioBroadcastState)): void {
@@ -354,7 +382,7 @@ function isSceneAudioMediaTransport(transport: SyncTransport | null): transport 
   );
 }
 
-function isSceneAudioMetadata(value: unknown): value is { kind: 'scene-audio'; label: string } {
+function isSceneAudioMetadata(value: unknown): value is { kind: 'scene-audio'; label: string; deliveryKind?: SceneAudioBroadcastState['deliveryKind'] } {
   return Boolean(value && typeof value === 'object' && (value as { kind?: unknown }).kind === 'scene-audio');
 }
 

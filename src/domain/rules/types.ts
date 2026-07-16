@@ -1,5 +1,6 @@
 import type { MapAsset, TableParticipant, TableScene, TableVisibility } from '../tabletop/types';
 import type { RestFearPlan, RestType } from './rest';
+import type { CharacterRuleModifier } from './characterRuleModifiers';
 
 export type TraitId = 'agility' | 'strength' | 'finesse' | 'instinct' | 'presence' | 'knowledge';
 
@@ -127,6 +128,9 @@ export interface DomainCardRecord {
   recallCost?: string;
   text: string;
   inLoadout: boolean;
+  permanentlyVaulted?: boolean;
+  /** A newly acquired card that could not enter a full Hand still needs an explicit free loadout choice. */
+  loadoutChoicePending?: boolean;
   imageUrl?: string | null;
   cardType?: string;
   sourceId?: string | number;
@@ -134,6 +138,69 @@ export interface DomainCardRecord {
     value: number;
     max: number;
   };
+}
+
+export type CharacterUsageTrackerTargetKind = 'feature' | 'card';
+export type CharacterUsageTrackerReset = 'manual' | 'short' | 'long';
+
+export interface CharacterUsageTracker {
+  id: string;
+  targetKind: CharacterUsageTrackerTargetKind;
+  targetId: string;
+  label: string;
+  current: number;
+  max: number;
+  reset: CharacterUsageTrackerReset;
+}
+
+export type CharacterAdvancementChoiceId =
+  | 'traits'
+  | 'hp'
+  | 'stress'
+  | 'experience'
+  | 'domainCard'
+  | 'evasion'
+  | 'subclass'
+  | 'proficiency'
+  | 'multiclass'
+  | 'manual';
+
+export interface CharacterAdvancementState {
+  choiceUsesByRank: Partial<Record<2 | 3 | 4, Partial<Record<CharacterAdvancementChoiceId, number>>>>;
+  markedTraits: TraitId[];
+  multiclass?: {
+    className: DaggerheartClass;
+    domain: DomainName;
+  } | null;
+}
+
+export type CharacterChangeActorRole = 'player' | 'gm' | 'system';
+
+export interface CharacterChangeActor {
+  id: string;
+  name: string;
+  role: CharacterChangeActorRole;
+}
+
+export type CharacterChangeValue = null | boolean | number | string | CharacterChangeValue[] | { [key: string]: CharacterChangeValue };
+
+export interface CharacterFieldChange {
+  path: string[];
+  beforeExists: boolean;
+  afterExists: boolean;
+  before?: CharacterChangeValue;
+  after?: CharacterChangeValue;
+}
+
+export interface CharacterChangeRecord {
+  id: string;
+  actor: CharacterChangeActor;
+  changedAt: string;
+  kind: 'edit' | 'levelUp' | 'cardMove' | 'tracker' | 'undo' | 'freeform';
+  summary: string;
+  changes: CharacterFieldChange[];
+  undoesChangeId?: string;
+  overrideReason?: string;
 }
 
 export type SubclassFeatureTier = 'foundation' | 'specialization' | 'mastery';
@@ -203,6 +270,7 @@ export interface Character {
   portraitUrl: string;
   className: DaggerheartClass;
   subclassName: string;
+  subclassSlug?: string;
   ancestry: string;
   community: string;
   level: number;
@@ -220,6 +288,12 @@ export interface Character {
   experiences: Experience[];
   weapons: Weapon[];
   domainCards: DomainCardRecord[];
+  ruleModifiers: CharacterRuleModifier[];
+  advancement?: CharacterAdvancementState;
+  usageTrackers?: CharacterUsageTracker[];
+  changeHistory?: CharacterChangeRecord[];
+  /** Internal monotonic acknowledgement for authoritative player document sync. */
+  playerSyncRevision?: { participantId: string; revision: number };
   sheetCards: CharacterSheetCard[];
   inventory: CharacterInventoryItem[];
   wealth: CharacterWealth;

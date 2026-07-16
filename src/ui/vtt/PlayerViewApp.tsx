@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
-import { BookOpenText, ScrollText, Swords } from 'lucide-react';
+import { BookOpenText, ScrollText, Swords, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import {
   buildCharacterSummary,
@@ -11,8 +11,10 @@ import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, b
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import { nowIso } from '../../core/utils/date';
+import { normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../domain/tabletop/sceneBackground';
 import { gameService, characterService, contentService, encounterService, feedService, p2pSessionService, rollLogService, sceneTableService } from '../../services/serviceRegistry';
 import { CharacterBuilderModal } from '../characters/CharacterBuilderModal';
+import { CharacterEditor } from '../characters/CharacterEditor';
 import { PlayerTopBar, PlayerLeftRail, PlayerSeatPicker } from './playerView/PlayerChrome';
 import { PlayerCharacterPanel } from './playerView/PlayerCharacterPanel';
 import { PlayerScene } from './playerView/PlayerScene';
@@ -40,6 +42,9 @@ import type { Character, DaggerheartClass, DomainCardRecord, DomainName, Encount
 import type { PlayerViewDomainCard } from './playerView/domainCards/types';
 import type { PlayerMobileLayer, PlayerViewedActor, SharedToolsTab, TableViewRole } from './playerView/types';
 import { TabButton, Tabs } from '../components/common/Tabs';
+import { Dialog } from '../components/common/Dialog';
+import { IconButton } from '../components/common/IconButton';
+import { SectionHeader } from '../components/common/SectionHeader';
 import './playerView/player-view.css';
 
 export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
@@ -66,11 +71,24 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const [panelOpen, setPanelOpen] = useState(defaultDetailPanelOpen);
   const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(typeof window === 'undefined' ? '' : window.location.pathname, role));
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
+  const [playerCharacterEditorOpen, setPlayerCharacterEditorOpen] = useState(false);
   const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role);
   const viewedCharacterId = viewedActor?.kind === 'character' ? viewedActor.actorId : null;
   const viewedAdversaryId = viewedActor?.kind === 'adversary' ? viewedActor.actorId : null;
   const viewedEnvironmentId = viewedActor?.kind === 'environment' ? viewedActor.actorId : null;
   const p2pHealth = useMemo(() => buildP2PHealthSummary(p2pSession), [p2pSession]);
+  const mutationActor = useMemo(() => role === 'gm'
+    ? { id: 'local-gm', name: game.gmName || 'Мастер', role: 'gm' as const }
+    : {
+      id: selectedPlayerSeat?.id || 'local-player',
+      name: selectedPlayerSeat?.name || storedSession?.participantName || 'Игрок',
+      role: 'player' as const
+    }, [game.gmName, role, selectedPlayerSeat?.id, selectedPlayerSeat?.name, storedSession?.participantName]);
+
+  useEffect(() => {
+    characterService.setMutationActorProvider(() => mutationActor);
+    return () => characterService.setMutationActorProvider(null);
+  }, [mutationActor]);
 
   useEffect(() => {
     playerViewUiActions.reset();
@@ -161,6 +179,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const sceneBackgroundImage = model.scene.imageUrl
     ? `url("${cssImageUrl(model.scene.imageUrl)}")`
     : 'none';
+  const sceneBackgroundFraming = normalizeSceneBackgroundFraming(model.scene.backgroundFraming);
   const openActor = useCallback((actor: PlayerViewedActor) => {
     if (role === 'player' && (actor.kind !== 'character' || actor.actorId !== playerCharacterId)) {
       return;
@@ -295,7 +314,12 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         key={`${model.scene.id}:${model.scene.imageUrl}`}
         className="player-view__scene-image"
         aria-hidden="true"
-        style={{ backgroundImage: sceneBackgroundImage }}
+        style={{
+          backgroundImage: sceneBackgroundImage,
+          backgroundSize: sceneBackgroundFraming.fit === 'fit' ? 'contain' : 'cover',
+          backgroundPosition: 'center',
+          transform: sceneBackgroundTransform(sceneBackgroundFraming)
+        }}
       />
       <div className="player-view__scene-dim" aria-hidden="true" />
       <PlayerConnectionStatus
@@ -341,7 +365,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         role={role}
       />
       <PlayerScene latestRoll={latestVisibleRoll} model={model} role={role} onOpenActor={openActor} onRollComplete={completeDiceRoll} />
-      {role === 'gm' && <SceneAudioRuntime music={resolveSceneMusicSource(model.scene.music, assetUrls)} />}
+      <SceneAudioRuntime music={resolveSceneMusicSource(model.scene.music, assetUrls)} role={role} />
       {needsSeatSelection && (
         <PlayerSeatPicker
           characters={characters}
@@ -383,6 +407,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onFeaturePreview={previewCharacterFeature}
           onOpenChronicle={() => { setActivityOpen(true); setMobileLayer('feed'); }}
           onWealthEdit={editCharacterWealth}
+          onEditCharacter={role === 'player' && model.character ? () => setPlayerCharacterEditorOpen(true) : undefined}
           onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
           onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
           onOpenActor={openActor}
@@ -408,6 +433,24 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onCancel={() => setPlayerCharacterBuilderOpen(false)}
           onCreate={createPlayerCharacterFromBuilder}
         />
+      )}
+      {playerCharacterEditorOpen && role === 'player' && playerCharacterId && characters.entities[playerCharacterId] && (
+        <Dialog className="player-character-editor-dialog" aria-label="Редактор моего персонажа" onClose={() => setPlayerCharacterEditorOpen(false)}>
+          <SectionHeader
+            title={characters.entities[playerCharacterId].name}
+            actions={(
+              <IconButton variant="ghost" title="Закрыть" aria-label="Закрыть редактор персонажа" onClick={() => setPlayerCharacterEditorOpen(false)}>
+                <X size={17} aria-hidden="true" />
+              </IconButton>
+            )}
+          />
+          <CharacterEditor
+            character={characters.entities[playerCharacterId]}
+            content={content}
+            role="player"
+            actor={mutationActor}
+          />
+        </Dialog>
       )}
     </main>
   );
@@ -435,6 +478,8 @@ function toDomainCardRecord(card: PlayerViewDomainCard): DomainCardRecord {
     recallCost: card.recallCost || undefined,
     text: card.text,
     inLoadout: true,
+    permanentlyVaulted: card.permanentlyVaulted,
+    loadoutChoicePending: card.loadoutChoicePending,
     imageUrl: card.imageUrl || null,
     tokens: card.tokens
   };

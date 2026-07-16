@@ -11,8 +11,8 @@ export function useLiveSceneAssetUrls(liveScene: TableScene, sceneAssets: Record
   const objectUrls = useRef<Record<string, string>>({});
   const liveSceneAssetIds = useMemo(() => [
     liveScene?.backgroundAssetId,
-    role === 'gm' ? liveScene?.music.assetId : undefined
-  ].filter((assetId): assetId is string => Boolean(assetId)), [liveScene?.backgroundAssetId, liveScene?.music.assetId, role]);
+    role === 'gm' || liveScene?.music.deliveryMode === 'download' ? liveScene?.music.assetId : undefined
+  ].filter((assetId): assetId is string => Boolean(assetId)), [liveScene?.backgroundAssetId, liveScene?.music.assetId, liveScene?.music.deliveryMode, role]);
 
   useEffect(() => () => {
     for (const objectUrl of Object.values(objectUrls.current)) {
@@ -56,7 +56,8 @@ export function useLiveSceneAssetUrls(liveScene: TableScene, sceneAssets: Record
         }
         pendingAssetRequests.current.add(assetId);
         try {
-          const received = await p2pSessionService.requestAsset(assetId, 'scene-background');
+          const reason = assetId === liveScene.music.assetId ? 'scene-music' : 'scene-background';
+          const received = await p2pSessionService.requestAsset(assetId, reason);
           if (!received) {
             return [assetId, null] as const;
           }

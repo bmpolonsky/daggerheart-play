@@ -10,7 +10,7 @@ export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: 
   const [visibleDiceRollId, setVisibleDiceRollId] = useState<string | null>(null);
   const [fadingDiceRollId, setFadingDiceRollId] = useState<string | null>(null);
   const mountedAtRef = useRef(Date.now());
-  const lastSeenRollId = useRef<string | null>(latestRoll?.id ?? null);
+  const lastSeenRollId = useRef<string | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
   const fadeTimeoutRef = useRef<number | null>(null);
   const animationTimeoutRef = useRef<number | null>(null);
@@ -53,6 +53,7 @@ export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: 
     clearAnimationTimeout();
     if (!completedRollIdsRef.current.has(rollId)) {
       completedRollIdsRef.current.add(rollId);
+      rememberDiceRollSeen(rollId);
       onRollComplete(rollId);
     }
     scheduleHideAfterHold(rollId);
@@ -62,8 +63,9 @@ export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: 
     const visualRoll = polyhedralDiceRoll;
     if (!visualRoll) return;
     if (lastSeenRollId.current === visualRoll.id) return;
-    if (latestRoll && wasCreatedBefore(latestRoll.createdAt, mountedAtRef.current)) {
+    if (wasDiceRollSeen(visualRoll.id) || (latestRoll && wasCreatedTooLongBeforeMount(latestRoll.createdAt, mountedAtRef.current))) {
       lastSeenRollId.current = visualRoll.id;
+      rememberDiceRollSeen(visualRoll.id);
       if (!completedRollIdsRef.current.has(visualRoll.id)) {
         completedRollIdsRef.current.add(visualRoll.id);
         onRollComplete(visualRoll.id);
@@ -72,6 +74,7 @@ export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: 
     }
     if (visibleDiceRollId && !completedRollIdsRef.current.has(visibleDiceRollId)) {
       completedRollIdsRef.current.add(visibleDiceRollId);
+      rememberDiceRollSeen(visibleDiceRollId);
       onRollComplete(visibleDiceRollId);
     }
     lastSeenRollId.current = visualRoll.id;
@@ -105,9 +108,34 @@ export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: 
   return null;
 }
 
-function wasCreatedBefore(createdAt: string, timestampMs: number): boolean {
+const RECENT_REMOTE_ROLL_WINDOW_MS = 15_000;
+const SEEN_DICE_ROLLS_KEY = 'daggerheart-seen-dice-rolls';
+
+function wasCreatedTooLongBeforeMount(createdAt: string, timestampMs: number): boolean {
   const createdAtMs = Date.parse(createdAt);
-  return Number.isFinite(createdAtMs) && createdAtMs < timestampMs;
+  return Number.isFinite(createdAtMs) && createdAtMs < timestampMs - RECENT_REMOTE_ROLL_WINDOW_MS;
+}
+
+function wasDiceRollSeen(rollId: string): boolean {
+  try {
+    return readSeenDiceRollIds().includes(rollId);
+  } catch {
+    return false;
+  }
+}
+
+function rememberDiceRollSeen(rollId: string): void {
+  try {
+    const ids = readSeenDiceRollIds().filter((id) => id !== rollId);
+    window.sessionStorage.setItem(SEEN_DICE_ROLLS_KEY, JSON.stringify([...ids, rollId].slice(-50)));
+  } catch {
+    // Session storage may be unavailable in hardened browser contexts.
+  }
+}
+
+function readSeenDiceRollIds(): string[] {
+  const parsed = JSON.parse(window.sessionStorage.getItem(SEEN_DICE_ROLLS_KEY) ?? '[]');
+  return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
 }
 
 function polyhedralRollForDice(entry: RollLogEntry | undefined): PolyhedralDiceRoll | null {

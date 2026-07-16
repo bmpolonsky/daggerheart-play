@@ -548,7 +548,6 @@
   }
 
   .dh-dialog-backdrop {
-    z-index: calc(var(--dh-z-modal) + 20);
     padding: 10px;
   }
 

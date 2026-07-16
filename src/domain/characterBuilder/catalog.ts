@@ -2,6 +2,7 @@ import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../co
 import { CLASS_LABELS, DAGGERHEART_CLASSES } from '../rules/constants';
 import type { DaggerheartClass } from '../rules/types';
 import { buildStartingEquipmentCatalog, CLASS_STARTING_ITEMS } from '../rules/equipment';
+import { characterBuilderRuleModifiersForSubclass, startingDomainCardCount } from '../rules/characterRuleModifiers';
 import {
   classDefinitionFor,
   classDomainsFor,
@@ -43,6 +44,10 @@ export function buildCharacterBuilderCatalog(input: CharacterBuilderCatalogInput
     .filter((item) => isDomainCardForDomains(item, classDomains))
     .filter((item) => (item.level ?? Number(item.raw.level ?? 1)) === 1)
     .slice(0, 48);
+  const subclassRuleModifiers = Object.fromEntries(classSubclasses.map((subclass) => [
+    subclass.id,
+    characterBuilderRuleModifiersForSubclass(subclass)
+  ]));
 
   return {
     className: input.className,
@@ -52,17 +57,20 @@ export function buildCharacterBuilderCatalog(input: CharacterBuilderCatalogInput
     classItems,
     classOptions: buildClassOptions(input.classes),
     classSubclasses,
+    subclassRuleModifiers,
     availableDomainCards,
     equipmentCatalog
   };
 }
 
 export function buildCharacterBuilderQuickStart(catalog: ReturnType<typeof buildCharacterBuilderCatalog>): CharacterBuilderQuickStart {
+  const subclassId = catalog.classSubclasses[0]?.id ?? '';
+  const requiredCards = startingDomainCardCount(catalog.subclassRuleModifiers[subclassId] ?? []);
   return {
     ancestryId: catalog.builderContent.ancestries[0]?.id ?? '',
     communityId: catalog.builderContent.communities[0]?.id ?? '',
-    subclassId: catalog.classSubclasses[0]?.id ?? '',
-    selectedCardIds: catalog.availableDomainCards.slice(0, 2).map((card) => card.id),
+    subclassId,
+    selectedCardIds: catalog.availableDomainCards.slice(0, requiredCards).map((card) => card.id),
     armorId: catalog.equipmentCatalog.armor[0]?.id ?? '',
     primaryWeaponId: catalog.equipmentCatalog.primaryWeapons[0]?.id ?? '',
     secondaryWeaponId: catalog.equipmentCatalog.secondaryWeapons[0]?.id ?? '',

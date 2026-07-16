@@ -4,6 +4,7 @@ import { useStream } from "../../../../core/hooks/useStream";
 import type { SceneTableState } from "../../../../domain/rules/types";
 import { audioService, sceneAudioBroadcastService, sceneTableService } from "../../../../services/serviceRegistry";
 import { Button } from "../../../components/common/Button";
+import { SegmentedControl } from "../../../components/common/SegmentedControl";
 
 export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState }) {
   const broadcastState = useStream(sceneAudioBroadcastService.broadcast$);
@@ -22,10 +23,6 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
       return;
     }
     sceneTableService.playSceneMusic(scene.id);
-    window.setTimeout(() => {
-      sceneAudioBroadcastService.setVolume(scene.music.volume);
-      void sceneAudioBroadcastService.startScenePlayerBroadcast(musicTitle);
-    }, 0);
   };
 
   return (
@@ -38,6 +35,15 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
             <span title={musicTitle}>{musicTitle}</span>
           </div>
         </div>
+        <SegmentedControl
+          label="Способ доставки музыки игрокам"
+          value={scene.music.deliveryMode}
+          options={[
+            { value: 'download', label: 'Скачать игрокам' },
+            { value: 'broadcast', label: 'Транслировать' }
+          ]}
+          onChange={(deliveryMode) => sceneTableService.setSceneMusicDeliveryMode(scene.id, deliveryMode)}
+        />
         <div className="player-scene-audio__controls" aria-label="Управление файлом сцены">
           <Button size="sm" variant="secondary" type="button" disabled={!hasMusicFile} title={scene.music.playing ? 'Pause' : 'Play'} onClick={toggleSceneMusic} iconBefore={scene.music.playing ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}>
             {scene.music.playing ? 'Pause' : 'Play'}

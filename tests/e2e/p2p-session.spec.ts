@@ -1,6 +1,7 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import type { P2PSessionState } from '../../src/services/P2PSessionService';
-import { installDeterministicP2PTransport, openGmGame, openPlayerGame } from './game-route-helpers';
+import { createIsolatedDeterministicP2PRelay, installDeterministicP2PTransport, openGmGame, openPlayerGame, openSharedGmGame, openSharedPlayerGame } from './game-route-helpers';
+import { filledCharacterName, importPopulatedGame } from './filled-game-helpers';
 import { expectInsideBounds, expectInsideViewport, expectNoOverlap, expectTopLayerAtPoint, rect } from './layout-helpers';
 
 async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
@@ -45,6 +46,18 @@ async function createLobbyInvite(page: Page): Promise<string> {
 async function newSharedPage(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   return context.newPage();
+}
+
+async function selectGeneratedFile(input: Locator, file: { name: string; mimeType: string; buffer: Buffer }): Promise<void> {
+  await input.evaluate((element: HTMLInputElement, payload) => {
+    const binary = atob(payload.base64);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([bytes], payload.name, { type: payload.mimeType }));
+    element.files = transfer.files;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }, { name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64') });
 }
 
 const diagnosticStrategies = ['supabase', 'nostr', 'mqtt', 'torrent'] as const;
@@ -284,6 +297,162 @@ test.describe('P2P session workflow', () => {
     await expect(page.getByText('Ссылка готова. Игрок подключится автоматически.')).toHaveCount(0);
   });
 
+  test('an isolated player animates a recent public GM roll received in the first snapshot without replaying it after reload', async ({ browser }) => {
+    test.setTimeout(90_000);
+    const relay = await createIsolatedDeterministicP2PRelay(browser, ['e2e-gm-dice', 'e2e-player-dice']);
+    const [gm, player] = relay.clients.map((client) => client.page);
+    const roomId = `DICE${Date.now().toString().slice(-6)}`;
+    try {
+      await openSharedGmGame(gm, roomId);
+      await gm.getByRole('button', { name: 'Открыть панель костей' }).click();
+      await gm.getByRole('button', { name: 'Бросить', exact: true }).click();
+
+      // The roll exists before the player application mounts. It must not be
+      // mistaken for old persisted history when the first snapshot hydrates.
+      await openSharedPlayerGame(player, roomId);
+      await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
+      await expect.poll(() => player.evaluate(() => JSON.parse(window.sessionStorage.getItem('daggerheart-seen-dice-rolls') ?? '[]').length), { timeout: 15_000 }).toBeGreaterThan(0);
+      await player.reload();
+      await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toHaveCount(0, { timeout: 4_000 });
+
+      const gmStorage = await gm.evaluate(() => window.localStorage.getItem('daggerheart-play'));
+      const playerStorage = await player.evaluate(() => window.localStorage.getItem('daggerheart-play'));
+      expect(gmStorage).not.toBe(playerStorage);
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('an isolated player sees their own GM-authoritative private roll while another player does not', async ({ browser }) => {
+    test.setTimeout(90_000);
+    const relay = await createIsolatedDeterministicP2PRelay(browser, ['e2e-gm-self-roll', 'e2e-player-self-roll', 'e2e-player-observer']);
+    const [gm, player, observer] = relay.clients.map((client) => client.page);
+    const roomId = `SELF${Date.now().toString().slice(-6)}`;
+    try {
+      await openSharedGmGame(gm, roomId);
+      await importPopulatedGame(gm);
+      await openSharedPlayerGame(player, roomId);
+      await openSharedPlayerGame(observer, roomId);
+
+      const seatPicker = player.getByRole('region', { name: 'Выбор игрока' });
+      await expect(seatPicker).toBeVisible({ timeout: 15_000 });
+      await seatPicker.getByRole('button', { name: `Игрок 1 ${filledCharacterName}` }).click();
+      await expect(player.getByLabel('Персонаж игрока')).toContainText(filledCharacterName, { timeout: 15_000 });
+
+      await player.getByRole('button', { name: 'Открыть панель костей' }).click();
+      await player.getByRole('checkbox', { name: 'Приватный бросок' }).check();
+      await player.getByRole('button', { name: 'Бросить', exact: true }).click();
+
+      await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
+      await expect(gm.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
+      await expect(observer.locator('.player-dice-overlay .polyhedral-dice-stage')).toHaveCount(0, { timeout: 4_000 });
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('download mode transfers scene music across isolated storage and resumes at current time after a delayed asset', async ({ browser }) => {
+    test.setTimeout(90_000);
+    const relay = await createIsolatedDeterministicP2PRelay(browser, ['e2e-gm-music', 'e2e-player-music'], { binaryDelayMs: 2_000 });
+    const [gm, player] = relay.clients.map((client) => client.page);
+    const roomId = `MUSIC${Date.now().toString().slice(-6)}`;
+    try {
+      await player.addInitScript(() => {
+        const originalPlay = HTMLMediaElement.prototype.play;
+        let blockFirstScenePlay = true;
+        Object.defineProperty(HTMLMediaElement.prototype, 'autoplay', {
+          configurable: true,
+          get: () => false,
+          set: () => undefined
+        });
+        HTMLMediaElement.prototype.play = function patchedPlay() {
+          if (this.matches('audio[data-scene-audio-status]') && blockFirstScenePlay) {
+            blockFirstScenePlay = false;
+            window.sessionStorage.setItem('e2e-scene-play-blocked', 'true');
+            return Promise.reject(new DOMException('Autoplay blocked in E2E', 'NotAllowedError'));
+          }
+          return originalPlay.call(this);
+        };
+      });
+      await openSharedGmGame(gm, roomId);
+      await openSharedPlayerGame(player, roomId);
+      await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
+
+      await gm.getByRole('button', { name: 'Инструменты' }).click();
+      const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+      const musicPicker = workspace.locator('input[type="file"][accept="audio/*"]');
+      await selectGeneratedFile(musicPicker, { name: 'session-tone.wav', mimeType: 'audio/wav', buffer: silentWavBuffer(8) });
+      await expect(musicPicker.locator('xpath=..').getByText('session-tone.wav', { exact: true })).toBeVisible();
+      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
+      const gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
+      await expect(gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' })).toBeVisible();
+      await gmMusic.getByRole('button', { name: 'Play' }).click();
+
+      const playerAudio = player.locator('audio[data-scene-audio-status]');
+      await expect(playerAudio).toHaveAttribute('src', /^blob:/, { timeout: 15_000 });
+      await expect.poll(() => player.evaluate(() => window.sessionStorage.getItem('e2e-scene-play-blocked'))).toBe('true');
+      const unlockMusic = player.locator('.scene-audio-runtime').getByRole('button', { name: /музыку/ });
+      await expect(unlockMusic).toBeVisible();
+      expect(relay.messages.some((message) => message.type === 'binary' && JSON.stringify(message.metadata).includes('audio/wav'))).toBe(true);
+      await unlockMusic.click();
+      await expect.poll(() => playerAudio.evaluate((element: HTMLAudioElement) => element.currentTime)).toBeGreaterThan(1.5);
+
+      await gmMusic.getByLabel('Громкость файла сцены').fill('0.31');
+      await expect.poll(() => playerAudio.evaluate((element: HTMLAudioElement) => element.volume)).toBeCloseTo(0.31, 2);
+      await gmMusic.getByRole('button', { name: 'Pause' }).click();
+      await expect.poll(() => playerAudio.evaluate((element: HTMLAudioElement) => element.paused)).toBe(true);
+      const pausedAt = await playerAudio.evaluate((element: HTMLAudioElement) => element.currentTime);
+      expect(pausedAt).toBeGreaterThan(1.5);
+      await gmMusic.getByRole('button', { name: 'Play' }).click();
+      await expect.poll(() => playerAudio.evaluate((element: HTMLAudioElement) => element.currentTime)).toBeGreaterThan(pausedAt);
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('broadcast delivery persists separately and does not download the scene file to an isolated player', async ({ browser }) => {
+    test.setTimeout(90_000);
+    const relay = await createIsolatedDeterministicP2PRelay(browser, ['e2e-gm-broadcast', 'e2e-player-broadcast']);
+    const [gm, player] = relay.clients.map((client) => client.page);
+    const roomId = `CAST${Date.now().toString().slice(-6)}`;
+    try {
+      await openSharedGmGame(gm, roomId);
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
+      let gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
+      const delivery = gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' });
+      await delivery.getByRole('button', { name: 'Транслировать', exact: true }).click();
+      await expect(delivery.getByRole('button', { name: 'Транслировать', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(gmMusic.getByRole('button', { name: 'Стрим', exact: true })).toBeVisible();
+
+      await gm.getByRole('button', { name: 'Инструменты' }).click();
+      const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+      await selectGeneratedFile(workspace.locator('input[type="file"][accept="audio/*"]'), {
+        name: 'broadcast-tone.wav',
+        mimeType: 'audio/wav',
+        buffer: silentWavBuffer(2)
+      });
+      await expect(workspace.locator('input[type="file"][accept="audio/*"]').locator('xpath=..').getByText('broadcast-tone.wav', { exact: true })).toBeVisible();
+      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+
+      await openSharedPlayerGame(player, roomId);
+      await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
+      await gmMusic.getByRole('button', { name: 'Play' }).click();
+      await expect(player.locator('audio[data-scene-audio-status]')).not.toHaveAttribute('src', /^blob:/, { timeout: 4_000 });
+      expect(relay.messages.some((message) => message.type === 'binary')).toBe(false);
+
+      await gm.reload();
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
+      gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
+      await expect(gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' }).getByRole('button', { name: 'Транслировать', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      await relay.close();
+    }
+  });
+
   test('@live-p2p creates a Trystero room, joins a configured seat, and syncs chat after reload', async ({ browser, browserName }) => {
     test.skip(process.env.RUN_P2P_E2E !== '1', 'Real WebRTC relay smoke is opt-in to keep default e2e deterministic.');
     test.skip(browserName !== 'chromium', 'The external relay smoke runs once in Chromium; WebKit P2P UI is covered with deterministic fixtures.');
@@ -330,7 +499,44 @@ test.describe('P2P session workflow', () => {
     await player.getByRole('button', { name: 'Отправить сообщение' }).click();
     await expect(gm.getByText(playerChat)).toBeVisible({ timeout: 15_000 });
 
+    await gm.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
+    await gm.getByRole('button', { name: 'Открыть панель костей' }).click();
+    await gm.getByRole('button', { name: 'Бросить', exact: true }).click();
+    await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 20_000 });
+
+    await gm.getByRole('button', { name: 'Инструменты' }).click();
+    const gmWorkspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+    await gmWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+    const liveMusicPicker = gmWorkspace.locator('input[type="file"][accept="audio/*"]');
+    await selectGeneratedFile(liveMusicPicker, {
+      name: 'live-p2p-tone.wav',
+      mimeType: 'audio/wav',
+      buffer: silentWavBuffer(1)
+    });
+    await expect(liveMusicPicker.locator('xpath=..').getByText('live-p2p-tone.wav', { exact: true })).toBeVisible();
+    await expect(player.locator('audio[data-scene-audio-status]')).toHaveAttribute('src', /^blob:/, { timeout: 30_000 });
+
     await openCurrentSettings(player, 'Подключение');
     await expect(player.getByText('Заявка мастеру')).toHaveCount(0);
   });
 });
+
+function silentWavBuffer(durationSeconds = 1): Buffer {
+  const sampleRate = 8_000;
+  const bytesPerSample = 2;
+  const dataSize = Math.max(1, Math.round(durationSeconds * sampleRate)) * bytesPerSample;
+  const buffer = Buffer.alloc(44 + dataSize);
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write('WAVEfmt ', 8);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * bytesPerSample, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataSize, 40);
+  return buffer;
+}

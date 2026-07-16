@@ -1,6 +1,7 @@
 import { createId } from '../../core/utils/id';
 import { nowIso } from '../../core/utils/date';
 import { createSceneMusicState } from '../audio/sceneAudio';
+import { normalizeSceneBackgroundFraming } from './sceneBackground';
 import type { ActorRef, MapAsset, TableParticipant, TableScene, TokenState } from './types';
 
 export const SAFE_TACTICAL_PLACEMENT = {
@@ -35,6 +36,7 @@ export function createTableScene(input?: Partial<TableScene>): TableScene {
     mode: input?.mode ?? 'scene',
     backgroundAssetId: input?.backgroundAssetId,
     backgroundUrl: input?.backgroundUrl ?? '',
+    backgroundFraming: normalizeSceneBackgroundFraming(input?.backgroundFraming),
     music: createSceneMusicState(input?.music),
     layers: input?.layers ?? [],
     tokens: input?.tokens ?? [],

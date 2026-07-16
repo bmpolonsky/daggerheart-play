@@ -14,13 +14,19 @@ export class AssetService {
 
   async saveFile(file: File): Promise<MapAsset> {
     const optimized = await optimizeImageForStorage(file, file.name);
+    // Safari/WebKit may reject a File instance when Dexie sends it through
+    // IndexedDB's structured clone. Persist a plain Blob for every asset while
+    // keeping the original name in MapAsset metadata.
+    const storedBlob = optimized.blob instanceof File
+      ? optimized.blob.slice(0, optimized.blob.size, optimized.blob.type || file.type)
+      : optimized.blob;
     const asset = createMapAsset({
       name: optimized.name || 'Ассет сцены',
-      mimeType: optimized.blob.type || file.type || 'application/octet-stream',
-      byteSize: optimized.blob.size,
+      mimeType: storedBlob.type || file.type || 'application/octet-stream',
+      byteSize: storedBlob.size,
       storage: 'indexeddb'
     });
-    await this.putBlob(asset.id, optimized.blob);
+    await this.putBlob(asset.id, storedBlob);
     sceneTableStore.update((state) => ({
       ...state,
       assets: { ...state.assets, [asset.id]: asset }

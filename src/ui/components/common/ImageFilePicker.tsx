@@ -3,6 +3,8 @@ import type { CSSProperties, ChangeEvent } from 'react';
 import { IconButton } from './IconButton';
 import styles from './ImageFilePicker.module.css';
 
+export type FilePickerPreviewStyle = Pick<CSSProperties, 'objectFit' | 'objectPosition' | 'transform' | 'transformOrigin'>;
+
 export interface FilePickerProps {
   accept: string;
   label: string;
@@ -11,6 +13,7 @@ export interface FilePickerProps {
   emptyLabel?: string;
   className?: string;
   aspectRatio?: string;
+  previewStyle?: FilePickerPreviewStyle;
   size?: 'default' | 'compact';
   hideLabel?: boolean;
   icon?: 'image' | 'music';
@@ -26,6 +29,7 @@ export function FilePicker({
   emptyLabel = 'Загрузить',
   className = '',
   aspectRatio = '1 / 1',
+  previewStyle,
   size = 'default',
   hideLabel = false,
   icon = 'image',
@@ -59,7 +63,7 @@ export function FilePicker({
       <div className={`image-file-picker__frame ${styles.frame}`}>
         <label className={`image-file-picker__upload-target ${styles.uploadTarget}`}>
           {resolvedPreviewUrl ? (
-            <img src={resolvedPreviewUrl} alt="" />
+            <img src={resolvedPreviewUrl} alt="" style={previewStyle} />
           ) : (
             <span className={hasFile ? `image-file-picker__file ${styles.file}` : `image-file-picker__empty ${styles.empty}`}>
               {renderedIcon}

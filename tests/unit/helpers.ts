@@ -345,7 +345,7 @@ async function binaryPayloadToArrayBuffer(data: P2PBinaryPayload): Promise<Array
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 }
 
-export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService } = {}): P2PSessionService {
+export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService } = {}): P2PSessionService {
   return new P2PSessionService(
     options.syncService ?? new SyncService(),
     new PlayerActionRequestService(),
@@ -359,7 +359,8 @@ export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dic
     undefined,
     (options) => network.createTransport(options),
     { heartbeatMs: 100, gmTimeoutMs: 400 },
-    options.mediaCallService
+    options.mediaCallService,
+    options.characterService
   );
 }
 

@@ -12,6 +12,7 @@ import { BUILDER_STEPS, nextBuilderStep, previousBuilderStep, type BuilderStep }
 import { validateCharacterBuilderReadiness } from '../../domain/characterBuilder/validation';
 import { CLASS_RECOMMENDED_TRAITS, DEFAULT_TRAITS } from '../../domain/rules/constants';
 import { CLASS_STARTING_ITEMS } from '../../domain/rules/equipment';
+import { startingDomainCardCount } from '../../domain/rules/characterRuleModifiers';
 import type { DaggerheartClass, TraitId } from '../../domain/rules/types';
 import { isCompleteStartingTraitDistribution, type TraitDraft } from './traitDistribution';
 
@@ -94,6 +95,7 @@ export class CharacterBuilderService {
     const effectiveClassItem = classItem || effectiveClassItems[0] || '';
     const recommendedTraits = CLASS_RECOMMENDED_TRAITS[className] ?? DEFAULT_TRAITS;
     const draftTraits = isCompleteStartingTraitDistribution(traits) ? traits : recommendedTraits;
+    const requiredDomainCardCount = startingDomainCardCount(catalog.subclassRuleModifiers[subclassId] ?? []);
     const result = buildCharacterDraft({
       content: builderContent,
       classes,
@@ -173,6 +175,7 @@ export class CharacterBuilderService {
         classOptions: catalog.classOptions,
         classSubclasses: catalog.classSubclasses,
         availableDomainCards: catalog.availableDomainCards,
+        requiredDomainCardCount,
         armor: equipmentCatalog.armor,
         primaryWeapons: equipmentCatalog.primaryWeapons,
         secondaryWeapons: equipmentCatalog.secondaryWeapons,
@@ -192,7 +195,7 @@ export class CharacterBuilderService {
         selectAncestry: (next: string) => this.updateDraft({ ancestryId: next }),
         selectCommunity: (next: string) => this.updateDraft({ communityId: next }),
         selectSubclass: (next: string) => this.updateDraft({ subclassId: next }),
-        toggleCard: (cardId: string) => this.toggleCard(cardId),
+        toggleCard: (cardId: string) => this.toggleCard(cardId, requiredDomainCardCount),
         setName: (next: string) => this.updateDraft({ name: next }),
         setPortraitUrl: (next: string) => this.updateDraft({ portraitUrl: next }),
         setPronouns: (next: string) => this.updateDraft({ pronouns: next }),
@@ -233,12 +236,12 @@ export class CharacterBuilderService {
     });
   }
 
-  private toggleCard(cardId: string): void {
+  private toggleCard(cardId: string, limit: number): void {
     this.draftStore.update((current) => {
       const selectedCardIds = current.selectedCardIds.includes(cardId)
         ? current.selectedCardIds.filter((id) => id !== cardId)
-        : current.selectedCardIds.length >= 2
-          ? [current.selectedCardIds[1], cardId].filter(Boolean)
+        : current.selectedCardIds.length >= limit
+          ? [...current.selectedCardIds.slice(1), cardId].filter(Boolean)
           : [...current.selectedCardIds, cardId];
       return {
         ...current,

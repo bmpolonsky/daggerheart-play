@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import type { JSX } from "preact";
 import { useMemo, useRef, useState } from "preact/hooks";
-import { ChevronLeft, Crosshair, Heart, PawPrint, Shield, Swords, Zap } from "lucide-react";
+import { ChevronLeft, Crosshair, Heart, PawPrint, Pencil, Shield, Swords, Zap } from "lucide-react";
 import { useStream } from "../../../core/hooks/useStream";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
@@ -27,6 +27,7 @@ import { SelectControl } from "../../components/common/Field";
 import { IconButton } from "../../components/common/IconButton";
 import { ListItem } from "../../components/common/ListItem";
 import { PLAYER_SHEET_SECTIONS } from "./constants";
+import { UsageTrackerControl } from "../../characters/UsageTrackerControl";
 
 export function CharacterSheet({
   character,
@@ -36,7 +37,8 @@ export function CharacterSheet({
   onBack,
   onDomainCardPreview,
   onFeaturePreview,
-  onWealthEdit
+  onWealthEdit,
+  onEdit
 }: {
   character: PlayerViewCharacterSummary;
   beastforms?: LibraryBeastform[];
@@ -46,6 +48,7 @@ export function CharacterSheet({
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
+  onEdit?: () => void;
 }) {
   const game = useStream(gameService.game$);
   const [activeSheetSection, setActiveSheetSection] = useState<PlayerSheetSectionId>('overview');
@@ -68,7 +71,7 @@ export function CharacterSheet({
     '--player-character-portrait': `url("${cssImageUrl(portraitUrl)}")`
   } as JSX.CSSProperties;
   const publishDomainCard = (cardId: string) => {
-    const card = character.loadoutCards.find((item) => item.id === cardId);
+    const card = character.domainCards.find((item) => item.id === cardId);
     if (!card) return;
     onDomainCardPreview?.(character, card);
   };
@@ -112,6 +115,11 @@ export function CharacterSheet({
           <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
             <ChevronLeft size={17} aria-hidden="true" />
           </IconButton>
+        )}
+        {onEdit && (
+          <Button className="player-character-panel__edit" size="xs" variant="ghost" iconBefore={<Pencil size={13} aria-hidden="true" />} onClick={onEdit}>
+            Редактировать
+          </Button>
         )}
         <header className="player-character-panel__hero" style={heroStyle}>
           <img src={cssImageUrl(portraitUrl)} alt="" />
@@ -430,19 +438,36 @@ export function CharacterSheet({
         {character.features.map((feature) => {
           const detail = feature.text.trim();
           const summary = feature.subtitle || detail || 'Особенность';
+          const tracker = character.usageTrackers.find((item) => item.targetKind === 'feature' && item.targetId === feature.id);
           if (!detail) {
             return (
-              <ListItem key={feature.id} title={feature.name} subtitle={summary} lines={2} />
+              <ListItem
+                key={feature.id}
+                title={feature.name}
+                subtitle={summary}
+                lines={2}
+                rightAccessory={<UsageTrackerControl compact characterId={character.id} targetKind="feature" targetId={feature.id} targetName={feature.name} tracker={tracker} />}
+              />
             );
           }
           return (
-            <ListItem key={feature.id} title={feature.name} subtitle={summary} lines={2} onClick={() => onFeaturePreview?.(character, feature)} />
+            <ListItem
+              key={feature.id}
+              title={feature.name}
+              subtitle={summary}
+              lines={2}
+              rightAccessory={<UsageTrackerControl compact characterId={character.id} targetKind="feature" targetId={feature.id} targetName={feature.name} tracker={tracker} />}
+              onClick={() => onFeaturePreview?.(character, feature)}
+            />
           );
         })}
       </SheetSection>
       <SheetSection id="player-sheet-domain-cards" title="Карты доменов" emptyLabel="Карты доменов не подготовлены">
         <CharacterSheetDomainCards
-          cards={character.loadoutCards}
+          characterId={character.id}
+          cards={character.domainCards}
+          handLimit={character.handLimit}
+          usageTrackers={character.usageTrackers}
           onPreview={publishDomainCard}
           onTokenChange={(cardId, next) => characterService.updateDomainCardTokens(character.id, cardId, next)}
         />

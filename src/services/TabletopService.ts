@@ -238,8 +238,12 @@ export class TabletopService {
   }
 
   conductRest(restType: RestType, options: ConductRestOptions = {}): RestFearPlan {
-    const pcCount = options.pcCount ?? this.dependencies.characterService.characters$.get().order.length;
+    const characterIds = this.dependencies.characterService.characters$.get().order;
+    const pcCount = options.pcCount ?? characterIds.length;
     const plan = rollRestFear(restType, pcCount, options.rng);
+    characterIds.forEach((characterId) => {
+      this.dependencies.characterService.resetUsageTrackersForRest(characterId, restType);
+    });
     this.dependencies.gameService.gainFear(plan.total);
     const restTitle = restType === 'short' ? 'Короткий отдых' : 'Продолжительный отдых';
     const modifierText = plan.modifier > 0 ? ` + ${plan.modifier} персонаж(ей)` : '';

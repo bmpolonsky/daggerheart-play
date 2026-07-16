@@ -18,6 +18,7 @@ export * from './ListDetailLayout';
 export * from './NavButton';
 export * from './Notice';
 export * from './ResourcePips';
+export * from './RangeField';
 export * from './SectionHeader';
 export * from './SearchField';
 export * from './SegmentedControl';

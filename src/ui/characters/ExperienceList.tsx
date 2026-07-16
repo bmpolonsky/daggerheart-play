@@ -2,10 +2,27 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { NumberControl, TextControl } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
+import { ListItem } from '../components/common/ListItem';
 import type { Character } from '../../domain/rules/types';
 import { characterService } from '../../services/serviceRegistry';
 
-export function ExperienceList({ character }: { character: Character }) {
+export function ExperienceList({ character, readOnly = false }: { character: Character; readOnly?: boolean }) {
+  if (readOnly) {
+    return (
+      <div className="experience-editor" aria-label="Опыты персонажа">
+        {character.experiences.map((experience) => (
+          <ListItem
+            key={experience.id}
+            title={experience.name || 'Без названия'}
+            subtitle={experience.notes || undefined}
+            value={experience.modifier >= 0 ? `+${experience.modifier}` : experience.modifier}
+          />
+        ))}
+        {character.experiences.length === 0 && <p className="muted-text">Опытов пока нет.</p>}
+      </div>
+    );
+  }
+
   return (
     <div className="experience-editor">
       <div className="row-end">

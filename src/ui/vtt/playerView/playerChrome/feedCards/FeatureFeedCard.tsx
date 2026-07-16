@@ -57,6 +57,9 @@ function toFeaturePreviewCard(feature: NonNullable<TableFeedItem['feature']>): P
     recallCost: '',
     text: feature.text,
     imageUrl: '',
+    inHand: false,
+    permanentlyVaulted: false,
+    loadoutChoicePending: false,
     tokens: { value: 0, max: 0 },
     macros: parseDomainCardTextMacros(feature.text)
   };

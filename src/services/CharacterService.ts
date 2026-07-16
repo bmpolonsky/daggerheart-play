@@ -19,20 +19,56 @@ import {
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import { buildEquipmentAttachmentPlan } from '../domain/rules/equipment';
 import { createCharacter, createDomainCard, createExperience, createInventoryItem, createSheetCard, createWeapon, sanitizeWealth } from '../domain/rules/factories';
-import type { CharacterAdvancementChoiceId } from '../domain/rules/levelUp';
+import {
+  applyDomainCardMove,
+  enforceCharacterHandLimit,
+  placeAcquiredDomainCards,
+  permanentlyVaultDomainCard,
+  type DomainCardMoveRequest,
+  type DomainCardMoveResult
+} from '../domain/rules/cardLoadout';
+import {
+  appendCharacterChangeHistory,
+  applySafeCharacterUndo,
+  createCharacterChangeRecord,
+  SYSTEM_CHARACTER_ACTOR,
+  type CharacterMutationContext,
+  type CharacterUndoResult
+} from '../domain/rules/characterHistory';
+import {
+  nextCharacterAdvancementState,
+  validateCharacterLevelUp,
+  type CharacterLevelUpApplicationInput,
+  type CharacterLevelUpValidation
+} from '../domain/rules/levelUp';
 import { createDefaultRangerCompanion, normalizeRangerCompanion } from '../domain/rules/rangerCompanion';
 import type { LongRestRecoveryMove } from '../domain/rules/rest';
 import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
 import { starterDomainCardsFromLibrary } from '../domain/characterBuilder/index';
+import {
+  characterBuilderRuleModifiersForSubclass,
+  normalizeCharacterRuleModifiers,
+  startingDomainCardCount,
+  type CharacterRuleModifier
+} from '../domain/rules/characterRuleModifiers';
+import {
+  createCharacterUsageTracker,
+  removeCharacterUsageTracker,
+  resetCharacterUsageTrackers,
+  updateCharacterUsageTracker,
+  type CharacterUsageTrackerInput
+} from '../domain/rules/usageTrackers';
 import type { GenericLibraryItem, LibraryBeastform, LibraryEquipmentItem } from '../domain/content/types';
 import type {
   ArmorState,
   Character,
+  CharacterChangeActor,
   CharacterCompanionState,
   CharacterInventoryItem,
   CharacterWealth,
   DeathMoveRollResult,
   CharacterSheetCard,
+  CharacterUsageTracker,
   CharactersState,
   DaggerheartClass,
   DomainCardRecord,
@@ -56,26 +92,63 @@ export interface EquipmentApplicationResult {
   warnings: string[];
 }
 
-export interface CharacterLevelUpInput {
-  level: number;
-  proficiency?: number;
-  experiences?: Array<Partial<Experience>>;
-  domainCards?: Array<Partial<DomainCardRecord>>;
-  thresholdBonus?: Partial<Thresholds>;
-  advancementChoices?: CharacterAdvancementChoiceId[];
-  traitBonuses?: Partial<Record<TraitId, number>>;
-  hpMax?: number;
-  stressMax?: number;
-  evasion?: number;
-  notes?: string;
+export type CharacterLevelUpInput = CharacterLevelUpApplicationInput;
+
+export interface CharacterLevelUpApplyResult {
+  applied: boolean;
+  validation: CharacterLevelUpValidation;
 }
 
 export class CharacterService {
   readonly characters$ = charactersStore.toStream();
   private deathMoveRequestHandler: DeathMoveRequestHandler | null = null;
+  private mutationActorProvider: () => CharacterChangeActor = () => SYSTEM_CHARACTER_ACTOR;
 
   setDeathMoveRequestHandler(handler: DeathMoveRequestHandler | null): void {
     this.deathMoveRequestHandler = handler;
+  }
+
+  setMutationActorProvider(provider: (() => CharacterChangeActor) | null): void {
+    this.mutationActorProvider = provider ?? (() => SYSTEM_CHARACTER_ACTOR);
+  }
+
+  /**
+   * Authority-side replacement for a full player snapshot. Client-provided audit
+   * fields and immutable identity timestamps are ignored; one local audit record
+   * is produced from the authoritative before/after values.
+   */
+  applyTrustedPlayerUpdate(
+    id: string,
+    next: Character,
+    actor: CharacterChangeActor,
+    syncRevision?: { participantId: string; revision: number }
+  ): boolean {
+    const current = this.getCharacter(id);
+    if (!current || actor.role !== 'player' || next.id !== id) return false;
+    if (syncRevision) {
+      const currentRevision = current.playerSyncRevision;
+      if (
+        currentRevision?.participantId === syncRevision.participantId
+        && syncRevision.revision <= currentRevision.revision
+      ) {
+        return false;
+      }
+    }
+    const normalized = createCharacter({
+      ...next,
+      id: current.id,
+      createdAt: current.createdAt,
+      updatedAt: current.updatedAt,
+      ruleModifiers: current.ruleModifiers,
+      changeHistory: current.changeHistory ?? [],
+      playerSyncRevision: syncRevision ?? current.playerSyncRevision
+    });
+    this.patchCharacter(id, () => normalized, {
+      actor,
+      kind: 'edit',
+      summary: 'Изменения игрока'
+    });
+    return true;
   }
 
   createCharacter(input?: Partial<Character> & { className?: DaggerheartClass }): Character {
@@ -99,6 +172,7 @@ export class CharacterService {
       ...original,
       id: undefined,
       name: `${original.name} (копия)`,
+      changeHistory: [],
       createdAt: undefined,
       updatedAt: undefined
     });
@@ -129,6 +203,22 @@ export class CharacterService {
     this.patchCharacter(id, (character) => ({ ...character, ...patch }));
   }
 
+  updateSubclassFromLibrary(id: string, subclass: GenericLibraryItem | null): void {
+    this.patchCharacter(id, (character) => {
+      const ruleModifiers = normalizeCharacterRuleModifiers([
+        ...character.ruleModifiers.filter((modifier) => modifier.source !== 'subclass'),
+        ...characterBuilderRuleModifiersForSubclass(subclass)
+      ]);
+      return {
+        ...character,
+        subclassName: subclass?.name ?? '',
+        subclassSlug: subclass?.slug ?? '',
+        ruleModifiers,
+        domainCards: enforceCharacterHandLimit(character.domainCards, ruleModifiers)
+      };
+    }, { summary: 'Изменён подкласс и его правила' });
+  }
+
   updateClass(id: string, className: DaggerheartClass): void {
     this.patchCharacter(id, (character) => {
       const stats = CLASS_STARTING_STATS[className];
@@ -151,9 +241,18 @@ export class CharacterService {
     }));
   }
 
-  applyLevelUp(id: string, input: CharacterLevelUpInput): boolean {
+  validateLevelUp(id: string, input: CharacterLevelUpInput): CharacterLevelUpValidation | null {
     const character = this.getCharacter(id);
-    if (!character) return false;
+    return character ? validateCharacterLevelUp(character, { ...input, ruleModifiers: character.ruleModifiers }) : null;
+  }
+
+  applyLevelUpDetailed(id: string, input: CharacterLevelUpInput): CharacterLevelUpApplyResult {
+    const character = this.getCharacter(id);
+    const validation = character
+      ? validateCharacterLevelUp(character, { ...input, ruleModifiers: character.ruleModifiers })
+      : { canApply: false, strictlyValid: false, overridden: false, issues: [{ code: 'level.nextRequired' as const, message: 'Персонаж не найден.' }] };
+    if (!character || !validation.canApply) return { applied: false, validation };
+    const override = validation.overridden ? input.freeformOverride : undefined;
     this.patchCharacter(id, (current) => {
       const level = clamp(toSafeInteger(input.level, current.level), 1, 10);
       const proficiency = input.proficiency === undefined
@@ -168,6 +267,9 @@ export class CharacterService {
         ...nextTraits,
         [trait]: clamp(toSafeInteger(nextTraits[trait as TraitId], 0) + toSafeInteger(bonus, 0), -10, 20)
       }), current.traits);
+      const increasedExperienceIds = new Set((input.experienceIncreases ?? []).map((item) => item.experienceId));
+      const newDomainCards = (input.domainCards ?? []).map((card) => createDomainCard(card));
+      const nextDomainCards = placeAcquiredDomainCards(current.domainCards, newDomainCards, current.ruleModifiers);
       return {
         ...current,
         level,
@@ -181,17 +283,30 @@ export class CharacterService {
           severe: clamp(toSafeInteger(thresholdBonus.severe ?? current.thresholds.severe + Math.max(0, level - current.level), current.thresholds.severe), 0, 999)
         },
         experiences: [
-          ...current.experiences,
+          ...current.experiences.map((experience) => increasedExperienceIds.has(experience.id)
+            ? { ...experience, modifier: experience.modifier + 1 }
+            : experience),
           ...(input.experiences ?? []).map((experience) => ({ ...createExperience(), ...experience }))
         ],
-        domainCards: [
-          ...current.domainCards,
-          ...(input.domainCards ?? []).map((card) => createDomainCard(card))
+        domainCards: nextDomainCards,
+        sheetCards: [
+          ...current.sheetCards,
+          ...(input.subclassCards ?? []).map((card) => createSheetCard({ ...card, kind: 'subclassFeature' }))
         ],
+        advancement: nextCharacterAdvancementState(current, input),
         notes: input.notes ? [current.notes, input.notes].filter(Boolean).join('\n') : current.notes
       };
+    }, {
+      actor: override?.actor ?? input.actor,
+      kind: override ? 'freeform' : 'levelUp',
+      summary: override ? 'Свободное повышение уровня Мастером' : `Повышение до ${input.level} уровня`,
+      overrideReason: override?.reason
     });
-    return true;
+    return { applied: true, validation };
+  }
+
+  applyLevelUp(id: string, input: CharacterLevelUpInput): boolean {
+    return this.applyLevelUpDetailed(id, input).applied;
   }
 
   updateProficiency(id: string, proficiency: number): void {
@@ -357,35 +472,23 @@ export class CharacterService {
   }
 
   resetActionTokens(tokens = DEFAULT_ACTION_TOKENS): void {
-    charactersStore.update((state) => ({
-      ...state,
-      entities: Object.fromEntries(
-        Object.entries(state.entities).map(([id, character]) => [id, { ...character, actionTokens: tokens, updatedAt: nowIso() }])
-      ),
-      updatedAt: nowIso()
-    }));
+    for (const id of charactersStore.get().order) {
+      this.patchCharacter(id, (character) => ({ ...character, actionTokens: tokens }), {
+        summary: 'Сброшены жетоны действий'
+      });
+    }
   }
 
   applyLongRestGroupRecovery(move: LongRestRecoveryMove): number {
     let changedCount = 0;
-    const updatedAt = nowIso();
-    charactersStore.update((state) => {
-      changedCount = 0;
-      const entities = Object.fromEntries(
-        Object.entries(state.entities).map(([id, character]) => {
-          const recovered = recoverLongRestCharacter(character, move);
-          if (recovered === character) {
-            return [id, character];
-          }
-          changedCount += 1;
-          return [id, { ...recovered, updatedAt }];
-        })
-      );
-      if (changedCount === 0) {
-        return state;
-      }
-      return { ...state, entities, updatedAt };
-    });
+    for (const id of charactersStore.get().order) {
+      const character = this.getCharacter(id);
+      if (!character) continue;
+      const recovered = recoverLongRestCharacter(character, move);
+      if (recovered === character) continue;
+      changedCount += 1;
+      this.patchCharacter(id, () => recovered, { summary: 'Восстановление после продолжительного отдыха' });
+    }
     return changedCount;
   }
 
@@ -445,29 +548,94 @@ export class CharacterService {
   addDomainCard(id: string, input?: Partial<DomainCardRecord>): void {
     this.patchCharacter(id, (character) => ({
       ...character,
-      domainCards: [...character.domainCards, createDomainCard(input)]
+      domainCards: placeAcquiredDomainCards(character.domainCards, [createDomainCard(input)], character.ruleModifiers)
     }));
   }
 
-  ensureStarterDomainCardsFromLibrary(id: string, libraryCards: GenericLibraryItem[], count = 2): boolean {
+  ensureStarterDomainCardsFromLibrary(
+    id: string,
+    libraryCards: GenericLibraryItem[],
+    count?: number,
+    subclass?: GenericLibraryItem | null
+  ): boolean {
     const character = this.getCharacter(id);
     if (!character || character.domainCards.length > 0 || libraryCards.length === 0) return false;
 
-    const cards = starterDomainCardsFromLibrary(libraryCards, character.domains, count);
+    const subclassModifiers = characterBuilderRuleModifiersForSubclass(subclass);
+    const resolvedCount = count ?? startingDomainCardCount(subclassModifiers);
+    const cards = starterDomainCardsFromLibrary(libraryCards, character.domains, resolvedCount);
     if (cards.length === 0) return false;
 
-    this.patchCharacter(id, (current) => ({
-      ...current,
-      domainCards: cards
-    }));
+    this.patchCharacter(id, (current) => {
+      const ruleModifiers = normalizeCharacterRuleModifiers([
+        ...current.ruleModifiers,
+        ...subclassModifiers.filter((modifier) => !current.ruleModifiers.some((item) => item.id === modifier.id))
+      ]);
+      return {
+        ...current,
+        domainCards: enforceCharacterHandLimit(cards, ruleModifiers),
+        ruleModifiers
+      };
+    });
     return true;
   }
 
   updateDomainCard(id: string, cardId: string, patch: Partial<DomainCardRecord>): void {
     this.patchCharacter(id, (character) => ({
       ...character,
-      domainCards: character.domainCards.map((card) => (card.id === cardId ? { ...card, ...patch } : card))
+      domainCards: enforceCharacterHandLimit(character.domainCards.map((card) => (
+        card.id === cardId
+          ? createDomainCard({ ...card, ...patch, id: card.id, permanentlyVaulted: card.permanentlyVaulted || patch.permanentlyVaulted })
+          : card
+      )), character.ruleModifiers)
     }));
+  }
+
+  updateRuleModifiers(id: string, modifiers: readonly CharacterRuleModifier[]): boolean {
+    const character = this.getCharacter(id);
+    if (!character) return false;
+    const ruleModifiers = normalizeCharacterRuleModifiers(modifiers);
+    this.patchCharacter(id, (current) => ({
+      ...current,
+      ruleModifiers,
+      domainCards: enforceCharacterHandLimit(current.domainCards, ruleModifiers)
+    }), {
+      kind: 'edit',
+      summary: 'Изменены модификаторы правил'
+    });
+    return true;
+  }
+
+  moveDomainCard(
+    id: string,
+    request: DomainCardMoveRequest,
+    context: CharacterMutationContext = {}
+  ): DomainCardMoveResult | null {
+    const character = this.getCharacter(id);
+    if (!character) return null;
+    const result = applyDomainCardMove(character, { ...request, modifiers: character.ruleModifiers });
+    if (!result.applied) return result;
+    this.patchCharacter(id, () => result.character, {
+      ...context,
+      kind: 'cardMove',
+      summary: request.to === 'hand'
+        ? 'Карта перемещена в Руку'
+        : character.domainCards.find((card) => card.id === request.cardId)?.loadoutChoicePending
+          ? 'Новая карта оставлена в Хранилище'
+          : 'Карта перемещена в Хранилище'
+    });
+    return { ...result, character: this.getCharacter(id) ?? result.character };
+  }
+
+  permanentlyVaultDomainCard(id: string, cardId: string, context: CharacterMutationContext = {}): boolean {
+    const character = this.getCharacter(id);
+    if (!character || !character.domainCards.some((card) => card.id === cardId)) return false;
+    this.patchCharacter(id, (current) => permanentlyVaultDomainCard(current, cardId), {
+      ...context,
+      kind: 'cardMove',
+      summary: 'Карта навсегда помещена в Хранилище'
+    });
+    return true;
   }
 
   removeDomainCard(id: string, cardId: string): void {
@@ -484,6 +652,65 @@ export class CharacterService {
         card.id === cardId ? { ...card, tokens: { ...card.tokens, value: clamp(value, 0, card.tokens?.max ?? 0) } } : card
       ))
     }));
+  }
+
+  configureUsageTracker(
+    id: string,
+    input: CharacterUsageTrackerInput,
+    context: CharacterMutationContext = {}
+  ): CharacterUsageTracker | null {
+    const character = this.getCharacter(id);
+    if (!character || !usageTrackerTargetExists(character, input.targetKind, input.targetId)) return null;
+    const tracker = createCharacterUsageTracker(input);
+    this.patchCharacter(id, (current) => ({
+      ...current,
+      usageTrackers: [...(current.usageTrackers ?? []).filter((item) => item.id !== tracker.id), tracker]
+    }), { ...context, kind: 'tracker', summary: `Настроен трекер «${tracker.label}»` });
+    return tracker;
+  }
+
+  updateUsageTracker(
+    id: string,
+    trackerId: string,
+    patch: Partial<Pick<CharacterUsageTracker, 'label' | 'current' | 'max' | 'reset'>>,
+    context: CharacterMutationContext = {}
+  ): boolean {
+    const character = this.getCharacter(id);
+    if (!character?.usageTrackers?.some((tracker) => tracker.id === trackerId)) return false;
+    this.patchCharacter(id, (current) => ({
+      ...current,
+      usageTrackers: updateCharacterUsageTracker(current.usageTrackers ?? [], trackerId, patch)
+    }), { ...context, kind: 'tracker', summary: 'Изменён трекер использования' });
+    return true;
+  }
+
+  removeUsageTracker(id: string, trackerId: string, context: CharacterMutationContext = {}): boolean {
+    const character = this.getCharacter(id);
+    if (!character?.usageTrackers?.some((tracker) => tracker.id === trackerId)) return false;
+    this.patchCharacter(id, (current) => ({
+      ...current,
+      usageTrackers: removeCharacterUsageTracker(current.usageTrackers ?? [], trackerId)
+    }), { ...context, kind: 'tracker', summary: 'Удалён трекер использования' });
+    return true;
+  }
+
+  resetUsageTrackersForRest(
+    id: string,
+    rest: 'short' | 'long',
+    context: CharacterMutationContext = {}
+  ): number {
+    const character = this.getCharacter(id);
+    if (!character) return 0;
+    const previous = character.usageTrackers ?? [];
+    const next = resetCharacterUsageTrackers(previous, rest);
+    const resetCount = next.filter((tracker, index) => tracker.current !== previous[index]?.current).length;
+    if (resetCount === 0) return 0;
+    this.patchCharacter(id, (current) => ({ ...current, usageTrackers: next }), {
+      ...context,
+      kind: 'tracker',
+      summary: rest === 'long' ? 'Сброс трекеров после продолжительного отдыха' : 'Сброс трекеров после короткого отдыха'
+    });
+    return resetCount;
   }
 
   addSheetCard(id: string, input?: Partial<CharacterSheetCard>): void {
@@ -763,19 +990,44 @@ export class CharacterService {
     return this.getCharacter(charactersStore.get().selectedId);
   }
 
-  private patchCharacter(id: string, updater: (character: Character) => Character): { previous: Character; current: Character } | null {
+  undoChange(id: string, changeId: string, actor: CharacterChangeActor): CharacterUndoResult | null {
+    const character = this.getCharacter(id);
+    if (!character) return null;
+    const result = applySafeCharacterUndo(character, changeId);
+    if (result.status !== 'applied' || !result.target) return result;
+    this.patchCharacter(id, () => result.character, {
+      actor,
+      kind: 'undo',
+      summary: `Отменено: ${result.target.summary}`,
+      undoesChangeId: result.target.id
+    });
+    return { ...result, character: this.getCharacter(id) ?? result.character };
+  }
+
+  private patchCharacter(
+    id: string,
+    updater: (character: Character) => Character,
+    context: CharacterMutationContext = {}
+  ): { previous: Character; current: Character } | null {
     let patched: { previous: Character; current: Character } | null = null;
     charactersStore.update((state: CharactersState) => {
       const current = state.entities[id];
       if (!current) {
         return state;
       }
-      const updated = { ...updater(current), updatedAt: nowIso() };
+      const changedAt = context.changedAt ?? nowIso();
+      const candidate = { ...updater(current), updatedAt: changedAt };
+      const record = createCharacterChangeRecord(current, candidate, {
+        ...context,
+        actor: context.actor ?? this.mutationActorProvider(),
+        changedAt
+      });
+      const updated = appendCharacterChangeHistory(candidate, record);
       patched = { previous: current, current: updated };
       return {
         ...state,
         entities: replaceInRecord(state.entities, updated),
-        updatedAt: nowIso()
+        updatedAt: changedAt
       };
     });
     return patched;
@@ -792,6 +1044,16 @@ export class CharacterService {
       this.deathMoveRequestHandler?.({ id: patch.current.id, name: patch.current.name }, 'defeatedRemoved');
     }
   }
+}
+
+function usageTrackerTargetExists(
+  character: Character,
+  targetKind: CharacterUsageTracker['targetKind'],
+  targetId: string
+): boolean {
+  return targetKind === 'card'
+    ? character.domainCards.some((card) => card.id === targetId)
+    : character.sheetCards.some((card) => card.id === targetId);
 }
 
 function hasConditionTag(character: Pick<Character, 'conditions'>, tag: ActorStatus): boolean {

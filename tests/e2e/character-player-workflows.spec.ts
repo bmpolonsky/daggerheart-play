@@ -1,0 +1,326 @@
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
+import { createPopulatedGameDocument, filledCharacterName, filledCharacterResources } from './filled-game-helpers';
+import {
+  createIsolatedDeterministicP2PRelay,
+  openSharedGmGame,
+  openSharedPlayerGame,
+  type IsolatedDeterministicP2PRelay
+} from './game-route-helpers';
+
+const fixtureName = 'e2e-character-player-workflows.dhgame';
+
+interface JoinedTable {
+  relay: IsolatedDeterministicP2PRelay;
+  gm: Page;
+  player: Page;
+}
+
+async function openJoinedFilledTable(
+  browser: Browser,
+  suffix: string,
+  viewport = { width: 1440, height: 900 }
+): Promise<JoinedTable> {
+  const relay = await createIsolatedDeterministicP2PRelay(
+    browser,
+    [`e2e-gm-${suffix}`, `e2e-player-${suffix}`],
+    { viewport }
+  );
+  const [gm, player] = relay.clients.map((client) => client.page);
+  const roomId = `${suffix.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5)}${Date.now().toString().slice(-5)}`;
+
+  await openSharedGmGame(gm, roomId);
+  await importCharacterWorkflowFixture(gm);
+  await openSharedPlayerGame(player, roomId);
+
+  const seatPicker = player.getByRole('region', { name: 'Выбор игрока' });
+  await expect(seatPicker).toBeVisible({ timeout: 15_000 });
+  await seatPicker.getByRole('button', { name: `Игрок 1 ${filledCharacterName}` }).click();
+  await expect(player.getByLabel('Персонаж игрока')).toContainText(filledCharacterName, { timeout: 15_000 });
+
+  return { relay, gm, player };
+}
+
+async function importCharacterWorkflowFixture(gm: Page): Promise<void> {
+  const document = createPopulatedGameDocument();
+  const character = document.files['data/characters.json'].entities['e2e-character-cadsuane'];
+  if (!character) throw new Error('Filled-game fixture lost its primary character.');
+  // This makes the adventure recall path observable instead of merely asserting
+  // that a zero-cost card can move between zones.
+  character.domainCards[5] = { ...character.domainCards[5], recallCost: '1 Stress' };
+  // Emulates the durable result of acquiring a new level-up card while the Hand
+  // is full. The player must resolve this choice explicitly and for free.
+  character.domainCards[6] = { ...character.domainCards[6], loadoutChoicePending: true };
+
+  await gm.getByRole('button', { name: 'Инструменты' }).click();
+  const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+  await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Настройки' }).click();
+  await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игры проекта' }).click();
+  await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles({
+    name: fixtureName,
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(document))
+  });
+  await expect(workspace.getByText(`Игра импортирована: ${fixtureName}`)).toBeVisible({ timeout: 15_000 });
+  await workspace.getByRole('button', { name: 'Закрыть' }).click();
+}
+
+async function openCardSection(player: Page): Promise<Locator> {
+  const sheet = player.getByLabel('Персонаж игрока');
+  await player.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Карты' }).click();
+  const zones = sheet.locator('.player-domain-card-zones');
+  await expect(zones).toBeVisible();
+  return zones;
+}
+
+function cardRow(zone: Locator, name: string): Locator {
+  return zone.locator('.dh-list-item').filter({ hasText: name });
+}
+
+async function markedStress(player: Page): Promise<number> {
+  return player.getByRole('group', { name: 'Стресс', exact: true }).getByRole('button').evaluateAll((buttons) => (
+    buttons.filter((button) => button.getAttribute('aria-pressed') === 'true').length
+  ));
+}
+
+async function openGmCharacterEditor(gm: Page): Promise<Locator> {
+  await gm.getByRole('button', { name: 'Инструменты' }).click();
+  const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+  await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+  await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
+  const editor = workspace.getByLabel('Редактор персонажа');
+  await expect(editor).toBeVisible();
+  return editor;
+}
+
+test.describe('filled-game player character workflows', () => {
+  test.describe.configure({ timeout: 120_000 });
+
+  test('moves all seven cards between Hand and Vault with replacement and recall cost', async ({ browser }) => {
+    const { relay, gm, player } = await openJoinedFilledTable(browser, 'cards');
+    try {
+      const zones = await openCardSection(player);
+      const hand = zones.getByRole('region', { name: 'Рука карт доменов' });
+      const vault = zones.getByRole('region', { name: 'Хранилище карт доменов' });
+
+      await expect(hand.locator('.dh-list-item')).toHaveCount(5);
+      await expect(vault.locator('.dh-list-item')).toHaveCount(2);
+      await expect(hand).toContainText('5/5');
+
+      const pendingAcquisition = cardRow(vault, 'Заклинание 7');
+      await expect(pendingAcquisition).toContainText('Новая · ждёт выбора');
+      await pendingAcquisition.getByRole('button', { name: 'Выбрать' }).click();
+      const acquisitionDialog = player.getByRole('dialog', { name: 'Новая карта: Заклинание 7' });
+      await expect(acquisitionDialog).toContainText('бесплатно заменяет одну карту');
+      await expect(acquisitionDialog.getByRole('button', { name: 'Заменить в Руке' })).toBeDisabled();
+      await acquisitionDialog.getByLabel('Заменить карту в Руке').selectOption({ label: 'Заклинание 5' });
+      await acquisitionDialog.getByRole('button', { name: 'Заменить в Руке' }).click();
+      await expect(cardRow(hand, 'Заклинание 7')).toBeVisible();
+      await expect(cardRow(vault, 'Заклинание 5')).toBeVisible();
+      await expect(cardRow(vault, 'Заклинание 7')).toHaveCount(0);
+
+      await cardRow(hand, 'Заклинание 1').getByRole('button', { name: 'В Хранилище' }).click();
+      await expect(hand.locator('.dh-list-item')).toHaveCount(4);
+      await expect(vault.locator('.dh-list-item')).toHaveCount(3);
+
+      const stressBeforeAdventureRecall = await markedStress(player);
+      await cardRow(vault, 'Заклинание 6').getByRole('button', { name: 'В Руку' }).click();
+      const adventureRecall = player.getByRole('dialog', { name: 'Вернуть в Руку: Заклинание 6' });
+      await expect(adventureRecall.getByText('Будет отмечен Стресс: 1.')).toBeVisible();
+      await adventureRecall.getByRole('button', { name: 'Вернуть в Руку' }).click();
+      await expect(cardRow(hand, 'Заклинание 6')).toBeVisible();
+      await expect.poll(() => markedStress(player)).toBe(stressBeforeAdventureRecall + 1);
+
+      await cardRow(vault, 'Заклинание 1').getByRole('button', { name: 'В Руку' }).click();
+      const restRecall = player.getByRole('dialog', { name: 'Вернуть в Руку: Заклинание 1' });
+      await restRecall.getByRole('button', { name: 'Во время отдыха' }).click();
+      await expect(restRecall.getByLabel('Заменить карту в Руке')).toBeVisible();
+      await expect(restRecall.getByRole('button', { name: 'Вернуть в Руку' })).toBeDisabled();
+      await restRecall.getByLabel('Заменить карту в Руке').selectOption({ label: 'Заклинание 2' });
+      await restRecall.getByRole('button', { name: 'Вернуть в Руку' }).click();
+
+      await expect(hand.locator('.dh-list-item')).toHaveCount(5);
+      await expect(vault.locator('.dh-list-item')).toHaveCount(2);
+      await expect(cardRow(hand, 'Заклинание 1')).toBeVisible();
+      await expect(cardRow(vault, 'Заклинание 2')).toBeVisible();
+      await expect.poll(() => markedStress(player)).toBe(stressBeforeAdventureRecall + 1);
+
+      const permanentCandidate = cardRow(vault, 'Заклинание 5');
+      await permanentCandidate.getByRole('button', { name: 'Навсегда' }).click();
+      const permanentDialog = player.getByRole('dialog', { name: 'Навсегда убрать «Заклинание 5»?' });
+      await expect(permanentDialog).toContainText('вернуть её в Руку больше нельзя');
+      await permanentDialog.getByRole('button', { name: 'Убрать навсегда' }).click();
+      await expect(permanentCandidate).toContainText('Навсегда · вернуть нельзя');
+      await expect(permanentCandidate.getByRole('button', { name: 'В Руку' })).toHaveCount(0);
+
+      const gmEditor = await openGmCharacterEditor(gm);
+      await gmEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Снаряжение' }).click();
+      await expect(cardRow(gmEditor, 'Заклинание 1')).toContainText('Рука', { timeout: 15_000 });
+      await expect(cardRow(gmEditor, 'Заклинание 2')).toContainText('Хранилище');
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('attaches, spends, manually resets, and rest-resets a generic card tracker', async ({ browser }) => {
+    const { relay, gm, player } = await openJoinedFilledTable(browser, 'track');
+    try {
+      const zones = await openCardSection(player);
+      const hand = zones.getByRole('region', { name: 'Рука карт доменов' });
+      const trackedCard = cardRow(hand, 'Заклинание 3');
+
+      await trackedCard.getByTitle('Настроить трекер для «Заклинание 3»').click();
+      let dialog = player.getByRole('dialog', { name: 'Трекер: Заклинание 3' });
+      await dialog.getByLabel('Название трекера').fill('До долгого отдыха');
+      await dialog.getByLabel('Количество использований').fill('2');
+      await dialog.getByLabel('Сброс').selectOption('long');
+      await dialog.getByRole('button', { name: 'Сохранить' }).click();
+
+      let tracker = trackedCard.getByLabel('До долгого отдыха: 0 из 2');
+      await expect(tracker).toBeVisible();
+      await tracker.getByRole('button', { name: 'Увеличить До долгого отдыха' }).click();
+      tracker = cardRow(hand, 'Заклинание 3').getByLabel('До долгого отдыха: 1 из 2');
+      await expect(tracker).toBeVisible();
+      await tracker.getByRole('button', { name: 'Увеличить До долгого отдыха' }).click();
+      tracker = cardRow(hand, 'Заклинание 3').getByLabel('До долгого отдыха: 2 из 2');
+      await expect(tracker).toBeVisible();
+
+      await tracker.getByRole('button', { name: 'Настроить трекер Заклинание 3' }).click();
+      dialog = player.getByRole('dialog', { name: 'Трекер: Заклинание 3' });
+      await dialog.getByRole('button', { name: 'Сбросить' }).click();
+      await dialog.getByRole('button', { name: 'Сохранить' }).click();
+      tracker = trackedCard.getByLabel('До долгого отдыха: 0 из 2');
+      await expect(tracker).toBeVisible();
+
+      await tracker.getByRole('button', { name: 'Увеличить До долгого отдыха' }).click();
+      await expect(trackedCard.getByLabel('До долгого отдыха: 1 из 2')).toBeVisible();
+
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Действия' }).click();
+      await gm.getByRole('button', { name: 'Продолжительный отдых', exact: true }).click();
+      const chronicle = gm.getByLabel('Хроника игры');
+      await chronicle.getByRole('button', { name: 'Получить страх и завершить' }).click();
+      await expect.poll(async () => (
+        await trackedCard.getByLabel('До долгого отдыха: 0 из 2').count()
+      ), { timeout: 15_000 }).toBe(1);
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('keeps trusted player editing explicit, synchronized, auditable, undoable, and usable on mobile', async ({ browser }) => {
+    const { relay, gm, player } = await openJoinedFilledTable(browser, 'edit');
+    try {
+      await player.getByLabel('Персонаж игрока').getByRole('button', { name: 'Редактировать' }).click();
+      let dialog = player.getByRole('dialog', { name: 'Редактор моего персонажа' });
+      await expect(dialog).toBeVisible();
+      await dialog.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Образ' }).click();
+      await expect(dialog.getByLabel('Имя')).toHaveCount(0);
+      await expect(dialog.getByLabel('Образ персонажа')).toContainText(filledCharacterName);
+      await expect(dialog.getByText('Свободное редактирование обходит игровые ограничения')).toHaveCount(0);
+
+      await dialog.getByRole('button', { name: 'Свободное редактирование' }).click();
+      await expect(dialog.getByText('Свободное редактирование обходит игровые ограничения')).toContainText('Для повышения по правилам используйте «Новый уровень»');
+      await expect(dialog.getByLabel('Имя')).toHaveValue(filledCharacterName);
+      await dialog.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Заметки' }).click();
+      const playerNote = 'Игрок дополнил историю в автономном P2P-профиле.';
+      await dialog.getByRole('textbox', { name: 'Заметки персонажа' }).fill(playerNote);
+      await dialog.getByRole('button', { name: 'Готово' }).click();
+      await expect(dialog.getByRole('textbox', { name: 'Заметки персонажа' })).toHaveCount(0);
+      await expect(dialog.getByText(playerNote)).toBeVisible();
+
+      const gmEditor = await openGmCharacterEditor(gm);
+      await gmEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'История' }).click();
+      const history = gmEditor.getByLabel('История изменений персонажа');
+      await expect(history).toContainText('Игрок 1 · игрок', { timeout: 15_000 });
+      await expect(history).toContainText('Заметки');
+
+      const latestChange = history.locator('ol').first().locator(':scope > li').first();
+      await latestChange.locator('summary').click();
+      await expect(latestChange).toContainText(playerNote);
+      await latestChange.getByRole('button', { name: 'Отменить изменение' }).click();
+
+      await dialog.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Заметки' }).click();
+      await expect(dialog.getByText('Хранительница забытых историй.')).toBeVisible({ timeout: 15_000 });
+
+      await player.getByRole('button', { name: 'Закрыть редактор персонажа' }).click();
+      await player.setViewportSize({ width: 390, height: 844 });
+      await player.getByLabel('Слой интерфейса').getByRole('button', { name: 'Лист' }).click();
+      await player.getByLabel('Персонаж игрока').getByRole('button', { name: 'Редактировать' }).click();
+      dialog = player.getByRole('dialog', { name: 'Редактор моего персонажа' });
+      await expect(dialog).toBeVisible();
+      const box = await dialog.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+      await dialog.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Образ' }).click();
+      await expect(dialog.getByLabel('Имя')).toHaveCount(0);
+      await dialog.getByRole('button', { name: 'Свободное редактирование' }).click();
+      await expect(dialog.getByText('Свободное редактирование обходит игровые ограничения')).toBeVisible();
+      await expect(dialog.getByLabel('Имя')).toBeVisible();
+      await expect(player.locator('body')).toHaveJSProperty('scrollWidth', 390);
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('lets the player complete a strict level-up that the GM can audit and undo', async ({ browser }) => {
+    const { relay, gm, player } = await openJoinedFilledTable(browser, 'level');
+    try {
+      await player.getByLabel('Персонаж игрока').getByRole('button', { name: 'Редактировать' }).click();
+      const playerEditor = player.getByRole('dialog', { name: 'Редактор моего персонажа' });
+      await expect(playerEditor).toBeVisible();
+      await playerEditor.getByRole('button', { name: 'Новый уровень' }).click();
+
+      const levelUp = player.getByRole('dialog', { name: 'Повышение уровня' });
+      await expect(levelUp).toBeVisible();
+      // A player gets the same strict rules wizard as the GM, without the
+      // freeform bypass that would let them invent extra advancements.
+      await levelUp.getByRole('button', { name: 'Улучшения' }).click();
+      await expect(levelUp.locator('summary').filter({ hasText: 'Свободный режим мастера' })).toHaveCount(0);
+      await levelUp.getByRole('button', { name: 'Добавить: Добавить ячейку Ран' }).click();
+      await levelUp.getByRole('button', { name: 'Добавить: Добавить ячейку Стресса' }).click();
+      await expect(levelUp.getByText('Выбрано: 2 из 2')).toBeVisible();
+
+      const levelUpExperience = 'Победитель алой слизи';
+      await levelUp.getByRole('button', { name: 'Параметры' }).click();
+      await levelUp.getByLabel('Новый Опыт +2').fill(levelUpExperience);
+      await expect(levelUp.getByLabel('Макс. Ран')).toHaveValue(String(filledCharacterResources.hp.max + 1));
+      await expect(levelUp.getByLabel('Макс. Стресса')).toHaveValue(String(filledCharacterResources.stress.max + 1));
+
+      await levelUp.getByRole('button', { name: 'Карта', exact: true }).click();
+      const mandatoryCard = levelUp.getByLabel('Обязательная карта домена');
+      await expect.poll(() => mandatoryCard.locator('option').count()).toBeGreaterThan(1);
+      await mandatoryCard.selectOption({ index: 1 });
+
+      await levelUp.getByRole('button', { name: 'Проверка' }).click();
+      await expect(levelUp.getByText('Все обязательные выборы заполнены, повышение соответствует правилам.')).toBeVisible();
+      await levelUp.getByRole('button', { name: 'Применить повышение' }).click();
+      await expect(levelUp).toHaveCount(0);
+      await expect(playerEditor.getByText(/уровень 2/i)).toBeVisible();
+
+      const gmEditor = await openGmCharacterEditor(gm);
+      await gmEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'История' }).click();
+      const history = gmEditor.getByLabel('История изменений персонажа');
+      await expect(history).toContainText('Игрок 1 · игрок', { timeout: 15_000 });
+      const latestChange = history.locator('ol').first().locator(':scope > li').first();
+      await latestChange.locator('summary').click();
+      await expect(latestChange).toContainText('Уровень');
+      await expect(latestChange).toContainText('1 → 2');
+      await expect(latestChange).toContainText('Раны');
+      await expect(latestChange).toContainText('Стресс');
+      await expect(latestChange).toContainText('Опыты');
+      await expect(latestChange).toContainText('Победитель алой сли');
+      await expect(latestChange).toContainText('Карты доменов');
+
+      await latestChange.getByRole('button', { name: 'Отменить изменение' }).click();
+      await expect(playerEditor.getByText(/уровень 1/i)).toBeVisible({ timeout: 15_000 });
+      await playerEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы' }).click();
+      await playerEditor.getByRole('button', { name: 'Свободное редактирование' }).click();
+      await expect(playerEditor.getByLabel('Макс. Ран')).toHaveValue(String(filledCharacterResources.hp.max));
+      await expect(playerEditor.getByLabel('Макс. Стресса')).toHaveValue(String(filledCharacterResources.stress.max));
+    } finally {
+      await relay.close();
+    }
+  });
+});

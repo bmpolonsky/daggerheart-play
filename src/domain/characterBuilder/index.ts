@@ -8,6 +8,7 @@ import {
   type StartingWeaponOption
 } from '../rules/equipment';
 import { parseDomainCardCost } from '../rules/domainCards';
+import { characterBuilderRuleModifiersForSubclass, startingDomainCardCount } from '../rules/characterRuleModifiers';
 import type {
   Character,
   CharacterConnection,
@@ -33,6 +34,7 @@ export interface CharacterBuilderInput {
   communityId?: string;
   subclassId?: string;
   selectedCardIds?: string[];
+  requiredDomainCardCount?: number;
   portraitUrl?: string;
   experienceNames?: string[];
   pronouns?: string;
@@ -220,6 +222,7 @@ export function buildCharacterBuilderChoicePreview(input: {
   selectedCards?: GenericLibraryItem[];
   availableDomainCards?: GenericLibraryItem[];
   selectedCardIds?: string[];
+  requiredDomainCardCount?: number;
   selectedArmor?: StartingArmorOption;
   selectedPrimaryWeapon?: StartingWeaponOption;
   selectedSecondaryWeapon?: StartingWeaponOption | null;
@@ -259,7 +262,7 @@ export function buildCharacterBuilderChoicePreview(input: {
         subtitle: [card.subtitle, `Уровень ${domainCardLevel(card)}`, domainCardRecallCost(card) ? `Возврат ${domainCardRecallCost(card)}` : ''].filter(Boolean).join(' · '),
         body: firstFeatureText(card) || domainCardText(card) || cleanRulesText(card.body),
         imageUrl: card.imageUrl,
-        facts: [`Выбрано ${input.selectedCards?.length ?? 0}/2`]
+        facts: [`Выбрано ${input.selectedCards?.length ?? 0}/${input.requiredDomainCardCount ?? 2}`]
       };
     }
     case 'equipment': {
@@ -359,6 +362,8 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   const community = selectById(content.communities, input.communityId);
   const classSubclasses = content.subclasses.filter((item) => isSubclassForClass(item, className));
   const subclass = selectById(classSubclasses, input.subclassId);
+  const ruleModifiers = characterBuilderRuleModifiersForSubclass(subclass);
+  const requiredDomainCards = startingDomainCardCount(ruleModifiers);
 
   if (input.subclassId && !subclass) {
     warnings.push(`Subclass ${input.subclassId} is not valid for ${className}.`);
@@ -367,7 +372,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   const availableDomainCards = content.domainCards
     .filter((item) => isDomainCardForDomains(item, playableDomains))
     .filter((item) => domainCardLevel(item) === 1);
-  const selectedDomainCards = selectDomainCards(availableDomainCards, input.selectedCardIds ?? [], warnings);
+  const selectedDomainCards = selectDomainCards(availableDomainCards, input.selectedCardIds ?? [], requiredDomainCards, warnings);
   const baseTraits = { ...DEFAULT_TRAITS, ...input.traits };
   const equipment = buildStartingEquipmentLoadout({
     className,
@@ -408,6 +413,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
       pronouns: input.pronouns?.trim() ?? '',
       className,
       subclassName: subclass?.name ?? '',
+      subclassSlug: subclass?.slug ?? '',
       ancestry: ancestry?.name ?? '',
       community: community?.name ?? '',
       domains: classDomains,
@@ -423,6 +429,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
       armor: equipment.armor,
       experiences: buildExperiences(input.experienceNames, input.now),
       domainCards,
+      ruleModifiers,
       sheetCards,
       weapons: equipment.weapons,
       inventory: equipment.inventory,
@@ -634,13 +641,13 @@ function selectById(items: GenericLibraryItem[], id: string | undefined): Generi
   return items.find((item) => item.id === id) ?? null;
 }
 
-function selectDomainCards(available: GenericLibraryItem[], selectedIds: string[], warnings: string[]): GenericLibraryItem[] {
+function selectDomainCards(available: GenericLibraryItem[], selectedIds: string[], limit: number, warnings: string[]): GenericLibraryItem[] {
   const selected: GenericLibraryItem[] = [];
   const seen = new Set<string>();
 
   for (const id of selectedIds) {
-    if (selected.length >= 2) {
-      warnings.push('Only the first two valid domain cards are included.');
+    if (selected.length >= limit) {
+      warnings.push(`Only the first ${limit} valid domain cards are included.`);
       break;
     }
     if (seen.has(id)) continue;

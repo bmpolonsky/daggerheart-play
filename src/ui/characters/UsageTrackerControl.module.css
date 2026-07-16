@@ -1,0 +1,37 @@
+.root {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.value {
+  min-width: 28px;
+  color: var(--dh-paper-muted);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.dialog {
+  width: min(420px, calc(100vw - 24px));
+}
+
+.dialogBody {
+  display: grid;
+  gap: 14px;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dialogActions > div {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}

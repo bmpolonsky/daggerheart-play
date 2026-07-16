@@ -2,12 +2,15 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Copy, Eye, LocateFixed, Trash2 } from 'lucide-react';
 import type { SceneTableState } from '../../../../domain/rules/types';
+import { DEFAULT_SCENE_BACKGROUND_FRAMING, normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../../../domain/tabletop/sceneBackground';
 import { assetService, gameService, sceneTableService } from '../../../../services/serviceRegistry';
 import { Button } from '../../../components/common/Button';
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { IconButton } from '../../../components/common/IconButton';
 import { FilePicker, ImageFilePicker } from '../../../components/common/ImageFilePicker';
+import { RangeField } from '../../../components/common/RangeField';
 import { TextField } from '../../../components/common/Field';
+import { SegmentedControl } from '../../../components/common/SegmentedControl';
 import { SectionHeader } from '../../../components/common/SectionHeader';
 import { Toolbar } from '../../../components/common/Toolbar';
 
@@ -64,10 +67,20 @@ export function SceneEditorRow({
     sceneTableService.setSceneMusicTrack(scene.id, { sourceUrl: '', title: '' });
   };
   const previewUrl = backgroundObjectUrl || scene.backgroundUrl;
+  const backgroundFraming = normalizeSceneBackgroundFraming(scene.backgroundFraming);
   const musicTitle = scene.music.title || 'Не выбрана';
   const publishScene = () => {
     if (sceneTableService.publishScene(scene.id)) gameService.startScene(scene.name);
   };
+  const updateBackgroundFraming = (patch: Partial<typeof backgroundFraming>) => {
+    sceneTableService.updateScene(scene.id, {
+      backgroundFraming: normalizeSceneBackgroundFraming({ ...backgroundFraming, ...patch })
+    });
+  };
+  const framingIsDefault = backgroundFraming.fit === DEFAULT_SCENE_BACKGROUND_FRAMING.fit
+    && backgroundFraming.zoom === DEFAULT_SCENE_BACKGROUND_FRAMING.zoom
+    && backgroundFraming.offsetX === DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX
+    && backgroundFraming.offsetY === DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY;
 
   return (
     <section className="player-tools-detail-editor player-tools-scene-editor" aria-label={`Редактор сцены ${scene.name}`}>
@@ -96,14 +109,79 @@ export function SceneEditorRow({
         )}
       />
       <div className="player-tools-scene-editor__workspace">
-        <ImageFilePicker
-          className="player-tools-scene-preview"
-          label="Фон сцены"
-          imageUrl={previewUrl}
-          aspectRatio="16 / 9"
-          onFileSelect={selectBackgroundImage}
-          onClear={clearBackgroundImage}
-        />
+        <div className="player-tools-scene-visual">
+          <ImageFilePicker
+            className="player-tools-scene-preview"
+            label="Фон сцены"
+            imageUrl={previewUrl}
+            aspectRatio="16 / 9"
+            previewStyle={{
+              objectFit: backgroundFraming.fit === 'fill' ? 'cover' : 'contain',
+              objectPosition: 'center',
+              transform: sceneBackgroundTransform(backgroundFraming),
+              transformOrigin: 'center'
+            }}
+            onFileSelect={selectBackgroundImage}
+            onClear={clearBackgroundImage}
+          />
+          {previewUrl && (
+            <div className="player-tools-scene-framing">
+              <SegmentedControl
+                label="Размещение фона"
+                value={backgroundFraming.fit}
+                options={[
+                  { value: 'fit', label: 'Вписать' },
+                  { value: 'fill', label: 'Заполнить' }
+                ]}
+                onChange={(fit) => updateBackgroundFraming({ fit })}
+              />
+              <details className="player-tools-scene-framing__advanced" key={scene.id}>
+                <summary>Настроить кадр</summary>
+                <div className="player-tools-scene-framing__controls">
+                  <RangeField
+                    label="Масштаб"
+                    aria-label="Масштаб фона"
+                    min={1}
+                    max={2.5}
+                    step={0.05}
+                    value={backgroundFraming.zoom}
+                    valueLabel={`${Math.round(backgroundFraming.zoom * 100)}%`}
+                    onInput={(event) => updateBackgroundFraming({ zoom: event.currentTarget.valueAsNumber })}
+                  />
+                  <RangeField
+                    label="По горизонтали"
+                    aria-label="Положение фона по горизонтали"
+                    min={-1}
+                    max={1}
+                    step={0.05}
+                    value={backgroundFraming.offsetX}
+                    valueLabel={framingOffsetLabel(backgroundFraming.offsetX)}
+                    onInput={(event) => updateBackgroundFraming({ offsetX: event.currentTarget.valueAsNumber })}
+                  />
+                  <RangeField
+                    label="По вертикали"
+                    aria-label="Положение фона по вертикали"
+                    min={-1}
+                    max={1}
+                    step={0.05}
+                    value={backgroundFraming.offsetY}
+                    valueLabel={framingOffsetLabel(backgroundFraming.offsetY)}
+                    onInput={(event) => updateBackgroundFraming({ offsetY: event.currentTarget.valueAsNumber })}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    type="button"
+                    disabled={framingIsDefault}
+                    onClick={() => sceneTableService.updateScene(scene.id, { backgroundFraming: { ...DEFAULT_SCENE_BACKGROUND_FRAMING } })}
+                  >
+                    Сбросить кадр
+                  </Button>
+                </div>
+              </details>
+            </div>
+          )}
+        </div>
         <div className="player-tools-scene-editor__fields">
           <TextField label="Название" value={scene.name} onInput={(event) => sceneTableService.updateScene(scene.id, { name: event.currentTarget.value })} />
           <TextField label="Подзаголовок" value={scene.subtitle} placeholder="Короткая строка для игроков" onInput={(event) => sceneTableService.updateScene(scene.id, { subtitle: event.currentTarget.value })} />
@@ -133,4 +211,9 @@ export function SceneEditorRow({
       )}
     </section>
   );
+}
+
+function framingOffsetLabel(value: number): string {
+  if (Math.abs(value) < 0.001) return 'По центру';
+  return `${value > 0 ? '+' : ''}${Math.round(value * 100)}%`;
 }

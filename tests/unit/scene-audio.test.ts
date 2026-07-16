@@ -7,6 +7,7 @@ import {
   pauseSceneMusic,
   playSceneMusic,
   setSceneMusicTrack,
+  setSceneMusicDeliveryMode,
   setSceneMusicVolume,
   stopSceneMusic
 } from "../../src/domain/audio/sceneAudio";
@@ -14,6 +15,7 @@ import { createTableScene } from "../../src/domain/tabletop/factories";
 import { resetAllStores, sceneTableStore } from "../../src/stores/gameStores";
 import { sceneTableService } from "../../src/services/serviceRegistry";
 import { AudioService } from "../../src/services/AudioService";
+import { SceneAudioBroadcastService } from "../../src/services/SceneAudioBroadcastService";
 import { createFakeSceneAudioElement } from "./helpers";
 
 test('scene music helpers normalize track, playback position and volume', () => {
@@ -21,6 +23,7 @@ test('scene music helpers normalize track, playback position and volume', () => 
   assert.equal(base.sourceUrl, 'https://cdn.example.com/scene.mp3');
   assert.equal(base.volume, 1);
   assert.equal(base.position, 0);
+  assert.equal(base.deliveryMode, 'download');
 
   const changed = setSceneMusicTrack(base, { sourceUrl: 'https://cdn.example.com/forest.mp3', title: 'Forest' }, '2026-05-24T10:00:01.000Z');
   assert.equal(changed.playing, false);
@@ -31,6 +34,7 @@ test('scene music helpers normalize track, playback position and volume', () => 
   assert.equal(localTrack.assetId, 'asset-music-1');
   assert.equal(localTrack.sourceUrl, '');
   assert.equal(playSceneMusic(localTrack, '2026-05-24T10:00:01.750Z').playing, true);
+  assert.equal(setSceneMusicDeliveryMode(localTrack, 'broadcast').deliveryMode, 'broadcast');
 
   const playing = playSceneMusic(changed, '2026-05-24T10:00:02.000Z');
   assert.equal(playing.playing, true);
@@ -55,6 +59,16 @@ test('scene table factory backfills scene music for older snapshots', () => {
 
   assert.equal(state.scenes['scene-old'].music.sourceUrl, '');
   assert.equal(state.scenes['scene-old'].music.playing, false);
+  assert.equal(state.scenes['scene-old'].music.deliveryMode, 'download');
+});
+
+test('scene table persists the selected music delivery mode', () => {
+  resetAllStores();
+  const sceneId = sceneTableStore.get().liveSceneId;
+  sceneTableService.setSceneMusicDeliveryMode(sceneId, 'broadcast');
+  assert.equal(sceneTableStore.get().scenes[sceneId].music.deliveryMode, 'broadcast');
+  const roundTripped = createTableScene(sceneTableStore.get().scenes[sceneId]);
+  assert.equal(roundTripped.music.deliveryMode, 'broadcast');
 });
 
 test('publishing a scene carries active scene music playback to the next scene track', () => {
@@ -114,6 +128,75 @@ test('audio service attempts scene music playback and exposes autoplay block for
 
   assert.equal(fakeAudio.playCalls(), 2);
   assert.equal(fakeAudio.element.volume, 0.35);
+});
+
+test('audio service seeks to the live position when a delayed scene asset becomes available', async () => {
+  const audio = new AudioService();
+  const fakeAudio = createFakeSceneAudioElement([undefined]);
+  audio.attachSceneAudioElement(fakeAudio.element);
+  const startedAt = new Date(Date.now() - 4_000).toISOString();
+
+  await audio.syncSceneMusic(createSceneMusicState({
+    assetId: 'delayed-music',
+    sourceUrl: 'blob:http://localhost/delayed-music',
+    title: 'Delayed',
+    playing: true,
+    position: 3,
+    startedAt
+  }));
+
+  assert.ok(fakeAudio.element.currentTime >= 6.5, `expected delayed playback near 7s, got ${fakeAudio.element.currentTime}`);
+  assert.equal(audio.audio$.get().sceneAudioStatus, 'playing');
+});
+
+test('broadcast mode publishes the scene player as a distinct media delivery', async () => {
+  const broadcast = new SceneAudioBroadcastService();
+  const track = { contentHint: '', stop: () => undefined, addEventListener: () => undefined };
+  const stream = {
+    getTracks: () => [track],
+    getAudioTracks: () => [track]
+  } as unknown as MediaStream;
+  const published: Array<{ stream: MediaStream; metadata: unknown }> = [];
+  const removed: MediaStream[] = [];
+  const transport = {
+    id: 'broadcast-test',
+    label: 'Broadcast test',
+    connect: async () => undefined,
+    disconnect: async () => undefined,
+    publish: async () => undefined,
+    subscribe: () => () => undefined,
+    publishMediaStream: async (publishedStream: MediaStream, metadata?: unknown) => {
+      published.push({ stream: publishedStream, metadata });
+    },
+    removeMediaStream: (publishedStream: MediaStream) => removed.push(publishedStream),
+    subscribeMediaStreams: () => () => undefined
+  };
+  const element = {
+    src: 'blob:http://localhost/music',
+    paused: false,
+    volume: 1,
+    captureStream: () => stream,
+    load: () => undefined,
+    play: async () => undefined
+  } as unknown as HTMLAudioElement;
+
+  broadcast.setTransport(transport);
+  broadcast.attachSceneAudioElement(element);
+  broadcast.setSceneMusicContext(createSceneMusicState({
+    sourceUrl: element.src,
+    title: 'Broadcast',
+    deliveryMode: 'broadcast',
+    playing: true
+  }));
+  await broadcast.startScenePlayerBroadcast('Broadcast');
+
+  assert.equal(published.length, 1);
+  assert.deepEqual(published[0]?.metadata, { kind: 'scene-audio', label: 'Broadcast', deliveryKind: 'scene-player' });
+  assert.equal(broadcast.broadcast$.get().deliveryKind, 'scene-player');
+  assert.equal(broadcast.broadcast$.get().status, 'live');
+  broadcast.stopBroadcast();
+  assert.equal(removed.length, 1);
+  assert.equal(broadcast.broadcast$.get().deliveryKind, 'none');
 });
 
 test('audio service stops local voice stream when transport is detached', async () => {

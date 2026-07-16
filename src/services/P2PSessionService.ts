@@ -9,7 +9,7 @@ import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage'
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
 import type { SyncEventContext, SyncTargetPeer, TableParticipant } from '../domain/tabletop/types';
-import type { Character, CharacterCondition, FeedEntry } from '../domain/rules/types';
+import type { Character, CharacterCondition, FeedEntry, PersistedState } from '../domain/rules/types';
 import { gameStore, charactersStore, resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
 import { hydratePersistedState, snapshotPersistedState } from '../stores/persistedState';
 import type { PlayerActionRequest, SubmitPlayerActionRequestInput } from './PlayerActionRequestService';
@@ -20,11 +20,13 @@ import type { AudioService } from './AudioService';
 import type { AssetService } from './AssetService';
 import type { DiceService } from './DiceService';
 import type { FeedService } from './FeedService';
+import type { CharacterService } from './CharacterService';
 import type {
   AssetRequestReason,
   PlayerCharacterResourcePatch,
   PlayerCharacterCreateMessage,
   PlayerCharacterResourcesMessage,
+  PlayerCharacterUpdateMessage,
   PlayerDecision,
   PlayerDecisionMessage,
   PlayerRestChoiceMessage,
@@ -138,7 +140,8 @@ export class P2PSessionService {
   private assetTransferService: P2PAssetTransferService;
   private publishedPlayerFeedEntrySignatures = new Map<string, string>();
   private publishingPlayerFeedEntryIds = new Set<string>();
-  private playerCharacterResourceSignatures = new Map<string, string>();
+  private playerCharacterFullSignatures = new Map<string, string>();
+  private playerCharacterRevisions = new Map<string, number>();
   private processedPlayerCharacterCreateIds = new Set<string>();
   private subscriptions = new SubscriptionBag();
   private suppressPlayerStoreForwarding = false;
@@ -159,7 +162,8 @@ export class P2PSessionService {
     private sceneAudioBroadcastService?: SceneAudioBroadcastService,
     private transportFactory: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter = (options) => createConfiguredP2PTransport(options),
     private roomConnectionConfig: P2PRoomConnectionConfig = {},
-    private mediaCallService?: MediaCallService
+    private mediaCallService?: MediaCallService,
+    private characterService?: CharacterService
   ) {
     this.assetTransferService = new P2PAssetTransferService(
       syncService,
@@ -227,7 +231,7 @@ export class P2PSessionService {
     this.playerActorContext = {
       participantId: context.participantId?.trim() || undefined,
       actorId: context.actorId?.trim() || undefined,
-      actorName: context.actorName?.trim() || undefined
+      actorName: context.actorName?.trim() || this.playerActorContext.actorName?.trim() || undefined
     };
   }
 
@@ -411,6 +415,14 @@ export class P2PSessionService {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурсы персонажа игрока обновлены.' });
       void this.publishSnapshot();
     }));
+    this.subscriptions.add(this.syncService.subscribePlayerCharacterUpdates((message, _event, context) => {
+      if (!this.applyPlayerCharacterUpdate(message, remotePeerContext(context))) {
+        this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Изменения персонажа отклонены') });
+        return;
+      }
+      this.patchSession({ lastRequestAt: nowIso(), message: 'Изменения персонажа игрока применены.' });
+      void this.publishSnapshot();
+    }));
     this.subscriptions.add(this.assetTransferService.subscribeGm());
     subscribeToSyncedGameStores(() => this.scheduleSnapshot()).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
     this.sessionStore.update((state) => {
@@ -472,7 +484,7 @@ export class P2PSessionService {
       await this.syncService.connectReadOnly(roomId, participant, (state) => {
         this.suppressPlayerStoreForwarding = true;
         try {
-          hydratePersistedState(state);
+          hydratePersistedState(this.preserveUnacknowledgedPlayerCharacter(state));
           this.capturePlayerForwardingBaseline();
           this.patchSession({ lastSnapshotAt: nowIso(), message: 'Данные игры получены.' });
         } finally {
@@ -485,7 +497,11 @@ export class P2PSessionService {
         void this.forwardPlayerFeedEntries();
       }));
       this.subscriptions.add(charactersStore.subscribe(() => {
-        void this.forwardPlayerCharacterResources();
+        // A character mutation must travel immediately as one authoritative
+        // document. Sending the legacy resource subset first lets the GM publish
+        // an older snapshot that can overwrite Hand/Vault, trackers, notes, or
+        // level-up changes before the full update is delivered.
+        void this.forwardPlayerCharacterUpdate();
       }));
       await this.syncService.publishSnapshotRequest('join', transport.gmPeerId() ?? undefined);
     } catch (error) {
@@ -587,7 +603,8 @@ export class P2PSessionService {
     this.assetTransferService.clear(false);
     this.publishedPlayerFeedEntrySignatures.clear();
     this.publishingPlayerFeedEntryIds.clear();
-    this.playerCharacterResourceSignatures.clear();
+    this.playerCharacterFullSignatures.clear();
+    this.playerCharacterRevisions.clear();
     this.processedPlayerCharacterCreateIds.clear();
     this.actorOwnerVerifiedPeers.clear();
     this.suppressPlayerStoreForwarding = false;
@@ -908,7 +925,71 @@ export class P2PSessionService {
       this.publishedPlayerFeedEntrySignatures.set(entry.id, playerFeedEntrySignature(entry));
     }
     for (const character of Object.values(charactersStore.get().entities)) {
-      this.playerCharacterResourceSignatures.set(character.id, playerCharacterResourceSignature(character));
+      this.playerCharacterFullSignatures.set(character.id, playerCharacterFullSignature(character));
+      if (character.playerSyncRevision?.revision) {
+        this.playerCharacterRevisions.set(character.id, character.playerSyncRevision.revision);
+      }
+    }
+  }
+
+  private preserveUnacknowledgedPlayerCharacter(state: PersistedState): PersistedState {
+    const actorId = this.playerActorContext.actorId;
+    if (!actorId) return state;
+    const latestPublishedRevision = this.playerCharacterRevisions.get(actorId);
+    if (!latestPublishedRevision) return state;
+    const incoming = state.characters.entities[actorId];
+    const local = charactersStore.get().entities[actorId];
+    if (!incoming || !local) return state;
+    const incomingRevision = incoming.playerSyncRevision;
+    if (incomingRevision && incomingRevision.participantId === this.playerActorContext.participantId && incomingRevision.revision >= latestPublishedRevision) return state;
+    return {
+      ...state,
+      characters: {
+        ...state.characters,
+        entities: { ...state.characters.entities, [actorId]: local }
+      }
+    };
+  }
+
+  private async forwardPlayerCharacterUpdate(): Promise<void> {
+    if (this.suppressPlayerStoreForwarding) return;
+    const session = this.session$.get();
+    if (session.role !== 'player' || !session.connected) return;
+    const context = this.requirePlayerActorContext();
+    if (!context) return;
+    const character = charactersStore.get().entities[context.actorId];
+    if (!character) return;
+    const signature = playerCharacterFullSignature(character);
+    const previousSignature = this.playerCharacterFullSignatures.get(character.id);
+    if (previousSignature === signature) return;
+    const previousRevision = this.playerCharacterRevisions.get(character.id) ?? character.playerSyncRevision?.revision ?? 0;
+    const revision = previousRevision + 1;
+    // Reserve this version before awaiting transport so rapid store emissions do
+    // not enqueue duplicate full snapshots. A later local mutation gets a new
+    // signature and is still published immediately.
+    this.playerCharacterFullSignatures.set(character.id, signature);
+    this.playerCharacterRevisions.set(character.id, revision);
+    try {
+      await this.syncService.publishPlayerCharacterUpdate({
+        type: 'playerCharacterUpdate',
+        participantId: context.participantId,
+        actorId: character.id,
+        actorName: context.actorName ?? (character.playerName || character.name),
+        character,
+        revision,
+        updatedAt: nowIso()
+      });
+      this.patchSession({ lastRequestAt: nowIso(), message: 'Изменения персонажа отправлены мастеру.' });
+    } catch (error) {
+      if (this.playerCharacterFullSignatures.get(character.id) === signature) {
+        if (previousSignature === undefined) this.playerCharacterFullSignatures.delete(character.id);
+        else this.playerCharacterFullSignatures.set(character.id, previousSignature);
+      }
+      if (this.playerCharacterRevisions.get(character.id) === revision) {
+        if (previousRevision > 0) this.playerCharacterRevisions.set(character.id, previousRevision);
+        else this.playerCharacterRevisions.delete(character.id);
+      }
+      this.patchSession({ status: 'degraded', message: error instanceof Error ? error.message : 'Не удалось отправить изменения персонажа мастеру.' });
     }
   }
 
@@ -948,114 +1029,74 @@ export class P2PSessionService {
     }
   }
 
-  private async forwardPlayerCharacterResources(): Promise<void> {
-    if (this.suppressPlayerStoreForwarding) {
-      return;
-    }
-    const session = this.session$.get();
-    if (session.role !== 'player' || !session.connected) {
-      return;
-    }
-    const context = this.requirePlayerActorContext();
-    if (!context) {
-      return;
-    }
-    const character = charactersStore.get().entities[context.actorId];
-    if (!character) {
-      return;
-    }
-    {
-      const signature = playerCharacterResourceSignature(character);
-      const previousSignature = this.playerCharacterResourceSignatures.get(character.id);
-      if (previousSignature === signature) {
-        return;
-      }
-      try {
-        await this.syncService.publishPlayerCharacterResources(createPlayerCharacterResourcesMessage(character, context.participantId));
-        this.playerCharacterResourceSignatures.set(character.id, signature);
-        this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурсы персонажа отправлены мастеру.' });
-      } catch (error) {
-        if (previousSignature === undefined) {
-          this.playerCharacterResourceSignatures.delete(character.id);
-        }
-        const message = error instanceof Error ? error.message : 'Не удалось отправить ресурсы персонажа мастеру.';
-        this.patchSession({ status: 'degraded', message });
-      }
-    }
-  }
-
   private applyPlayerCharacterResources(message: PlayerCharacterResourcesMessage, peerContext?: RemotePeerContext): boolean {
     if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурсы персонажа отклонены.' });
       return false;
     }
-    let applied = false;
-    const pendingDeathMoveActor: { current: { id: string; name: string } | null } = { current: null };
-    charactersStore.update((state) => {
-      const character = state.entities[message.actorId];
-      if (!character) {
-        return state;
-      }
-      const resources = message.resources;
-      const nextDomainCards = resources.domainCards
-        ? character.domainCards.map((card) => {
-            const remote = resources.domainCards?.find((item) => item.id === card.id);
-            if (!remote?.tokens) return card;
-            return {
-              ...card,
-              tokens: {
-                ...card.tokens,
-                value: clamp(toSafeInteger(remote.tokens.value, card.tokens.value), 0, card.tokens.max)
-              }
-            };
-          })
-        : character.domainCards;
-      const effective = buildEffectiveCharacterStats(character);
-      const updated: Character = syncCharacterDefeatedCondition({
-        ...character,
-        hope: resources.hope
-          ? { ...character.hope, value: clamp(toSafeInteger(resources.hope.value, character.hope.value), 0, effective.hope.max) }
-          : character.hope,
-        hp: resources.hp
-          ? { ...character.hp, marked: clamp(toSafeInteger(resources.hp.marked, character.hp.marked), 0, character.hp.max) }
-          : character.hp,
-        stress: resources.stress
-          ? { ...character.stress, marked: clamp(toSafeInteger(resources.stress.marked, character.stress.marked), 0, character.stress.max) }
-          : character.stress,
-        armor: resources.armor
-          ? { ...character.armor, markedSlots: clamp(toSafeInteger(resources.armor.markedSlots, character.armor.markedSlots), 0, character.armor.score) }
-          : character.armor,
-        wealth: resources.wealth
-          ? sanitizeWealth({ ...character.wealth, ...resources.wealth })
-          : character.wealth,
-        activeBeastform: character.activeBeastform ?? null,
-        companion: resources.companion?.stress && character.companion
-          ? {
-            ...character.companion,
-            stress: {
-              ...character.companion.stress,
-              marked: clamp(toSafeInteger(resources.companion.stress.marked, character.companion.stress.marked), 0, character.companion.stress.max)
+    const character = charactersStore.get().entities[message.actorId];
+    if (!character) return false;
+    const resources = message.resources;
+    const nextDomainCards = resources.domainCards
+      ? character.domainCards.map((card) => {
+          const remote = resources.domainCards?.find((item) => item.id === card.id);
+          if (!remote?.tokens) return card;
+          return {
+            ...card,
+            tokens: {
+              ...card.tokens,
+              value: clamp(toSafeInteger(remote.tokens.value, card.tokens.value), 0, card.tokens.max)
             }
+          };
+        })
+      : character.domainCards;
+    const effective = buildEffectiveCharacterStats(character);
+    const updated: Character = syncCharacterDefeatedCondition({
+      ...character,
+      hope: resources.hope
+        ? { ...character.hope, value: clamp(toSafeInteger(resources.hope.value, character.hope.value), 0, effective.hope.max) }
+        : character.hope,
+      hp: resources.hp
+        ? { ...character.hp, marked: clamp(toSafeInteger(resources.hp.marked, character.hp.marked), 0, character.hp.max) }
+        : character.hp,
+      stress: resources.stress
+        ? { ...character.stress, marked: clamp(toSafeInteger(resources.stress.marked, character.stress.marked), 0, character.stress.max) }
+        : character.stress,
+      armor: resources.armor
+        ? { ...character.armor, markedSlots: clamp(toSafeInteger(resources.armor.markedSlots, character.armor.markedSlots), 0, character.armor.score) }
+        : character.armor,
+      wealth: resources.wealth
+        ? sanitizeWealth({ ...character.wealth, ...resources.wealth })
+        : character.wealth,
+      activeBeastform: character.activeBeastform ?? null,
+      companion: resources.companion?.stress && character.companion
+        ? {
+          ...character.companion,
+          stress: {
+            ...character.companion.stress,
+            marked: clamp(toSafeInteger(resources.companion.stress.marked, character.companion.stress.marked), 0, character.companion.stress.max)
           }
-          : character.companion ?? null,
-        domainCards: nextDomainCards,
-        conditions: resources.conditions ? normalizePlayerConditionList(resources.conditions) : character.conditions,
-        updatedAt: message.updatedAt
-      });
-      applied = playerCharacterResourceSignature(character) !== playerCharacterResourceSignature(updated);
-      if (!applied) {
-        return state;
-      }
-      if (!hasConditionTag(character.conditions, ActorStatus.Defeated) && hasConditionTag(updated.conditions, ActorStatus.Defeated)) {
-        pendingDeathMoveActor.current = { id: updated.id, name: updated.name };
-      }
-      return {
+        }
+        : character.companion ?? null,
+      domainCards: nextDomainCards,
+      conditions: resources.conditions ? normalizePlayerConditionList(resources.conditions) : character.conditions,
+      updatedAt: message.updatedAt
+    });
+    const applied = playerCharacterResourceSignature(character) !== playerCharacterResourceSignature(updated);
+    if (!applied) return false;
+    const deathMoveActor = !hasConditionTag(character.conditions, ActorStatus.Defeated) && hasConditionTag(updated.conditions, ActorStatus.Defeated)
+      ? { id: updated.id, name: updated.name }
+      : null;
+    const actor = this.playerChangeActor(message.participantId, message.actorName);
+    if (this.characterService) {
+      this.characterService.applyTrustedPlayerUpdate(character.id, updated, actor);
+    } else {
+      charactersStore.update((state) => ({
         ...state,
         entities: { ...state.entities, [updated.id]: updated },
         updatedAt: nowIso()
-      };
-    });
-    const deathMoveActor = pendingDeathMoveActor.current;
+      }));
+    }
     if (deathMoveActor) {
       this.feedService.requestDeathMove({
         actor: {
@@ -1067,6 +1108,25 @@ export class P2PSessionService {
       });
     }
     return applied;
+  }
+
+  private applyPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, peerContext?: RemotePeerContext): boolean {
+    if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) return false;
+    if (!this.characterService) return false;
+    return this.characterService.applyTrustedPlayerUpdate(
+      message.actorId,
+      message.character,
+      this.playerChangeActor(message.participantId, message.actorName),
+      { participantId: message.participantId, revision: message.revision }
+    );
+  }
+
+  private playerChangeActor(participantId: string, actorName?: string) {
+    return {
+      id: participantId,
+      name: actorName?.trim() || this.sceneTableService.sceneTable$.get().participants[participantId]?.name || 'Игрок',
+      role: 'player' as const
+    };
   }
 
   private applyPlayerCharacterCreate(message: PlayerCharacterCreateMessage): boolean {
@@ -1685,6 +1745,11 @@ function playerCharacterResourceSignature(character: Character): string {
   });
 }
 
+function playerCharacterFullSignature(character: Character): string {
+  const { changeHistory: _history, updatedAt: _updatedAt, ...canonical } = character;
+  return JSON.stringify(canonical);
+}
+
 function playerFeedEntrySignature(entry: FeedEntry): string {
   return JSON.stringify(entry);
 }
@@ -1696,33 +1761,6 @@ function remotePeerContext(context?: SyncEventContext): RemotePeerContext | unde
   return {
     logicalPeerId: context.sourcePeerId,
     verifiedPeerId: context.verifiedSourcePeerId ?? context.sourcePeerId
-  };
-}
-
-function createPlayerCharacterResourcesMessage(character: Character, participantId: string): PlayerCharacterResourcesMessage {
-  return {
-    type: 'playerCharacterResources',
-    participantId,
-    actorId: character.id,
-    actorName: character.name,
-    resources: {
-      hope: { value: character.hope.value },
-      hp: { marked: character.hp.marked },
-      stress: { marked: character.stress.marked },
-      armor: { markedSlots: character.armor.markedSlots },
-      wealth: character.wealth,
-      companion: character.companion ? { stress: { marked: character.companion.stress.marked } } : undefined,
-      conditions: character.conditions.map((condition) => ({
-        id: condition.id,
-        name: condition.name,
-        notes: condition.notes
-      })),
-      domainCards: character.domainCards.map((card) => ({
-        id: card.id,
-        tokens: { value: card.tokens.value }
-      }))
-    },
-    updatedAt: nowIso()
   };
 }
 

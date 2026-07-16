@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { filledCharacterName, filledCharacterResources, filledEnvironmentName, openFilledGmGame } from './filled-game-helpers';
+import { openPlayerGame } from './game-route-helpers';
 import { expectInsideHorizontalBounds, expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
 
 test.describe('filled VTT layout regressions', () => {
@@ -57,6 +58,17 @@ test.describe('filled VTT layout regressions', () => {
     await expect(sheet.getByRole('group', { name: 'Стресс', exact: true }).getByRole('button')).toHaveCount(filledCharacterResources.stress.max);
     const desktopScroll = await sheet.evaluate((element) => ({ client: element.clientHeight, scroll: element.scrollHeight }));
     expect(desktopScroll.scroll).toBeGreaterThan(desktopScroll.client + 400);
+    await sectionRail.getByRole('button', { name: 'Карты' }).click();
+    const domainCards = sheet.locator('.dh-list-item').filter({ hasText: 'Заклинание' });
+    await expect(domainCards).toHaveCount(7);
+    const scrollTopBeforeLastCard = await sheet.evaluate((element) => element.scrollTop);
+    await domainCards.last().scrollIntoViewIfNeeded();
+    await expect.poll(() => sheet.evaluate((element) => element.scrollTop)).toBeGreaterThan(scrollTopBeforeLastCard);
+    expect(await domainCards.last().evaluate((element) => {
+      const card = element.getBoundingClientRect();
+      const container = element.closest('[aria-label="Персонаж игрока"]')?.getBoundingClientRect();
+      return Boolean(container && card.top >= container.top && card.bottom <= container.bottom);
+    })).toBe(true);
     await sectionRail.getByRole('button', { name: 'Снаряжение' }).click();
     await expect.poll(() => sheet.evaluate((element) => element.scrollTop)).toBeGreaterThan(600);
 
@@ -160,6 +172,126 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
 
+  test('keeps the player Tools → Compendium list and detail scroll owners stable on desktop and mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openPlayerGame(page);
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Справочник' }).click();
+    const body = workspace.getByLabel('Содержимое рабочего пространства');
+    const layout = workspace.locator('.dh-list-detail-layout');
+    const list = workspace.locator('.player-library-list');
+    const cards = list.locator('.player-library-card');
+    await expect.poll(() => cards.count()).toBeGreaterThan(10);
+
+    await list.evaluate((element) => element.scrollTo({ top: 220 }));
+    await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
+    const desktopListScrollTop = await list.evaluate((element) => element.scrollTop);
+    await expectStableGeometry([workspace, body, layout, list]);
+    await cards.nth(await firstFullyVisibleIndex(cards)).click();
+    const detail = workspace.locator('.player-library-detail');
+    await expect(detail).toBeVisible();
+    await expect(list).toBeVisible();
+    await expectStableGeometry([workspace, body, layout, list, detail]);
+    await expectSingleScrollOwner(body, list, detail);
+    expect(await body.evaluate((element) => element.scrollTop)).toBe(0);
+    expect(await list.evaluate((element) => element.scrollTop)).toBe(desktopListScrollTop);
+    await workspace.getByRole('button', { name: 'Закрыть описание' }).click();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(list).toBeVisible();
+    await list.evaluate((element) => element.scrollTo({ top: 420 }));
+    await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(250);
+    const mobileListScrollTop = await list.evaluate((element) => element.scrollTop);
+    await expectStableGeometry([workspace, body, layout, list]);
+    const visibleMobileCardIndex = await firstFullyVisibleIndex(cards);
+    await cards.nth(visibleMobileCardIndex).click();
+    const retainedMobileListScrollTop = await list.evaluate((element) => element.scrollTop);
+    await expect(list).toBeHidden();
+    await expect(detail).toBeVisible();
+    await expectStableGeometry([workspace, body, layout, detail]);
+    await expectSingleScrollOwner(body, detail);
+    expect(await body.evaluate((element) => element.scrollTop)).toBe(0);
+    await workspace.getByRole('button', { name: 'Закрыть описание' }).click();
+    await expect(list).toBeVisible();
+    expect(retainedMobileListScrollTop).toBeGreaterThanOrEqual(mobileListScrollTop - 1);
+    await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBe(retainedMobileListScrollTop);
+    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  });
+
+  test('scrolls the exact GM workspace character route through all seven cards with one scroll owner', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openFilledGmGame(page);
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+
+    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    const body = workspace.getByLabel('Содержимое рабочего пространства');
+    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
+
+    const editor = workspace.getByLabel('Редактор персонажа');
+    await expect(editor).toBeVisible();
+    await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Снаряжение' }).click();
+    const cards = editor.locator('.dh-list-item').filter({ hasText: 'Заклинание' });
+    await expect(cards).toHaveCount(7);
+    const lastCard = cards.last();
+    const before = await editor.evaluate((element) => element.scrollTop);
+    await editor.hover();
+    await page.mouse.wheel(0, 1_600);
+    await expect.poll(() => editor.evaluate((element) => element.scrollTop)).toBeGreaterThan(before + 150);
+    await expectInsideScrollport(editor, lastCard);
+    expect(await body.evaluate((element) => element.scrollTop)).toBe(0);
+    await expectSingleScrollOwner(body, editor);
+    await expectStableGeometry([workspace, body, editor]);
+  });
+
+  test('keeps simple scene fitting visible and advanced framing collapsed, saved, and rendered', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openFilledGmGame(page);
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+
+    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+    const framingMode = workspace.getByRole('group', { name: 'Размещение фона' });
+    const advanced = workspace.locator('.player-tools-scene-framing__advanced');
+    const zoom = workspace.getByLabel('Масштаб фона');
+    const horizontal = workspace.getByLabel('Положение фона по горизонтали');
+    const vertical = workspace.getByLabel('Положение фона по вертикали');
+    const preview = workspace.locator('.player-tools-scene-preview img');
+
+    await expect(framingMode.getByRole('button', { name: 'Заполнить' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(advanced).not.toHaveAttribute('open', '');
+    await expect(zoom).toBeHidden();
+    await framingMode.getByRole('button', { name: 'Вписать' }).click();
+    await expect(preview).toHaveCSS('object-fit', 'contain');
+
+    await advanced.locator('summary').click();
+    await expect(zoom).toBeVisible();
+    await zoom.fill('1.5');
+    await horizontal.fill('0.5');
+    await vertical.fill('-0.25');
+    await expect(preview).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
+    await workspace.getByRole('button', { name: 'Закрыть' }).click();
+
+    const renderedBackground = page.locator('.player-view__scene-image');
+    await expect(renderedBackground).toHaveCSS('background-size', 'contain');
+    await expect(renderedBackground).toHaveCSS('background-repeat', 'no-repeat');
+    await expect(renderedBackground).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
+
+    await page.reload();
+    await expect(page.locator('[data-vtt-root]')).toBeVisible();
+    await expect(page.locator('.player-view__scene-image')).toHaveCSS('background-size', 'contain');
+    await expect(page.locator('.player-view__scene-image')).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+    const reopenedWorkspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    await reopenedWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+    await expect(reopenedWorkspace.getByRole('group', { name: 'Размещение фона' }).getByRole('button', { name: 'Вписать' })).toHaveAttribute('aria-pressed', 'true');
+    await reopenedWorkspace.locator('.player-tools-scene-framing__advanced summary').click();
+    await expect(reopenedWorkspace.getByLabel('Масштаб фона')).toHaveValue('1.5');
+    await expect(reopenedWorkspace.getByLabel('Положение фона по горизонтали')).toHaveValue('0.5');
+    await expect(reopenedWorkspace.getByLabel('Положение фона по вертикали')).toHaveValue('-0.25');
+  });
+
   test('asks before removing a populated character and preserves it on cancel', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openFilledGmGame(page);
@@ -167,6 +299,7 @@ test.describe('filled VTT layout regressions', () => {
 
     const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
     await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    await workspace.getByRole('button', { name: 'Редактировать' }).click();
     await workspace.getByRole('button', { name: `Удалить персонажа ${filledCharacterName}` }).first().click();
 
     const confirmation = page.getByRole('dialog', { name: `Удалить персонажа «${filledCharacterName}»?` });
@@ -219,3 +352,56 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.getByLabel('Окружение мастера')).toBeVisible();
   });
 });
+
+async function expectStableGeometry(locators: Locator[]): Promise<void> {
+  for (const locator of locators) {
+    const samples = await locator.evaluate(async (element) => {
+      const values: Array<{ x: number; y: number; width: number; height: number; scrollTop: number }> = [];
+      for (let frame = 0; frame < 12; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const rect = element.getBoundingClientRect();
+        values.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height, scrollTop: element.scrollTop });
+      }
+      return values;
+    });
+    for (const key of ['x', 'y', 'width', 'height', 'scrollTop'] as const) {
+      const values = samples.map((sample) => sample[key]);
+      expect(Math.max(...values) - Math.min(...values), `${key} changed for ${await locator.getAttribute('class')}`).toBeLessThanOrEqual(1);
+    }
+  }
+}
+
+async function expectSingleScrollOwner(outer: Locator, ...inner: Locator[]): Promise<void> {
+  const outerState = await scrollState(outer);
+  expect(outerState.scrollHeight - outerState.clientHeight).toBeLessThanOrEqual(1);
+  const innerStates = await Promise.all(inner.map(scrollState));
+  expect(innerStates.map((state) => state.overflowY)).toEqual(innerStates.map(() => 'auto'));
+}
+
+async function scrollState(locator: Locator) {
+  return locator.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY
+  }));
+}
+
+async function expectInsideScrollport(scrollport: Locator, item: Locator): Promise<void> {
+  const [viewport, child] = await Promise.all([scrollport.boundingBox(), item.boundingBox()]);
+  expect(viewport).not.toBeNull();
+  expect(child).not.toBeNull();
+  expect(child!.y).toBeGreaterThanOrEqual(viewport!.y);
+  expect(child!.y + child!.height).toBeLessThanOrEqual(viewport!.y + viewport!.height);
+}
+
+async function firstFullyVisibleIndex(items: Locator): Promise<number> {
+  return items.evaluateAll((elements) => {
+    const scrollport = elements[0]?.parentElement?.getBoundingClientRect();
+    if (!scrollport) return 0;
+    const index = elements.findIndex((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.top >= scrollport.top && rect.bottom <= scrollport.bottom;
+    });
+    return Math.max(0, index);
+  });
+}

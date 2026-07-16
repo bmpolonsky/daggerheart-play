@@ -33,7 +33,7 @@ export default defineConfig({
     },
     {
       name: 'webkit-critical',
-      testMatch: /(?:critical-journeys|vtt-mobile-layout|p2p-session)\.spec\.ts/,
+      testMatch: /(?:critical-journeys|vtt-mobile-layout|vtt-filled-layout|p2p-session|character-player-workflows)\.spec\.ts/,
       use: {
         ...devices['Desktop Safari']
       }

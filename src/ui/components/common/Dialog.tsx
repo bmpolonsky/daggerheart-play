@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from 'react';
+import { createPortal } from 'preact/compat';
 import { useEffect, useRef } from 'preact/hooks';
 import styles from './Dialog.module.css';
 
@@ -57,8 +58,8 @@ export function Dialog({ 'aria-label': ariaLabel, title, actions, children, clas
     }
   };
 
-  return (
-    <div className={`dh-dialog-backdrop ${styles.backdrop}`} role="dialog" aria-label={ariaLabel} aria-modal="true" onClick={onClose} onKeyDown={handleKeyDown}>
+  const content = (
+    <div className={`dh-portal-scope dh-dialog-backdrop ${styles.backdrop}`} role="dialog" aria-label={ariaLabel} aria-modal="true" onClick={onClose} onKeyDown={handleKeyDown}>
       <section ref={shellRef} tabIndex={-1} className={`dh-dialog ${styles.shell} ${className}`.trim()} onClick={(event) => event.stopPropagation()}>
         {(title || actions) && (
           <header className={`dh-section-header dh-section-header--modal ${styles.header}`}>
@@ -70,6 +71,15 @@ export function Dialog({ 'aria-label': ariaLabel, title, actions, children, clas
       </section>
     </div>
   );
+
+  // Dialogs can open from another dialog (player sheet -> level-up, editor ->
+  // confirmation). Keeping the child in that filtered glass subtree makes
+  // WebKit treat `position: fixed` as relative to the parent shell and clips
+  // the child action bar. A body portal gives every modal the same viewport
+  // and top-layer contract.
+  return typeof document === 'undefined'
+    ? content
+    : createPortal(content, document.body) as typeof content;
 }
 
 function focusableElements(root: HTMLElement): HTMLElement[] {

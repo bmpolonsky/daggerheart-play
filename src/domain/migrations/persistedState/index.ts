@@ -2,6 +2,7 @@ import { runVersionedMigrations } from '../migration-runner';
 import type { PersistedState } from '../../rules/types';
 import type { PersistedStateMigration } from './types';
 import { v4ToV5PersistedStateMigration } from './v4-to-v5-persisted-state-migration';
+import { createCharacter } from '../../rules/factories';
 
 export { migrateV4ToV5PersistedState } from './v4-to-v5-persisted-state-migration';
 export type { PersistedStateMigration } from './types';
@@ -24,7 +25,7 @@ export function migratePersistedState(state: unknown): PersistedState {
   if (!isPersistedStateContract(migrated)) {
     throw new Error('Unsupported persisted state payload.');
   }
-  return migrated;
+  return normalizePersistedCharacters(migrated);
 }
 
 export function canMigratePersistedState(value: unknown): boolean {
@@ -89,4 +90,17 @@ export function isPersistedStateContract(value: unknown): value is PersistedStat
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object');
+}
+
+function normalizePersistedCharacters(state: PersistedState): PersistedState {
+  return {
+    ...state,
+    characters: {
+      ...state.characters,
+      entities: Object.fromEntries(Object.entries(state.characters.entities).map(([id, character]) => [
+        id,
+        createCharacter({ ...character, id })
+      ]))
+    }
+  };
 }

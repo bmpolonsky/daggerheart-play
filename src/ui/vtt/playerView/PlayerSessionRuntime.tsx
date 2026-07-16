@@ -76,9 +76,11 @@ export function PlayerSessionRuntime({
     p2pSessionService.setPlayerActorContext({
       participantId: selectedPlayerSeatId,
       actorId: displayedCharacter?.id,
-      actorName: displayedCharacter?.name
+      // Audit history must name the person/seat that made the change, not the
+      // fictional character. Rolls and presence still carry actorName separately.
+      actorName: selectedPlayerName
     });
-  }, [displayedCharacter?.id, displayedCharacter?.name, role, selectedPlayerSeatId]);
+  }, [displayedCharacter?.id, role, selectedPlayerName, selectedPlayerSeatId]);
 
   useEffect(() => {
     if (role !== 'player' || !p2pSession.connected || !displayedCharacter?.id) {

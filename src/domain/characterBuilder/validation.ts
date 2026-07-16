@@ -2,6 +2,7 @@ import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../co
 import { CLASS_STARTING_ITEMS } from '../rules/equipment';
 import type { DaggerheartClass, TraitId } from '../rules/types';
 import { buildCharacterBuilderCatalog } from './catalog';
+import { startingDomainCardCount } from '../rules/characterRuleModifiers';
 
 export type CharacterBuilderIssueSeverity = 'blocking' | 'warning';
 
@@ -80,7 +81,8 @@ export function validateCharacterBuilderReadiness(input: CharacterBuilderReadine
   validateLibrarySelection(issues, 'ancestry', input.ancestryId, catalog.builderContent.ancestries, 'родословную');
   validateLibrarySelection(issues, 'community', input.communityId, catalog.builderContent.communities, 'сообщество');
   validateLibrarySelection(issues, 'subclass', input.subclassId, catalog.classSubclasses, 'подкласс');
-  validateDomainCards(issues, input.selectedCardIds ?? [], catalog.availableDomainCards);
+  const cardCount = startingDomainCardCount(catalog.subclassRuleModifiers[input.subclassId ?? ''] ?? []);
+  validateDomainCards(issues, input.selectedCardIds ?? [], catalog.availableDomainCards, cardCount);
   validateExperiences(issues, input.experienceNames ?? []);
   validateTraitDistribution(issues, input.traits);
   validateEquipment(issues, input, catalog);
@@ -119,19 +121,19 @@ function validateLibrarySelection(
   }
 }
 
-function validateDomainCards(issues: CharacterBuilderIssue[], selectedIds: string[], available: Array<{ id: string; name: string }>): void {
+function validateDomainCards(issues: CharacterBuilderIssue[], selectedIds: string[], available: Array<{ id: string; name: string }>, requiredCount: number): void {
   const availableIds = new Set(available.map((card) => card.id));
   const uniqueSelected = Array.from(new Set(selectedIds.map((id) => id.trim()).filter(Boolean)));
   const validSelected = uniqueSelected.filter((id) => availableIds.has(id));
   const invalidSelected = uniqueSelected.filter((id) => !availableIds.has(id));
 
-  if (available.length < 2) {
+  if (available.length < requiredCount) {
     addIssue(issues, 'domainCards.unavailable', 'blocking', 'Недостаточно стартовых карт домена для выбранного класса. Обновите справочники или выберите другой класс.');
     return;
   }
 
-  if (validSelected.length !== 2) {
-    addIssue(issues, 'domainCards.required', 'blocking', 'Выберите ровно две стартовые карты домена 1 уровня для выбранного класса.');
+  if (validSelected.length !== requiredCount) {
+    addIssue(issues, 'domainCards.required', 'blocking', `Выберите стартовые карты домена 1 уровня: ${requiredCount}.`);
   }
   if (invalidSelected.length > 0) {
     addIssue(issues, 'domainCards.invalid', 'blocking', 'Одна или несколько выбранных карт домена недоступны для выбранного класса.');

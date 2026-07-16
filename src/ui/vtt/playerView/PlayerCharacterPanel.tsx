@@ -30,6 +30,7 @@ export function PlayerCharacterPanel({
   onEmptyAction,
   onForceMutePlayer,
   onWealthEdit,
+  onEditCharacter,
   onOpenActor
 }: {
   activeAdversaryId: string | null;
@@ -50,6 +51,7 @@ export function PlayerCharacterPanel({
   onEmptyAction?: () => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
+  onEditCharacter?: () => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
   const characters = useStream(characterService.characters$);
@@ -104,6 +106,7 @@ export function PlayerCharacterPanel({
       onFeaturePreview={onFeaturePreview}
       onEmptyAction={onEmptyAction}
       onWealthEdit={onWealthEdit}
+      onEditCharacter={onEditCharacter}
     />
   );
 }

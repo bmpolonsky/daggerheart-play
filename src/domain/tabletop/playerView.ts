@@ -10,6 +10,8 @@ import { normalizeStatusTag } from '../rules/statuses';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
 import { canViewFeedEntry, latestVisibleRollLogEntry } from './rollPublication';
 import { defaultCharacterPortraitUrl, defaultSceneImageUrl } from './defaultArt';
+import { normalizeSceneBackgroundFraming } from './sceneBackground';
+import { characterHandSize } from '../rules/characterRuleModifiers';
 import type { MapAsset, TableScene, TokenState } from './types';
 
 export interface PlayerViewToken {
@@ -51,12 +53,32 @@ export interface PlayerViewCharacterSummary {
   traits: Array<{ id: TraitId; label: string; value: number }>;
   experiences: Array<{ id: string; name: string; modifier: number }>;
   weapons: Array<{ id: string; name: string; trait: TraitId; traitLabel: string; range: string; damage: string; damageFormula: string; damageType: string }>;
-  loadoutCards: Array<{ id: string; name: string; domain: string; domainLabel: string; level: number; cost: string; recallCost: string; text: string; imageUrl: string; tokens: { value: number; max: number }; macros: DomainCardTextMacro[] }>;
+  domainCards: PlayerViewDomainCardSummary[];
+  loadoutCards: PlayerViewDomainCardSummary[];
+  handLimit: number;
+  usageTrackers: NonNullable<Character['usageTrackers']>;
   features: Array<{ id: string; name: string; subtitle: string; text: string }>;
   inventory: CharacterInventoryItem[];
   wealth: CharacterWealth;
   conditions: Array<{ id: string; name: string; notes: string }>;
   scars: CharacterScar[];
+}
+
+export interface PlayerViewDomainCardSummary {
+  id: string;
+  name: string;
+  domain: string;
+  domainLabel: string;
+  level: number;
+  cost: string;
+  recallCost: string;
+  text: string;
+  imageUrl: string;
+  inHand: boolean;
+  permanentlyVaulted: boolean;
+  loadoutChoicePending: boolean;
+  tokens: { value: number; max: number };
+  macros: DomainCardTextMacro[];
 }
 
 export interface PlayerViewAdversarySummary {
@@ -98,6 +120,7 @@ export interface PlayerViewScene {
   name: string;
   subtitle: string;
   imageUrl: string;
+  backgroundFraming: TableScene['backgroundFraming'];
   mode: TableScene['mode'];
   music: TableScene['music'];
 }
@@ -149,6 +172,7 @@ export function buildPlayerViewModel(input: PlayerViewInput): PlayerViewModel {
       name: input.liveScene.name,
       subtitle: input.liveScene.subtitle,
       imageUrl: resolveSceneImageUrl(input.liveScene, input.assets, input.assetUrls),
+      backgroundFraming: normalizeSceneBackgroundFraming(input.liveScene.backgroundFraming),
       mode: input.liveScene.mode,
       music: input.liveScene.music
     },
@@ -358,6 +382,28 @@ function beastformAttackSummary(form: CharacterBeastformState): PlayerViewCharac
 
 export function buildCharacterSummary(character: Character): PlayerViewCharacterSummary {
   const effective = buildEffectiveCharacterStats(character);
+  const domainCards: PlayerViewDomainCardSummary[] = character.domainCards.map((card) => {
+    const tokenMax = resolveDomainCardTokenMax(card, effective.traits);
+    return {
+      id: card.id,
+      name: card.name,
+      domain: card.domain,
+      domainLabel: domainLabel(card.domain),
+      level: card.level,
+      cost: card.cost?.trim() ?? '',
+      recallCost: card.recallCost?.trim() ?? '',
+      text: card.text,
+      imageUrl: card.imageUrl ?? '',
+      inHand: Boolean(card.inLoadout) && !card.permanentlyVaulted,
+      permanentlyVaulted: Boolean(card.permanentlyVaulted),
+      loadoutChoicePending: Boolean(card.loadoutChoicePending) && !card.permanentlyVaulted && !card.inLoadout,
+      tokens: {
+        value: Math.min(card.tokens.value, tokenMax),
+        max: tokenMax
+      },
+      macros: parseDomainCardTextMacros(cleanMarkdownText(card.text, { stripEmphasis: true, stripCodeTicks: true }))
+    };
+  });
   return {
     id: character.id,
     name: character.name,
@@ -401,26 +447,10 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       damageFormula: weapon.damageFormula,
       damageType: weapon.damageType
     }))),
-    loadoutCards: character.domainCards
-      .map((card) => {
-        const tokenMax = resolveDomainCardTokenMax(card, effective.traits);
-        return {
-          id: card.id,
-          name: card.name,
-          domain: card.domain,
-          domainLabel: domainLabel(card.domain),
-          level: card.level,
-          cost: card.cost?.trim() ?? '',
-          recallCost: card.recallCost?.trim() ?? '',
-          text: card.text,
-          imageUrl: card.imageUrl ?? '',
-          tokens: {
-            value: Math.min(card.tokens.value, tokenMax),
-            max: tokenMax
-          },
-          macros: parseDomainCardTextMacros(cleanMarkdownText(card.text, { stripEmphasis: true, stripCodeTicks: true }))
-        };
-      }),
+    domainCards,
+    loadoutCards: domainCards.filter((card) => card.inHand),
+    handLimit: characterHandSize(character.ruleModifiers),
+    usageTrackers: (character.usageTrackers ?? []).map((tracker) => ({ ...tracker })),
     features: character.sheetCards
       .filter(isCharacterFeatureSheetCard)
       .map((card) => ({

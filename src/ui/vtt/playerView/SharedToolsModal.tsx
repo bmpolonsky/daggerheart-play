@@ -71,8 +71,10 @@ export function SharedToolsModal({
     if (activeTab !== 'library') return;
     if (compendiumCollections.some((collection) => collection.key === libraryView.selectedCollection)) return;
     const fallback = compendiumCollections[0];
-    if (fallback) contentService.setSelectedCollection(fallback.key);
-  }, [activeTab, compendiumCollections, libraryView.selectedCollection]);
+    if (!fallback) return;
+    contentService.setSelectedCollection(fallback.key);
+    onLibraryCollectionChange?.(fallback.key);
+  }, [activeTab, compendiumCollections, libraryView.selectedCollection, onLibraryCollectionChange]);
 
   useEffect(() => {
     if (normalizedSettingsSection === activeSettingsSection) return;
@@ -152,7 +154,12 @@ export function SharedToolsModal({
           </Tabs>
         )}
 
-        <div ref={bodyRef} className="player-tools-modal__body" role="region" aria-label="Содержимое рабочего пространства">
+        <div
+          ref={bodyRef}
+          className={`player-tools-modal__body ${activeTab === 'library' ? 'player-tools-modal__body--managed-scroll' : ''}`}
+          role="region"
+          aria-label="Содержимое рабочего пространства"
+        >
           {activeTab === 'scenes' && (
             <SharedToolsScenesTabHost />
           )}
@@ -188,6 +195,7 @@ function SharedToolsScenesTabHost() {
 function SharedToolsCharactersTabHost() {
   const characters = useStream(characterService.characters$);
   const content = useStream(contentService.content$);
+  const game = useStream(gameService.game$);
   const sceneTable = useStream(sceneTableService.sceneTable$);
   const characterOptions = characters.order.map((id) => characters.entities[id]).filter(Boolean);
   const playerSeats = Object.values(sceneTable.participants).filter((participant) => participant.role === 'player');
@@ -203,6 +211,7 @@ function SharedToolsCharactersTabHost() {
 
   return (
     <SharedToolsCharactersTab
+      actor={{ id: 'local-gm', name: game.gmName || 'Мастер', role: 'gm' }}
       characterBuilderOpen={characterBuilderOpen}
       characterOptions={characterOptions}
       content={content}

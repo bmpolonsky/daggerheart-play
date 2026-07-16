@@ -300,6 +300,26 @@ Guidance:
 - `plain` is for inputs embedded in custom pill/search rows.
 - Do not restyle native controls locally for size, border, or focus unless the common component is missing a real state.
 
+### RangeField
+
+Use for a compact bounded numeric adjustment such as zoom, volume, or opacity.
+
+```tsx
+<RangeField label="Масштаб" min={1} max={2.5} step={0.05} value={zoom} valueLabel={`${Math.round(zoom * 100)}%`} />
+```
+
+Props:
+
+- Standard range input props except `type` and `size`.
+- `label`: visible field label.
+- `valueLabel`: optional formatted current value.
+
+Guidance:
+
+- Keep a visible value beside the label when the exact setting matters.
+- Use a segmented control for a small finite choice such as Fit/Fill.
+- Do not use for an unbounded value or when typing an exact number is the primary workflow.
+
 ### SearchField
 
 Use for search boxes that need a search icon.
@@ -580,6 +600,7 @@ Props:
 - `previewUrl` / `imageUrl`
 - `emptyLabel`
 - `aspectRatio`
+- `previewStyle`: only image framing properties (`objectFit`, `objectPosition`, `transform`, `transformOrigin`), not screen chrome.
 - `size`: `default | compact`
 - `hideLabel`: hides the visible caption while preserving the file input's accessible name.
 - `icon`: `image | music`
@@ -589,6 +610,7 @@ Guidance:
 
 - Use this instead of raw file inputs.
 - Keep the preview frame as the click target.
+- Use `previewStyle` when the editor preview must match saved crop/framing settings.
 - `compact` is for dense tool rows.
 
 ### NavButton
@@ -650,6 +672,7 @@ Guidance:
 | `Card` | Repeated content items | Page sections or generic wrappers |
 | `ChoiceCard` | Selectable choices | Static content |
 | `Field` and controls | Inputs/selects/textareas | Decorative text rows |
+| `RangeField` | Bounded numeric adjustments | Exact or unbounded text entry |
 | `Tabs` / `TabButton` | Tab navigation | Segmented boolean choices |
 | `Toolbar` | Compact command groups | Layout panels |
 | `SectionHeader` | Heading + actions | Whole panels |

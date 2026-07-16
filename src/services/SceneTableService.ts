@@ -1,7 +1,8 @@
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
-import { pauseSceneMusic, playSceneMusic, setSceneMusicTrack, setSceneMusicVolume, stopSceneMusic } from '../domain/audio/sceneAudio';
+import { pauseSceneMusic, playSceneMusic, setSceneMusicDeliveryMode, setSceneMusicTrack, setSceneMusicVolume, stopSceneMusic, type SceneMusicDeliveryMode } from '../domain/audio/sceneAudio';
 import { createLocalParticipant, createTableScene, createTokenState, nextArrangedTokenPositionForActor, randomAvailableTokenPosition } from '../domain/tabletop/factories';
+import { normalizeSceneBackgroundFraming } from '../domain/tabletop/sceneBackground';
 import {
   autoArrangeTokens,
   DEFAULT_SCENE_HEIGHT,
@@ -410,7 +411,7 @@ export class SceneTableService {
     return scene;
   }
 
-  updateScene(id: string, patch: Partial<Pick<TableScene, 'name' | 'subtitle' | 'backgroundAssetId' | 'backgroundUrl' | 'mode'>>): void {
+  updateScene(id: string, patch: Partial<Pick<TableScene, 'name' | 'subtitle' | 'backgroundAssetId' | 'backgroundUrl' | 'backgroundFraming' | 'mode'>>): void {
     sceneTableStore.update((state) => {
       const scene = state.scenes[id];
       if (!scene) return state;
@@ -447,6 +448,10 @@ export class SceneTableService {
     this.updateSceneMusic(sceneId, (music) => setSceneMusicVolume(music, volume));
   }
 
+  setSceneMusicDeliveryMode(sceneId: string, deliveryMode: SceneMusicDeliveryMode): void {
+    this.updateSceneMusic(sceneId, (music) => setSceneMusicDeliveryMode(music, deliveryMode));
+  }
+
   duplicateScene(id: string): TableScene | null {
     const state = sceneTableStore.get();
     const source = state.scenes[id];
@@ -457,6 +462,7 @@ export class SceneTableService {
       mode: source.mode,
       backgroundAssetId: source.backgroundAssetId,
       backgroundUrl: source.backgroundUrl,
+      backgroundFraming: normalizeSceneBackgroundFraming(source.backgroundFraming),
       layers: source.layers.map((layer) => ({ ...layer })),
       tokens: source.tokens.map((token) => ({ ...token })),
       music: { ...source.music },

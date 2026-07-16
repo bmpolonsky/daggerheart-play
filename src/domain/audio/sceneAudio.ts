@@ -5,6 +5,7 @@ export interface SceneMusicState {
   assetId?: string;
   sourceUrl: string;
   title: string;
+  deliveryMode: SceneMusicDeliveryMode;
   playing: boolean;
   volume: number;
   position: number;
@@ -13,7 +14,9 @@ export interface SceneMusicState {
   revision: number;
 }
 
-export type SceneMusicPatch = Partial<Pick<SceneMusicState, 'assetId' | 'sourceUrl' | 'title' | 'playing' | 'volume' | 'position' | 'startedAt'>>;
+export type SceneMusicDeliveryMode = 'download' | 'broadcast';
+
+export type SceneMusicPatch = Partial<Pick<SceneMusicState, 'assetId' | 'sourceUrl' | 'title' | 'deliveryMode' | 'playing' | 'volume' | 'position' | 'startedAt'>>;
 
 export function createSceneMusicState(input?: SceneMusicPatch & Partial<Pick<SceneMusicState, 'updatedAt' | 'revision'>>): SceneMusicState {
   const updatedAt = input?.updatedAt ?? nowIso();
@@ -21,6 +24,7 @@ export function createSceneMusicState(input?: SceneMusicPatch & Partial<Pick<Sce
     assetId: input?.assetId,
     sourceUrl: input?.sourceUrl ?? '',
     title: input?.title ?? '',
+    deliveryMode: input?.deliveryMode ?? 'download',
     playing: input?.playing ?? false,
     volume: input?.volume ?? 0.72,
     position: input?.position ?? 0,
@@ -38,6 +42,7 @@ export function normalizeSceneMusicState(input?: Partial<SceneMusicState> | null
     ...(assetId ? { assetId } : {}),
     sourceUrl,
     title: typeof input?.title === 'string' ? input.title.trim() : '',
+    deliveryMode: input?.deliveryMode === 'broadcast' ? 'broadcast' : 'download',
     playing: Boolean((sourceUrl || assetId) && input?.playing),
     volume: clamp(Number.isFinite(input?.volume) ? Number(input?.volume) : 0.72, 0, 1),
     position: Math.max(0, Number.isFinite(input?.position) ? Number(input?.position) : 0),
@@ -100,6 +105,14 @@ export function setSceneMusicVolume(current: SceneMusicState, volume: number, up
   return bumpSceneMusic({
     ...normalizeSceneMusicState(current),
     volume: clamp(volume, 0, 1),
+    updatedAt
+  });
+}
+
+export function setSceneMusicDeliveryMode(current: SceneMusicState, deliveryMode: SceneMusicDeliveryMode, updatedAt = nowIso()): SceneMusicState {
+  return bumpSceneMusic({
+    ...normalizeSceneMusicState(current),
+    deliveryMode,
     updatedAt
   });
 }
