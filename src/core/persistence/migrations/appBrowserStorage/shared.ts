@@ -23,6 +23,10 @@ export function toStoredP2PSession(value: unknown): StoredP2PSession | null {
     role: value.role,
     roomId: value.roomId,
     participantName: value.participantName,
+    ...(typeof value.participantId === 'string' ? { participantId: value.participantId } : {}),
+    ...(Array.isArray(value.actorIds) && value.actorIds.every((item) => typeof item === 'string')
+      ? { actorIds: value.actorIds }
+      : {}),
     updatedAt: value.updatedAt
   };
 }

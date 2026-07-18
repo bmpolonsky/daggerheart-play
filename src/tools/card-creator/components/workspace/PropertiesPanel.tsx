@@ -84,7 +84,7 @@ export function PropertiesPanel({
           {features.map((feature, index) => (
             <option key={feature.id} value={index}>
               {feature.group
-                ? `${feature.group} · ${normalizeFeatureName(feature)}`
+                ? `${feature.group} — ${normalizeFeatureName(feature)}`
               : normalizeFeatureName(feature)}
             </option>
           ))}

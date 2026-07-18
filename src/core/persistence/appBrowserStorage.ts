@@ -13,6 +13,8 @@ export interface StoredP2PSession {
   role: 'gm' | 'player';
   roomId: string;
   participantName: string;
+  participantId?: string;
+  actorIds?: string[];
   updatedAt: string;
 }
 

@@ -1,21 +1,21 @@
 /** @jsxImportSource preact */
 import type { ComponentChildren } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
-import { ArrowDownToLine, ArrowUpFromLine, LockKeyhole, Sparkles, X } from 'lucide-react';
-import { planDomainCardMove, type DomainCardMoveContext } from '../../../domain/rules/cardLoadout';
+import { ArrowDownToLine, ArrowUpFromLine, LockKeyhole, MoreHorizontal, Sparkles, X } from 'lucide-react';
+import { domainCardRecallStressCost, planDomainCardMove, type DomainCardMoveContext } from '../../../domain/rules/cardLoadout';
 import type { CharacterUsageTracker } from '../../../domain/rules/types';
 import { characterService } from '../../../services/serviceRegistry';
 import { UsageTrackerControl } from '../../characters/UsageTrackerControl';
 import { AssetImage } from '../../components/common/AssetImage';
 import { Button } from '../../components/common/Button';
+import { Checkbox } from '../../components/common/Checkbox';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Dialog } from '../../components/common/Dialog';
-import { SelectField } from '../../components/common/Field';
 import { IconButton } from '../../components/common/IconButton';
 import { ListItem } from '../../components/common/ListItem';
 import { Notice } from '../../components/common/Notice';
+import { RichChoicePicker } from '../../components/common/RichChoicePicker';
 import { SectionHeader } from '../../components/common/SectionHeader';
-import { SegmentedControl } from '../../components/common/SegmentedControl';
 import { TrackDots } from './PlayerSheetControls';
 import type { PlayerViewDomainCard } from './domainCards/types';
 
@@ -59,6 +59,15 @@ export function CharacterSheetDomainCards({
 
   const sendToVault = (cardId: string) => {
     characterService.moveDomainCard(characterId, { cardId, to: 'vault', context: 'adventure' });
+  };
+  const beginRecall = (card: PlayerViewDomainCard) => {
+    if (!fullCharacter) return;
+    const needsReplacement = hand.length >= handLimit;
+    if (!needsReplacement && domainCardRecallStressCost(card) === 0) {
+      characterService.moveDomainCard(characterId, { cardId: card.id, to: 'hand', context: 'adventure' });
+      return;
+    }
+    setPendingRecall({ cardId: card.id, context: 'adventure', replaceCardId: '' });
   };
   const recall = () => {
     if (!pendingRecall || !plan?.canApply) return;
@@ -125,19 +134,27 @@ export function CharacterSheetDomainCards({
                 <>
                   <Button size="xs" variant="ghost" title="Вернуть в Руку" iconBefore={<ArrowUpFromLine size={12} aria-hidden="true" />} onClick={(event) => {
                     event.stopPropagation();
-                    setPendingRecall({ cardId: card.id, context: 'adventure', replaceCardId: '' });
+                    beginRecall(card);
                   }}>
                     В Руку
                   </Button>
-                  <Button size="xs" variant="ghost" title="Навсегда оставить в Хранилище" iconBefore={<LockKeyhole size={12} aria-hidden="true" />} onClick={(event) => {
-                    event.stopPropagation();
-                    setPermanentCandidate(card);
-                  }}>
-                    Навсегда
-                  </Button>
+                  <details className="player-domain-card-more" onClick={(event) => event.stopPropagation()}>
+                    <summary aria-label={`Другие действия карты ${card.name}`} title="Другие действия">
+                      <MoreHorizontal size={15} aria-hidden="true" />
+                    </summary>
+                    <div className="player-domain-card-more__menu">
+                      <Button size="xs" variant="danger" iconBefore={<LockKeyhole size={12} aria-hidden="true" />} onClick={(event) => {
+                        event.stopPropagation();
+                        (event.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open');
+                        setPermanentCandidate(card);
+                      }}>
+                        Убрать навсегда
+                      </Button>
+                    </div>
+                  </details>
                 </>
               )}
-              status={card.permanentlyVaulted ? 'Навсегда · вернуть нельзя' : card.loadoutChoicePending ? 'Новая · ждёт выбора' : undefined}
+              status={card.permanentlyVaulted ? 'Навсегда — вернуть нельзя' : card.loadoutChoicePending ? 'Новая — ждёт выбора' : undefined}
               onPreview={onPreview}
               onTokenChange={onTokenChange}
             />
@@ -160,29 +177,37 @@ export function CharacterSheetDomainCards({
           />
           {resolvingAcquisition ? (
             <Notice tone="info">Новая карта остаётся в Хранилище или бесплатно заменяет одну карту в полной Руке.</Notice>
-          ) : (
-            <SegmentedControl
-              label="Когда меняется Рука"
-              value={pendingRecall.context === 'rest' ? 'rest' : 'adventure'}
-              options={[
-                { value: 'adventure', label: 'Во время приключения' },
-                { value: 'rest', label: 'Во время отдыха' }
-              ]}
-              onChange={(context) => setPendingRecall((current) => current ? { ...current, context } : current)}
+          ) : plan.stressCost > 0 ? (
+            <Notice tone="info">Цена возврата: {plan.stressCost} Стресс.</Notice>
+          ) : null}
+          {!resolvingAcquisition && domainCardRecallStressCost(recalledCard) > 0 && (
+            <Checkbox
+              layout="row"
+              checked={pendingRecall.context === 'rest'}
+              label="Во время отдыха — без Стресса"
+              onChange={(event) => setPendingRecall((current) => current ? {
+                ...current,
+                context: event.currentTarget.checked ? 'rest' : 'adventure'
+              } : current)}
             />
           )}
           {plan.handSize >= plan.handLimit && (
-            <SelectField
+            <RichChoicePicker
               label="Заменить карту в Руке"
               value={pendingRecall.replaceCardId}
-              onChange={(event) => setPendingRecall((current) => current ? { ...current, replaceCardId: event.currentTarget.value } : current)}
-            >
-              <option value="">Выберите карту</option>
-              {hand.map((card) => <option key={card.id} value={card.id}>{card.name}</option>)}
-            </SelectField>
+              placeholder="Выберите карту"
+              items={hand.map((card) => ({
+                id: card.id,
+                title: card.name,
+                subtitle: `${card.domainLabel} ${card.level}`,
+                description: card.text,
+                imageUrl: card.imageUrl
+              }))}
+              onChange={(itemId) => setPendingRecall((current) => current ? { ...current, replaceCardId: itemId } : current)}
+            />
           )}
           {plan.issues.length > 0 && <p className="form-hint">{plan.issues.map((issue) => issue.message).join(' ')}</p>}
-          {plan.stressCost > 0 && <p className="form-hint">Будет отмечен Стресс: {plan.stressCost}.</p>}
+          {plan.stressCost > 0 && <p className="form-hint">После возврата будет отмечен Стресс: {plan.stressCost}.</p>}
           <div className="player-domain-card-dialog-actions">
             <Button onClick={() => setPendingRecall(null)}>Отмена</Button>
             {resolvingAcquisition && <Button onClick={keepNewCardInVault}>Оставить в Хранилище</Button>}
@@ -195,7 +220,7 @@ export function CharacterSheetDomainCards({
       {permanentCandidate && (
         <ConfirmDialog
           title={`Навсегда убрать «${permanentCandidate.name}»?`}
-          body="Карта останется в Хранилище, но вернуть её в Руку больше нельзя. Это действие необратимо."
+          body="Карта останется в Хранилище, и обычным действием вернуть её больше нельзя. Отмена останется доступна в Истории листа."
           confirmLabel="Убрать навсегда"
           onCancel={() => setPermanentCandidate(null)}
           onConfirm={permanentlyVault}
@@ -227,7 +252,7 @@ function DomainCardRow({
       align="start"
       tone={card.inHand ? 'featured' : 'default'}
       title={card.name}
-      subtitle={`${card.domainLabel} ${card.level}${status ? ` · ${status}` : ''}`}
+      subtitle={`${card.domainLabel} ${card.level}${status ? ` — ${status}` : ''}`}
       leftAccessory={card.imageUrl ? <AssetImage className="player-domain-card-thumb" src={card.imageUrl} alt="" /> : undefined}
       detail={card.tokens.max > 0 && (
         <TrackDots
@@ -240,14 +265,16 @@ function DomainCardRow({
       )}
       rightAccessory={(
         <div className="player-domain-card-row-actions">
-          <UsageTrackerControl
-            compact
-            characterId={characterId}
-            targetKind="card"
-            targetId={card.id}
-            targetName={card.name}
-            tracker={tracker}
-          />
+          {(tracker || card.tokens.max <= 0) && (
+            <UsageTrackerControl
+              compact
+              characterId={characterId}
+              targetKind="card"
+              targetId={card.id}
+              targetName={card.name}
+              tracker={tracker}
+            />
+          )}
           {action}
         </div>
       )}

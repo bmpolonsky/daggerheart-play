@@ -9,8 +9,12 @@ export interface SceneAudioBroadcastState {
   message: string;
   sourceLabel: string;
   volume: number;
+  tabAudioVolume: number;
+  tabAudioStatus: SceneAudioBroadcastStatus;
+  tabAudioMessage: string;
   remotePeerIds: string[];
   deliveryKind: 'none' | 'scene-player' | 'display' | 'local-file';
+  requestedKind: 'none' | 'scene-player' | 'display' | 'local-file';
   remotePlaybackBlocked: boolean;
 }
 
@@ -22,11 +26,15 @@ interface SceneAudioMediaTransport {
 
 const initialBroadcastState: SceneAudioBroadcastState = {
   status: 'idle',
-  message: 'Стрим музыки выключен.',
+  message: 'Передача звука выключена.',
   sourceLabel: '',
   volume: 0.72,
+  tabAudioVolume: 0.72,
+  tabAudioStatus: 'idle',
+  tabAudioMessage: 'Трансляция выключена.',
   remotePeerIds: [],
   deliveryKind: 'none',
+  requestedKind: 'none',
   remotePlaybackBlocked: false
 };
 
@@ -79,9 +87,12 @@ export class SceneAudioBroadcastService {
       }
       this.patchBroadcast({
         status: 'idle',
-        message: transport ? 'P2P transport не поддерживает audio broadcast.' : 'Стрим музыки выключен.',
+        message: transport ? 'P2P-подключение не поддерживает передачу звука.' : 'Передача звука выключена.',
         sourceLabel: '',
-        deliveryKind: 'none'
+        deliveryKind: 'none',
+        requestedKind: 'none',
+        tabAudioStatus: 'idle',
+        tabAudioMessage: 'Трансляция выключена.'
       });
       return;
     }
@@ -95,6 +106,7 @@ export class SceneAudioBroadcastService {
   }
 
   async startScenePlayerBroadcast(label = 'Музыка сцены'): Promise<void> {
+    this.patchBroadcast({ requestedKind: 'scene-player' });
     if (!this.transport) {
       this.patchBroadcast({ status: 'unsupported', message: 'Сначала подключитесь к серверу мастера.' });
       return;
@@ -111,12 +123,22 @@ export class SceneAudioBroadcastService {
       this.patchBroadcast({ status: 'error', message: 'Сначала запустите трек в плеере сцены.' });
       return;
     }
-    const stream = captureMediaElementStream(element);
-    if (!stream || stream.getAudioTracks().length === 0) {
-      this.patchBroadcast({ status: 'unsupported', message: 'Браузер не умеет стримить этот плеер. Используйте файл или звук вкладки.' });
+    let stream: MediaStream | null;
+    try {
+      stream = captureMediaElementStream(element);
+    } catch (error) {
+      this.patchBroadcast({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Не удалось получить звук плеера сцены.'
+      });
       return;
     }
-    this.patchBroadcast({ status: 'starting', message: 'Запускаем стрим плеера...' });
+    if (!stream || stream.getAudioTracks().length === 0) {
+      this.patchBroadcast({ status: 'unsupported', message: 'Браузер не умеет передавать звук плеера во время воспроизведения. Выберите загрузку файла в настройках.' });
+      return;
+    }
+    this.setSceneMusicBroadcastVolume(this.sceneMusic?.volume ?? this.broadcastStore.get().volume);
+    this.patchBroadcast({ status: 'starting', message: 'Начинаем передачу музыки сцены...' });
     try {
       if (element.paused) {
         await element.play();
@@ -129,6 +151,7 @@ export class SceneAudioBroadcastService {
   }
 
   async startLocalAudioFileBroadcast(file: File): Promise<void> {
+    this.patchBroadcast({ requestedKind: 'local-file' });
     if (!this.transport) {
       this.patchBroadcast({ status: 'unsupported', message: 'Сначала подключитесь к серверу мастера.' });
       return;
@@ -138,10 +161,18 @@ export class SceneAudioBroadcastService {
     element.preload = 'auto';
     element.loop = true;
     element.volume = 1;
-    const stream = captureMediaElementStream(element);
+    let stream: MediaStream | null;
+    try {
+      stream = captureMediaElementStream(element);
+    } catch (error) {
+      element.pause();
+      URL.revokeObjectURL(objectUrl);
+      this.patchBroadcast({ status: 'error', message: error instanceof Error ? error.message : 'Не удалось получить звук локального файла.' });
+      return;
+    }
     if (!stream) {
       URL.revokeObjectURL(objectUrl);
-      this.patchBroadcast({ status: 'unsupported', message: 'Браузер не умеет стримить локальный аудиофайл.' });
+      this.patchBroadcast({ status: 'unsupported', message: 'Браузер не умеет передавать локальный аудиофайл во время воспроизведения.' });
       return;
     }
     this.patchBroadcast({ status: 'starting', message: 'Запускаем локальный файл...' });
@@ -164,12 +195,29 @@ export class SceneAudioBroadcastService {
   }
 
   async startDisplayAudioBroadcast(label = 'Звук вкладки'): Promise<void> {
+    this.patchBroadcast({
+      requestedKind: 'display',
+      tabAudioStatus: 'starting',
+      tabAudioMessage: 'Выберите вкладку или окно со звуком...'
+    });
     if (!this.transport) {
-      this.patchBroadcast({ status: 'unsupported', message: 'Сначала подключитесь к серверу мастера.' });
+      this.patchBroadcast({
+        status: 'unsupported',
+        message: 'Сначала подключитесь к серверу мастера.',
+        requestedKind: 'none',
+        tabAudioStatus: 'unsupported',
+        tabAudioMessage: 'Сначала подключитесь к серверу мастера.'
+      });
       return;
     }
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      this.patchBroadcast({ status: 'unsupported', message: 'Браузер не поддерживает захват звука вкладки.' });
+      this.patchBroadcast({
+        status: 'unsupported',
+        message: 'Браузер не поддерживает захват звука вкладки.',
+        requestedKind: 'none',
+        tabAudioStatus: 'unsupported',
+        tabAudioMessage: 'Браузер не поддерживает захват звука вкладки.'
+      });
       return;
     }
     this.patchBroadcast({ status: 'starting', message: 'Выберите вкладку или окно со звуком...' });
@@ -185,43 +233,81 @@ export class SceneAudioBroadcastService {
       const audioTracks = displayStream.getAudioTracks();
       if (audioTracks.length === 0) {
         stopStreamTracks(displayStream);
-        this.patchBroadcast({ status: 'error', message: 'В выбранном источнике нет аудио. Включите Share tab audio.' });
+        const message = 'В выбранном источнике нет аудио. Включите передачу звука вкладки в окне выбора.';
+        this.patchBroadcast({
+          status: 'error',
+          message,
+          requestedKind: 'none',
+          tabAudioStatus: 'error',
+          tabAudioMessage: message
+        });
         return;
       }
       const stream = new MediaStream(audioTracks);
       await this.setLocalBroadcastStream(stream, label, 'Звук вкладки', 'display');
       this.localCaptureStream = displayStream;
       displayStream.getTracks().forEach((track) => {
-        track.addEventListener('ended', () => this.stopBroadcast());
+        track.addEventListener('ended', () => this.stopBroadcast('display'));
+      });
+      this.patchBroadcast({
+        tabAudioStatus: 'live',
+        tabAudioMessage: `Передаётся: ${label}`
       });
     } catch (error) {
       const denied = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError' || error.name === 'AbortError');
+      const message = denied ? 'Захват звука отменен.' : error instanceof Error ? error.message : 'Не удалось захватить звук вкладки.';
       this.patchBroadcast({
         status: denied ? 'idle' : 'error',
-        message: denied ? 'Захват звука отменен.' : error instanceof Error ? error.message : 'Не удалось захватить звук вкладки.'
+        message,
+        requestedKind: 'none',
+        tabAudioStatus: denied ? 'idle' : 'error',
+        tabAudioMessage: message
       });
     }
   }
 
-  stopBroadcast(): void {
+  stopBroadcast(expectedKind?: Exclude<SceneAudioBroadcastState['deliveryKind'], 'none'>): void {
+    const state = this.broadcastStore.get();
+    if (expectedKind && state.deliveryKind !== expectedKind && state.requestedKind !== expectedKind) return;
+    const stoppedTabAudio = state.deliveryKind === 'display' || state.requestedKind === 'display';
     if (this.localBroadcastStream) {
       this.transport?.removeMediaStream(this.localBroadcastStream);
     }
     this.stopLocalBroadcastTracks();
     this.patchBroadcast({
       status: 'idle',
-      message: 'Стрим музыки выключен.',
+      message: 'Передача звука выключена.',
       sourceLabel: '',
-      deliveryKind: 'none'
+      deliveryKind: 'none',
+      requestedKind: 'none',
+      ...(stoppedTabAudio ? { tabAudioStatus: 'idle' as const, tabAudioMessage: 'Трансляция выключена.' } : {})
     });
   }
 
   setVolume(volume: number): void {
+    if (this.broadcastStore.get().deliveryKind === 'display' || this.broadcastStore.get().requestedKind === 'display') {
+      this.setTabAudioVolume(volume);
+      return;
+    }
+    this.setSceneMusicBroadcastVolume(volume);
+  }
+
+  setSceneMusicBroadcastVolume(volume: number): void {
     const nextVolume = clampVolume(volume);
-    if (this.broadcastGainNode) {
+    const state = this.broadcastStore.get();
+    if (this.broadcastGainNode && (state.deliveryKind === 'scene-player' || state.requestedKind === 'scene-player')) {
       this.broadcastGainNode.gain.value = nextVolume;
     }
     this.patchBroadcast({ volume: nextVolume });
+  }
+
+  setTabAudioVolume(volume: number): void {
+    const nextVolume = clampVolume(volume);
+    const state = this.broadcastStore.get();
+    if (this.broadcastGainNode && (state.deliveryKind === 'display' || state.requestedKind === 'display')) {
+      this.broadcastGainNode.gain.value = nextVolume;
+    }
+    this.patchBroadcast({ tabAudioVolume: nextVolume });
   }
 
   async unlockRemotePlayback(): Promise<void> {
@@ -245,7 +331,8 @@ export class SceneAudioBroadcastService {
         ...state,
         remotePeerIds,
         status: remotePeerIds.length === 0 ? 'idle' : state.status,
-        message: remotePeerIds.length === 0 ? 'Стрим музыки выключен.' : state.message
+        message: remotePeerIds.length === 0 ? 'Передача звука выключена.' : state.message,
+        requestedKind: remotePeerIds.length === 0 ? 'none' : state.requestedKind
       };
     });
   }
@@ -265,13 +352,18 @@ export class SceneAudioBroadcastService {
       this.transport.removeMediaStream(this.localBroadcastStream);
     }
     this.stopLocalBroadcastTracks();
-    const broadcastStream = this.createGainControlledStream(sourceStream);
+    const sourceVolume = deliveryKind === 'display'
+      ? this.broadcastStore.get().tabAudioVolume
+      : deliveryKind === 'scene-player'
+        ? this.sceneMusic?.volume ?? this.broadcastStore.get().volume
+        : this.broadcastStore.get().volume;
+    const broadcastStream = this.createGainControlledStream(sourceStream, sourceVolume);
     applyMusicContentHint(broadcastStream);
     this.localSourceStream = sourceStream;
     this.localBroadcastStream = broadcastStream;
-    this.patchBroadcast({ deliveryKind });
+    this.patchBroadcast({ deliveryKind, requestedKind: deliveryKind });
     sourceStream.getTracks().forEach((track) => {
-      track.addEventListener('ended', () => this.stopBroadcast());
+      track.addEventListener('ended', () => this.stopBroadcast(deliveryKind));
     });
     try {
       await this.publishLocalStream(label);
@@ -287,7 +379,8 @@ export class SceneAudioBroadcastService {
       status: 'live',
       message: `${source}: ${label}`,
       sourceLabel: label,
-      deliveryKind
+      deliveryKind,
+      requestedKind: deliveryKind
     });
   }
 
@@ -307,8 +400,9 @@ export class SceneAudioBroadcastService {
     this.patchBroadcast((state) => ({
       ...state,
       status: 'live',
-      message: `Играет стрим: ${label}`,
+      message: `Передаётся: ${label}`,
       deliveryKind,
+      requestedKind: deliveryKind,
       remotePeerIds: state.remotePeerIds.includes(peerId) ? state.remotePeerIds : [...state.remotePeerIds, peerId]
     }));
   }
@@ -353,14 +447,14 @@ export class SceneAudioBroadcastService {
     this.broadcastStore.update((state) => ({ ...state, ...patch }));
   }
 
-  private createGainControlledStream(sourceStream: MediaStream): MediaStream {
+  private createGainControlledStream(sourceStream: MediaStream, volume: number): MediaStream {
     if (sourceStream.getAudioTracks().length === 0) return sourceStream;
     try {
       const context = new AudioContext();
       const source = context.createMediaStreamSource(sourceStream);
       const gain = context.createGain();
       const destination = context.createMediaStreamDestination();
-      gain.gain.value = this.broadcastStore.get().volume;
+      gain.gain.value = clampVolume(volume);
       source.connect(gain);
       gain.connect(destination);
       this.broadcastAudioContext = context;

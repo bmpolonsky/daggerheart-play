@@ -259,7 +259,7 @@ export function buildCharacterBuilderChoicePreview(input: {
       return {
         kicker: 'Карта домена',
         title: card.name,
-        subtitle: [card.subtitle, `Уровень ${domainCardLevel(card)}`, domainCardRecallCost(card) ? `Возврат ${domainCardRecallCost(card)}` : ''].filter(Boolean).join(' · '),
+        subtitle: [card.subtitle, `Уровень ${domainCardLevel(card)}`, domainCardRecallCost(card) ? `Возврат ${domainCardRecallCost(card)}` : ''].filter(Boolean).join(' — '),
         body: firstFeatureText(card) || domainCardText(card) || cleanRulesText(card.body),
         imageUrl: card.imageUrl,
         facts: [`Выбрано ${input.selectedCards?.length ?? 0}/${input.requiredDomainCardCount ?? 2}`]
@@ -275,12 +275,12 @@ export function buildCharacterBuilderChoicePreview(input: {
       return {
         kicker: 'Экипировка',
         title: input.selectedPrimaryWeapon?.name ?? input.selectedArmor?.name ?? 'Стартовый набор',
-        subtitle: [input.selectedArmor?.name, input.selectedSecondaryWeapon?.name, input.selectedConsumable?.name, input.classItem].filter(Boolean).join(' · '),
+        subtitle: [input.selectedArmor?.name, input.selectedSecondaryWeapon?.name, input.selectedConsumable?.name, input.classItem].filter(Boolean).join(' — '),
         body: cleanRulesText(parts.join('\n\n') || 'Выберите броню, оружие, предмет класса и расходник. Итоговые значения будут собраны в лист персонажа автоматически.'),
         imageUrl: input.selectedPrimaryWeapon?.source.imageUrl ?? input.selectedArmor?.source.imageUrl ?? null,
         facts: [
-          input.selectedPrimaryWeapon ? `${TRAIT_LABELS[input.selectedPrimaryWeapon.trait]} · ${input.selectedPrimaryWeapon.range} · ${input.selectedPrimaryWeapon.damageFormula}` : '',
-          input.selectedArmor ? `Пороги ${input.selectedArmor.baseMajor}/${input.selectedArmor.baseSevere} · Броня ${input.selectedArmor.score}` : ''
+          input.selectedPrimaryWeapon ? `${TRAIT_LABELS[input.selectedPrimaryWeapon.trait]} — ${input.selectedPrimaryWeapon.range} — ${input.selectedPrimaryWeapon.damageFormula}` : '',
+          input.selectedArmor ? `Пороги ${input.selectedArmor.baseMajor}/${input.selectedArmor.baseSevere} — Броня ${input.selectedArmor.score}` : ''
         ].filter(Boolean)
       };
     }
@@ -492,7 +492,7 @@ function coerceTrait(input: unknown): TraitId | null {
   return traits[value] ?? null;
 }
 
-function classFeatureSheetCards(item: LibraryClassItem | null): CharacterSheetCard[] {
+export function classFeatureSheetCards(item: LibraryClassItem | null): CharacterSheetCard[] {
   if (!item) return [];
   return rawFeaturesToSheetCards(item.raw.features, 'classFeature', `class-${item.slug}`, item.sourceId);
 }
@@ -502,7 +502,7 @@ function libraryFeatureSheetCards(item: GenericLibraryItem | null, kind: Extract
   return rawFeaturesToSheetCards(item.raw.features, kind, `${kind}-${item.slug}`, item.sourceId ?? item.id);
 }
 
-function startingSubclassFeatureSheetCards(item: GenericLibraryItem | null): CharacterSheetCard[] {
+export function startingSubclassFeatureSheetCards(item: GenericLibraryItem | null): CharacterSheetCard[] {
   if (!item) return [];
   return rawFeaturesToSheetCards(item.raw.foundation_features, 'subclassFeature', `subclass-${item.slug}-foundation`, item.sourceId ?? item.id, { subclassTier: 'foundation' });
 }

@@ -70,6 +70,14 @@ export interface PlayerCharacterUpdateMessage {
   updatedAt: string;
 }
 
+export interface PlayerCharacterUpdateAckMessage {
+  type: 'playerCharacterUpdateAck';
+  participantId: string;
+  actorId: string;
+  revision: number;
+  acknowledgedAt: string;
+}
+
 export interface PlayerCharacterCreateMessage {
   type: 'playerCharacterCreate';
   requestId: string;
@@ -180,6 +188,7 @@ const syncChannels = {
   snapshotRequest: channel<SnapshotRequestMessage>('snapshotRequest', isSnapshotRequestMessage),
   playerCharacterResources: channel<PlayerCharacterResourcesMessage>('actor', isPlayerCharacterResourcesMessage),
   playerCharacterUpdate: channel<PlayerCharacterUpdateMessage>('actor', isPlayerCharacterUpdateMessage),
+  playerCharacterUpdateAck: channel<PlayerCharacterUpdateAckMessage>('playerCharacterUpdateAck', isPlayerCharacterUpdateAckMessage),
   asset: channel<AssetMessage>('asset', isAssetMessage)
 };
 
@@ -378,12 +387,20 @@ export class SyncService {
     return this.subscribeChannel(syncChannels.playerCharacterResources, listener);
   }
 
-  async publishPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage): Promise<boolean> {
-    return this.publishChannel(syncChannels.playerCharacterUpdate, message);
+  async publishPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, targetPeer?: SyncTargetPeer): Promise<boolean> {
+    return this.publishChannel(syncChannels.playerCharacterUpdate, message, targetPeer);
   }
 
   subscribePlayerCharacterUpdates(listener: (message: PlayerCharacterUpdateMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
     return this.subscribeChannel(syncChannels.playerCharacterUpdate, listener);
+  }
+
+  async publishPlayerCharacterUpdateAck(message: PlayerCharacterUpdateAckMessage, targetPeer?: SyncTargetPeer): Promise<boolean> {
+    return this.publishChannel(syncChannels.playerCharacterUpdateAck, message, targetPeer);
+  }
+
+  subscribePlayerCharacterUpdateAcks(listener: (message: PlayerCharacterUpdateAckMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
+    return this.subscribeChannel(syncChannels.playerCharacterUpdateAck, listener);
   }
 
   async publishAssetMessage(message: AssetMessage, targetPeer?: SyncTargetPeer): Promise<boolean> {
@@ -551,6 +568,16 @@ function isPlayerCharacterUpdateMessage(value: unknown): value is PlayerCharacte
     (value.actorName === undefined || typeof value.actorName === 'string') &&
     typeof value.character.id === 'string' &&
     value.character.id === value.actorId &&
+    typeof value.revision === 'number' &&
+    Number.isSafeInteger(value.revision) &&
+    value.revision > 0
+  );
+}
+
+function isPlayerCharacterUpdateAckMessage(value: unknown): value is PlayerCharacterUpdateAckMessage {
+  if (!isRecord(value) || value.type !== 'playerCharacterUpdateAck') return false;
+  return (
+    hasStringFields(value, ['participantId', 'actorId', 'acknowledgedAt']) &&
     typeof value.revision === 'number' &&
     Number.isSafeInteger(value.revision) &&
     value.revision > 0

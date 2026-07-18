@@ -8,16 +8,29 @@ import type {
 } from './types';
 
 const AUDIT_EXCLUDED_FIELDS = new Set(['changeHistory', 'updatedAt', 'playerSyncRevision']);
+const AUDIT_EXCLUDED_PATHS = [
+  ['hp', 'marked'],
+  ['stress', 'marked'],
+  ['hope', 'value'],
+  ['armor', 'markedSlots'],
+  ['actionTokens'],
+  ['usageTrackers', '*', 'current'],
+  ['domainCards', '*', 'tokens', 'value'],
+  ['companion', 'stress', 'marked'],
+  ['companion', 'unavailableUntilLongRest']
+] as const;
 export const MAX_CHARACTER_CHANGE_HISTORY = 200;
 const EDIT_COALESCE_WINDOW_MS = 2_500;
 
 export interface CharacterMutationContext {
+  audit?: boolean;
   actor?: CharacterChangeActor;
   changedAt?: string;
   kind?: CharacterChangeRecord['kind'];
   summary?: string;
   undoesChangeId?: string;
   overrideReason?: string;
+  historyGroupId?: string;
 }
 
 export interface CharacterUndoResult {
@@ -44,6 +57,7 @@ export function createCharacterChangeRecord(
   after: Character,
   context: CharacterMutationContext = {}
 ): CharacterChangeRecord | null {
+  if (context.audit === false) return null;
   const changes = diffCharacterChanges(before, after);
   if (changes.length === 0) return null;
   return {
@@ -53,6 +67,7 @@ export function createCharacterChangeRecord(
     kind: context.kind ?? 'edit',
     summary: context.summary?.trim() || defaultSummary(context.kind),
     changes,
+    ...(context.historyGroupId ? { historyGroupId: context.historyGroupId } : {}),
     ...(context.undoesChangeId ? { undoesChangeId: context.undoesChangeId } : {}),
     ...(context.overrideReason?.trim() ? { overrideReason: context.overrideReason.trim() } : {})
   };
@@ -78,7 +93,12 @@ function coalesceCharacterEdit(previous: CharacterChangeRecord, next: CharacterC
   if (previous.actor.id !== next.actor.id || previous.actor.role !== next.actor.role || previous.summary !== next.summary) return null;
   const previousAt = Date.parse(previous.changedAt);
   const nextAt = Date.parse(next.changedAt);
-  if (!Number.isFinite(previousAt) || !Number.isFinite(nextAt) || nextAt < previousAt || nextAt - previousAt > EDIT_COALESCE_WINDOW_MS) return null;
+  const hasExplicitGroup = Boolean(previous.historyGroupId || next.historyGroupId);
+  const sameExplicitGroup = Boolean(previous.historyGroupId && previous.historyGroupId === next.historyGroupId);
+  if (hasExplicitGroup && !sameExplicitGroup) return null;
+  if (!sameExplicitGroup && (
+    !Number.isFinite(previousAt) || !Number.isFinite(nextAt) || nextAt < previousAt || nextAt - previousAt > EDIT_COALESCE_WINDOW_MS
+  )) return null;
 
   const changes = previous.changes.map((change) => ({ ...change, path: [...change.path] }));
   for (const incoming of next.changes) {
@@ -166,13 +186,15 @@ export function normalizeCharacterChangeHistory(value: unknown): CharacterChange
       summary: typeof item.summary === 'string' ? item.summary : defaultSummary(kind),
       changes,
       ...(typeof item.undoesChangeId === 'string' ? { undoesChangeId: item.undoesChangeId } : {}),
-      ...(typeof item.overrideReason === 'string' ? { overrideReason: item.overrideReason } : {})
+      ...(typeof item.overrideReason === 'string' ? { overrideReason: item.overrideReason } : {}),
+      ...(typeof item.historyGroupId === 'string' ? { historyGroupId: item.historyGroupId } : {})
     } satisfies CharacterChangeRecord];
   }).slice(-MAX_CHARACTER_CHANGE_HISTORY);
 }
 
 function diffValues(before: unknown, after: unknown, path: string[], changes: CharacterFieldChange[]): void {
   if (deepEqual(before, after)) return;
+  if (isExcludedAuditPath(path)) return;
   if (isRecord(before) && isRecord(after) && !Array.isArray(before) && !Array.isArray(after)) {
     const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
     for (const key of keys) {
@@ -194,6 +216,12 @@ function diffValues(before: unknown, after: unknown, path: string[], changes: Ch
     return;
   }
   changes.push(fieldChange(path, true, true, before, after));
+}
+
+function isExcludedAuditPath(path: string[]): boolean {
+  return AUDIT_EXCLUDED_PATHS.some((pattern) => (
+    pattern.length === path.length && pattern.every((part, index) => part === '*' || part === path[index])
+  ));
 }
 
 function fieldChange(path: string[], beforeExists: boolean, afterExists: boolean, before: unknown, after: unknown): CharacterFieldChange {

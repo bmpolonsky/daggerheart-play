@@ -184,10 +184,10 @@ function runAdversaryFeatureMacro(
     detail = `+${macro.amount} Страх`;
   }
   if (detail) {
-    feedService.addMessage(adversary.name, `${featureName} · ${detail}`, { title: 'Особенность', publication: 'public' });
+    feedService.addMessage(adversary.name, `${featureName} — ${detail}`, { title: 'Особенность', publication: 'public' });
   }
   if (!applied && !detail) {
-    feedService.addMessage(adversary.name, `${featureName} · ресурс не применен: нужна ручная цель`, { title: 'Особенность', publication: 'public' });
+    feedService.addMessage(adversary.name, `${featureName} — ресурс не применен: нужна ручная цель`, { title: 'Особенность', publication: 'public' });
   }
 }
 

@@ -69,7 +69,7 @@ export function SharedToolsCharactersTab({
                 className={isSelected ? 'player-tools-character-card dh-is-selected' : 'player-tools-character-card'}
                 key={character.id}
                 title={character.name || 'Без имени'}
-                subtitle={`${classLabel(character.className)} · уровень ${character.level}`}
+                subtitle={`${classLabel(character.className)} — уровень ${character.level}`}
                 detail={assignedSeat ? assignedSeatName || 'Игрок без имени' : 'Игрок не назначен'}
                 leftAccessory={<CharacterPortrait character={character} />}
                 rightAccessory={<div className="player-tools-character-actions">

@@ -50,7 +50,7 @@ export function P2PHealthIndicator({ placement = 'floating', role }: { placement
           variant="ghost"
           size="sm"
           type="button"
-          title={`${summary.label}${summary.detail ? ` · ${summary.detail}` : ''}`}
+          title={`${summary.label}${summary.detail ? ` — ${summary.detail}` : ''}`}
           aria-label={diagnosticLabel}
           onClick={openDialog}
         >

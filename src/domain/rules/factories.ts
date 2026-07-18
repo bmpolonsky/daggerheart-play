@@ -434,8 +434,12 @@ export function createSceneTableState(input?: Partial<SceneTableState>): SceneTa
     ? scenes[input.activeSceneId]
     : createTableScene();
   const liveSceneId = input?.liveSceneId && scenes?.[input.liveSceneId] ? input.liveSceneId : input?.activeSceneId ?? scene.id;
+  const legacyMusicDeliveryMode = (scenes?.[liveSceneId] ?? scene).music.deliveryMode;
   return {
     schemaVersion: 4,
+    musicDeliveryMode: input?.musicDeliveryMode === 'broadcast' || input?.musicDeliveryMode === 'download'
+      ? input.musicDeliveryMode
+      : legacyMusicDeliveryMode,
     activeSceneId: input?.activeSceneId ?? scene.id,
     liveSceneId,
     scenes: scenes ?? { [scene.id]: scene },

@@ -47,16 +47,20 @@ export async function openFilledGmGame(page: Page): Promise<void> {
 export async function importPopulatedGame(page: Page): Promise<void> {
   if (await page.getByRole('button', { name: filledCharacterName, exact: true }).count()) return;
 
+  await importGameDocument(page, createPopulatedGameDocument(), fixtureFileName);
+}
+
+export async function importGameDocument(page: Page, document: unknown, fileName = fixtureFileName): Promise<void> {
   await page.getByRole('button', { name: 'Инструменты' }).click();
   const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
   await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Настройки' }).click();
   await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игры проекта' }).click();
   await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles({
-    name: fixtureFileName,
+    name: fileName,
     mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify(createPopulatedGameDocument()))
+    buffer: Buffer.from(JSON.stringify(document))
   });
-  await expect(workspace.getByText(`Игра импортирована: ${fixtureFileName}`)).toBeVisible({ timeout: 15_000 });
+  await expect(workspace.getByText(`Игра импортирована: ${fileName}`)).toBeVisible({ timeout: 15_000 });
   await workspace.getByRole('button', { name: 'Закрыть' }).click();
   await expect(page.getByRole('button', { name: filledCharacterName, exact: true }).first()).toBeVisible({ timeout: 15_000 });
 }

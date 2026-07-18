@@ -27,7 +27,7 @@ export function DomainCardFeedCard({
       <div className="feed-domain-card">
         {card.imageUrl && <AssetImage src={card.imageUrl} alt="" />}
         <div className="feed-domain-card__body">
-          <span>{domainLabel(card.domain)} · уровень {card.level}</span>
+          <span>{domainLabel(card.domain)} — уровень {card.level}</span>
           <strong>{card.name}</strong>
           <p>
             {previewCard.text

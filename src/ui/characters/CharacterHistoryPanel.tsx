@@ -31,7 +31,7 @@ export function CharacterHistoryPanel({
                   <summary>
                     <span className={styles.summary}>{entry.summary}</span>
                     <span className={styles.count}>{entry.changes.length}</span>
-                    <span className={styles.meta}>{actorLabel(entry)} · {formatDate(entry.changedAt)}{undone ? ' · отменено' : ''}</span>
+                    <span className={styles.meta}>{actorLabel(entry)} — {formatDate(entry.changedAt)}{undone ? ' — отменено' : ''}</span>
                   </summary>
                   <div className={styles.body}>
                     {entry.overrideReason && <p className={styles.override}>Причина свободного режима: {entry.overrideReason}</p>}
@@ -63,7 +63,7 @@ export function CharacterHistoryPanel({
 
 function actorLabel(entry: CharacterChangeRecord): string {
   const role = entry.actor.role === 'gm' ? 'мастер' : entry.actor.role === 'player' ? 'игрок' : 'система';
-  return `${entry.actor.name} · ${role}`;
+  return `${entry.actor.name} — ${role}`;
 }
 
 function formatDate(value: string): string {
@@ -100,7 +100,7 @@ function fieldLabel(path: string[]): string {
     notes: 'Заметки'
   };
   if (path.length === 0) return 'Персонаж';
-  return [labels[path[0]] ?? path[0], ...path.slice(1)].join(' · ');
+  return [labels[path[0]] ?? path[0], ...path.slice(1)].join(' — ');
 }
 
 function formatValue(value: CharacterChangeValue | undefined): string {

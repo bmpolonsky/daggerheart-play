@@ -26,6 +26,7 @@ import { ChoiceCard } from "../../components/common/ChoiceCard";
 import { SelectControl } from "../../components/common/Field";
 import { IconButton } from "../../components/common/IconButton";
 import { ListItem } from "../../components/common/ListItem";
+import { RichChoicePicker } from "../../components/common/RichChoicePicker";
 import { PLAYER_SHEET_SECTIONS } from "./constants";
 import { UsageTrackerControl } from "../../characters/UsageTrackerControl";
 
@@ -301,7 +302,7 @@ export function CharacterSheet({
                   type="button"
                   onClick={() => {
                     characterService.exitBeastform(character.id);
-                    feedService.addMessage(character.name, `${character.activeBeastform?.name ?? 'Форма'} · выход`, { title: 'Форма', publication: 'public' });
+                    feedService.addMessage(character.name, `${character.activeBeastform?.name ?? 'Форма'} — выход`, { title: 'Форма', publication: 'public' });
                   }}
                 >
                   Выйти
@@ -309,11 +310,19 @@ export function CharacterSheet({
               </div>
             ) : (
               <div className="player-beastform-panel__controls">
-                <SelectControl value={selectedBeastform?.id ?? ''} onChange={(event) => setSelectedBeastformId(event.currentTarget.value)} aria-label="Выбрать звериную форму">
-                  {availableBeastforms.map((beastform) => (
-                    <option key={beastform.id} value={beastform.id}>{beastform.name} · ранг {beastform.tier}</option>
-                  ))}
-                </SelectControl>
+                <RichChoicePicker
+                  className="player-beastform-panel__picker"
+                  label="Звериная форма"
+                  value={selectedBeastform?.id ?? ''}
+                  placeholder="Выберите форму"
+                  items={availableBeastforms.map((beastform) => ({
+                    id: beastform.id,
+                    title: beastform.name,
+                    subtitle: `Ранг ${beastform.tier} — уклонение ${signed(beastform.evasionModifier)}`,
+                    description: [beastform.summary, beastform.advantages, beastform.featureText].filter(Boolean).join('\n\n')
+                  }))}
+                  onChange={setSelectedBeastformId}
+                />
                 <SelectControl value={evolutionTrait} onChange={(event) => setEvolutionTrait(event.currentTarget.value as TraitId)} aria-label="Характеристика Эволюции">
                   {character.traits.map((trait) => <option key={trait.id} value={trait.id}>{trait.label}</option>)}
                 </SelectControl>
@@ -344,7 +353,7 @@ export function CharacterSheet({
               <div className="player-companion-panel__body">
                 <div className="player-companion-panel__stats">
                   <span>Уклонение <strong>{character.companion.evasion}</strong></span>
-                  <span>{character.companion.attackRange} · {companionDamageFormula(character.companion, character.proficiency)} {compactDamageTypeLabel(character.companion.attackDamageType)}</span>
+                  <span>{character.companion.attackRange} — {companionDamageFormula(character.companion, character.proficiency)} {compactDamageTypeLabel(character.companion.attackDamageType)}</span>
                 </div>
                 <TrackRow
                   icon={<Zap size={16} />}
@@ -481,12 +490,12 @@ export function CharacterSheet({
         />
         <ListItem
           title={character.armor.name || 'Броня'}
-          subtitle={`Пороги ${character.thresholds.major} / ${character.thresholds.severe} · Показатель ${character.armor.score}`}
+          subtitle={`Пороги ${character.thresholds.major} / ${character.thresholds.severe} — показатель ${character.armor.score}`}
           lines={2}
           onClick={() => onFeaturePreview?.(character, {
               id: 'armor',
               name: character.armor.name || 'Броня',
-              subtitle: `Пороги ${character.thresholds.major} / ${character.thresholds.severe} · Показатель ${character.armor.score}`,
+              subtitle: `Пороги ${character.thresholds.major} / ${character.thresholds.severe} — показатель ${character.armor.score}`,
               text: character.armor.feature,
               sourceLabel: 'Броня'
             })}
@@ -553,13 +562,13 @@ function enterBeastform(
 ): void {
   const applied = characterService.enterBeastform(character.id, beastform, { mode, evolutionTrait });
   if (!applied) {
-    feedService.addMessage(character.name, `${beastform.name} · не хватает Надежды`, { title: 'Форма', publication: 'public' });
+    feedService.addMessage(character.name, `${beastform.name} — не хватает Надежды`, { title: 'Форма', publication: 'public' });
     return;
   }
   const cost = mode === 'evolution'
     ? `-3 Надежды${evolutionTrait ? `, ${traitLabel(character, evolutionTrait)} +1` : ''}`
     : '+1 Стресс';
-  feedService.addMessage(character.name, `${beastform.name} · ${cost}`, { title: 'Форма', publication: 'public' });
+  feedService.addMessage(character.name, `${beastform.name} — ${cost}`, { title: 'Форма', publication: 'public' });
 }
 
 function traitLabel(character: PlayerViewCharacterSummary, traitId: TraitId): string {
@@ -571,7 +580,7 @@ function inventoryQuantityLabel(item: PlayerViewCharacterSummary['inventory'][nu
   if (item.quantity > 1) parts.push(`x${item.quantity}`);
   const usesLabel = inventoryUsesLabel(item);
   if (usesLabel) parts.push(usesLabel);
-  return parts.join(' · ');
+  return parts.join(' — ');
 }
 
 function inventoryUsesLabel(item: PlayerViewCharacterSummary['inventory'][number]): string {

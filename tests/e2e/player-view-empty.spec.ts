@@ -114,6 +114,7 @@ test.describe('Player View empty state', () => {
 
     const fearTrack = page.getByLabel(/Страх \d+ из 12/).first();
     await expect(fearTrack).toContainText('0/12');
+    await expect(fearTrack).toHaveCSS('grid-template-areas', '"label pips value"');
 
     await fearTrack.getByRole('button', { name: 'Страх 3' }).click();
     await expect(fearTrack).toContainText('3/12');

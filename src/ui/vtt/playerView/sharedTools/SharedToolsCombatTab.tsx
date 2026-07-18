@@ -387,7 +387,7 @@ function EncounterEntryCard({ entry }: { entry: EncounterBattleEntry }) {
         <div className="player-combat-entry__cost">{cost}</div>
         <div className="player-combat-entry__title">
           <strong>{adversary.name}</strong>
-          <span>Ранг {adversary.tier} · {adversary.roleName}</span>
+          <span>Ранг {adversary.tier} — {adversary.roleName}</span>
         </div>
         <div className="player-combat-stepper" aria-label={`Количество ${adversary.name}`}>
           <IconButton

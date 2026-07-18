@@ -50,7 +50,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
           <Icon size={17} />
           <div>
             <strong>{item.title}</strong>
-            <span>{readyCount}/{rest.participants.length} готовы · до {rest.maxChoicesPerParticipant} выборов</span>
+            <span>{readyCount}/{rest.participants.length} готовы — до {rest.maxChoicesPerParticipant} выборов</span>
           </div>
         </div>
         {rest.participants.length > 0 ? (

@@ -105,6 +105,26 @@ test('CharacterService keeps excess acquisitions in Vault and audits legal moves
   assert.equal(service.getCharacter(character.id)?.changeHistory?.at(-1)?.kind, 'cardMove');
 });
 
+test('permanent Vault stays auditable and can be restored through history undo', () => {
+  resetAllStores();
+  const service = new CharacterService();
+  const character = service.createCharacter({ domainCards: cards(2) });
+  assert.equal(service.permanentlyVaultDomainCard(character.id, 'card-1', {
+    actor: { id: 'player', name: 'Player', role: 'player' }
+  }), true);
+
+  const changed = service.getCharacter(character.id)!;
+  const record = changed.changeHistory?.at(-1);
+  assert.equal(changed.domainCards.find((card) => card.id === 'card-1')?.permanentlyVaulted, true);
+  assert.equal(record?.kind, 'cardMove');
+
+  const undo = service.undoChange(character.id, record!.id, { id: 'gm', name: 'GM', role: 'gm' });
+  assert.equal(undo?.status, 'applied');
+  const restored = service.getCharacter(character.id)!;
+  assert.equal(restored.domainCards.find((card) => card.id === 'card-1')?.permanentlyVaulted, false);
+  assert.equal(restored.domainCards.find((card) => card.id === 'card-1')?.inLoadout, true);
+});
+
 test('a full-Hand acquisition remains an explicit free choice and can be kept in Vault', () => {
   const existing = cards(5);
   const [newCard] = cards(1).map((card) => ({ ...card, id: 'new-card', name: 'New card', recallCost: 'Стресс 3' }));

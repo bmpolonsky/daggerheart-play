@@ -272,3 +272,124 @@ test('multiclass validates class domains and remains mutually exclusive with sub
   assert.equal(plan.warnings.some((warning) => warning.includes('нельзя одновременно')), true);
   assert.equal(plan.warnings.some((warning) => warning.includes('недоступен классу')), true);
 });
+
+test('experience advancement raises two distinct existing Experiences', () => {
+  const character = createCharacter({
+    level: 2,
+    domains: ['Blade', 'Bone'],
+    experiences: [
+      { id: 'exp-one', name: 'Первый', modifier: 2 },
+      { id: 'exp-two', name: 'Второй', modifier: 2 }
+    ]
+  });
+  const base = {
+    level: 3,
+    advancementChoices: ['experience', 'hp'] as const,
+    proficiency: character.proficiency,
+    experiences: [],
+    domainCards: [createDomainCard({ id: 'blade-exp', sourceId: 'blade-exp', domain: 'Blade', level: 3 })],
+    thresholdBonus: { major: character.thresholds.major + 1, severe: character.thresholds.severe + 1 },
+    traitBonuses: {},
+    hpMax: character.hp.max + 1,
+    stressMax: character.stress.max,
+    evasion: character.evasion
+  };
+  assert.equal(validateCharacterLevelUp(character, {
+    ...base,
+    experienceIncreases: [{ experienceId: 'exp-one' }]
+  }).issues.some((issue) => issue.code === 'experience.increaseInvalid'), true);
+  assert.equal(validateCharacterLevelUp(character, {
+    ...base,
+    experienceIncreases: [{ experienceId: 'exp-one' }, { experienceId: 'exp-two' }]
+  }).strictlyValid, true);
+});
+
+test('rank three can consume a previous-rank slot but advanced choices stay out of rank two', () => {
+  const character = createCharacter({ level: 4, domains: ['Blade', 'Bone'] });
+  const previousRankPlan = buildCharacterLevelUpPlan(character, {
+    targetLevel: 5,
+    advancementSelections: [
+      { choice: 'hp', rank: 2 },
+      { choice: 'stress', rank: 3 }
+    ]
+  });
+  assert.equal(previousRankPlan.warnings.some((warning) => warning.includes('недоступном ранге')), false);
+
+  const invalidPlan = buildCharacterLevelUpPlan(character, {
+    targetLevel: 5,
+    advancementSelections: [
+      { choice: 'proficiency', rank: 2 }
+    ]
+  });
+  assert.equal(invalidPlan.warnings.some((warning) => warning.includes('недоступно в ранге 2')), true);
+});
+
+test('multiclass level-up requires and applies class features plus a foundation subclass', () => {
+  resetAllStores();
+  const service = new CharacterService();
+  const character = service.createCharacter({ level: 5, className: 'Bard', domains: ['Grace', 'Codex'] });
+  const base = {
+    level: 6,
+    advancementChoices: ['multiclass'] as const,
+    multiclassClass: 'Warrior' as const,
+    multiclassDomain: 'Blade' as const,
+    multiclassSubclassName: 'Призыв отважных',
+    multiclassSubclassSlug: 'call-of-the-brave',
+    proficiency: character.proficiency,
+    experiences: [],
+    experienceIncreases: [],
+    domainCards: [createDomainCard({ id: 'multiclass-blade', sourceId: 'multiclass-blade', domain: 'Blade', level: 3 })],
+    thresholdBonus: { major: character.thresholds.major + 1, severe: character.thresholds.severe + 1 },
+    traitBonuses: {},
+    hpMax: character.hp.max,
+    stressMax: character.stress.max,
+    evasion: character.evasion
+  };
+  const incomplete = validateCharacterLevelUp(character, base);
+  assert.equal(incomplete.issues.some((issue) => issue.code === 'multiclass.featuresRequired'), true);
+  assert.equal(incomplete.issues.some((issue) => issue.code === 'subclass.invalid'), true);
+
+  const complete = {
+    ...base,
+    multiclassClassCards: [{ id: 'warrior-feature', kind: 'classFeature' as const, name: 'Боевой приём' }],
+    subclassCards: [{ id: 'warrior-foundation', kind: 'subclassFeature' as const, subclassTier: 'foundation' as const, name: 'Основа подкласса' }]
+  };
+  assert.equal(service.validateLevelUp(character.id, complete)?.strictlyValid, true);
+  assert.equal(service.applyLevelUp(character.id, complete), true);
+  const updated = service.getCharacter(character.id)!;
+  assert.equal(updated.advancement?.multiclass?.subclassSlug, 'call-of-the-brave');
+  assert.equal(updated.sheetCards.some((card) => card.kind === 'classFeature' && card.name === 'Боевой приём'), true);
+  assert.equal(updated.sheetCards.some((card) => card.kind === 'subclassFeature' && card.subclassTier === 'foundation'), true);
+});
+
+test('level-up can exchange one owned domain card for a new card of the same or lower level', () => {
+  resetAllStores();
+  const service = new CharacterService();
+  const character = service.createCharacter({
+    level: 2,
+    domains: ['Blade', 'Bone'],
+    domainCards: [createDomainCard({ id: 'old-card', sourceId: 'old-card', name: 'Старая', domain: 'Blade', level: 2, inLoadout: true })]
+  });
+  const input = {
+    level: 3,
+    advancementChoices: ['hp', 'stress'] as const,
+    proficiency: character.proficiency,
+    experiences: [],
+    experienceIncreases: [],
+    domainCards: [createDomainCard({ id: 'mandatory-card', sourceId: 'mandatory-card', domain: 'Bone', level: 3 })],
+    domainCardExchange: {
+      removeCardId: 'old-card',
+      replacement: createDomainCard({ id: 'replacement-card', sourceId: 'replacement-card', name: 'Замена', domain: 'Blade', level: 1 })
+    },
+    thresholdBonus: { major: character.thresholds.major + 1, severe: character.thresholds.severe + 1 },
+    traitBonuses: {},
+    hpMax: character.hp.max + 1,
+    stressMax: character.stress.max + 1,
+    evasion: character.evasion
+  };
+  assert.equal(service.validateLevelUp(character.id, input)?.strictlyValid, true);
+  assert.equal(service.applyLevelUp(character.id, input), true);
+  const updated = service.getCharacter(character.id)!;
+  assert.equal(updated.domainCards.some((card) => card.id === 'old-card'), false);
+  assert.equal(updated.domainCards.find((card) => card.id === 'replacement-card')?.inLoadout, true);
+});

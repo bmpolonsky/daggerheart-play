@@ -63,24 +63,15 @@ export function UsageTrackerControl({
     );
   }
 
-  const isSingle = tracker.max === 1;
   return (
     <div className={styles.root} onClick={(event) => event.stopPropagation()} aria-label={`${tracker.label}: ${tracker.current} из ${tracker.max}`}>
-      {isSingle ? (
-        <Button size="xs" variant={tracker.current > 0 ? 'secondary' : 'ghost'} onClick={() => updateCurrent(tracker.current > 0 ? 0 : 1)}>
-          {tracker.current > 0 ? 'Использовано' : tracker.label}
-        </Button>
-      ) : (
-        <>
-          <IconButton size="xs" variant="ghost" title="Уменьшить" aria-label={`Уменьшить ${tracker.label}`} disabled={tracker.current <= 0} onClick={() => updateCurrent(tracker.current - 1)}>
-            <Minus size={12} aria-hidden="true" />
-          </IconButton>
-          <span className={styles.value}>{tracker.current}/{tracker.max}</span>
-          <IconButton size="xs" variant="ghost" title="Увеличить" aria-label={`Увеличить ${tracker.label}`} disabled={tracker.current >= tracker.max} onClick={() => updateCurrent(tracker.current + 1)}>
-            <Plus size={12} aria-hidden="true" />
-          </IconButton>
-        </>
-      )}
+      <IconButton size="xs" variant="ghost" title="Уменьшить" aria-label={`Уменьшить ${tracker.label}`} disabled={tracker.current <= 0} onClick={() => updateCurrent(tracker.current - 1)}>
+        <Minus size={12} aria-hidden="true" />
+      </IconButton>
+      <span className={styles.value}>{tracker.current}/{tracker.max}</span>
+      <IconButton size="xs" variant="ghost" title="Увеличить" aria-label={`Увеличить ${tracker.label}`} disabled={tracker.current >= tracker.max} onClick={() => updateCurrent(tracker.current + 1)}>
+        <Plus size={12} aria-hidden="true" />
+      </IconButton>
       <IconButton size="xs" variant="ghost" title="Настроить трекер" aria-label={`Настроить трекер ${targetName}`} onClick={() => setSettingsOpen(true)}>
         <SlidersHorizontal size={12} aria-hidden="true" />
       </IconButton>

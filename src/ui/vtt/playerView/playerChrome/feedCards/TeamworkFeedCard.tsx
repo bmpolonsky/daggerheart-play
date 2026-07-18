@@ -101,7 +101,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
           <Icon size={17} />
           <div>
             <strong>{item.title}</strong>
-            <span>Сложность {teamwork.difficulty} · {teamwork.participants.length} участник(а)</span>
+            <span>Сложность {teamwork.difficulty} — {teamwork.participants.length} участник(а)</span>
           </div>
         </div>
         {teamwork.prompt && <p className="feed-teamwork-card__prompt">{teamwork.prompt}</p>}

@@ -37,7 +37,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <details className="character-editor-item" key={weapon.id} open={index === 0}>
             <summary>
               <strong>{weaponLabel(weapon.name)}</strong>
-              <span>{TRAIT_LABELS[weapon.trait]} · {RANGE_LABELS[weapon.range] ?? weapon.range} · {weapon.damageFormula}</span>
+              <span>{TRAIT_LABELS[weapon.trait]} — {RANGE_LABELS[weapon.range] ?? weapon.range} — {weapon.damageFormula}</span>
             </summary>
             <div className="character-editor-item__fields">
             <div className="grid-5">
@@ -207,7 +207,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <details className="character-editor-item" key={item.id} open={index === 0}>
             <summary>
               <strong>{item.name || 'Предмет без названия'}</strong>
-              <span>{inventoryKindLabel(item.kind)} · {item.quantity} шт.</span>
+              <span>{inventoryKindLabel(item.kind)} — {item.quantity} шт.</span>
             </summary>
             <div className="character-editor-item__fields">
             <div className="grid-5">
@@ -308,7 +308,7 @@ function cardLevel(item: GenericLibraryItem): number {
 }
 
 function cardOptionLabel(item: GenericLibraryItem): string {
-  return `${item.name} · ${item.subtitle || `Уровень ${cardLevel(item)}`}`;
+  return `${item.name} — ${item.subtitle || `Уровень ${cardLevel(item)}`}`;
 }
 
 function weaponLabel(name: string): string {

@@ -1,6 +1,6 @@
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
-import { pauseSceneMusic, playSceneMusic, setSceneMusicDeliveryMode, setSceneMusicTrack, setSceneMusicVolume, stopSceneMusic, type SceneMusicDeliveryMode } from '../domain/audio/sceneAudio';
+import { pauseSceneMusic, playSceneMusic, setSceneMusicTrack, setSceneMusicVolume, stopSceneMusic, type SceneMusicDeliveryMode } from '../domain/audio/sceneAudio';
 import { createLocalParticipant, createTableScene, createTokenState, nextArrangedTokenPositionForActor, randomAvailableTokenPosition } from '../domain/tabletop/factories';
 import { normalizeSceneBackgroundFraming } from '../domain/tabletop/sceneBackground';
 import {
@@ -448,8 +448,12 @@ export class SceneTableService {
     this.updateSceneMusic(sceneId, (music) => setSceneMusicVolume(music, volume));
   }
 
-  setSceneMusicDeliveryMode(sceneId: string, deliveryMode: SceneMusicDeliveryMode): void {
-    this.updateSceneMusic(sceneId, (music) => setSceneMusicDeliveryMode(music, deliveryMode));
+  setSceneMusicDeliveryMode(deliveryMode: SceneMusicDeliveryMode): void {
+    sceneTableStore.update((state) => state.musicDeliveryMode === deliveryMode ? state : ({
+      ...state,
+      musicDeliveryMode: deliveryMode,
+      updatedAt: nowIso()
+    }));
   }
 
   duplicateScene(id: string): TableScene | null {

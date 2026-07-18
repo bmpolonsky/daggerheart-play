@@ -1,5 +1,6 @@
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
+import { createId } from '../core/utils/id';
 import { removeFromRecord, replaceInRecord } from '../core/utils/object';
 import { beastformToActiveState, beastformToSheetCard, beastformToWeapon } from '../domain/content/beastforms';
 import { DEFAULT_ACTION_TOKENS, DEFAULT_MAX_HOPE, CLASS_DOMAINS, CLASS_STARTING_STATS } from '../domain/rules/constants';
@@ -103,6 +104,17 @@ export class CharacterService {
   readonly characters$ = charactersStore.toStream();
   private deathMoveRequestHandler: DeathMoveRequestHandler | null = null;
   private mutationActorProvider: () => CharacterChangeActor = () => SYSTEM_CHARACTER_ACTOR;
+  private readonly activeHistoryGroups = new Map<string, { id: string; actor?: CharacterChangeActor }>();
+
+  beginHistoryGroup(characterId: string, actor?: CharacterChangeActor): string {
+    const id = createId('character-edit-session');
+    this.activeHistoryGroups.set(characterId, { id, actor });
+    return id;
+  }
+
+  endHistoryGroup(characterId: string): void {
+    this.activeHistoryGroups.delete(characterId);
+  }
 
   setDeathMoveRequestHandler(handler: DeathMoveRequestHandler | null): void {
     this.deathMoveRequestHandler = handler;
@@ -143,10 +155,11 @@ export class CharacterService {
       changeHistory: current.changeHistory ?? [],
       playerSyncRevision: syncRevision ?? current.playerSyncRevision
     });
+    const isLevelUp = normalized.level === current.level + 1;
     this.patchCharacter(id, () => normalized, {
       actor,
-      kind: 'edit',
-      summary: 'Изменения игрока'
+      kind: isLevelUp ? 'levelUp' : 'edit',
+      summary: isLevelUp ? `Повышение до ${normalized.level} уровня` : 'Изменения игрока'
     });
     return true;
   }
@@ -269,7 +282,17 @@ export class CharacterService {
       }), current.traits);
       const increasedExperienceIds = new Set((input.experienceIncreases ?? []).map((item) => item.experienceId));
       const newDomainCards = (input.domainCards ?? []).map((card) => createDomainCard(card));
-      const nextDomainCards = placeAcquiredDomainCards(current.domainCards, newDomainCards, current.ruleModifiers);
+      const exchangedDomainCards = input.domainCardExchange
+        ? current.domainCards.map((card) => card.id === input.domainCardExchange?.removeCardId
+          ? createDomainCard({
+              ...input.domainCardExchange.replacement,
+              inLoadout: card.inLoadout,
+              permanentlyVaulted: false,
+              loadoutChoicePending: false
+            })
+          : card)
+        : current.domainCards;
+      const nextDomainCards = placeAcquiredDomainCards(exchangedDomainCards, newDomainCards, current.ruleModifiers);
       return {
         ...current,
         level,
@@ -291,6 +314,7 @@ export class CharacterService {
         domainCards: nextDomainCards,
         sheetCards: [
           ...current.sheetCards,
+          ...(input.multiclassClassCards ?? []).map((card) => createSheetCard({ ...card, kind: 'classFeature' })),
           ...(input.subclassCards ?? []).map((card) => createSheetCard({ ...card, kind: 'subclassFeature' }))
         ],
         advancement: nextCharacterAdvancementState(current, input),
@@ -364,7 +388,7 @@ export class CharacterService {
         ...character.hope,
         value: clamp(character.hope.value + delta, 0, buildEffectiveCharacterStats(character).hope.max)
       }
-    }));
+    }), { audit: false });
   }
 
   spendHope(id: string, amount: number): boolean {
@@ -381,7 +405,7 @@ export class CharacterService {
     this.patchCharacter(id, (character) => ({
       ...character,
       hope: { ...character.hope, value: clamp(toSafeInteger(value, 0), 0, buildEffectiveCharacterStats(character).hope.max) }
-    }));
+    }), { audit: false });
   }
 
   updateResourceMax(id: string, resource: 'hp' | 'stress' | 'hope', max: number): void {
@@ -438,7 +462,7 @@ export class CharacterService {
         conditions: nextConditions
       };
       return resource === 'hp' ? syncCharacterDefeatedCondition(updated) : updated;
-    });
+    }, { audit: false });
     if (resource === 'hp') {
       this.requestDeathMoveOnDefeatedTransition(patch);
     }
@@ -474,6 +498,7 @@ export class CharacterService {
   resetActionTokens(tokens = DEFAULT_ACTION_TOKENS): void {
     for (const id of charactersStore.get().order) {
       this.patchCharacter(id, (character) => ({ ...character, actionTokens: tokens }), {
+        audit: false,
         summary: 'Сброшены жетоны действий'
       });
     }
@@ -487,17 +512,17 @@ export class CharacterService {
       const recovered = recoverLongRestCharacter(character, move);
       if (recovered === character) continue;
       changedCount += 1;
-      this.patchCharacter(id, () => recovered, { summary: 'Восстановление после продолжительного отдыха' });
+      this.patchCharacter(id, () => recovered, { audit: false, summary: 'Восстановление после продолжительного отдыха' });
     }
     return changedCount;
   }
 
   spendActionToken(id: string): void {
-    this.patchCharacter(id, (character) => ({ ...character, actionTokens: Math.max(0, character.actionTokens - 1) }));
+    this.patchCharacter(id, (character) => ({ ...character, actionTokens: Math.max(0, character.actionTokens - 1) }), { audit: false });
   }
 
   setActionTokens(id: string, value: number): void {
-    this.patchCharacter(id, (character) => ({ ...character, actionTokens: clamp(toSafeInteger(value, 0), 0, 12) }));
+    this.patchCharacter(id, (character) => ({ ...character, actionTokens: clamp(toSafeInteger(value, 0), 0, 12) }), { audit: false });
   }
 
   addExperience(id: string, input?: Partial<Experience>): void {
@@ -651,7 +676,7 @@ export class CharacterService {
       domainCards: character.domainCards.map((card) => (
         card.id === cardId ? { ...card, tokens: { ...card.tokens, value: clamp(value, 0, card.tokens?.max ?? 0) } } : card
       ))
-    }));
+    }), { audit: false });
   }
 
   configureUsageTracker(
@@ -680,7 +705,12 @@ export class CharacterService {
     this.patchCharacter(id, (current) => ({
       ...current,
       usageTrackers: updateCharacterUsageTracker(current.usageTrackers ?? [], trackerId, patch)
-    }), { ...context, kind: 'tracker', summary: 'Изменён трекер использования' });
+    }), {
+      ...context,
+      audit: patch.label !== undefined || patch.max !== undefined || patch.reset !== undefined,
+      kind: 'tracker',
+      summary: 'Изменён трекер использования'
+    });
     return true;
   }
 
@@ -707,6 +737,7 @@ export class CharacterService {
     if (resetCount === 0) return 0;
     this.patchCharacter(id, (current) => ({ ...current, usageTrackers: next }), {
       ...context,
+      audit: false,
       kind: 'tracker',
       summary: rest === 'long' ? 'Сброс трекеров после продолжительного отдыха' : 'Сброс трекеров после короткого отдыха'
     });
@@ -1015,11 +1046,17 @@ export class CharacterService {
       if (!current) {
         return state;
       }
-      const changedAt = context.changedAt ?? nowIso();
+      const activeGroup = this.activeHistoryGroups.get(id);
+      const effectiveContext: CharacterMutationContext = {
+        ...context,
+        actor: context.actor ?? activeGroup?.actor,
+        historyGroupId: context.historyGroupId ?? activeGroup?.id
+      };
+      const changedAt = effectiveContext.changedAt ?? nowIso();
       const candidate = { ...updater(current), updatedAt: changedAt };
       const record = createCharacterChangeRecord(current, candidate, {
-        ...context,
-        actor: context.actor ?? this.mutationActorProvider(),
+        ...effectiveContext,
+        actor: effectiveContext.actor ?? this.mutationActorProvider(),
         changedAt
       });
       const updated = appendCharacterChangeHistory(candidate, record);

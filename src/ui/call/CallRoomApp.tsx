@@ -383,7 +383,7 @@ function CallVideoTile({ focused = false, local = false, onSelect, participant }
         <div className="call-video-tile__avatar" aria-hidden="true">{initials(participant.displayName)}</div>
       )}
       <footer>
-        <span>{participant.displayName || 'Гость'}{local ? ' · вы' : ''}</span>
+        <span>{participant.displayName || 'Гость'}{local ? ' — вы' : ''}</span>
         {participant.handRaised && <Hand size={14} aria-label="Рука поднята" />}
         {participant.micMuted ? <MicOff size={14} aria-label="Микрофон выключен" /> : <Mic size={14} aria-label="Микрофон включен" />}
       </footer>

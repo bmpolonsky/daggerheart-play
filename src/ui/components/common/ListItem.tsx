@@ -40,6 +40,7 @@ export function ListItem({
   type = 'button',
   ...props
 }: ListItemProps) {
+  const rightSlot = rightAccessory ?? (value ? <span className={`dh-list-item__value ${styles.value}`}>{value}</span> : null);
   const itemClassName = [
     'dh-list-item',
     styles.root,
@@ -48,6 +49,7 @@ export function ListItem({
     tone === 'featured' ? styles.featured : '',
     lines === 2 ? styles.twoLine : '',
     onClick ? styles.interactive : '',
+    onClick && rightSlot ? styles.interactiveWithAccessory : '',
     disabled ? styles.disabled : '',
     className
   ].filter(Boolean).join(' ');
@@ -58,8 +60,6 @@ export function ListItem({
       {detail && <span className={`dh-list-item__detail ${styles.detail}`}>{detail}</span>}
     </>
   );
-  const rightSlot = rightAccessory ?? (value ? <span className={`dh-list-item__value ${styles.value}`}>{value}</span> : null);
-
   if (onClick && !rightSlot) {
     return (
       <button className={itemClassName} type={type} title={tooltip} disabled={disabled} onClick={onClick} {...props}>
@@ -71,14 +71,18 @@ export function ListItem({
 
   return (
     <article className={itemClassName} title={tooltip}>
-      {leftAccessory && <span className={`dh-list-item__left-accessory ${styles.leftAccessory}`}>{leftAccessory}</span>}
-      {onClick ? (
-        <button className={`dh-list-item__content ${styles.contentButton}`} type={type} disabled={disabled} onClick={onClick} {...props}>
-          {content}
-        </button>
-      ) : (
-        <span className={`dh-list-item__content ${styles.content}`}>{content}</span>
+      {onClick && (
+        <button
+          className={styles.hitTarget}
+          type={type}
+          disabled={disabled}
+          onClick={onClick}
+          aria-label={props['aria-label'] ?? (typeof title === 'string' ? title : undefined)}
+          {...props}
+        />
       )}
+      {leftAccessory && <span className={`dh-list-item__left-accessory ${styles.leftAccessory}`}>{leftAccessory}</span>}
+      <span className={`dh-list-item__content ${styles.content}`}>{content}</span>
       {rightSlot && <span className={`dh-list-item__right-accessory ${styles.rightAccessory}`}>{rightSlot}</span>}
     </article>
   );

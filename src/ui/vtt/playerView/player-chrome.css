@@ -13,26 +13,17 @@
 .player-fear-track {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "pips"
-    "label";
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "label pips value";
   align-items: center;
-  justify-items: center;
-  column-gap: 14px;
-  row-gap: 3px;
-  min-height: 58px;
-  overflow: hidden;
+  gap: 12px;
+  min-height: 50px;
+  overflow: visible;
   border: 0;
-  border-radius: 10px;
-  background:
-    linear-gradient(90deg, rgba(51, 31, 78, 0.22), rgba(7, 9, 12, 0.64) 30%, rgba(51, 31, 78, 0.16)),
-    rgba(7, 9, 12, 0.7);
-  box-shadow:
-    0 18px 54px rgba(0, 0, 0, 0.42),
-    inset 0 0 0 1px rgba(255, 247, 231, 0.05),
-    inset 0 0 34px rgba(77, 45, 112, 0.14);
-  backdrop-filter: blur(16px);
+  border-radius: 14px;
+  background: rgba(16, 10, 24, 0.42);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px) saturate(1.12);
 }
 
 .player-fear-track::before,
@@ -43,7 +34,7 @@
 .player-fear-track {
   pointer-events: auto;
   width: min(520px, 100%);
-  padding: 9px 78px 8px;
+  padding: 8px 12px;
   color: var(--dh-gold-400);
 }
 
@@ -58,28 +49,27 @@
 
 .player-fear-track__label {
   grid-area: label;
-  justify-self: center;
+  justify-self: start;
   min-height: 0;
   padding: 0;
   border-left: 0;
-  color: rgba(255, 247, 231, 0.7);
+  color: rgba(243, 234, 216, 0.58);
   font-size: 0.62rem;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.46);
 }
 
 .player-fear-track .player-fear-track__value {
-  position: absolute;
-  top: 50%;
-  right: 16px;
-  min-width: 58px;
-  padding: 5px 9px;
+  position: static;
+  grid-area: value;
+  min-width: 48px;
+  padding: 4px 7px;
   border: 0;
   border-radius: 999px;
   background: rgba(243, 234, 216, 0.07);
   color: rgba(255, 247, 231, 0.94);
   text-align: center;
   font-variant-numeric: tabular-nums;
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .player-fear-track__pips {
@@ -92,13 +82,13 @@
 .player-fear-track__pips .pips {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 5px;
 }
 
 .player-fear-track__pips .pip {
   flex: 0 0 auto;
-  width: 15px;
-  height: 15px;
+  width: 10px;
+  height: 10px;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -1363,15 +1353,10 @@
 
 @media (max-width: 680px) {
   .player-fear-track {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "pips"
-      "label";
-    column-gap: 9px;
-    row-gap: 2px;
+    gap: 8px;
     min-width: 0;
-    min-height: 48px;
-    padding: 7px 62px 6px;
+    min-height: 46px;
+    padding: 7px 10px;
   }
 
   .player-fear-track__label,
@@ -1379,24 +1364,18 @@
     font-size: 0.64rem;
   }
 
-  .player-fear-track__label {
-    padding: 0;
-  }
-
-  .player-fear-track .player-fear-track__value {
-    right: 10px;
-    min-width: 44px;
-    padding: 5px 7px;
-  }
-
   .player-fear-track__pips .pips {
-    gap: 5px;
+    gap: 4px;
   }
 
   .player-fear-track__pips .pip {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 3px;
+  }
+
+  .player-fear-track .player-fear-track__value {
+    min-width: 42px;
   }
 }
 
@@ -1458,40 +1437,6 @@
 
   .player-fear-track {
     width: min(330px, 100%);
-    min-height: 50px;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "label pips value";
-    gap: 12px;
-    padding: 8px 12px;
-    overflow: visible;
-    border: 0;
-    border-radius: 14px;
-    background: rgba(16, 10, 24, 0.42);
-    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(18px) saturate(1.12);
-  }
-
-  .player-fear-track__label {
-    justify-self: start;
-    color: rgba(243, 234, 216, 0.58);
-  }
-
-  .player-fear-track__pips .pips {
-    gap: 5px;
-  }
-
-  .player-fear-track__pips .pip {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-  }
-
-  .player-fear-track .player-fear-track__value {
-    position: static;
-    grid-area: value;
-    min-width: 48px;
-    padding: 4px 7px;
-    transform: none;
   }
 
   .player-left-rail {

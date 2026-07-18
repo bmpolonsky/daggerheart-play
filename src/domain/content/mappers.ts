@@ -518,7 +518,7 @@ export function mapGenericItem(raw: RawContentItem, prefix: string): GenericLibr
     sourceId: raw.id,
     slug,
     name,
-    subtitle: subtitleParts.join(' · '),
+    subtitle: subtitleParts.join(' — '),
     body: asString(raw.short_description ?? raw.description ?? raw.main_body ?? raw.mainBody ?? raw.text),
     imageUrl: assetPath(raw.image_url),
     level: typeof raw.level === 'number' ? raw.level : undefined,

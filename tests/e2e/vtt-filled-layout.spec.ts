@@ -259,10 +259,10 @@ test.describe('filled VTT layout regressions', () => {
     const vertical = workspace.getByLabel('Положение фона по вертикали');
     const preview = workspace.locator('.player-tools-scene-preview img');
 
-    await expect(framingMode.getByRole('button', { name: 'Заполнить' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(framingMode.getByRole('button', { name: 'Заполнить сцену' })).toHaveAttribute('aria-pressed', 'true');
     await expect(advanced).not.toHaveAttribute('open', '');
     await expect(zoom).toBeHidden();
-    await framingMode.getByRole('button', { name: 'Вписать' }).click();
+    await framingMode.getByRole('button', { name: 'Показать целиком' }).click();
     await expect(preview).toHaveCSS('object-fit', 'contain');
 
     await advanced.locator('summary').click();
@@ -270,7 +270,27 @@ test.describe('filled VTT layout regressions', () => {
     await zoom.fill('1.5');
     await horizontal.fill('0.5');
     await vertical.fill('-0.25');
+    await expect(advanced.getByText('Свой кадр')).toBeVisible();
     await expect(preview).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
+
+    await framingMode.getByRole('button', { name: 'Заполнить сцену' }).click();
+    await expect(preview).toHaveCSS('object-fit', 'cover');
+    await expect(zoom).toHaveValue('1');
+    await expect(horizontal).toHaveValue('0');
+    await expect(vertical).toHaveValue('0');
+    await expect(advanced.getByText('Свой кадр')).toHaveCount(0);
+
+    await zoom.fill('1.4');
+    await horizontal.fill('-0.4');
+    await workspace.getByRole('button', { name: 'Сбросить кадр' }).click();
+    await expect(framingMode.getByRole('button', { name: 'Заполнить сцену' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(zoom).toHaveValue('1');
+    await expect(horizontal).toHaveValue('0');
+
+    await framingMode.getByRole('button', { name: 'Показать целиком' }).click();
+    await zoom.fill('1.5');
+    await horizontal.fill('0.5');
+    await vertical.fill('-0.25');
     await workspace.getByRole('button', { name: 'Закрыть' }).click();
 
     const renderedBackground = page.locator('.player-view__scene-image');
@@ -285,7 +305,7 @@ test.describe('filled VTT layout regressions', () => {
     await page.getByRole('button', { name: 'Инструменты' }).click();
     const reopenedWorkspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
     await reopenedWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
-    await expect(reopenedWorkspace.getByRole('group', { name: 'Размещение фона' }).getByRole('button', { name: 'Вписать' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(reopenedWorkspace.getByRole('group', { name: 'Размещение фона' }).getByRole('button', { name: 'Показать целиком' })).toHaveAttribute('aria-pressed', 'true');
     await reopenedWorkspace.locator('.player-tools-scene-framing__advanced summary').click();
     await expect(reopenedWorkspace.getByLabel('Масштаб фона')).toHaveValue('1.5');
     await expect(reopenedWorkspace.getByLabel('Положение фона по горизонтали')).toHaveValue('0.5');

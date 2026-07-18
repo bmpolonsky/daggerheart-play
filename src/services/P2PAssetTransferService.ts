@@ -6,7 +6,8 @@ import type { AssetService } from './AssetService';
 import type { SceneTableService } from './SceneTableService';
 import type { AssetMessage, AssetRequestMessage, AssetRequestReason, SyncService } from './SyncService';
 
-const ASSET_REQUEST_TIMEOUT_MS = 15000;
+const ASSET_REQUEST_IDLE_TIMEOUT_MS = 15_000;
+const ASSET_REQUEST_HARD_TIMEOUT_MS = 5 * 60_000;
 
 interface AssetSessionState {
   connected: boolean;
@@ -22,7 +23,10 @@ interface PendingAssetRequest {
   assetId: string;
   reason: AssetRequestReason;
   sourcePeerId: string;
-  timeout: number;
+  idleTimeout: number;
+  hardTimeout: number;
+  hardDeadline: number;
+  lastProgress: number;
   resolve: (ok: boolean) => void;
 }
 
@@ -90,14 +94,16 @@ export class P2PAssetTransferService {
   async retryPendingRequestsForPeer(peerId: string): Promise<void> {
     const pendingRequests = Array.from(this.pending.entries()).filter(([, request]) => request.sourcePeerId === peerId);
     for (const [requestId, request] of pendingRequests) {
-      window.clearTimeout(request.timeout);
+      window.clearTimeout(request.idleTimeout);
+      window.clearTimeout(request.hardTimeout);
       this.pending.delete(requestId);
       this.startRequest({
         assetId: request.assetId,
         reason: request.reason,
         sourcePeerId: request.sourcePeerId,
         resolve: request.resolve,
-        failOnPublishError: false
+        failOnPublishError: false,
+        hardDeadline: request.hardDeadline
       });
     }
     if (pendingRequests.length > 0) {
@@ -172,6 +178,9 @@ export class P2PAssetTransferService {
     if (!pending || pending.assetId !== metadata.asset.id || pending.sourcePeerId !== peerId) {
       return;
     }
+    // Network activity is complete; IndexedDB persistence is no longer an idle
+    // transfer and remains protected only by the absolute hard deadline.
+    window.clearTimeout(pending.idleTimeout);
     try {
       await this.assetService.putAssetBlob(metadata.asset, new Blob([data], { type: metadata.asset.mimeType || 'application/octet-stream' }));
       this.finish(metadata.requestId, true);
@@ -190,6 +199,11 @@ export class P2PAssetTransferService {
     if (!pending || pending.sourcePeerId !== peerId) {
       return;
     }
+    if (!Number.isFinite(percent) || percent <= pending.lastProgress) {
+      return;
+    }
+    pending.lastProgress = percent;
+    this.resetIdleTimeout(metadata.requestId);
     this.patchSession({ lastRequestAt: nowIso(), message: `Ресурс сцены загружается: ${Math.round(percent * 100)}%.` });
   }
 
@@ -198,7 +212,8 @@ export class P2PAssetTransferService {
     if (!pending) {
       return;
     }
-    window.clearTimeout(pending.timeout);
+    window.clearTimeout(pending.idleTimeout);
+    window.clearTimeout(pending.hardTimeout);
     this.pending.delete(requestId);
     pending.resolve(ok);
   }
@@ -209,18 +224,21 @@ export class P2PAssetTransferService {
     sourcePeerId: string;
     resolve: (ok: boolean) => void;
     failOnPublishError: boolean;
+    hardDeadline?: number;
   }): string {
     const requestId = createId('asset_request');
-    const timeout = window.setTimeout(() => {
-      this.pending.delete(requestId);
-      this.patchSession({ lastRequestAt: nowIso(), message: 'Ресурс сцены недоступен.' });
-      input.resolve(false);
-    }, ASSET_REQUEST_TIMEOUT_MS);
+    const hardDeadline = input.hardDeadline ?? Date.now() + ASSET_REQUEST_HARD_TIMEOUT_MS;
+    const remainingHardTime = Math.max(0, hardDeadline - Date.now());
+    const idleTimeout = window.setTimeout(() => this.failTimedOutRequest(requestId, 'Передача ресурса сцены остановилась.'), ASSET_REQUEST_IDLE_TIMEOUT_MS);
+    const hardTimeout = window.setTimeout(() => this.failTimedOutRequest(requestId, 'Передача ресурса сцены заняла слишком много времени.'), remainingHardTime);
     this.pending.set(requestId, {
       assetId: input.assetId,
       reason: input.reason,
       sourcePeerId: input.sourcePeerId,
-      timeout,
+      idleTimeout,
+      hardTimeout,
+      hardDeadline,
+      lastProgress: 0,
       resolve: input.resolve
     });
     void this.syncService.publishAssetMessage({
@@ -235,6 +253,23 @@ export class P2PAssetTransferService {
       }
     });
     return requestId;
+  }
+
+  private resetIdleTimeout(requestId: string): void {
+    const pending = this.pending.get(requestId);
+    if (!pending) return;
+    window.clearTimeout(pending.idleTimeout);
+    pending.idleTimeout = window.setTimeout(
+      () => this.failTimedOutRequest(requestId, 'Передача ресурса сцены остановилась.'),
+      ASSET_REQUEST_IDLE_TIMEOUT_MS
+    );
+  }
+
+  private failTimedOutRequest(requestId: string, message: string): void {
+    const pending = this.pending.get(requestId);
+    if (!pending) return;
+    this.finish(requestId, false);
+    this.patchSession({ lastRequestAt: nowIso(), message });
   }
 }
 

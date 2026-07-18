@@ -541,6 +541,10 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
     await waitFor(() => {
       assert.equal(Boolean(sceneTableStore.get().participants[participant.id]?.peerId), true);
     });
+    const acknowledgedRevisions: number[] = [];
+    const unsubscribeAcks = playerSync.subscribePlayerCharacterUpdateAcks((message) => {
+      if (message.actorId === character.id) acknowledgedRevisions.push(message.revision);
+    });
     const canonicalBeforeUpdate = characterService.getCharacter(character.id);
     assert.ok(canonicalBeforeUpdate);
 
@@ -575,6 +579,7 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
 
     await waitFor(() => {
       assert.equal(characterService.getCharacter(character.id)?.name, 'Ари после правки');
+      assert.deepEqual(acknowledgedRevisions, [2]);
     });
     const updated = characterService.getCharacter(character.id);
     assert.ok(updated);
@@ -612,6 +617,7 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
     assert.equal(afterStaleUpdate?.notes, 'Заметка игрока');
     assert.deepEqual(afterStaleUpdate?.playerSyncRevision, { participantId: participant.id, revision: 2 });
     assert.equal(afterStaleUpdate?.changeHistory?.length, 1);
+    assert.deepEqual(acknowledgedRevisions, [2, 1]);
 
     const undo = characterService.undoChange(character.id, authorityRecord.id, {
       id: 'local-gm',
@@ -627,6 +633,7 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
     assert.deepEqual(reverted.changeHistory?.[1]?.actor, { id: 'local-gm', name: 'GM', role: 'gm' });
     assert.equal(reverted.changeHistory?.[1]?.kind, 'undo');
     assert.equal(reverted.changeHistory?.[1]?.undoesChangeId, authorityRecord.id);
+    unsubscribeAcks();
   } finally {
     await playerSync.disconnect().catch(() => undefined);
     await gm.stop().catch(() => undefined);

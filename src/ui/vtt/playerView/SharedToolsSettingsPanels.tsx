@@ -22,11 +22,12 @@ import { Button } from '../../components/common/Button';
 import { Badge, type BadgeTone } from '../../components/common/Badge';
 import { Card } from '../../components/common/Card';
 import { Checkbox } from '../../components/common/Checkbox';
-import { SelectControl, TextControl, TextField } from '../../components/common/Field';
+import { SelectControl, SelectField, TextControl, TextField } from '../../components/common/Field';
 import { IconButton } from '../../components/common/IconButton';
 import type { TableViewRole } from './types';
 
 export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
+  const sceneTable = useStream(sceneTableService.sceneTable$);
   return (
     <section className="player-tools-settings-panel">
       <TextField
@@ -50,6 +51,14 @@ export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
           onChange={(event) => gameService.updateSettings({ showCoins: event.currentTarget.checked })}
         />
       </div>
+      <SelectField
+        label="Передача музыки сцены"
+        value={sceneTable.musicDeliveryMode}
+        onChange={(event) => sceneTableService.setSceneMusicDeliveryMode(event.currentTarget.value as 'download' | 'broadcast')}
+      >
+        <option value="download">Сначала загрузить файл</option>
+        <option value="broadcast">Передавать во время воспроизведения</option>
+      </SelectField>
     </section>
   );
 }
@@ -377,7 +386,7 @@ function peerRouteDetail(route: P2PTransportPeerRouteDiagnostic): string {
   const parts: string[] = [];
   if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} ms`);
   if (route.physicalPeerId) parts.push(shortPeerId(route.physicalPeerId));
-  return parts.join(' · ');
+  return parts.join(' — ');
 }
 
 function transportRouteDetail(route: P2PTransportRouteDiagnostic): string {
@@ -385,7 +394,7 @@ function transportRouteDetail(route: P2PTransportRouteDiagnostic): string {
   const parts: string[] = [];
   if (route.activePeers.length > 0) parts.push(`${route.activePeers.length} peer`);
   if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} ms`);
-  return parts.join(' · ');
+  return parts.join(' — ');
 }
 
 function peerRouteTone(route?: P2PTransportPeerRouteDiagnostic): BadgeTone {

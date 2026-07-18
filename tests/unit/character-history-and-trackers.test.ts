@@ -67,6 +67,43 @@ test('rapid edits by one actor coalesce into one useful audit entry', () => {
   assert.equal(history[0]!.changes[0]!.after, 'Привет');
 });
 
+test('one explicit edit session stays one undoable record even when edits are far apart', () => {
+  const actor = { id: 'gm-1', name: 'Master', role: 'gm' as const };
+  const original = createCharacter({ name: 'Before', notes: '' });
+  const first = { ...original, name: 'After', updatedAt: '2026-01-01T00:00:00.000Z' };
+  const firstRecord = createCharacterChangeRecord(original, first, {
+    actor,
+    changedAt: first.updatedAt,
+    historyGroupId: 'edit-session'
+  });
+  const withFirst = appendCharacterChangeHistory(first, firstRecord);
+  const second = { ...withFirst, notes: 'Session note', updatedAt: '2026-01-01T00:30:00.000Z' };
+  const secondRecord = createCharacterChangeRecord(withFirst, second, {
+    actor,
+    changedAt: second.updatedAt,
+    historyGroupId: 'edit-session'
+  });
+  const withSecond = appendCharacterChangeHistory(second, secondRecord);
+
+  assert.equal(withSecond.changeHistory?.length, 1);
+  assert.deepEqual(withSecond.changeHistory?.[0]?.changes.map((change) => change.path.join('.')).sort(), ['name', 'notes']);
+});
+
+test('two explicit edit sessions never coalesce even when they happen immediately', () => {
+  const original = createCharacter({ name: 'Before', notes: '' });
+  const first = { ...original, name: 'After', updatedAt: '2026-01-01T00:00:00.000Z' };
+  const withFirst = appendCharacterChangeHistory(first, createCharacterChangeRecord(original, first, {
+    changedAt: first.updatedAt,
+    historyGroupId: 'first-session'
+  }));
+  const second = { ...withFirst, notes: 'Separate edit', updatedAt: '2026-01-01T00:00:01.000Z' };
+  const withSecond = appendCharacterChangeHistory(second, createCharacterChangeRecord(withFirst, second, {
+    changedAt: second.updatedAt,
+    historyGroupId: 'second-session'
+  }));
+  assert.equal(withSecond.changeHistory?.length, 2);
+});
+
 test('CharacterService actor provider audits ordinary mutations and undo creates an inverse record', () => {
   resetAllStores();
   const service = new CharacterService();
@@ -97,6 +134,17 @@ test('trusted full player updates ignore client audit history and produce one au
   assert.equal(updated.changeHistory?.[0]?.actor.id, 'player-1');
   assert.notEqual(updated.changeHistory?.[0]?.id, forged.id);
   assert.equal(service.applyTrustedPlayerUpdate(character.id, next, { id: 'gm', name: 'GM', role: 'gm' }), false);
+});
+
+test('trusted player level-up is labeled as level-up in authority history', () => {
+  resetAllStores();
+  const service = new CharacterService();
+  const character = service.createCharacter({ level: 1 });
+  const next = createCharacter({ ...character, level: 2, changeHistory: [] });
+  assert.equal(service.applyTrustedPlayerUpdate(character.id, next, { id: 'player-1', name: 'Player', role: 'player' }), true);
+  const record = service.getCharacter(character.id)?.changeHistory?.at(-1);
+  assert.equal(record?.kind, 'levelUp');
+  assert.equal(record?.summary, 'Повышение до 2 уровня');
 });
 
 test('trusted player updates reject duplicate and out-of-order revisions from the same participant', () => {
@@ -173,12 +221,39 @@ test('CharacterService only configures trackers for real targets and audits upda
   const tracker = service.configureUsageTracker(character.id, {
     id: 'once-rest', targetKind: 'feature', targetId: 'feature', current: 1, max: 1, reset: 'short'
   }, { actor: { id: 'player', name: 'Player', role: 'player' } });
+  const structuralHistoryLength = service.getCharacter(character.id)?.changeHistory?.length;
   assert.equal(tracker?.id, 'once-rest');
   assert.equal(service.resetUsageTrackersForRest(character.id, 'short'), 1);
   const updated = service.getCharacter(character.id)!;
   assert.equal(updated.usageTrackers?.[0]?.current, 0);
   assert.equal(updated.changeHistory?.at(-1)?.kind, 'tracker');
+  assert.equal(updated.changeHistory?.length, structuralHistoryLength);
   assert.equal(diffCharacterChanges(character, updated).some((change) => change.path[0] === 'usageTrackers'), true);
+});
+
+test('runtime resource clicks do not flood structural character history', () => {
+  resetAllStores();
+  const service = new CharacterService();
+  const character = service.createCharacter({
+    hope: { value: 3, max: 6 },
+    hp: { marked: 0, max: 6 },
+    companion: {
+      name: 'Спутник',
+      evasion: 10,
+      stress: { marked: 0, max: 1 },
+      attackName: 'Укус',
+      attackRange: 'Ближняя',
+      attackFormula: 'd8',
+      attackDamageType: 'physical',
+      experiences: [],
+      unavailableUntilLongRest: false
+    }
+  });
+  service.adjustHope(character.id, -1);
+  service.markSlots(character.id, 'hp', 1);
+  service.setActionTokens(character.id, 2);
+  service.markCompanionStress(character.id, 1);
+  assert.equal(service.getCharacter(character.id)?.changeHistory?.length, 0);
 });
 
 test('legacy characters normalize optional audit, tracker and advancement fields compatibly', () => {

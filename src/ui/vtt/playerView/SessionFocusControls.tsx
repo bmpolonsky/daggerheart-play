@@ -32,7 +32,7 @@ export function SessionFocusControls({
         tone={activityOpen ? 'gold' : 'neutral'}
         size="sm"
         type="button"
-        title={`${chronicleCommand} · ${connectionLabel}`}
+        title={`${chronicleCommand} — ${connectionLabel}`}
         aria-label={`${chronicleCommand}. Соединение: ${connectionLabel}`}
         aria-pressed={activityOpen}
         onClick={onActivityToggle}

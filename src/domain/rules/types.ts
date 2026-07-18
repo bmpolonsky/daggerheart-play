@@ -1,4 +1,5 @@
 import type { MapAsset, TableParticipant, TableScene, TableVisibility } from '../tabletop/types';
+import type { SceneMusicDeliveryMode } from '../audio/sceneAudio';
 import type { RestFearPlan, RestType } from './rest';
 import type { CharacterRuleModifier } from './characterRuleModifiers';
 
@@ -171,6 +172,8 @@ export interface CharacterAdvancementState {
   multiclass?: {
     className: DaggerheartClass;
     domain: DomainName;
+    subclassName?: string;
+    subclassSlug?: string;
   } | null;
 }
 
@@ -199,6 +202,8 @@ export interface CharacterChangeRecord {
   kind: 'edit' | 'levelUp' | 'cardMove' | 'tracker' | 'undo' | 'freeform';
   summary: string;
   changes: CharacterFieldChange[];
+  /** Groups several field mutations made during one explicit edit session. */
+  historyGroupId?: string;
   undoesChangeId?: string;
   overrideReason?: string;
 }
@@ -741,6 +746,8 @@ export interface UiState {
 
 export interface SceneTableState {
   schemaVersion: 4;
+  /** Session-wide preference. `scene.music.deliveryMode` is kept for legacy saves. */
+  musicDeliveryMode: SceneMusicDeliveryMode;
   activeSceneId: string;
   liveSceneId: string;
   scenes: Record<string, TableScene>;

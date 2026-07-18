@@ -4,6 +4,7 @@ import { Copy, Eye, LocateFixed, Trash2 } from 'lucide-react';
 import type { SceneTableState } from '../../../../domain/rules/types';
 import { DEFAULT_SCENE_BACKGROUND_FRAMING, normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../../../domain/tabletop/sceneBackground';
 import { assetService, gameService, sceneTableService } from '../../../../services/serviceRegistry';
+import { Badge } from '../../../components/common/Badge';
 import { Button } from '../../../components/common/Button';
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { IconButton } from '../../../components/common/IconButton';
@@ -77,10 +78,9 @@ export function SceneEditorRow({
       backgroundFraming: normalizeSceneBackgroundFraming({ ...backgroundFraming, ...patch })
     });
   };
-  const framingIsDefault = backgroundFraming.fit === DEFAULT_SCENE_BACKGROUND_FRAMING.fit
-    && backgroundFraming.zoom === DEFAULT_SCENE_BACKGROUND_FRAMING.zoom
-    && backgroundFraming.offsetX === DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX
-    && backgroundFraming.offsetY === DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY;
+  const framingIsCustom = backgroundFraming.zoom !== DEFAULT_SCENE_BACKGROUND_FRAMING.zoom
+    || backgroundFraming.offsetX !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX
+    || backgroundFraming.offsetY !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY;
 
   return (
     <section className="player-tools-detail-editor player-tools-scene-editor" aria-label={`Редактор сцены ${scene.name}`}>
@@ -130,13 +130,21 @@ export function SceneEditorRow({
                 label="Размещение фона"
                 value={backgroundFraming.fit}
                 options={[
-                  { value: 'fit', label: 'Вписать' },
-                  { value: 'fill', label: 'Заполнить' }
+                  { value: 'fit', label: 'Показать целиком' },
+                  { value: 'fill', label: 'Заполнить сцену' }
                 ]}
-                onChange={(fit) => updateBackgroundFraming({ fit })}
+                onChange={(fit) => updateBackgroundFraming({
+                  fit,
+                  zoom: DEFAULT_SCENE_BACKGROUND_FRAMING.zoom,
+                  offsetX: DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX,
+                  offsetY: DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY
+                })}
               />
               <details className="player-tools-scene-framing__advanced" key={scene.id}>
-                <summary>Настроить кадр</summary>
+                <summary>
+                  Настроить кадр
+                  {framingIsCustom && <Badge tone="gold" size="sm">Свой кадр</Badge>}
+                </summary>
                 <div className="player-tools-scene-framing__controls">
                   <RangeField
                     label="Масштаб"
@@ -172,8 +180,12 @@ export function SceneEditorRow({
                     variant="ghost"
                     size="xs"
                     type="button"
-                    disabled={framingIsDefault}
-                    onClick={() => sceneTableService.updateScene(scene.id, { backgroundFraming: { ...DEFAULT_SCENE_BACKGROUND_FRAMING } })}
+                    disabled={!framingIsCustom}
+                    onClick={() => updateBackgroundFraming({
+                      zoom: DEFAULT_SCENE_BACKGROUND_FRAMING.zoom,
+                      offsetX: DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX,
+                      offsetY: DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY
+                    })}
                   >
                     Сбросить кадр
                   </Button>

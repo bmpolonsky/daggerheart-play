@@ -1,4 +1,6 @@
 import { Store } from '../core/store/Store';
+import { createKeyValueStore, type KeyValueDocumentStore } from '../core/persistence/keyValueStore';
+import { P2P_CHARACTER_OUTBOX_STORAGE } from '../core/persistence/storageKeys';
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
@@ -9,7 +11,7 @@ import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage'
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
 import type { SyncEventContext, SyncTargetPeer, TableParticipant } from '../domain/tabletop/types';
-import type { Character, CharacterCondition, FeedEntry, PersistedState } from '../domain/rules/types';
+import type { Character, CharacterCondition, FeedEntry, PersistedState, RollLogEntry } from '../domain/rules/types';
 import { gameStore, charactersStore, resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
 import { hydratePersistedState, snapshotPersistedState } from '../stores/persistedState';
 import type { PlayerActionRequest, SubmitPlayerActionRequestInput } from './PlayerActionRequestService';
@@ -26,6 +28,7 @@ import type {
   PlayerCharacterResourcePatch,
   PlayerCharacterCreateMessage,
   PlayerCharacterResourcesMessage,
+  PlayerCharacterUpdateAckMessage,
   PlayerCharacterUpdateMessage,
   PlayerDecision,
   PlayerDecisionMessage,
@@ -64,6 +67,7 @@ export interface P2PSessionState {
   peerId: string | null;
   peers: string[];
   lastSnapshotAt: string | null;
+  latestRollAnimationId: string | null;
   lastRequestAt: string | null;
   message: string;
   routes: P2PTransportRouteDiagnostic[];
@@ -86,6 +90,8 @@ export interface P2PStoredSessionSummary {
   role: P2PSessionRole;
   roomId: string;
   participantName: string;
+  participantId?: string;
+  actorIds?: string[];
 }
 
 export interface P2PInviteDraftState {
@@ -110,9 +116,18 @@ interface RemotePeerContext {
   verifiedPeerId?: string;
 }
 
+interface PendingPlayerCharacterUpdate {
+  message: PlayerCharacterUpdateMessage;
+}
+
+interface PersistedPendingPlayerCharacterUpdate extends PendingPlayerCharacterUpdate {
+  roomId: string;
+}
+
 const AUTO_SNAPSHOT_DELAY_MS = 350;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
 const ROOM_CODE_REFRESH_COOLDOWN_MS = 30_000;
+const PENDING_PLAYER_CHARACTER_UPDATES_KEY = 'daggerheart-pending-player-character-updates';
 
 export class P2PSessionService {
   private sessionStore = new Store<P2PSessionState>({
@@ -123,6 +138,7 @@ export class P2PSessionService {
     peerId: null,
     peers: [],
     lastSnapshotAt: null,
+    latestRollAnimationId: null,
     lastRequestAt: null,
     message: 'Связь с сервером мастера не подключена.',
     routes: [],
@@ -142,6 +158,12 @@ export class P2PSessionService {
   private publishingPlayerFeedEntryIds = new Set<string>();
   private playerCharacterFullSignatures = new Map<string, string>();
   private playerCharacterRevisions = new Map<string, number>();
+  private pendingPlayerCharacterUpdates = new Map<string, PendingPlayerCharacterUpdate>();
+  private readonly playerCharacterOutboxStore: KeyValueDocumentStore | null = createKeyValueStore(
+    P2P_CHARACTER_OUTBOX_STORAGE.dbName,
+    P2P_CHARACTER_OUTBOX_STORAGE.storeName
+  );
+  private playerCharacterOutboxQueue: Promise<void> = Promise.resolve();
   private processedPlayerCharacterCreateIds = new Set<string>();
   private subscriptions = new SubscriptionBag();
   private suppressPlayerStoreForwarding = false;
@@ -228,11 +250,22 @@ export class P2PSessionService {
   }
 
   setPlayerActorContext(context: PlayerActorContext): void {
-    this.playerActorContext = {
+    const next = {
       participantId: context.participantId?.trim() || undefined,
       actorId: context.actorId?.trim() || undefined,
       actorName: context.actorName?.trim() || this.playerActorContext.actorName?.trim() || undefined
     };
+    const seatChanged = next.participantId !== this.playerActorContext.participantId || next.actorId !== this.playerActorContext.actorId;
+    this.playerActorContext = next;
+    const session = this.sessionStore.get();
+    if (!seatChanged || session.role !== 'player' || !session.roomId || !next.participantId || !next.actorId) return;
+    for (const actorId of this.pendingPlayerCharacterUpdates.keys()) {
+      if (actorId !== next.actorId) this.pendingPlayerCharacterUpdates.delete(actorId);
+    }
+    this.persistActiveSession('player', session.roomId, next.actorName, next.participantId, [next.actorId]);
+    void this.restorePendingPlayerCharacterUpdates(session.roomId, next.participantId, [next.actorId]).then(() => {
+      if (session.connected) void this.republishPendingPlayerCharacterUpdates();
+    });
   }
 
   isConnectedPlayerSession(): boolean {
@@ -246,7 +279,9 @@ export class P2PSessionService {
     return {
       role: saved.role,
       roomId: normalizeSessionRoomId(saved.roomId, ''),
-      participantName: saved.participantName
+      participantName: saved.participantName,
+      ...(saved.participantId ? { participantId: saved.participantId } : {}),
+      ...(saved.actorIds ? { actorIds: saved.actorIds } : {})
     };
   }
 
@@ -416,12 +451,7 @@ export class P2PSessionService {
       void this.publishSnapshot();
     }));
     this.subscriptions.add(this.syncService.subscribePlayerCharacterUpdates((message, _event, context) => {
-      if (!this.applyPlayerCharacterUpdate(message, remotePeerContext(context))) {
-        this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Изменения персонажа отклонены') });
-        return;
-      }
-      this.patchSession({ lastRequestAt: nowIso(), message: 'Изменения персонажа игрока применены.' });
-      void this.publishSnapshot();
+      void this.receivePlayerCharacterUpdate(message, context);
     }));
     this.subscriptions.add(this.assetTransferService.subscribeGm());
     subscribeToSyncedGameStores(() => this.scheduleSnapshot()).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
@@ -442,7 +472,7 @@ export class P2PSessionService {
         message: peers.length > 0 ? 'Игрок подключился.' : 'Комната мастера открыта.'
       };
     });
-    this.persistActiveSession('gm', roomId, input.participantName);
+    this.persistActiveSession('gm', roomId, input.participantName, participant.id, participant.actorIds);
   }
 
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
@@ -464,6 +494,7 @@ export class P2PSessionService {
       actorName: input.participantName
     });
     const roomId = normalizeSessionRoomId(input.roomId);
+    await this.restorePendingPlayerCharacterUpdates(roomId, participant.id, input.actorIds);
     const transport = this.createTransport();
     this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
@@ -481,17 +512,24 @@ export class P2PSessionService {
     this.bindCallPresenceSync();
     this.patchSession({ status: 'connecting', role: 'player', roomId, message: 'Подключаемся к серверу мастера.' });
     try {
-      await this.syncService.connectReadOnly(roomId, participant, (state) => {
+      await this.syncService.connectReadOnly(roomId, participant, (state, event) => {
         this.suppressPlayerStoreForwarding = true;
         try {
           hydratePersistedState(this.preserveUnacknowledgedPlayerCharacter(state));
           this.capturePlayerForwardingBaseline();
-          this.patchSession({ lastSnapshotAt: nowIso(), message: 'Данные игры получены.' });
+          this.patchSession({
+            lastSnapshotAt: nowIso(),
+            latestRollAnimationId: freshSnapshotRollId(state.rollLog, event.createdAt),
+            message: 'Данные игры получены.'
+          });
         } finally {
           this.suppressPlayerStoreForwarding = false;
         }
       });
       this.assetTransferService.subscribePlayer(transport).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
+      this.subscriptions.add(this.syncService.subscribePlayerCharacterUpdateAcks((message, _event, context) => {
+        this.receivePlayerCharacterUpdateAck(message, context);
+      }));
       this.capturePlayerForwardingBaseline();
       this.subscriptions.add(this.feedService.feed$.subscribe(() => {
         void this.forwardPlayerFeedEntries();
@@ -503,6 +541,7 @@ export class P2PSessionService {
         // level-up changes before the full update is delivered.
         void this.forwardPlayerCharacterUpdate();
       }));
+      void this.republishPendingPlayerCharacterUpdates();
       await this.syncService.publishSnapshotRequest('join', transport.gmPeerId() ?? undefined);
     } catch (error) {
       this.audioService?.setVoiceTransport(null);
@@ -553,11 +592,12 @@ export class P2PSessionService {
       routes: transport.routeDiagnostics(),
       routePeers: transport.peerDiagnostics(),
       lastSnapshotAt: state.role === 'player' && state.roomId === roomId ? state.lastSnapshotAt : null,
+      latestRollAnimationId: state.role === 'player' && state.roomId === roomId ? state.latestRollAnimationId : null,
       lastRequestAt: state.role === 'player' && state.roomId === roomId ? state.lastRequestAt : null,
       message: state.lastSnapshotAt ? 'Вы подключены к серверу мастера.' : 'Ждем данные игры от мастера.'
     }));
     this.startPlayerProductRecoveryPolling();
-    this.persistActiveSession('player', roomId, input.participantName);
+    this.persistActiveSession('player', roomId, input.participantName, participant.id, participant.actorIds);
   }
 
   private async startRoom(role: P2PSessionRole, roomId: string, start: () => Promise<void>): Promise<void> {
@@ -596,6 +636,11 @@ export class P2PSessionService {
   }
 
   async stop(options: { forgetSession?: boolean } = {}): Promise<void> {
+    const stoppedSession = this.sessionStore.get();
+    const stoppedParticipantId = this.playerActorContext.participantId ?? this.localParticipantId;
+    if (options.forgetSession !== false && stoppedSession.role === 'player' && stoppedSession.roomId && stoppedParticipantId) {
+      await this.removePersistedPendingPlayerCharacterUpdate(stoppedSession.roomId, stoppedParticipantId);
+    }
     window.clearTimeout(this.snapshotTimer);
     this.snapshotTimer = undefined;
     this.stopPlayerProductRecoveryPolling();
@@ -605,6 +650,7 @@ export class P2PSessionService {
     this.publishingPlayerFeedEntryIds.clear();
     this.playerCharacterFullSignatures.clear();
     this.playerCharacterRevisions.clear();
+    this.pendingPlayerCharacterUpdates.clear();
     this.processedPlayerCharacterCreateIds.clear();
     this.actorOwnerVerifiedPeers.clear();
     this.suppressPlayerStoreForwarding = false;
@@ -626,6 +672,7 @@ export class P2PSessionService {
       peerId: null,
       peers: [],
       lastSnapshotAt: null,
+      latestRollAnimationId: null,
       lastRequestAt: null,
       message: 'Связь с сервером мастера отключена.',
       routes: [],
@@ -645,7 +692,9 @@ export class P2PSessionService {
     }
     const input = {
       roomId,
-      participantName: participantName?.trim() || saved.participantName
+      participantName: participantName?.trim() || saved.participantName,
+      participantId: saved.participantId,
+      actorIds: saved.actorIds
     };
     if (role === 'gm') {
       await this.startGmRoom(input);
@@ -927,7 +976,10 @@ export class P2PSessionService {
     for (const character of Object.values(charactersStore.get().entities)) {
       this.playerCharacterFullSignatures.set(character.id, playerCharacterFullSignature(character));
       if (character.playerSyncRevision?.revision) {
-        this.playerCharacterRevisions.set(character.id, character.playerSyncRevision.revision);
+        this.playerCharacterRevisions.set(
+          character.id,
+          Math.max(this.playerCharacterRevisions.get(character.id) ?? 0, character.playerSyncRevision.revision)
+        );
       }
     }
   }
@@ -938,7 +990,7 @@ export class P2PSessionService {
     const latestPublishedRevision = this.playerCharacterRevisions.get(actorId);
     if (!latestPublishedRevision) return state;
     const incoming = state.characters.entities[actorId];
-    const local = charactersStore.get().entities[actorId];
+    const local = this.pendingPlayerCharacterUpdates.get(actorId)?.message.character ?? charactersStore.get().entities[actorId];
     if (!incoming || !local) return state;
     const incomingRevision = incoming.playerSyncRevision;
     if (incomingRevision && incomingRevision.participantId === this.playerActorContext.participantId && incomingRevision.revision >= latestPublishedRevision) return state;
@@ -949,6 +1001,80 @@ export class P2PSessionService {
         entities: { ...state.characters.entities, [actorId]: local }
       }
     };
+  }
+
+  private async restorePendingPlayerCharacterUpdates(roomId: string, participantId: string, actorIds?: string[]): Promise<void> {
+    for (const pending of await this.readPersistedPendingPlayerCharacterUpdates()) {
+      const sameSeat = actorIds
+        ? actorIds.includes(pending.message.actorId)
+        : pending.message.participantId === participantId;
+      if (pending.roomId !== roomId || !sameSeat) continue;
+      const message = { ...pending.message, participantId };
+      this.pendingPlayerCharacterUpdates.set(message.actorId, { message });
+      this.playerCharacterRevisions.set(message.actorId, Math.max(
+        this.playerCharacterRevisions.get(message.actorId) ?? 0,
+        message.revision
+      ));
+      await this.persistPendingPlayerCharacterUpdate(roomId, message);
+    }
+  }
+
+  private persistPendingPlayerCharacterUpdate(roomId: string, message: PlayerCharacterUpdateMessage): Promise<void> {
+    return this.mutatePersistedPendingPlayerCharacterUpdates((current) => [
+      ...current.filter((pending) => !(pending.roomId === roomId && pending.message.actorId === message.actorId)),
+      { roomId, message }
+    ]);
+  }
+
+  private removePersistedPendingPlayerCharacterUpdate(roomId: string, participantId: string, actorId?: string): Promise<void> {
+    return this.mutatePersistedPendingPlayerCharacterUpdates((current) => current.filter((pending) => !(
+      pending.roomId === roomId && pending.message.participantId === participantId && (!actorId || pending.message.actorId === actorId)
+    )));
+  }
+
+  private async readPersistedPendingPlayerCharacterUpdates(): Promise<PersistedPendingPlayerCharacterUpdate[]> {
+    await this.playerCharacterOutboxQueue.catch(() => undefined);
+    return this.readPersistedPendingPlayerCharacterUpdatesDirect();
+  }
+
+  private async readPersistedPendingPlayerCharacterUpdatesDirect(): Promise<PersistedPendingPlayerCharacterUpdate[]> {
+    if (!this.playerCharacterOutboxStore) return readLegacyPersistedPendingPlayerCharacterUpdates();
+    try {
+      const stored = normalizePersistedPendingPlayerCharacterUpdates(
+        await this.playerCharacterOutboxStore.get(P2P_CHARACTER_OUTBOX_STORAGE.key)
+      );
+      if (stored.length > 0) return stored;
+      const legacy = readLegacyPersistedPendingPlayerCharacterUpdates();
+      if (legacy.length > 0) {
+        await this.playerCharacterOutboxStore.put(P2P_CHARACTER_OUTBOX_STORAGE.key, legacy);
+        clearLegacyPersistedPendingPlayerCharacterUpdates();
+      }
+      return legacy;
+    } catch {
+      return readLegacyPersistedPendingPlayerCharacterUpdates();
+    }
+  }
+
+  private mutatePersistedPendingPlayerCharacterUpdates(
+    mutation: (current: PersistedPendingPlayerCharacterUpdate[]) => PersistedPendingPlayerCharacterUpdate[]
+  ): Promise<void> {
+    const run = async () => {
+      const next = mutation(await this.readPersistedPendingPlayerCharacterUpdatesDirect()).slice(-20);
+      if (!this.playerCharacterOutboxStore) {
+        writeLegacyPersistedPendingPlayerCharacterUpdates(next);
+        return;
+      }
+      try {
+        if (next.length > 0) await this.playerCharacterOutboxStore.put(P2P_CHARACTER_OUTBOX_STORAGE.key, next);
+        else await this.playerCharacterOutboxStore.delete(P2P_CHARACTER_OUTBOX_STORAGE.key);
+        clearLegacyPersistedPendingPlayerCharacterUpdates();
+      } catch {
+        writeLegacyPersistedPendingPlayerCharacterUpdates(next);
+      }
+    };
+    const queued = this.playerCharacterOutboxQueue.then(run, run);
+    this.playerCharacterOutboxQueue = queued.catch(() => undefined);
+    return queued;
   }
 
   private async forwardPlayerCharacterUpdate(): Promise<void> {
@@ -969,28 +1095,59 @@ export class P2PSessionService {
     // signature and is still published immediately.
     this.playerCharacterFullSignatures.set(character.id, signature);
     this.playerCharacterRevisions.set(character.id, revision);
+    const message: PlayerCharacterUpdateMessage = {
+      type: 'playerCharacterUpdate',
+      participantId: context.participantId,
+      actorId: character.id,
+      actorName: context.actorName ?? (character.playerName || character.name),
+      character,
+      revision,
+      updatedAt: nowIso()
+    };
+    this.pendingPlayerCharacterUpdates.set(character.id, { message });
+    await this.persistPendingPlayerCharacterUpdate(session.roomId, message);
     try {
-      await this.syncService.publishPlayerCharacterUpdate({
-        type: 'playerCharacterUpdate',
-        participantId: context.participantId,
-        actorId: character.id,
-        actorName: context.actorName ?? (character.playerName || character.name),
-        character,
-        revision,
-        updatedAt: nowIso()
-      });
-      this.patchSession({ lastRequestAt: nowIso(), message: 'Изменения персонажа отправлены мастеру.' });
+      await this.publishPendingPlayerCharacterUpdate(message);
     } catch (error) {
-      if (this.playerCharacterFullSignatures.get(character.id) === signature) {
-        if (previousSignature === undefined) this.playerCharacterFullSignatures.delete(character.id);
-        else this.playerCharacterFullSignatures.set(character.id, previousSignature);
-      }
-      if (this.playerCharacterRevisions.get(character.id) === revision) {
-        if (previousRevision > 0) this.playerCharacterRevisions.set(character.id, previousRevision);
-        else this.playerCharacterRevisions.delete(character.id);
-      }
+      // Keep the latest full document pending. A route switch or GM reconnect
+      // republishes the same revision until the authority acknowledges it.
       this.patchSession({ status: 'degraded', message: error instanceof Error ? error.message : 'Не удалось отправить изменения персонажа мастеру.' });
     }
+  }
+
+  private async publishPendingPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage): Promise<void> {
+    const gmPeerId = this.activeRoomConnection?.gmPeerId();
+    if (!gmPeerId) {
+      throw new Error('Мастер пока не подключен. Изменения персонажа остаются в очереди.');
+    }
+    await this.syncService.publishPlayerCharacterUpdate(message, gmPeerId);
+    this.patchSession({ lastRequestAt: nowIso(), message: 'Изменения персонажа отправлены мастеру. Ждем подтверждение.' });
+  }
+
+  private async republishPendingPlayerCharacterUpdates(): Promise<void> {
+    const actorId = this.playerActorContext.actorId;
+    const pending = actorId
+      ? Array.from(this.pendingPlayerCharacterUpdates.values()).filter((update) => update.message.actorId === actorId)
+      : [];
+    for (const update of pending) {
+      try {
+        await this.publishPendingPlayerCharacterUpdate(update.message);
+      } catch (error) {
+        this.patchSession({ status: 'degraded', message: error instanceof Error ? error.message : 'Не удалось повторно отправить изменения персонажа мастеру.' });
+      }
+    }
+  }
+
+  private receivePlayerCharacterUpdateAck(message: PlayerCharacterUpdateAckMessage, context?: SyncEventContext): void {
+    const actorContext = this.requirePlayerActorContext(message.actorId);
+    if (!actorContext || actorContext.participantId !== message.participantId) return;
+    const gmPeerId = this.activeRoomConnection?.gmPeerId();
+    if (gmPeerId && context?.sourcePeerId && context.sourcePeerId !== gmPeerId && context.verifiedSourcePeerId !== gmPeerId) return;
+    const pending = this.pendingPlayerCharacterUpdates.get(message.actorId);
+    if (!pending || pending.message.revision !== message.revision) return;
+    this.pendingPlayerCharacterUpdates.delete(message.actorId);
+    void this.removePersistedPendingPlayerCharacterUpdate(this.session$.get().roomId, message.participantId, message.actorId);
+    this.patchSession({ lastRequestAt: message.acknowledgedAt, message: 'Изменения персонажа подтверждены мастером.' });
   }
 
   private async forwardPlayerFeedEntries(): Promise<void> {
@@ -1110,15 +1267,48 @@ export class P2PSessionService {
     return applied;
   }
 
-  private applyPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, peerContext?: RemotePeerContext): boolean {
-    if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) return false;
-    if (!this.characterService) return false;
+  private acceptPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, peerContext?: RemotePeerContext): 'applied' | 'duplicate' | 'rejected' {
+    if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) return 'rejected';
+    if (!this.characterService) return 'rejected';
+    const currentRevision = this.characterService.getCharacter(message.actorId)?.playerSyncRevision;
+    if (
+      currentRevision?.participantId === message.participantId
+      && message.revision <= currentRevision.revision
+    ) {
+      return 'duplicate';
+    }
     return this.characterService.applyTrustedPlayerUpdate(
       message.actorId,
       message.character,
       this.playerChangeActor(message.participantId, message.actorName),
       { participantId: message.participantId, revision: message.revision }
-    );
+    ) ? 'applied' : 'rejected';
+  }
+
+  private async receivePlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, context?: SyncEventContext): Promise<void> {
+    const result = this.acceptPlayerCharacterUpdate(message, remotePeerContext(context));
+    if (result === 'rejected') {
+      this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Изменения персонажа отклонены') });
+      return;
+    }
+    try {
+      await this.syncService.publishPlayerCharacterUpdateAck({
+        type: 'playerCharacterUpdateAck',
+        participantId: message.participantId,
+        actorId: message.actorId,
+        revision: message.revision,
+        acknowledgedAt: nowIso()
+      }, context?.sourcePeerId);
+    } catch {
+      // The update is already authoritative. The player keeps it pending and
+      // republishes the same revision after reconnect/failover until an ACK lands.
+    }
+    if (result === 'duplicate') {
+      this.patchSession({ lastRequestAt: nowIso(), message: 'Повторное изменение персонажа подтверждено.' });
+      return;
+    }
+    this.patchSession({ lastRequestAt: nowIso(), message: 'Изменения персонажа игрока применены.' });
+    await this.publishSnapshot();
   }
 
   private playerChangeActor(participantId: string, actorName?: string) {
@@ -1326,11 +1516,19 @@ export class P2PSessionService {
     return connection;
   }
 
-  private persistActiveSession(role: P2PSessionRole, roomId: string, participantName?: string): void {
+  private persistActiveSession(
+    role: P2PSessionRole,
+    roomId: string,
+    participantName?: string,
+    participantId?: string,
+    actorIds?: string[]
+  ): void {
     persistActiveSession({
       role,
       roomId: buildPlayerInviteRoomCode(roomId, readP2PNetworkSettings()),
-      participantName
+      participantName,
+      participantId,
+      actorIds
     });
   }
 
@@ -1402,6 +1600,7 @@ export class P2PSessionService {
       });
       void this.requestSnapshotFromGm('peer-reconnect');
       void this.republishPendingRequests();
+      void this.republishPendingPlayerCharacterUpdates();
       void this.republishRaisedHand();
       void this.mediaCallService?.publishPresence();
       return;
@@ -1433,6 +1632,7 @@ export class P2PSessionService {
     await this.republishPlayerPresence();
     await this.requestSnapshotFromGm('peer-reconnect');
     await this.republishPendingRequests();
+    await this.republishPendingPlayerCharacterUpdates();
     await this.republishRaisedHand();
     await this.assetTransferService.retryPendingRequestsForPeer(routeSwitch.peerId);
   }
@@ -1731,6 +1931,46 @@ class SubscriptionBag {
   }
 }
 
+function readLegacyPersistedPendingPlayerCharacterUpdates(): PersistedPendingPlayerCharacterUpdate[] {
+  try {
+    return normalizePersistedPendingPlayerCharacterUpdates(JSON.parse(window.localStorage.getItem(PENDING_PLAYER_CHARACTER_UPDATES_KEY) ?? '[]'));
+  } catch {
+    return [];
+  }
+}
+
+function normalizePersistedPendingPlayerCharacterUpdates(value: unknown): PersistedPendingPlayerCharacterUpdate[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is PersistedPendingPlayerCharacterUpdate => {
+    if (!item || typeof item !== 'object') return false;
+    const pending = item as Partial<PersistedPendingPlayerCharacterUpdate>;
+    const message = pending.message as Partial<PlayerCharacterUpdateMessage> | undefined;
+    return typeof pending.roomId === 'string' && message?.type === 'playerCharacterUpdate' &&
+      typeof message.participantId === 'string' && typeof message.actorId === 'string' &&
+      typeof message.revision === 'number' && message.character?.id === message.actorId;
+  });
+}
+
+function writeLegacyPersistedPendingPlayerCharacterUpdates(updates: PersistedPendingPlayerCharacterUpdate[]): void {
+  try {
+    if (updates.length === 0) {
+      window.localStorage.removeItem(PENDING_PLAYER_CHARACTER_UPDATES_KEY);
+      return;
+    }
+    window.localStorage.setItem(PENDING_PLAYER_CHARACTER_UPDATES_KEY, JSON.stringify(updates.slice(-20)));
+  } catch {
+    // Volatile retries still work when storage is unavailable.
+  }
+}
+
+function clearLegacyPersistedPendingPlayerCharacterUpdates(): void {
+  try {
+    window.localStorage.removeItem(PENDING_PLAYER_CHARACTER_UPDATES_KEY);
+  } catch {
+    // IndexedDB remains authoritative when legacy cleanup is unavailable.
+  }
+}
+
 function playerCharacterResourceSignature(character: Character): string {
   return JSON.stringify({
     hope: character.hope.value,
@@ -1743,6 +1983,18 @@ function playerCharacterResourceSignature(character: Character): string {
     conditions: character.conditions.map((condition) => [condition.id, condition.name, condition.notes ?? '']),
     domainCards: character.domainCards.map((card) => [card.id, card.tokens.value])
   });
+}
+
+const FRESH_ROLL_SNAPSHOT_WINDOW_MS = 15_000;
+
+function freshSnapshotRollId(rollLog: RollLogEntry[], snapshotCreatedAt: string): string | null {
+  const latest = rollLog.at(-1);
+  if (!latest) return null;
+  const rollAt = Date.parse(latest.createdAt);
+  const snapshotAt = Date.parse(snapshotCreatedAt);
+  if (!Number.isFinite(rollAt) || !Number.isFinite(snapshotAt)) return null;
+  const age = snapshotAt - rollAt;
+  return age >= 0 && age <= FRESH_ROLL_SNAPSHOT_WINDOW_MS ? latest.id : null;
 }
 
 function playerCharacterFullSignature(character: Character): string {

@@ -383,6 +383,20 @@ Guidance:
 - Prefer `Notice` over local alert classes and Tailwind alert recipes.
 - Keep it inline and compact. For modal-level blocking errors, put it near the blocked control or action.
 
+### RichChoicePicker
+
+Use when a choice needs more than a short label: rules text, artwork, source, consequence, or a comparison across several entities. It opens a searchable grid and keeps the native select for compact parameters such as a rank or numeric setting.
+
+```tsx
+<RichChoicePicker
+  label="Новая карта"
+  value={cardId}
+  placeholder="Выберите карту"
+  items={cards}
+  onChange={setCardId}
+/>
+```
+
 ### ListItem
 
 Use for repeated compact rows inside panels and sheets.
@@ -407,7 +421,7 @@ Guidance:
 
 - Use for sheet rows, library rows, inventory rows, and other repeated one/two-line items.
 - Use slots for row accessories instead of rebuilding local row grids.
-- If `rightAccessory` is present, `onClick` applies only to the text area to avoid nesting buttons.
+- If `rightAccessory` is present, `onClick` still covers the row while controls in the accessory keep their own click target.
 - Do not recreate local row padding, title/subtitle typography, or one-off truncation CSS.
 
 ### ListDetailLayout
@@ -436,6 +450,22 @@ Guidance:
 - Use this for reusable layout behavior, not for styling individual cards.
 - Keep the split behavior standardized: full-width list without detail, list/detail split with detail, detail replacing the list on narrow screens.
 - Do not duplicate split-grid CSS in screen files when this component fits.
+
+### RichChoicePicker
+
+Use for a selection where a label alone is not enough to make a safe choice: cards, equipment, forms, ancestry, or other rules objects. It opens a responsive list/detail dialog: compact rows on the left and the complete art and rules text on the right. On narrow screens, an option opens its detail with a way back to the list.
+
+```tsx
+<RichChoicePicker
+  label="Карта домена"
+  value={cardId}
+  placeholder="Выберите карту"
+  items={cards}
+  onChange={setCardId}
+/>
+```
+
+Keep `SelectField` for compact, already-understood parameters such as a numeric mode or short status.
 
 ### Tabs
 

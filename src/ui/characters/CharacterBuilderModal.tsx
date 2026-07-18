@@ -108,7 +108,7 @@ export function CharacterBuilderModal({
               {selectedClassOption?.imageUrl ? <img src={selectedClassOption.imageUrl} alt="" /> : <span>{initials(CLASS_LABELS[fields.className])}</span>}
             </div>
             <div className="cinematic-builder-stage-copy">
-              <span className="cinematic-card-meta">{steps[currentStepIndex]?.label ?? 'Создание'} · {progress}%</span>
+              <span className="cinematic-card-meta">{steps[currentStepIndex]?.label ?? 'Создание'} — {progress}%</span>
               <strong>{CLASS_LABELS[fields.className]}</strong>
               <p>
                 {[selectedAncestry?.name, selectedCommunity?.name, selectedSubclass?.name].filter(Boolean).join(' / ') ||
@@ -293,7 +293,7 @@ export function CharacterBuilderModal({
                       {options.armor.map((armor) => (
                         <ChoiceCard selected={fields.armorId === armor.id} key={armor.id} type="button" onClick={() => handlers.selectArmor(armor.id)}>
                           <strong className="cinematic-card-title">{armor.name}</strong>
-                          <span className="cinematic-card-meta">Пороги {armor.baseMajor}/{armor.baseSevere} · Броня {armor.score}</span>
+                          <span className="cinematic-card-meta">Пороги {armor.baseMajor}/{armor.baseSevere} — Броня {armor.score}</span>
                           {armor.feature && <span className="cinematic-card-body">{cleanRulesText(armor.feature)}</span>}
                         </ChoiceCard>
                       ))}
@@ -305,8 +305,8 @@ export function CharacterBuilderModal({
                       {options.primaryWeapons.map((weapon) => (
                         <ChoiceCard selected={fields.primaryWeaponId === weapon.id} key={weapon.id} type="button" onClick={() => handlers.selectPrimaryWeapon(weapon.id)}>
                           <strong className="cinematic-card-title">{weapon.name}</strong>
-                          <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} · {weapon.range} · {weapon.damageFormula}</span>
-                          <span className="cinematic-card-body">{cleanRulesText(`${weapon.burden === 'two-handed' ? 'Двуручное' : 'Одноручное'}${weapon.feature ? ` · ${weapon.feature}` : ''}`)}</span>
+                          <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} — {weapon.range} — {weapon.damageFormula}</span>
+                          <span className="cinematic-card-body">{cleanRulesText(`${weapon.burden === 'two-handed' ? 'Двуручное' : 'Одноручное'}${weapon.feature ? ` — ${weapon.feature}` : ''}`)}</span>
                         </ChoiceCard>
                       ))}
                     </div>
@@ -318,7 +318,7 @@ export function CharacterBuilderModal({
                         {options.secondaryWeapons.map((weapon) => (
                           <ChoiceCard selected={fields.secondaryWeaponId === weapon.id} key={weapon.id} type="button" onClick={() => handlers.selectSecondaryWeapon(weapon.id)}>
                             <strong className="cinematic-card-title">{weapon.name}</strong>
-                            <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} · {weapon.range} · {weapon.damageFormula}</span>
+                            <span className="cinematic-card-meta">{TRAIT_LABELS[weapon.trait]} — {weapon.range} — {weapon.damageFormula}</span>
                             {weapon.feature && <span className="cinematic-card-body">{cleanRulesText(weapon.feature)}</span>}
                           </ChoiceCard>
                         ))}
@@ -360,7 +360,7 @@ export function CharacterBuilderModal({
                     <span>{selectedAncestry?.name ?? 'родословная'} / {selectedCommunity?.name ?? 'сообщество'}</span>
                     <span>Карты: {selectedCards.map((card) => card.name).join(' / ') || 'не выбраны'}</span>
                     <span>Оружие: {builderResult.draft.weapons?.map((weapon) => weapon.name).join(' / ')}</span>
-                    <span>Броня: {builderResult.draft.armor?.name} · Уклонение {builderResult.draft.evasion}</span>
+                    <span>Броня: {builderResult.draft.armor?.name} — уклонение {builderResult.draft.evasion}</span>
                     <span>{BUILDER_TRAIT_IDS.map((trait) => `${TRAIT_LABELS[trait]} ${signed(builderResult.draft.traits?.[trait] ?? fields.traits[trait] ?? 0)}`).join(' / ')}</span>
                     <span>Деньги: {formatWealthSummary(builderResult.draft.wealth)}</span>
                     <span>Инвентарь: {builderResult.draft.inventory?.map((item) => item.name).join(' / ')}</span>

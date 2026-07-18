@@ -6,10 +6,17 @@ import { PolyhedralDiceStage } from '../../dice/PolyhedralDiceStage';
 import { manualDiceRollToPolyhedral, polyhedralDiceRollFromTerms, type PolyhedralDiceRoll } from '../../dice/types';
 import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS, PLAYER_DICE_ROLL_FADE_OUT_MS, PLAYER_DICE_ROLL_HOLD_AFTER_SETTLE_MS } from './constants';
 
-export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: RollLogEntry | undefined; onRollComplete: (rollId: string) => void }) {
+export function PlayerDiceOverlay({
+  latestRoll,
+  animationReady = true,
+  onRollComplete
+}: {
+  latestRoll: RollLogEntry | undefined;
+  animationReady?: boolean;
+  onRollComplete: (rollId: string) => void;
+}) {
   const [visibleDiceRollId, setVisibleDiceRollId] = useState<string | null>(null);
   const [fadingDiceRollId, setFadingDiceRollId] = useState<string | null>(null);
-  const mountedAtRef = useRef(Date.now());
   const lastSeenRollId = useRef<string | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
   const fadeTimeoutRef = useRef<number | null>(null);
@@ -62,8 +69,13 @@ export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: 
   useEffect(() => {
     const visualRoll = polyhedralDiceRoll;
     if (!visualRoll) return;
+    if (!animationReady) {
+      lastSeenRollId.current = visualRoll.id;
+      rememberDiceRollSeen(visualRoll.id);
+      return;
+    }
     if (lastSeenRollId.current === visualRoll.id) return;
-    if (wasDiceRollSeen(visualRoll.id) || (latestRoll && wasCreatedTooLongBeforeMount(latestRoll.createdAt, mountedAtRef.current))) {
+    if (wasDiceRollSeen(visualRoll.id)) {
       lastSeenRollId.current = visualRoll.id;
       rememberDiceRollSeen(visualRoll.id);
       if (!completedRollIdsRef.current.has(visualRoll.id)) {
@@ -88,7 +100,7 @@ export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: 
       revealRollAndHoldDice(visualRoll.id);
     }, PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS);
     return () => clearAnimationTimeout();
-  }, [clearAnimationTimeout, clearFadeTimeout, clearHoldTimeout, onRollComplete, polyhedralDiceRoll?.id, revealRollAndHoldDice, visibleDiceRollId]);
+  }, [animationReady, clearAnimationTimeout, clearFadeTimeout, clearHoldTimeout, onRollComplete, polyhedralDiceRoll?.id, revealRollAndHoldDice, visibleDiceRollId]);
 
   useEffect(() => () => {
     clearHoldTimeout();
@@ -108,13 +120,7 @@ export function PlayerDiceOverlay({ latestRoll, onRollComplete }: { latestRoll: 
   return null;
 }
 
-const RECENT_REMOTE_ROLL_WINDOW_MS = 15_000;
 const SEEN_DICE_ROLLS_KEY = 'daggerheart-seen-dice-rolls';
-
-function wasCreatedTooLongBeforeMount(createdAt: string, timestampMs: number): boolean {
-  const createdAtMs = Date.parse(createdAt);
-  return Number.isFinite(createdAtMs) && createdAtMs < timestampMs - RECENT_REMOTE_ROLL_WINDOW_MS;
-}
 
 function wasDiceRollSeen(rollId: string): boolean {
   try {

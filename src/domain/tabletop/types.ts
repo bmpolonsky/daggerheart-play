@@ -105,7 +105,7 @@ export interface SyncEvent {
   id: string;
   createdAt: string;
   authorId: string;
-  kind: 'scene' | 'actor' | 'roll' | 'presence' | 'asset' | 'snapshot' | 'snapshotRequest' | 'playerRequest' | 'playerTokenMove' | 'playerRestChoice' | 'playerRollIntent' | 'playerDecision' | 'playerActivation' | 'playerVoiceControl' | 'playerCharacterCreate' | 'callPresence' | 'feed';
+  kind: 'scene' | 'actor' | 'roll' | 'presence' | 'asset' | 'snapshot' | 'snapshotRequest' | 'playerRequest' | 'playerTokenMove' | 'playerRestChoice' | 'playerRollIntent' | 'playerDecision' | 'playerActivation' | 'playerVoiceControl' | 'playerCharacterCreate' | 'playerCharacterUpdateAck' | 'callPresence' | 'feed';
   value: unknown;
 }
 

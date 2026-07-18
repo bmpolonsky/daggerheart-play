@@ -8,6 +8,8 @@ export interface PersistedP2PSession {
   role: P2PSessionRole;
   roomId: string;
   participantName: string;
+  participantId?: string;
+  actorIds?: string[];
   updatedAt: string;
 }
 
@@ -37,7 +39,13 @@ export function forgetActiveSession(): void {
   }));
 }
 
-export function persistActiveSession(input: { role: P2PSessionRole; roomId: string; participantName?: string }): void {
+export function persistActiveSession(input: {
+  role: P2PSessionRole;
+  roomId: string;
+  participantName?: string;
+  participantId?: string;
+  actorIds?: string[];
+}): void {
   localAppStorageStore.update((state) => ({
     p2p: {
       ...state.p2p,
@@ -46,6 +54,8 @@ export function persistActiveSession(input: { role: P2PSessionRole; roomId: stri
         role: input.role,
         roomId: input.roomId,
         participantName: input.participantName?.trim() || (input.role === 'gm' ? 'Мастер' : 'Игрок'),
+        ...(input.participantId?.trim() ? { participantId: input.participantId.trim() } : {}),
+        ...(input.actorIds ? { actorIds: input.actorIds.filter(Boolean) } : {}),
         updatedAt: nowIso()
       } satisfies PersistedP2PSession
     }

@@ -16,3 +16,9 @@ export const ASSET_BLOB_STORAGE = {
   dbName: 'daggerheart-play-assets',
   storeName: 'assets'
 } as const;
+
+export const P2P_CHARACTER_OUTBOX_STORAGE = {
+  dbName: 'daggerheart-play-p2p-outbox',
+  storeName: 'documents',
+  key: 'player-character-updates'
+} as const;

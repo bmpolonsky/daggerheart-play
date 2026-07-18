@@ -364,6 +364,9 @@
 
 .player-tools-scene-framing__advanced > summary {
   width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--dh-paper-muted);
   cursor: pointer;
   font-size: 0.72rem;
@@ -927,9 +930,26 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
-.character-level-up-wizard .cinematic-builder-step {
+.character-level-up-wizard .character-level-up-wizard__workspace > .cinematic-builder-step {
+  height: auto;
+  min-height: min-content;
   grid-template-rows: auto auto;
   align-content: start;
+  overflow: visible;
+}
+
+.character-level-up-wizard .character-level-up-wizard__workspace {
+  display: block;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 6px;
+  overscroll-behavior: contain;
+}
+
+.character-level-up-wizard .character-level-up-wizard__automatic-summary {
+  align-self: start;
+  min-height: 0;
+  padding-block: 8px;
 }
 
 /* Level-up has a validation notice between the scrollable workspace and its
@@ -961,6 +981,14 @@
 
 .character-level-up-wizard .field {
   min-width: 0;
+}
+
+@media (max-width: 680px) {
+  .character-level-up-wizard .grid-2,
+  .character-level-up-wizard .grid-3,
+  .character-level-up-wizard .grid-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .player-tools-character-editor .trait-card {

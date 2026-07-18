@@ -125,7 +125,13 @@ test('P2P helpers write only through the single app storage key', () => {
   });
 
   try {
-    persistActiveSession({ role: 'player', roomId: 'ROOM3', participantName: 'Player' });
+    persistActiveSession({
+      role: 'player',
+      roomId: 'ROOM3',
+      participantName: 'Player',
+      participantId: 'seat-player',
+      actorIds: ['hero-player']
+    });
     persistInviteDraft({ roomId: 'ROOM4' });
     persistRoomCodeRefreshBlockedUntil(Date.now() + 60_000);
     writeStoredPlayerSeatId('ROOM3', 'seat-3');
@@ -137,6 +143,8 @@ test('P2P helpers write only through the single app storage key', () => {
     assert.equal(sessionStorage.key(0), APP_BROWSER_STORAGE_KEY);
 
     assert.equal(readActiveSession()?.roomId, 'ROOM3');
+    assert.equal(readActiveSession()?.participantId, 'seat-player');
+    assert.deepEqual(readActiveSession()?.actorIds, ['hero-player']);
     assert.equal(initialInviteDraftState().roomId, 'ROOM4');
     assert.equal(readStoredPlayerSeatId('ROOM3'), 'seat-3');
     assert.equal(readStoredCallName('ROOM3'), 'Caller 3');

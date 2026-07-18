@@ -72,7 +72,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(typeof window === 'undefined' ? '' : window.location.pathname, role));
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const [playerCharacterEditorOpen, setPlayerCharacterEditorOpen] = useState(false);
-  const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role);
+  const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role, sceneTable.musicDeliveryMode);
   const viewedCharacterId = viewedActor?.kind === 'character' ? viewedActor.actorId : null;
   const viewedAdversaryId = viewedActor?.kind === 'adversary' ? viewedActor.actorId : null;
   const viewedEnvironmentId = viewedActor?.kind === 'environment' ? viewedActor.actorId : null;
@@ -144,6 +144,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     () => latestVisibleRollLogEntry(rollLog, { role, actorId: playerCharacterId }),
     [playerCharacterId, role, rollLog]
   );
+  const diceAnimationReady = role !== 'player' || !sessionRoomId || p2pSession.latestRollAnimationId === latestVisibleRoll?.id;
   const selectedPlayerName = selectedPlayerSeat?.name.trim() || undefined;
   const fallbackActorName = role === 'gm' ? 'Мастер' : 'Без персонажа';
   const displayedActor = displayedCharacter
@@ -364,8 +365,12 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         model={model}
         role={role}
       />
-      <PlayerScene latestRoll={latestVisibleRoll} model={model} role={role} onOpenActor={openActor} onRollComplete={completeDiceRoll} />
-      <SceneAudioRuntime music={resolveSceneMusicSource(model.scene.music, assetUrls)} role={role} />
+      <PlayerScene latestRoll={latestVisibleRoll} diceAnimationReady={diceAnimationReady} model={model} role={role} onOpenActor={openActor} onRollComplete={completeDiceRoll} />
+      <SceneAudioRuntime
+        music={resolveSceneMusicSource(model.scene.music, assetUrls)}
+        musicDeliveryMode={sceneTable.musicDeliveryMode}
+        role={role}
+      />
       {needsSeatSelection && (
         <PlayerSeatPicker
           characters={characters}

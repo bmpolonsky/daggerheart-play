@@ -72,12 +72,12 @@ function runEnvironmentMacro(environment: EncounterEnvironment, feature: SheetFe
   if (!('amount' in macro)) return;
   if (macro.kind === 'spendFear') {
     const applied = gameService.spendFear(macro.amount);
-    feedService.addMessage(environment.name, `${featureName} · ${applied ? '-' : 'не хватает: -'}${macro.amount} Страх`, { title: 'Окружение', publication: 'public' });
+    feedService.addMessage(environment.name, `${featureName} — ${applied ? '-' : 'не хватает: -'}${macro.amount} Страх`, { title: 'Окружение', publication: 'public' });
     return;
   }
   if (macro.kind === 'gainFear') {
     gameService.gainFear(macro.amount);
-    feedService.addMessage(environment.name, `${featureName} · +${macro.amount} Страх`, { title: 'Окружение', publication: 'public' });
+    feedService.addMessage(environment.name, `${featureName} — +${macro.amount} Страх`, { title: 'Окружение', publication: 'public' });
   }
 }
 

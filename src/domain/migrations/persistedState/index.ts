@@ -2,7 +2,7 @@ import { runVersionedMigrations } from '../migration-runner';
 import type { PersistedState } from '../../rules/types';
 import type { PersistedStateMigration } from './types';
 import { v4ToV5PersistedStateMigration } from './v4-to-v5-persisted-state-migration';
-import { createCharacter } from '../../rules/factories';
+import { createCharacter, createSceneTableState } from '../../rules/factories';
 
 export { migrateV4ToV5PersistedState } from './v4-to-v5-persisted-state-migration';
 export type { PersistedStateMigration } from './types';
@@ -95,6 +95,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function normalizePersistedCharacters(state: PersistedState): PersistedState {
   return {
     ...state,
+    sceneTable: createSceneTableState(state.sceneTable),
     characters: {
       ...state.characters,
       entities: Object.fromEntries(Object.entries(state.characters.entities).map(([id, character]) => [

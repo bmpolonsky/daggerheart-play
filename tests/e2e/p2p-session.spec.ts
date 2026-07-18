@@ -4,7 +4,7 @@ import { createIsolatedDeterministicP2PRelay, installDeterministicP2PTransport, 
 import { filledCharacterName, importPopulatedGame } from './filled-game-helpers';
 import { expectInsideBounds, expectInsideViewport, expectNoOverlap, expectTopLayerAtPoint, rect } from './layout-helpers';
 
-async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
+async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Игра' | 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   if (role === 'gm') {
     await openGmGame(page);
@@ -14,7 +14,7 @@ async function openSharedSettings(page: Page, role: 'gm' | 'player', section: '�
   await openCurrentSettings(page, section);
 }
 
-async function openCurrentSettings(page: Page, section: 'Подключение' | 'Диагностика' | 'Игры проекта' = 'Подключение'): Promise<void> {
+async function openCurrentSettings(page: Page, section: 'Игра' | 'Подключение' | 'Диагностика' | 'Игры проекта' = 'Подключение'): Promise<void> {
   const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
   if (!(await modal.isVisible())) {
     await page.getByRole('button', { name: 'Инструменты' }).click();
@@ -72,6 +72,7 @@ function connectedDiagnosticsFixture(peerIds: string[]): P2PSessionState {
     peerId: 'peer-local-gm',
     peers: peerIds,
     lastSnapshotAt: '2026-07-14T10:00:00.000Z',
+    latestRollAnimationId: null,
     lastRequestAt: null,
     message: 'Подключено.',
     routes: diagnosticStrategies.map((strategy) => ({
@@ -297,27 +298,41 @@ test.describe('P2P session workflow', () => {
     await expect(page.getByText('Ссылка готова. Игрок подключится автоматически.')).toHaveCount(0);
   });
 
-  test('an isolated player animates a recent public GM roll received in the first snapshot without replaying it after reload', async ({ browser }) => {
+  test('isolated players animate a public GM roll despite ±5 minute clock skew without replaying it after reload', async ({ browser }) => {
     test.setTimeout(90_000);
-    const relay = await createIsolatedDeterministicP2PRelay(browser, ['e2e-gm-dice', 'e2e-player-dice']);
-    const [gm, player] = relay.clients.map((client) => client.page);
+    const relay = await createIsolatedDeterministicP2PRelay(browser, ['e2e-gm-dice', 'e2e-player-dice-ahead', 'e2e-player-dice-behind']);
+    const [gm, playerAhead, playerBehind] = relay.clients.map((client) => client.page);
     const roomId = `DICE${Date.now().toString().slice(-6)}`;
     try {
+      await playerAhead.addInitScript(() => {
+        const actualNow = Date.now.bind(Date);
+        Date.now = () => actualNow() + 5 * 60_000;
+      });
+      await playerBehind.addInitScript(() => {
+        const actualNow = Date.now.bind(Date);
+        Date.now = () => actualNow() - 5 * 60_000;
+      });
       await openSharedGmGame(gm, roomId);
       await gm.getByRole('button', { name: 'Открыть панель костей' }).click();
       await gm.getByRole('button', { name: 'Бросить', exact: true }).click();
 
       // The roll exists before the player application mounts. It must not be
-      // mistaken for old persisted history when the first snapshot hydrates.
-      await openSharedPlayerGame(player, roomId);
-      await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
-      await expect.poll(() => player.evaluate(() => JSON.parse(window.sessionStorage.getItem('daggerheart-seen-dice-rolls') ?? '[]').length), { timeout: 15_000 }).toBeGreaterThan(0);
-      await player.reload();
-      await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toHaveCount(0, { timeout: 4_000 });
+      // classified by comparing clocks from two different devices.
+      await Promise.all([openSharedPlayerGame(playerAhead, roomId), openSharedPlayerGame(playerBehind, roomId)]);
+      await Promise.all([playerAhead, playerBehind].map(async (player) => {
+        await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
+        await expect.poll(() => player.evaluate(() => JSON.parse(window.sessionStorage.getItem('daggerheart-seen-dice-rolls') ?? '[]').length), { timeout: 15_000 }).toBeGreaterThan(0);
+      }));
+      await Promise.all([playerAhead, playerBehind].map(async (player) => {
+        await player.reload();
+        await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toHaveCount(0, { timeout: 4_000 });
+      }));
 
       const gmStorage = await gm.evaluate(() => window.localStorage.getItem('daggerheart-play'));
-      const playerStorage = await player.evaluate(() => window.localStorage.getItem('daggerheart-play'));
-      expect(gmStorage).not.toBe(playerStorage);
+      const playerAheadStorage = await playerAhead.evaluate(() => window.localStorage.getItem('daggerheart-play'));
+      const playerBehindStorage = await playerBehind.evaluate(() => window.localStorage.getItem('daggerheart-play'));
+      expect(gmStorage).not.toBe(playerAheadStorage);
+      expect(gmStorage).not.toBe(playerBehindStorage);
     } finally {
       await relay.close();
     }
@@ -380,6 +395,9 @@ test.describe('P2P session workflow', () => {
 
       await gm.getByRole('button', { name: 'Инструменты' }).click();
       const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await workspace.getByRole('button', { name: 'Настройки' }).click();
+      await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игра', exact: true }).click();
+      await expect(workspace.getByLabel('Передача музыки сцены')).toHaveValue('download');
       await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
       const musicPicker = workspace.locator('input[type="file"][accept="audio/*"]');
       await selectGeneratedFile(musicPicker, { name: 'session-tone.wav', mimeType: 'audio/wav', buffer: silentWavBuffer(8) });
@@ -388,8 +406,8 @@ test.describe('P2P session workflow', () => {
 
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
       const gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
-      await expect(gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' })).toBeVisible();
-      await gmMusic.getByRole('button', { name: 'Play' }).click();
+      await expect(gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' })).toHaveCount(0);
+      await gmMusic.getByRole('button', { name: 'Играть' }).click();
 
       const playerAudio = player.locator('audio[data-scene-audio-status]');
       await expect(playerAudio).toHaveAttribute('src', /^blob:/, { timeout: 15_000 });
@@ -400,13 +418,13 @@ test.describe('P2P session workflow', () => {
       await unlockMusic.click();
       await expect.poll(() => playerAudio.evaluate((element: HTMLAudioElement) => element.currentTime)).toBeGreaterThan(1.5);
 
-      await gmMusic.getByLabel('Громкость файла сцены').fill('0.31');
+      await gmMusic.getByLabel('Громкость музыки сцены').fill('0.31');
       await expect.poll(() => playerAudio.evaluate((element: HTMLAudioElement) => element.volume)).toBeCloseTo(0.31, 2);
-      await gmMusic.getByRole('button', { name: 'Pause' }).click();
+      await gmMusic.getByRole('button', { name: 'Пауза' }).click();
       await expect.poll(() => playerAudio.evaluate((element: HTMLAudioElement) => element.paused)).toBe(true);
       const pausedAt = await playerAudio.evaluate((element: HTMLAudioElement) => element.currentTime);
       expect(pausedAt).toBeGreaterThan(1.5);
-      await gmMusic.getByRole('button', { name: 'Play' }).click();
+      await gmMusic.getByRole('button', { name: 'Играть' }).click();
       await expect.poll(() => playerAudio.evaluate((element: HTMLAudioElement) => element.currentTime)).toBeGreaterThan(pausedAt);
     } finally {
       await relay.close();
@@ -420,15 +438,22 @@ test.describe('P2P session workflow', () => {
     const roomId = `CAST${Date.now().toString().slice(-6)}`;
     try {
       await openSharedGmGame(gm, roomId);
+      await gm.getByRole('button', { name: 'Инструменты' }).click();
+      let workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await workspace.getByRole('button', { name: 'Настройки' }).click();
+      await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игра', exact: true }).click();
+      await workspace.getByLabel('Передача музыки сцены').selectOption('broadcast');
+      await expect(workspace.getByLabel('Передача музыки сцены')).toHaveValue('broadcast');
+      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
       let gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
-      const delivery = gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' });
-      await delivery.getByRole('button', { name: 'Транслировать', exact: true }).click();
-      await expect(delivery.getByRole('button', { name: 'Транслировать', exact: true })).toHaveAttribute('aria-pressed', 'true');
-      await expect(gmMusic.getByRole('button', { name: 'Стрим', exact: true })).toBeVisible();
+      await expect(gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' })).toHaveCount(0);
+      const tabAudio = gm.getByRole('region', { name: 'Звук вкладки' });
+      await expect(tabAudio.getByRole('button', { name: 'Начать трансляцию' })).toBeVisible();
 
       await gm.getByRole('button', { name: 'Инструменты' }).click();
-      const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
       await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
       await selectGeneratedFile(workspace.locator('input[type="file"][accept="audio/*"]'), {
         name: 'broadcast-tone.wav',
@@ -440,14 +465,34 @@ test.describe('P2P session workflow', () => {
 
       await openSharedPlayerGame(player, roomId);
       await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
-      await gmMusic.getByRole('button', { name: 'Play' }).click();
+      await gmMusic.getByRole('button', { name: 'Играть' }).click();
       await expect(player.locator('audio[data-scene-audio-status]')).not.toHaveAttribute('src', /^blob:/, { timeout: 4_000 });
       expect(relay.messages.some((message) => message.type === 'binary')).toBe(false);
 
       await gm.reload();
+      await gm.getByRole('button', { name: 'Инструменты' }).click();
+      workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await workspace.getByRole('button', { name: 'Настройки' }).click();
+      await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игра', exact: true }).click();
+      await expect(workspace.getByLabel('Передача музыки сцены')).toHaveValue('broadcast');
+      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
       gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
-      await expect(gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' }).getByRole('button', { name: 'Транслировать', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(gmMusic).toBeVisible();
+      await gm.evaluate(() => {
+        const mediaDevices = navigator.mediaDevices ?? {};
+        Object.defineProperty(mediaDevices, 'getDisplayMedia', {
+          configurable: true,
+          value: async () => { throw new Error('Тестовая ошибка захвата вкладки'); }
+        });
+        if (!navigator.mediaDevices) {
+          Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: mediaDevices });
+        }
+      });
+      const reloadedTabAudio = gm.getByRole('region', { name: 'Звук вкладки' });
+      await reloadedTabAudio.getByRole('button', { name: 'Начать трансляцию' }).click();
+      await expect(reloadedTabAudio).toContainText('Тестовая ошибка захвата вкладки');
     } finally {
       await relay.close();
     }

@@ -17,6 +17,8 @@ import { sceneTableService } from "../../src/services/serviceRegistry";
 import { AudioService } from "../../src/services/AudioService";
 import { SceneAudioBroadcastService } from "../../src/services/SceneAudioBroadcastService";
 import { createFakeSceneAudioElement } from "./helpers";
+import { migratePersistedState } from '../../src/domain/migrations/persistedState';
+import { snapshotPersistedState } from '../../src/stores/persistedState';
 
 test('scene music helpers normalize track, playback position and volume', () => {
   const base = createSceneMusicState({ sourceUrl: ' https://cdn.example.com/scene.mp3 ', volume: 2, position: -10, updatedAt: '2026-05-24T10:00:00.000Z' });
@@ -62,13 +64,49 @@ test('scene table factory backfills scene music for older snapshots', () => {
   assert.equal(state.scenes['scene-old'].music.deliveryMode, 'download');
 });
 
-test('scene table persists the selected music delivery mode', () => {
+test('scene table persists the session music delivery preference and reads legacy scene settings', () => {
   resetAllStores();
   const sceneId = sceneTableStore.get().liveSceneId;
-  sceneTableService.setSceneMusicDeliveryMode(sceneId, 'broadcast');
-  assert.equal(sceneTableStore.get().scenes[sceneId].music.deliveryMode, 'broadcast');
-  const roundTripped = createTableScene(sceneTableStore.get().scenes[sceneId]);
-  assert.equal(roundTripped.music.deliveryMode, 'broadcast');
+  sceneTableService.setSceneMusicDeliveryMode('broadcast');
+  assert.equal(sceneTableStore.get().musicDeliveryMode, 'broadcast');
+  const roundTripped = createSceneTableState(sceneTableStore.get());
+  assert.equal(roundTripped.musicDeliveryMode, 'broadcast');
+
+  const legacyState = createSceneTableState({
+    activeSceneId: sceneId,
+    liveSceneId: sceneId,
+    scenes: {
+      [sceneId]: createTableScene({
+        ...sceneTableStore.get().scenes[sceneId],
+        music: createSceneMusicState({ deliveryMode: 'broadcast' })
+      })
+    },
+    sceneOrder: [sceneId],
+    musicDeliveryMode: undefined
+  });
+  assert.equal(legacyState.musicDeliveryMode, 'broadcast');
+});
+
+test('current save files without a session preference inherit the legacy live-scene mode', () => {
+  resetAllStores();
+  const snapshot = snapshotPersistedState();
+  const sceneId = snapshot.sceneTable.liveSceneId;
+  const legacySnapshot = {
+    ...snapshot,
+    sceneTable: {
+      ...snapshot.sceneTable,
+      scenes: {
+        ...snapshot.sceneTable.scenes,
+        [sceneId]: createTableScene({
+          ...snapshot.sceneTable.scenes[sceneId],
+          music: createSceneMusicState({ deliveryMode: 'broadcast' })
+        })
+      }
+    }
+  };
+  delete (legacySnapshot.sceneTable as Partial<typeof legacySnapshot.sceneTable>).musicDeliveryMode;
+
+  assert.equal(migratePersistedState(legacySnapshot).sceneTable.musicDeliveryMode, 'broadcast');
 });
 
 test('publishing a scene carries active scene music playback to the next scene track', () => {
@@ -197,6 +235,138 @@ test('broadcast mode publishes the scene player as a distinct media delivery', a
   broadcast.stopBroadcast();
   assert.equal(removed.length, 1);
   assert.equal(broadcast.broadcast$.get().deliveryKind, 'none');
+});
+
+test('scene player capture errors are exposed instead of rejecting silently', async () => {
+  const broadcast = new SceneAudioBroadcastService();
+  const transport = {
+    id: 'capture-error-test',
+    label: 'Capture error test',
+    connect: async () => undefined,
+    disconnect: async () => undefined,
+    publish: async () => undefined,
+    subscribe: () => () => undefined,
+    publishMediaStream: async () => undefined,
+    removeMediaStream: () => undefined,
+    subscribeMediaStreams: () => () => undefined
+  };
+  broadcast.setTransport(transport);
+  broadcast.attachSceneAudioElement({
+    src: 'blob:http://localhost/music',
+    paused: false,
+    volume: 1,
+    captureStream: () => { throw new Error('captureStream заблокирован'); },
+    load: () => undefined,
+    play: async () => undefined
+  } as unknown as HTMLAudioElement);
+
+  await broadcast.startScenePlayerBroadcast();
+
+  assert.equal(broadcast.broadcast$.get().requestedKind, 'scene-player');
+  assert.equal(broadcast.broadcast$.get().status, 'error');
+  assert.equal(broadcast.broadcast$.get().message, 'captureStream заблокирован');
+});
+
+test('tab audio capture errors stay visible and scene controls cannot stop that flow', async () => {
+  const broadcast = new SceneAudioBroadcastService();
+  const transport = {
+    id: 'display-test',
+    label: 'Display test',
+    connect: async () => undefined,
+    disconnect: async () => undefined,
+    publish: async () => undefined,
+    subscribe: () => () => undefined,
+    publishMediaStream: async () => undefined,
+    removeMediaStream: () => undefined,
+    subscribeMediaStreams: () => () => undefined
+  };
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      mediaDevices: {
+        getDisplayMedia: async () => {
+          throw new Error('Захват вкладки недоступен');
+        }
+      }
+    }
+  });
+
+  try {
+    broadcast.setTransport(transport);
+    await broadcast.startDisplayAudioBroadcast();
+
+    assert.equal(broadcast.broadcast$.get().requestedKind, 'none');
+    assert.equal(broadcast.broadcast$.get().tabAudioStatus, 'error');
+    assert.equal(broadcast.broadcast$.get().tabAudioMessage, 'Захват вкладки недоступен');
+
+    broadcast.stopBroadcast('scene-player');
+    assert.equal(broadcast.broadcast$.get().requestedKind, 'none');
+    assert.equal(broadcast.broadcast$.get().tabAudioStatus, 'error');
+  } finally {
+    if (originalNavigator) {
+      Object.defineProperty(globalThis, 'navigator', originalNavigator);
+    } else {
+      delete (globalThis as { navigator?: Navigator }).navigator;
+    }
+  }
+});
+
+test('tab audio stays live when scene music is paused or its volume changes', async () => {
+  const broadcast = new SceneAudioBroadcastService();
+  const stopped: string[] = [];
+  const audioTrack = { contentHint: '', stop: () => stopped.push('audio'), addEventListener: () => undefined };
+  const videoTrack = { contentHint: '', stop: () => stopped.push('video'), addEventListener: () => undefined };
+  class FakeMediaStream {
+    readonly id = 'display-audio';
+    constructor(private readonly tracks: Array<typeof audioTrack | typeof videoTrack> = []) {}
+    getTracks() { return this.tracks; }
+    getAudioTracks() { return this.tracks.filter((track) => track === audioTrack); }
+  }
+  const displayStream = new FakeMediaStream([audioTrack, videoTrack]) as unknown as MediaStream;
+  const removed: MediaStream[] = [];
+  const transport = {
+    id: 'display-live-test',
+    label: 'Display live test',
+    connect: async () => undefined,
+    disconnect: async () => undefined,
+    publish: async () => undefined,
+    subscribe: () => () => undefined,
+    publishMediaStream: async () => undefined,
+    removeMediaStream: (stream: MediaStream) => removed.push(stream),
+    subscribeMediaStreams: () => () => undefined
+  };
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const OriginalMediaStream = globalThis.MediaStream;
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { mediaDevices: { getDisplayMedia: async () => displayStream } }
+  });
+  globalThis.MediaStream = FakeMediaStream as unknown as typeof MediaStream;
+
+  try {
+    broadcast.setTransport(transport);
+    await broadcast.startDisplayAudioBroadcast();
+    assert.equal(broadcast.broadcast$.get().deliveryKind, 'display');
+
+    broadcast.stopBroadcast('scene-player');
+    broadcast.setSceneMusicBroadcastVolume(0.2);
+    assert.equal(broadcast.broadcast$.get().deliveryKind, 'display');
+    assert.equal(broadcast.broadcast$.get().tabAudioVolume, 0.72);
+    assert.equal(removed.length, 0);
+
+    broadcast.stopBroadcast('display');
+    assert.equal(broadcast.broadcast$.get().deliveryKind, 'none');
+    assert.equal(removed.length, 1);
+    assert.deepEqual(stopped.sort(), ['audio', 'video']);
+  } finally {
+    globalThis.MediaStream = OriginalMediaStream;
+    if (originalNavigator) {
+      Object.defineProperty(globalThis, 'navigator', originalNavigator);
+    } else {
+      delete (globalThis as { navigator?: Navigator }).navigator;
+    }
+  }
 });
 
 test('audio service stops local voice stream when transport is detached', async () => {

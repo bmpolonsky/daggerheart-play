@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
+import type { SceneMusicDeliveryMode } from '../../../domain/audio/sceneAudio';
 import type { MapAsset, TableScene } from '../../../domain/tabletop/types';
 import { assetService, p2pSessionService } from '../../../services/serviceRegistry';
 import type { TableViewRole } from './types';
 
-export function useLiveSceneAssetUrls(liveScene: TableScene, sceneAssets: Record<string, MapAsset>, role: TableViewRole): Record<string, string> {
+export function useLiveSceneAssetUrls(
+  liveScene: TableScene,
+  sceneAssets: Record<string, MapAsset>,
+  role: TableViewRole,
+  musicDeliveryMode: SceneMusicDeliveryMode
+): Record<string, string> {
   const p2pSession = useStream(p2pSessionService.session$);
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({});
   const pendingAssetRequests = useRef<Set<string>>(new Set());
   const objectUrls = useRef<Record<string, string>>({});
   const liveSceneAssetIds = useMemo(() => [
     liveScene?.backgroundAssetId,
-    role === 'gm' || liveScene?.music.deliveryMode === 'download' ? liveScene?.music.assetId : undefined
-  ].filter((assetId): assetId is string => Boolean(assetId)), [liveScene?.backgroundAssetId, liveScene?.music.assetId, liveScene?.music.deliveryMode, role]);
+    role === 'gm' || musicDeliveryMode === 'download' ? liveScene?.music.assetId : undefined
+  ].filter((assetId): assetId is string => Boolean(assetId)), [liveScene?.backgroundAssetId, liveScene?.music.assetId, musicDeliveryMode, role]);
 
   useEffect(() => () => {
     for (const objectUrl of Object.values(objectUrls.current)) {

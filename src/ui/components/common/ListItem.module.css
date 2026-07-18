@@ -1,4 +1,5 @@
 .root {
+  position: relative;
   min-width: 0;
   width: 100%;
   min-height: 58px;
@@ -33,14 +34,33 @@
 }
 
 .interactive:hover:not(:disabled),
-.root:has(.contentButton:hover) {
+.root:has(.hitTarget:hover) {
   background: rgba(243, 234, 216, 0.055);
 }
 
 .interactive:focus-visible,
-.contentButton:focus-visible {
+.root:has(.hitTarget:focus-visible) {
   box-shadow: var(--dh-focus);
   outline: none;
+}
+
+.hitTarget {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hitTarget:disabled {
+  cursor: not-allowed;
+}
+
+.interactiveWithAccessory .leftAccessory,
+.interactiveWithAccessory .content {
+  pointer-events: none;
 }
 
 .root:disabled,
@@ -51,6 +71,8 @@
 
 .content,
 .contentButton {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   flex: 1 1 auto;
   display: grid;
@@ -116,6 +138,8 @@
 
 .leftAccessory,
 .rightAccessory {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   flex: 0 0 auto;
   display: inline-flex;

@@ -141,7 +141,7 @@ export function EncounterPanel({
             Бой
           </span>
           <span className="block truncate text-xs text-slate-500">
-            {totalEntries} противников · {summary.totalCost}/{summary.finalBudget} ОБ
+            {totalEntries} противников — {summary.totalCost}/{summary.finalBudget} ОБ
           </span>
         </div>
         <div className="combat-encounter-panel__header-actions flex items-center gap-2">

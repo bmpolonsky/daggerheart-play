@@ -30,6 +30,12 @@ export interface CharacterAdvancementChoice {
   minLevel?: number;
 }
 
+export interface CharacterAdvancementSelection {
+  choice: CharacterAdvancementChoiceId;
+  /** The advancement sheet whose still-empty slot is consumed. */
+  rank: 2 | 3 | 4;
+}
+
 export interface CharacterLevelUpFreeformOverride {
   enabled: true;
   actor: CharacterChangeActor;
@@ -39,8 +45,11 @@ export interface CharacterLevelUpFreeformOverride {
 export interface CharacterLevelUpPlanInput {
   targetLevel?: number;
   advancementChoices?: readonly CharacterAdvancementChoiceId[];
+  advancementSelections?: readonly CharacterAdvancementSelection[];
   multiclassClass?: DaggerheartClass | '';
   multiclassDomain?: DomainName | '';
+  multiclassSubclassName?: string;
+  multiclassSubclassSlug?: string;
   ruleModifiers?: CharacterRuleModifier[];
 }
 
@@ -51,7 +60,9 @@ export interface CharacterLevelUpApplicationInput extends CharacterLevelUpPlanIn
   experiences?: Array<Partial<Experience>>;
   experienceIncreases?: Array<{ experienceId: string }>;
   domainCards?: Array<Partial<DomainCardRecord>>;
+  domainCardExchange?: { removeCardId: string; replacement: Partial<DomainCardRecord> };
   subclassCards?: Array<Partial<CharacterSheetCard>>;
+  multiclassClassCards?: Array<Partial<CharacterSheetCard>>;
   thresholdBonus?: Partial<Thresholds>;
   traitBonuses?: Partial<Record<TraitId, number>>;
   hpMax?: number;
@@ -69,6 +80,7 @@ export type CharacterLevelUpIssueCode =
   | 'choices.exhausted'
   | 'multiclass.detailsRequired'
   | 'multiclass.alreadyTaken'
+  | 'multiclass.featuresRequired'
   | 'traits.invalid'
   | 'hp.invalid'
   | 'stress.invalid'
@@ -76,6 +88,7 @@ export type CharacterLevelUpIssueCode =
   | 'experience.increaseInvalid'
   | 'domainCards.count'
   | 'domainCards.invalid'
+  | 'domainCards.exchangeInvalid'
   | 'evasion.invalid'
   | 'subclass.invalid'
   | 'proficiency.invalid'
@@ -105,6 +118,7 @@ export interface CharacterLevelUpPlan {
   rankAchievements: string[];
   requiredAdvancementChoices: number;
   advancementChoices: CharacterAdvancementChoiceId[];
+  advancementSelections: CharacterAdvancementSelection[];
   advancementChoiceCost: number;
   requiredDomainCards: number;
   requiredTraitBonuses: number;
@@ -129,8 +143,8 @@ export const CHARACTER_ADVANCEMENT_CHOICES: CharacterAdvancementChoice[] = [
   { id: 'experience', label: '+1 к существующему Опыту', cost: 1 },
   { id: 'domainCard', label: 'Дополнительная карта домена', cost: 1 },
   { id: 'evasion', label: '+1 к Уклонению', cost: 1 },
-  { id: 'subclass', label: 'Улучшенная карта подкласса', cost: 1 },
-  { id: 'proficiency', label: '+1 к Мастерству', cost: 2 },
+  { id: 'subclass', label: 'Улучшенная карта подкласса', cost: 1, minLevel: 5 },
+  { id: 'proficiency', label: '+1 к Мастерству', cost: 2, minLevel: 5 },
   { id: 'multiclass', label: 'Мультикласс', cost: 2, minLevel: 5 },
   { id: 'manual', label: 'Устаревшая ручная пометка', cost: 1 }
 ];
@@ -164,14 +178,15 @@ export function buildCharacterLevelUpPlan(character: Character, input: Character
   const targetLevel = clamp(requestedLevel, 1, 10);
   const currentRank = characterLevelRank(currentLevel);
   const targetRank = characterLevelRank(targetLevel);
-  const advancementChoices = normalizeChoices(input.advancementChoices);
+  const advancementSelections = normalizeSelections(input, targetRank as 2 | 3 | 4);
+  const advancementChoices = advancementSelections.map((selection) => selection.choice);
   const ruleModifiers = input.ruleModifiers ?? character.ruleModifiers;
   const rankAchievements = characterRankAchievements(targetLevel);
   const thresholdIncrease = targetLevel === currentLevel + 1 ? 1 : Math.max(0, targetLevel - currentLevel);
   const multiclassAvailable = targetLevel >= 5 && !character.advancement?.multiclass;
   const warnings = validateChoiceSelection(character, {
     targetLevel,
-    choices: advancementChoices,
+    selections: advancementSelections,
     multiclassClass: input.multiclassClass,
     multiclassDomain: input.multiclassDomain,
     modifiers: ruleModifiers
@@ -199,11 +214,12 @@ export function buildCharacterLevelUpPlan(character: Character, input: Character
     rankAchievements,
     requiredAdvancementChoices: requiredChoices,
     advancementChoices,
+    advancementSelections,
     advancementChoiceCost: advancementChoiceCost(advancementChoices),
     requiredDomainCards: requiredCards,
     requiredTraitBonuses: countChoice(advancementChoices, 'traits') * 2,
     requiredNewExperiences: rankAchievements.some((item) => item.includes('Новый Опыт')) ? 1 : 0,
-    requiredExperienceIncreases: countChoice(advancementChoices, 'experience'),
+    requiredExperienceIncreases: countChoice(advancementChoices, 'experience') * 2,
     expectedHpMax: character.hp.max + countChoice(advancementChoices, 'hp') * levelUpStatDelta(ruleModifiers, 'hp'),
     expectedStressMax: character.stress.max + countChoice(advancementChoices, 'stress') * levelUpStatDelta(ruleModifiers, 'stress'),
     expectedEvasion: character.evasion + countChoice(advancementChoices, 'evasion') * levelUpStatDelta(ruleModifiers, 'evasion'),
@@ -226,10 +242,12 @@ export function validateCharacterLevelUp(
 ): CharacterLevelUpValidation {
   const modifiers = input.ruleModifiers ?? character.ruleModifiers;
   const targetLevel = toSafeInteger(input.level, character.level);
-  const choices = normalizeChoices(input.advancementChoices);
+  const targetRank = characterLevelRank(targetLevel) as 2 | 3 | 4;
+  const selections = normalizeSelections(input, targetRank);
+  const choices = selections.map((selection) => selection.choice);
   const issues = validateChoiceSelection(character, {
     targetLevel,
-    choices,
+    selections,
     multiclassClass: input.multiclassClass,
     multiclassDomain: input.multiclassDomain,
     modifiers
@@ -243,7 +261,9 @@ export function validateCharacterLevelUp(
   validateNumericEffects(character, targetLevel, choices, input, modifiers, issues);
   validateExperiences(character, targetLevel, choices, input, issues);
   validateDomainCards(character, targetLevel, choices, input, modifiers, issues);
+  validateDomainCardExchange(character, targetLevel, input, issues);
   validateSubclassCards(character, choices, input, issues);
+  validateMulticlassFeatures(choices, input, issues);
 
   const strictlyValid = issues.length === 0;
   const override = input.freeformOverride;
@@ -264,23 +284,31 @@ export function validateCharacterLevelUp(
 
 export function nextCharacterAdvancementState(
   character: Character,
-  input: Pick<CharacterLevelUpApplicationInput, 'level' | 'advancementChoices' | 'traitBonuses' | 'multiclassClass' | 'multiclassDomain'>
+  input: Pick<CharacterLevelUpApplicationInput, 'level' | 'advancementChoices' | 'advancementSelections' | 'traitBonuses' | 'multiclassClass' | 'multiclassDomain' | 'multiclassSubclassName' | 'multiclassSubclassSlug'>
 ): CharacterAdvancementState {
   const targetRank = characterLevelRank(input.level) as 2 | 3 | 4;
   const crossedRank = characterLevelRank(character.level) !== targetRank;
   const previous = character.advancement ?? { choiceUsesByRank: {}, markedTraits: [], multiclass: null };
-  const rankUses = { ...(previous.choiceUsesByRank[targetRank] ?? {}) };
-  for (const choice of normalizeChoices(input.advancementChoices)) {
+  const choiceUsesByRank = { ...previous.choiceUsesByRank };
+  const selections = normalizeSelections(input, targetRank);
+  for (const { choice, rank } of selections) {
     if (choice === 'manual') continue;
+    const rankUses = { ...(choiceUsesByRank[rank] ?? {}) };
     rankUses[choice] = (rankUses[choice] ?? 0) + 1;
+    choiceUsesByRank[rank] = rankUses;
   }
   const newlyMarked = TRAITS.filter((trait) => toSafeInteger(input.traitBonuses?.[trait], 0) > 0);
   const markedTraits = [...new Set([...(crossedRank ? [] : previous.markedTraits), ...newlyMarked])];
-  const multiclass = normalizeChoices(input.advancementChoices).includes('multiclass') && input.multiclassClass && input.multiclassDomain
-    ? { className: input.multiclassClass, domain: input.multiclassDomain }
+  const multiclass = selections.some((selection) => selection.choice === 'multiclass') && input.multiclassClass && input.multiclassDomain
+    ? {
+        className: input.multiclassClass,
+        domain: input.multiclassDomain,
+        ...(input.multiclassSubclassName ? { subclassName: input.multiclassSubclassName } : {}),
+        ...(input.multiclassSubclassSlug ? { subclassSlug: input.multiclassSubclassSlug } : {})
+      }
     : previous.multiclass ?? null;
   return {
-    choiceUsesByRank: { ...previous.choiceUsesByRank, [targetRank]: rankUses },
+    choiceUsesByRank,
     markedTraits,
     multiclass
   };
@@ -288,6 +316,17 @@ export function nextCharacterAdvancementState(
 
 export function advancementChoiceLabel(choice: CharacterAdvancementChoiceId): string {
   return CHARACTER_ADVANCEMENT_CHOICES.find((item) => item.id === choice)?.label ?? 'Неизвестное улучшение';
+}
+
+export function remainingAdvancementChoiceUses(
+  character: Character,
+  rank: 2 | 3 | 4,
+  choice: CharacterAdvancementChoiceId,
+  modifiers: CharacterRuleModifier[] = character.ruleModifiers
+): number {
+  if (choice === 'manual') return 0;
+  const used = character.advancement?.choiceUsesByRank[rank]?.[choice] ?? 0;
+  return Math.max(0, advancementChoiceLimit(rank, choice, modifiers) - used);
 }
 
 export function formatLevelUpNotes(input: {
@@ -312,43 +351,62 @@ export function formatLevelUpNotes(input: {
 
 function validateChoiceSelection(character: Character, input: {
   targetLevel: number;
-  choices: readonly CharacterAdvancementChoiceId[];
+  selections: readonly CharacterAdvancementSelection[];
   multiclassClass?: DaggerheartClass | '';
   multiclassDomain?: DomainName | '';
   modifiers: CharacterRuleModifier[];
 }): CharacterLevelUpIssue[] {
   const issues: CharacterLevelUpIssue[] = [];
+  const choices = input.selections.map((selection) => selection.choice);
   const requiredCost = levelUpAdvancementChoiceCount(input.modifiers);
-  const cost = advancementChoiceCost(input.choices);
+  const cost = advancementChoiceCost(choices);
   if (cost !== requiredCost) {
     addIssue(issues, 'choices.required', `Выберите улучшения общей стоимостью ${requiredCost}; сейчас выбрано ${cost}.`);
   }
-  if (input.choices.includes('manual')) {
+  if (choices.includes('manual')) {
     addIssue(issues, 'choices.manualForbidden', 'Ручная пометка не является улучшением. Используйте явный свободный режим Мастера.');
   }
   const targetRank = characterLevelRank(input.targetLevel) as 2 | 3 | 4;
-  const rankUses = character.advancement?.choiceUsesByRank[targetRank] ?? {};
-  if (
-    (input.choices.includes('multiclass') && (rankUses.subclass ?? 0) > 0) ||
-    (input.choices.includes('subclass') && (rankUses.multiclass ?? 0) > 0) ||
-    (input.choices.includes('multiclass') && input.choices.includes('subclass'))
-  ) {
-    addIssue(issues, 'choices.unavailable', 'В одном ранге нельзя одновременно улучшить подкласс и выбрать мультикласс.');
+  for (const selection of input.selections) {
+    if (selection.rank > targetRank || selection.rank < 2) {
+      addIssue(issues, 'choices.unavailable', 'Улучшение выбрано в недоступном ранге.');
+    }
+    if (targetRank > 2 && selection.rank < targetRank - 1) {
+      addIssue(issues, 'choices.unavailable', 'Можно использовать свободную отметку текущего или предыдущего ранга.');
+    }
+    const definition = CHARACTER_ADVANCEMENT_CHOICES.find((item) => item.id === selection.choice);
+    if (definition?.minLevel && selection.rank < 3) {
+      addIssue(issues, 'choices.unavailable', `${definition.label} недоступно в ранге ${selection.rank}.`);
+    }
   }
-  for (const choice of new Set(input.choices)) {
+  for (const rank of [2, 3, 4] as const) {
+    const rankUses = character.advancement?.choiceUsesByRank[rank] ?? {};
+    const rankChoices = input.selections.filter((selection) => selection.rank === rank).map((selection) => selection.choice);
+    if (
+      (rankChoices.includes('multiclass') && (rankUses.subclass ?? 0) > 0) ||
+      (rankChoices.includes('subclass') && (rankUses.multiclass ?? 0) > 0) ||
+      (rankChoices.includes('multiclass') && rankChoices.includes('subclass'))
+    ) {
+      addIssue(issues, 'choices.unavailable', 'В одном ранге нельзя одновременно улучшить подкласс и выбрать мультикласс.');
+    }
+  }
+  for (const choice of new Set(choices)) {
     const definition = CHARACTER_ADVANCEMENT_CHOICES.find((item) => item.id === choice);
     if (!definition || choice === 'manual') continue;
     if (definition.minLevel && input.targetLevel < definition.minLevel) {
       addIssue(issues, 'choices.unavailable', `${definition.label} доступно начиная с ${definition.minLevel} уровня.`);
     }
-    const selected = countChoice(input.choices, choice);
-    const used = rankUses[choice] ?? 0;
-    const limit = advancementChoiceLimit(targetRank, choice, input.modifiers);
-    if (used + selected > limit) {
-      addIssue(issues, 'choices.exhausted', `${definition.label}: доступных отметок в этом ранге ${Math.max(0, limit - used)}.`);
+    for (const rank of [2, 3, 4] as const) {
+      const selected = input.selections.filter((selection) => selection.rank === rank && selection.choice === choice).length;
+      if (selected === 0) continue;
+      const used = character.advancement?.choiceUsesByRank[rank]?.[choice] ?? 0;
+      const limit = advancementChoiceLimit(rank, choice, input.modifiers);
+      if (used + selected > limit) {
+        addIssue(issues, 'choices.exhausted', `${definition.label}: доступных отметок в ранге ${rank} — ${Math.max(0, limit - used)}.`);
+      }
     }
   }
-  if (input.choices.includes('multiclass')) {
+  if (choices.includes('multiclass')) {
     if (character.advancement?.multiclass) addIssue(issues, 'multiclass.alreadyTaken', 'Персонаж уже выбрал мультикласс.');
     if (!input.multiclassClass || !input.multiclassDomain) {
       addIssue(issues, 'multiclass.detailsRequired', 'Для мультикласса укажите класс и новый домен.');
@@ -423,7 +481,7 @@ function validateExperiences(
       : 'Новый Опыт на этом уровне не является достижением ранга.');
   }
   const increases = input.experienceIncreases ?? [];
-  const expectedIncreases = countChoice(choices, 'experience');
+  const expectedIncreases = countChoice(choices, 'experience') * 2;
   const distinctIds = new Set(increases.map((item) => item.experienceId));
   if (
     increases.length !== expectedIncreases ||
@@ -434,6 +492,21 @@ function validateExperiences(
       ? `Выберите ${expectedIncreases} существующий Опыт для увеличения на +1.`
       : 'Опыт нельзя увеличивать без соответствующего улучшения.');
   }
+}
+
+function normalizeSelections(
+  input: Pick<CharacterLevelUpPlanInput, 'advancementChoices' | 'advancementSelections'>,
+  targetRank: 2 | 3 | 4
+): CharacterAdvancementSelection[] {
+  if (input.advancementSelections) {
+    return input.advancementSelections.flatMap((selection) => {
+      const choice = normalizeChoices([selection.choice])[0];
+      return choice && (selection.rank === 2 || selection.rank === 3 || selection.rank === 4)
+        ? [{ choice, rank: selection.rank }]
+        : [];
+    });
+  }
+  return normalizeChoices(input.advancementChoices).map((choice) => ({ choice, rank: targetRank }));
 }
 
 function validateDomainCards(
@@ -460,6 +533,36 @@ function validateDomainCards(
   if (invalid) addIssue(issues, 'domainCards.invalid', 'Выбранная карта уже получена, относится к недоступному домену или имеет слишком высокий уровень.');
 }
 
+function validateDomainCardExchange(
+  character: Character,
+  targetLevel: number,
+  input: CharacterLevelUpApplicationInput,
+  issues: CharacterLevelUpIssue[]
+): void {
+  const exchange = input.domainCardExchange;
+  if (!exchange) return;
+  const removed = character.domainCards.find((card) => card.id === exchange.removeCardId);
+  const replacement = exchange.replacement;
+  const identity = String(replacement.sourceId ?? replacement.id ?? '');
+  const multiclassDomain = input.multiclassDomain || character.advancement?.multiclass?.domain || '';
+  const allowedDomain = replacement.domain && (
+    character.domains.includes(replacement.domain) || replacement.domain === multiclassDomain
+  );
+  const withinDomainLevel = replacement.domain && character.domains.includes(replacement.domain)
+    ? (replacement.level ?? 0) <= targetLevel
+    : (replacement.level ?? 0) <= Math.ceil(targetLevel / 2);
+  const alreadyOwned = character.domainCards.some((card) => (
+    card.id !== exchange.removeCardId && String(card.sourceId ?? card.id) === identity
+  ));
+  const alsoSelectedAsNew = (input.domainCards ?? []).some((card) => String(card.sourceId ?? card.id ?? '') === identity);
+  if (
+    !removed || !identity || !replacement.level || replacement.level > removed.level || replacement.level > targetLevel ||
+    !allowedDomain || !withinDomainLevel || alreadyOwned || alsoSelectedAsNew
+  ) {
+    addIssue(issues, 'domainCards.exchangeInvalid', 'Замена должна взять новую карту доступного домена того же или меньшего уровня.');
+  }
+}
+
 function validateSubclassCards(
   character: Character,
   choices: readonly CharacterAdvancementChoiceId[],
@@ -467,17 +570,41 @@ function validateSubclassCards(
   issues: CharacterLevelUpIssue[]
 ): void {
   const expectedCount = countChoice(choices, 'subclass');
+  const multiclassSelected = choices.includes('multiclass');
   const cards = input.subclassCards ?? [];
   const currentTiers = new Set(character.sheetCards.filter((card) => card.kind === 'subclassFeature').map((card) => card.subclassTier));
   const expectedTier = currentTiers.has('specialization') ? 'mastery' : 'specialization';
-  const validUpgrade = expectedCount === 0
-    ? cards.length === 0
+  const validUpgrade = multiclassSelected
+    ? expectedCount === 0 && cards.length > 0 && cards.every((card) => card.kind === 'subclassFeature' && card.subclassTier === 'foundation')
+    : expectedCount === 0
+      ? cards.length === 0
     : expectedCount === 1 && currentTiers.has('foundation') && !currentTiers.has('mastery') && cards.length > 0 &&
       cards.every((card) => card.kind === 'subclassFeature' && card.subclassTier === expectedTier);
   if (!validUpgrade) {
-    addIssue(issues, 'subclass.invalid', expectedCount
+    addIssue(issues, 'subclass.invalid', multiclassSelected
+      ? 'Для мультикласса выберите подкласс и добавьте его базовую карту.'
+      : expectedCount
       ? `Добавьте следующую карту подкласса уровня «${expectedTier}».`
       : 'Карту подкласса нельзя добавлять без соответствующего улучшения.');
+  }
+}
+
+function validateMulticlassFeatures(
+  choices: readonly CharacterAdvancementChoiceId[],
+  input: CharacterLevelUpApplicationInput,
+  issues: CharacterLevelUpIssue[]
+): void {
+  if (!choices.includes('multiclass')) {
+    if ((input.multiclassClassCards ?? []).length > 0) {
+      addIssue(issues, 'multiclass.featuresRequired', 'Особенности другого класса можно добавить только через мультикласс.');
+    }
+    return;
+  }
+  const classCards = input.multiclassClassCards ?? [];
+  const valid = Boolean(input.multiclassSubclassName?.trim()) && classCards.length > 0 &&
+    classCards.every((card) => card.kind === 'classFeature');
+  if (!valid) {
+    addIssue(issues, 'multiclass.featuresRequired', 'Мультикласс должен добавить подкласс с базовой картой и особенности нового класса.');
   }
 }
 

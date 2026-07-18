@@ -155,7 +155,7 @@ function applySourceResourceMacro(
 }
 
 function logDomainCardResourceUse(actorName: string, cardName: string, detail: string, publication: RollPublication = 'public', sourceLabel = 'Карта'): void {
-  feedService.addMessage(actorName, `${cardName} · ${detail}`, { title: sourceLabel, publication });
+  feedService.addMessage(actorName, `${cardName} — ${detail}`, { title: sourceLabel, publication });
 }
 
 function compactResourceMacroLabel(macro: Extract<PlayerViewDomainCardMacro, { amount: number }>): string {

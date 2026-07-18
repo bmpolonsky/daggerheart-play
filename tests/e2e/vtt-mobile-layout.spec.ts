@@ -46,6 +46,7 @@ test.describe('mobile VTT composition', () => {
     await openGmGame(page);
 
     const fearTrack = page.getByLabel(/Страх \d+ из 12/).first();
+    await expect(fearTrack).toHaveCSS('grid-template-areas', '"label pips value"');
     await fearTrack.getByRole('button', { name: 'Страх 3' }).tap();
     await expect(fearTrack).toContainText('3/12');
     const pips = fearTrack.getByRole('button');
