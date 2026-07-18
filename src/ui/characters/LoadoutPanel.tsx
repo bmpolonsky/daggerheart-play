@@ -1,7 +1,8 @@
 import { Trash2 } from 'lucide-react';
 import { Button } from '../components/common/Button';
-import { NumberField, SelectControl, SelectField, TextAreaField, TextField } from '../components/common/Field';
+import { NumberField, SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
+import { RichChoicePicker } from '../components/common/RichChoicePicker';
 import { DAMAGE_TYPE_LABELS, DOMAIN_LABELS, RANGE_LABELS, RANGES, TRAITS, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
 import { domainCardFromLibrary, isDomainCardForDomains } from '../../domain/characterBuilder';
@@ -25,10 +26,13 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <h3>Оружие и атаки</h3>
           <div className="character-editor-toolbar">
             {weaponOptions.length > 0 && (
-              <SelectControl value="" aria-label="Добавить оружие из каталога" onChange={(event) => addEquipmentFromCatalog(character.id, weaponOptions, event.currentTarget.value)}>
-                <option value="">Добавить из каталога</option>
-                {weaponOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </SelectControl>
+              <RichChoicePicker
+                label="Добавить оружие"
+                value=""
+                placeholder="Из каталога"
+                items={weaponOptions.map(equipmentPickerItem)}
+                onChange={(itemId) => addEquipmentFromCatalog(character.id, weaponOptions, itemId)}
+              />
             )}
             <Button onClick={() => characterService.addWeapon(character.id)}>+ Своя атака</Button>
           </div>
@@ -42,14 +46,13 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             <div className="character-editor-item__fields">
             <div className="grid-5">
               {weaponOptions.length > 0 ? (
-                <SelectField
+                <RichChoicePicker
                   label="Оружие"
                   value={equipmentIdByName(weaponOptions, weapon.name)}
-                  onChange={(event) => updateWeaponFromCatalog(character.id, weapon.id, weaponOptions, event.currentTarget.value)}
-                >
-                  <option value="">{weaponLabel(weapon.name)}</option>
-                  {weaponOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </SelectField>
+                  placeholder={weaponLabel(weapon.name)}
+                  items={weaponOptions.map(equipmentPickerItem)}
+                  onChange={(itemId) => updateWeaponFromCatalog(character.id, weapon.id, weaponOptions, itemId)}
+                />
               ) : (
                 <TextField
                   label="Название"
@@ -123,24 +126,26 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <h3>Карты доменов / способности</h3>
           <div className="character-editor-toolbar">
             {domainCardOptions.length > 0 && (
-              <SelectControl value="" aria-label="Добавить карту домена" onChange={(event) => addDomainCardFromCatalog(character.id, domainCardOptions, event.currentTarget.value)}>
-                <option value="">Добавить карту</option>
-                {domainCardOptions.map((item) => <option key={item.id} value={item.id}>{cardOptionLabel(item)}</option>)}
-              </SelectControl>
+              <RichChoicePicker
+                label="Добавить карту домена"
+                value=""
+                placeholder="Из доступных доменов"
+                items={domainCardOptions.map(domainCardPickerItem)}
+                onChange={(itemId) => addDomainCardFromCatalog(character.id, domainCardOptions, itemId)}
+              />
             )}
           </div>
         </div>
         {character.domainCards.map((card) => (
           <div key={card.id} className="domain-card-row">
             {domainCardOptions.length > 0 ? (
-              <SelectField
+              <RichChoicePicker
                 label="Карта"
                 value={domainCardIdByRecord(domainCardOptions, card.sourceId, card.name)}
-                onChange={(event) => updateDomainCardFromCatalog(character.id, card.id, domainCardOptions, event.currentTarget.value)}
-              >
-                <option value="">{card.name || 'Карта не из каталога'}</option>
-                {domainCardOptions.map((item) => <option key={item.id} value={item.id}>{cardOptionLabel(item)}</option>)}
-              </SelectField>
+                placeholder={card.name || 'Карта не из каталога'}
+                items={domainCardOptions.map(domainCardPickerItem)}
+                onChange={(itemId) => updateDomainCardFromCatalog(character.id, card.id, domainCardOptions, itemId)}
+              />
             ) : (
               <strong>{card.name}</strong>
             )}
@@ -159,10 +164,13 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <h3>Инвентарь</h3>
           <div className="character-editor-toolbar">
             {inventoryOptions.length > 0 && (
-              <SelectControl value="" aria-label="Добавить предмет из каталога" onChange={(event) => addEquipmentFromCatalog(character.id, inventoryOptions, event.currentTarget.value)}>
-                <option value="">Добавить из каталога</option>
-                {inventoryOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </SelectControl>
+              <RichChoicePicker
+                label="Добавить предмет"
+                value=""
+                placeholder="Из каталога"
+                items={inventoryOptions.map(equipmentPickerItem)}
+                onChange={(itemId) => addEquipmentFromCatalog(character.id, inventoryOptions, itemId)}
+              />
             )}
             <Button onClick={() => characterService.addInventoryItem(character.id)}>+ Свой предмет</Button>
           </div>
@@ -307,8 +315,25 @@ function cardLevel(item: GenericLibraryItem): number {
   return Number(item.level ?? item.raw.level ?? 1) || 1;
 }
 
-function cardOptionLabel(item: GenericLibraryItem): string {
-  return `${item.name} — ${item.subtitle || `Уровень ${cardLevel(item)}`}`;
+function equipmentPickerItem(item: LibraryEquipmentItem) {
+  return {
+    id: item.id,
+    title: item.name,
+    subtitle: item.typeName,
+    description: [item.featureText, typeof item.raw.main_body === 'string' ? item.raw.main_body : ''].filter(Boolean).join('\n\n'),
+    imageUrl: item.imageUrl
+  };
+}
+
+function domainCardPickerItem(item: GenericLibraryItem) {
+  const card = domainCardFromLibrary(item, true);
+  return {
+    id: item.id,
+    title: card.name,
+    subtitle: `${DOMAIN_LABELS[card.domain] ?? card.domain} — уровень ${card.level}${card.cost ? ` — цена ${card.cost}` : ''}`,
+    description: card.text,
+    imageUrl: card.imageUrl
+  };
 }
 
 function weaponLabel(name: string): string {

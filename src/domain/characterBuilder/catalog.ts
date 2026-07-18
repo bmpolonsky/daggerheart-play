@@ -6,6 +6,7 @@ import { characterBuilderRuleModifiersForSubclass, startingDomainCardCount } fro
 import {
   classDefinitionFor,
   classDomainsFor,
+  classFeatureListText,
   classStartingItemsFor,
   filterBuilderContent,
   isDomainCardForDomains,
@@ -119,7 +120,8 @@ function buildClassOptions(classes: LibraryClassItem[]): Array<{ className: Dagg
       name: item.name,
       domains: item.domains,
       imageUrl: item.imageUrl,
-      body: item.body
+      body: item.body,
+      featureText: classFeatureListText(item)
     }));
   }
   return DAGGERHEART_CLASSES
@@ -129,6 +131,7 @@ function buildClassOptions(classes: LibraryClassItem[]): Array<{ className: Dagg
       name: CLASS_LABELS[item],
       domains: [],
       imageUrl: null,
-      body: ''
+      body: '',
+      featureText: ''
     }));
 }

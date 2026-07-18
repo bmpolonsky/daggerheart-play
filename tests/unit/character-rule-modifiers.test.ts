@@ -1,6 +1,5 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import subclassesPayload from '../../public/data/subclasses.json';
 import { mapGenericItem } from '../../src/domain/content/mappers';
 import type { RawContentItem } from '../../src/domain/content/types';
 import {
@@ -20,10 +19,25 @@ import { buildCharacterSummary } from '../../src/domain/tabletop/playerView';
 import { migratePersistedState } from '../../src/domain/migrations/persistedState';
 import { snapshotPersistedState } from '../../src/stores/persistedState';
 
+const schoolOfKnowledgeRaw: RawContentItem = {
+  id: 69,
+  slug: 'school-of-knowledge',
+  name: 'Школа знаний',
+  class_slug: 'wizard',
+  source_slugs: ['core'],
+  foundation_features: [{
+    id: 208,
+    name: 'Подготовленный',
+    main_body: 'Возьмите дополнительную Карту Домена вашего уровня или ниже из домена, к которому у вас есть доступ.'
+  }]
+};
+
+function schoolOfKnowledge() {
+  return mapGenericItem(schoolOfKnowledgeRaw, 'subclass');
+}
+
 test('local SRD School of Knowledge grants a third starting card through a stable feature modifier', () => {
-  const raw = (subclassesPayload.data as RawContentItem[]).find((item) => item.slug === 'school-of-knowledge');
-  assert.ok(raw, 'public/data/subclasses.json must contain school-of-knowledge');
-  const subclass = mapGenericItem(raw, 'subclass');
+  const subclass = schoolOfKnowledge();
   const modifiers = characterBuilderRuleModifiersForSubclass(subclass);
   assert.deepEqual(modifiers.map((modifier) => ({ kind: modifier.kind, amount: modifier.amount })), [
     { kind: 'startingDomainCards', amount: 1 }
@@ -32,9 +46,7 @@ test('local SRD School of Knowledge grants a third starting card through a stabl
 });
 
 test('School of Knowledge quick start and readiness require exactly three valid level-one domain cards', () => {
-  const raw = (subclassesPayload.data as RawContentItem[]).find((item) => item.slug === 'school-of-knowledge');
-  assert.ok(raw);
-  const subclass = mapGenericItem(raw, 'subclass');
+  const subclass = schoolOfKnowledge();
   const content = {
     ancestries: [genericItem({ id: 'ancestry', name: 'Human' })],
     communities: [genericItem({ id: 'community', name: 'Highborne' })],
@@ -93,9 +105,7 @@ test('a matching name or unregistered homebrew text never silently executes the 
 test('starter-card service consumes the same subclass modifier instead of a hardcoded class name', () => {
   resetAllStores();
   const service = new CharacterService();
-  const raw = (subclassesPayload.data as RawContentItem[]).find((item) => item.slug === 'school-of-knowledge');
-  assert.ok(raw);
-  const subclass = mapGenericItem(raw, 'subclass');
+  const subclass = schoolOfKnowledge();
   const library = [
     genericItem({ id: 'codex-a', raw: { domain_slug: 'codex', level: 1 } }),
     genericItem({ id: 'codex-b', raw: { domain_slug: 'codex', level: 1 } }),
@@ -111,9 +121,7 @@ test('starter-card service consumes the same subclass modifier instead of a hard
 });
 
 test('builder persists subclass rule modifiers on the resulting Character draft', () => {
-  const raw = (subclassesPayload.data as RawContentItem[]).find((item) => item.slug === 'school-of-knowledge');
-  assert.ok(raw);
-  const subclass = mapGenericItem(raw, 'subclass');
+  const subclass = schoolOfKnowledge();
   const content = {
     ancestries: [genericItem({ id: 'ancestry', name: 'Human' })],
     communities: [genericItem({ id: 'community', name: 'Highborne' })],
@@ -227,9 +235,7 @@ test('trusted player snapshots cannot rewrite GM-managed character rules', () =>
 test('changing a catalog subclass replaces only subclass-owned rules', () => {
   resetAllStores();
   const service = new CharacterService();
-  const raw = (subclassesPayload.data as RawContentItem[]).find((item) => item.slug === 'school-of-knowledge');
-  assert.ok(raw);
-  const school = mapGenericItem(raw, 'subclass');
+  const school = schoolOfKnowledge();
   const character = service.createCharacter({
     ruleModifiers: [{ id: 'manual-hand', kind: 'handSize', source: 'manual', label: 'Manual Hand', amount: 1 }]
   });

@@ -174,6 +174,7 @@ export class CharacterBuilderService {
         connectionQuestions,
         classOptions: catalog.classOptions,
         classSubclasses: catalog.classSubclasses,
+        subclassRuleModifiers: catalog.subclassRuleModifiers,
         availableDomainCards: catalog.availableDomainCards,
         requiredDomainCardCount,
         armor: equipmentCatalog.armor,

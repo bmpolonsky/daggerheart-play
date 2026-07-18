@@ -83,6 +83,22 @@ test.describe('character builder composition', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 1024);
   });
 
+  test('subclass detail explains its starting mechanical effect before cards are chosen', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openBuilder(page);
+
+    const builder = page.getByRole('dialog', { name: 'Новый герой' });
+    await builder.getByRole('group', { name: 'Шаг: Класс' }).getByRole('button').filter({ hasText: 'Волшебник' }).click();
+    await builder.getByRole('button', { name: 'Подкласс' }).click();
+    const subclassStep = builder.getByRole('group', { name: 'Шаг: Подкласс' });
+    await subclassStep.getByRole('button').filter({ hasText: 'Школа знаний' }).click();
+
+    const detail = builder.getByLabel('Описание выбора');
+    await expect(detail).toContainText('Подготовленный');
+    await expect(detail).toContainText('Стартовые карты домена: 3');
+    await expectInsideViewport(page, detail);
+  });
+
   test('small mobile keeps every wizard choice area usable', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await openBuilder(page);

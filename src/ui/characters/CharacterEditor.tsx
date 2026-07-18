@@ -21,8 +21,10 @@ import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../
 import {
   classDefinitionFor,
   classDomainsFor,
+  classFeatureListText,
   classFeatureSheetCards,
   domainCardFromLibrary,
+  featureListText,
   filterBuilderContent,
   isSubclassForClass,
   startingSubclassFeatureSheetCards
@@ -419,6 +421,19 @@ function LevelUpPanel({
   const multiclassSubclassOptions = multiclassClass && content
     ? filterBuilderContent(content.generic).subclasses.filter((item) => isSubclassForClass(item, multiclassClass))
     : [];
+  const multiclassClassOptions: RichChoicePickerItem[] = DAGGERHEART_CLASSES
+    .filter((className) => className !== 'Custom' && className !== character.className)
+    .map((className) => {
+      const definition = classDefinitionFor(content?.classes, className);
+      const classDomains = classDomainsFor(content?.classes, className);
+      return {
+        id: className,
+        title: CLASS_LABELS[className],
+        subtitle: classDomains.map((domain) => DOMAIN_LABELS[domain]).filter(Boolean).join(' + '),
+        description: definition ? [definition.body, classFeatureListText(definition)].filter(Boolean).join('\n\n') : undefined,
+        imageUrl: definition?.imageUrl
+      };
+    });
   const selectedMulticlassSubclass = multiclassSubclassOptions.find((item) => item.id === multiclassSubclassId) ?? null;
   const multiclassClassCards = isMulticlass && multiclassClass
     ? classFeatureSheetCards(classDefinitionFor(content?.classes, multiclassClass))
@@ -687,17 +702,12 @@ function LevelUpPanel({
                   </div>
                 )}
                 {isMulticlass && <div className="grid-3">
-                  <SelectField label="Новый класс" value={multiclassClass} onChange={(event) => {
-                    setMulticlassClass(event.currentTarget.value as DaggerheartClass | '');
+                  <RichChoicePicker label="Новый класс" value={multiclassClass} placeholder="Выберите класс" items={multiclassClassOptions} onChange={(className) => {
+                    setMulticlassClass(className as DaggerheartClass);
                     setMulticlassDomain('');
                     setMulticlassSubclassId('');
                     setSelectedDomainCardIds((current) => current.map((id, index) => index === 0 ? '' : id));
-                  }}>
-                    <option value="">Выберите класс</option>
-                    {DAGGERHEART_CLASSES.filter((className) => className !== 'Custom' && className !== character.className).map((className) => (
-                      <option key={className} value={className}>{CLASS_LABELS[className]}</option>
-                    ))}
-                  </SelectField>
+                  }} />
                   <SelectField label="Новый домен" value={multiclassDomain} onChange={(event) => {
                     setMulticlassDomain(event.currentTarget.value as DomainName | '');
                     setSelectedDomainCardIds((current) => current.map((id, index) => index === 0 ? '' : id));
@@ -707,10 +717,19 @@ function LevelUpPanel({
                       <option key={domain} value={domain}>{DOMAIN_LABELS[domain]}</option>
                     ))}
                   </SelectField>
-                  <SelectField label="Подкласс" value={multiclassSubclassId} onChange={(event) => setMulticlassSubclassId(event.currentTarget.value)}>
-                    <option value="">Выберите подкласс</option>
-                    {multiclassSubclassOptions.map((subclass) => <option key={subclass.id} value={subclass.id}>{subclass.name}</option>)}
-                  </SelectField>
+                  <RichChoicePicker
+                    label="Подкласс"
+                    value={multiclassSubclassId}
+                    placeholder="Выберите подкласс"
+                    items={multiclassSubclassOptions.map((subclass) => ({
+                      id: subclass.id,
+                      title: subclass.name,
+                      subtitle: subclass.subtitle,
+                      description: featureListText(subclass, 8),
+                      imageUrl: subclass.imageUrl
+                    }))}
+                    onChange={setMulticlassSubclassId}
+                  />
                 </div>}
                 {isSubclassUpgrade && (
                   <Notice tone={subclassUpgradeCards.length > 0 ? 'success' : 'error'}>

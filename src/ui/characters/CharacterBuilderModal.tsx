@@ -17,6 +17,7 @@ import { Dialog } from '../components/common/Dialog';
 import { SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
+import { RichChoicePicker } from '../components/common/RichChoicePicker';
 import { WizardStepButton } from '../components/common/WizardStepButton';
 import { BuilderChoiceDetail } from './builder/BuilderChoiceDetail';
 import { EditableBuilderStat } from './builder/EditableBuilderStat';
@@ -55,6 +56,7 @@ export function CharacterBuilderModal({
     selectedAncestry: selectedAncestry ?? undefined,
     selectedCommunity: selectedCommunity ?? undefined,
     selectedSubclass: selectedSubclass ?? undefined,
+    selectedSubclassModifiers: options.subclassRuleModifiers[selectedSubclass?.id ?? ''] ?? [],
     selectedCards,
     availableDomainCards: options.availableDomainCards,
     selectedCardIds: fields.selectedCardIds,
@@ -283,9 +285,19 @@ export function CharacterBuilderModal({
                     <SelectField label="Предмет класса" value={fields.classItem || options.classItems[0]} onChange={(event) => handlers.selectClassItem(event.currentTarget.value)}>
                       {options.classItems.map((item) => <option key={item} value={item}>{item}</option>)}
                     </SelectField>
-                    <SelectField label="Расходник" value={fields.consumableId} onChange={(event) => handlers.selectConsumable(event.currentTarget.value)}>
-                      {options.consumables.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                    </SelectField>
+                    <RichChoicePicker
+                      label="Расходник"
+                      value={fields.consumableId}
+                      placeholder="Выберите расходник"
+                      items={options.consumables.map((item) => ({
+                        id: item.id,
+                        title: item.name,
+                        subtitle: item.uses ? `${item.uses} использование` : undefined,
+                        description: cleanRulesText(item.text),
+                        imageUrl: item.imageUrl
+                      }))}
+                      onChange={handlers.selectConsumable}
+                    />
                   </div>
                   <div className="dh-equipment-column">
                     <h4 className="cinematic-panel-title">Броня</h4>

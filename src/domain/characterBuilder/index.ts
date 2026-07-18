@@ -1,4 +1,4 @@
-import type { ContentState, GenericLibraryItem, LibraryClassItem, LibraryEquipmentItem } from '../content/types';
+import type { ContentState, GenericLibraryItem, LibraryClassItem, LibraryEquipmentItem, RawAdversaryFeature } from '../content/types';
 import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { CLASS_DOMAINS, CLASS_LABELS, CLASS_STARTING_STATS, DEFAULT_TRAITS, DOMAIN_LABELS, TRAIT_LABELS } from '../rules/constants';
 import {
@@ -8,7 +8,11 @@ import {
   type StartingWeaponOption
 } from '../rules/equipment';
 import { parseDomainCardCost } from '../rules/domainCards';
-import { characterBuilderRuleModifiersForSubclass, startingDomainCardCount } from '../rules/characterRuleModifiers';
+import {
+  characterBuilderRuleModifiersForSubclass,
+  startingDomainCardCount,
+  type CharacterRuleModifier
+} from '../rules/characterRuleModifiers';
 import type {
   Character,
   CharacterConnection,
@@ -72,7 +76,7 @@ export interface CharacterDraftResult {
   warnings: string[];
 }
 
-type RawFeature = { id?: unknown; name?: unknown; main_body?: unknown; text?: unknown };
+type RawFeature = RawAdversaryFeature;
 type RawQuestion = string | { prompt?: unknown; question?: unknown; text?: unknown; title?: unknown };
 
 const DOMAIN_ALIASES: Record<string, DomainName> = {
@@ -164,8 +168,8 @@ export function filterBuilderContent(content: ContentState['generic'], includePl
 }
 
 export function firstFeatureText(item: GenericLibraryItem): string {
-  const features = item.raw.features;
-  if (!Array.isArray(features)) return cleanRulesText(item.body).slice(0, 260);
+  const features = libraryItemFeatures(item);
+  if (features.length === 0) return cleanRulesText(item.body).slice(0, 260);
 
   const first = features.find((feature) => feature && typeof feature === 'object') as RawFeature | undefined;
   if (!first) return cleanRulesText(item.body).slice(0, 260);
@@ -178,11 +182,7 @@ export function firstFeatureText(item: GenericLibraryItem): string {
 }
 
 export function featureListText(item: GenericLibraryItem, limit = 3): string {
-  const features = item.raw.features;
-  if (!Array.isArray(features)) return cleanRulesText(item.body).slice(0, 420);
-
-  const text = features
-    .filter((feature) => feature && typeof feature === 'object')
+  const text = libraryItemFeatures(item)
     .slice(0, Math.max(1, limit))
     .map((feature) => {
       const raw = feature as RawFeature;
@@ -193,7 +193,34 @@ export function featureListText(item: GenericLibraryItem, limit = 3): string {
     })
     .filter(Boolean)
     .join('\n\n');
-  return cleanRulesText(text).slice(0, 520);
+  return cleanRulesText(text).slice(0, 520) || cleanRulesText(item.body).slice(0, 420);
+}
+
+export function classFeatureListText(item: LibraryClassItem, limit = 8): string {
+  const features = Array.isArray(item.raw.features) ? item.raw.features : [];
+  return formatFeatureList(features, limit);
+}
+
+function libraryItemFeatures(item: GenericLibraryItem): RawFeature[] {
+  const raw = item.raw;
+  return [raw.features, raw.foundation_features, raw.specialization_features, raw.mastery_features]
+    .flatMap((features) => Array.isArray(features) ? features : [])
+    .filter((feature): feature is RawFeature => Boolean(feature && typeof feature === 'object'));
+}
+
+function formatFeatureList(features: RawFeature[], limit: number): string {
+  const text = features
+    .slice(0, Math.max(1, limit))
+    .map((feature) => {
+      const raw = feature as RawFeature;
+      return [
+        typeof raw.name === 'string' ? raw.name : '',
+        typeof raw.main_body === 'string' ? raw.main_body : typeof raw.text === 'string' ? raw.text : ''
+      ].filter(Boolean).join(': ');
+    })
+    .filter(Boolean)
+    .join('\n\n');
+  return cleanRulesText(text).slice(0, 1_200);
 }
 
 export interface CharacterBuilderChoicePreview {
@@ -213,12 +240,14 @@ export function buildCharacterBuilderChoicePreview(input: {
     domains: string[];
     imageUrl: string | null;
     body: string;
+    featureText?: string;
     evasion?: number;
     hp?: number;
   };
   selectedAncestry?: GenericLibraryItem;
   selectedCommunity?: GenericLibraryItem;
   selectedSubclass?: GenericLibraryItem;
+  selectedSubclassModifiers?: readonly CharacterRuleModifier[];
   selectedCards?: GenericLibraryItem[];
   availableDomainCards?: GenericLibraryItem[];
   selectedCardIds?: string[];
@@ -235,7 +264,10 @@ export function buildCharacterBuilderChoicePreview(input: {
         kicker: 'Класс',
         title: input.selectedClass.name || CLASS_LABELS[input.selectedClass.className],
         subtitle: input.selectedClass.domains.map((domain) => DOMAIN_LABELS[domain as DomainName] ?? domain).join(' + '),
-        body: cleanRulesText(input.selectedClass.body),
+        body: [
+          cleanRulesText(input.selectedClass.body),
+          input.selectedClass.featureText ? `Особенности\n${cleanRulesText(input.selectedClass.featureText)}` : ''
+        ].filter(Boolean).join('\n\n'),
         imageUrl: input.selectedClass.imageUrl,
         facts: [
           typeof input.selectedClass.evasion === 'number' ? `Уклонение ${input.selectedClass.evasion}` : '',
@@ -247,7 +279,7 @@ export function buildCharacterBuilderChoicePreview(input: {
     case 'community':
       return libraryItemPreview('Сообщество', input.selectedCommunity);
     case 'subclass':
-      return libraryItemPreview('Подкласс', input.selectedSubclass);
+      return libraryItemPreview('Подкласс', input.selectedSubclass, subclassStartFacts(input.selectedSubclassModifiers));
     case 'cards': {
       const cardIds = input.selectedCardIds ?? [];
       const activeId = cardIds[cardIds.length - 1];
@@ -289,15 +321,24 @@ export function buildCharacterBuilderChoicePreview(input: {
   }
 }
 
-function libraryItemPreview(kicker: string, item?: GenericLibraryItem): CharacterBuilderChoicePreview | null {
+function libraryItemPreview(kicker: string, item?: GenericLibraryItem, facts?: string[]): CharacterBuilderChoicePreview | null {
   if (!item) return null;
   return {
     kicker,
     title: item.name,
     subtitle: item.subtitle,
-    body: featureListText(item) || cleanRulesText(item.body),
-    imageUrl: item.imageUrl
+    body: featureListText(item, 8) || cleanRulesText(item.body),
+    imageUrl: item.imageUrl,
+    facts
   };
+}
+
+function subclassStartFacts(modifiers: readonly CharacterRuleModifier[] = []): string[] {
+  const startingCards = startingDomainCardCount(modifiers);
+  const modifierFacts = modifiers
+    .filter((modifier) => modifier.kind === 'startingDomainCards')
+    .map((modifier) => `${modifier.label}: ${modifier.amount >= 0 ? '+' : ''}${modifier.amount} карта домена на старте`);
+  return [`Стартовые карты домена: ${startingCards}`, ...modifierFacts];
 }
 
 export function domainCardFromLibrary(item: GenericLibraryItem, inLoadout: boolean): DomainCardRecord {

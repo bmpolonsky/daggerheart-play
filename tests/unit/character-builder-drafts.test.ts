@@ -285,6 +285,34 @@ test('character builder featureListText includes multiple ancestry features', ()
   assert.equal(featureListText(item), 'First: First text\n\nSecond: Second text');
 });
 
+test('character builder exposes subclass foundation features and their starting-card effect', () => {
+  const subclass = genericItem({
+    id: 'school-of-knowledge',
+    name: 'Школа знаний',
+    raw: {
+      foundation_features: [{ name: 'Подготовленный', main_body: 'Возьмите дополнительную карту домена первого уровня.' }]
+    }
+  });
+  const preview = buildCharacterBuilderChoicePreview({
+    step: 'subclass',
+    selectedSubclass: subclass,
+    selectedSubclassModifiers: [{
+      id: 'school-of-knowledge:prepared:starting-domain-card',
+      kind: 'startingDomainCards',
+      source: 'subclass',
+      label: 'Подготовленный',
+      amount: 1
+    }]
+  });
+
+  assert.equal(firstFeatureText(subclass), 'Подготовленный: Возьмите дополнительную карту домена первого уровня.');
+  assert.match(featureListText(subclass), /Подготовленный/);
+  assert.deepEqual(preview?.facts, [
+    'Стартовые карты домена: 3',
+    'Подготовленный: +1 карта домена на старте'
+  ]);
+});
+
 test('character builder equipment preview cleans markdown links', () => {
   const result = buildCharacterDraft({
     content: { ancestries: [], communities: [], subclasses: [], domainCards: [] },

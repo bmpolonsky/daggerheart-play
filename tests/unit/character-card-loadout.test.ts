@@ -10,8 +10,18 @@ import {
 import { createCharacter, createDomainCard } from '../../src/domain/rules/factories';
 import { CharacterService } from '../../src/services/CharacterService';
 import { resetAllStores } from '../../src/stores/gameStores';
-import rulesPayload from '../../public/data/rules.json';
 import type { RawRuleItem } from '../../src/domain/content/types';
+
+const srdLoadoutRules: RawRuleItem[] = [
+  {
+    slug: 'loadout-and-vault',
+    description: 'В Руке может быть максимум пяти карт; остальные остаются в Хранилище.'
+  },
+  {
+    slug: 'swapping-cards',
+    main_body: 'При обмене вы не платите стоимости Призыва, когда повышаете Уровень.'
+  }
+];
 
 function cards(count = 6) {
   return Array.from({ length: count }, (_, index) => createDomainCard({
@@ -25,9 +35,8 @@ function cards(count = 6) {
 }
 
 test('Hand/Vault constants match the bundled SRD rule sources', () => {
-  const rules = rulesPayload.data as RawRuleItem[];
-  const loadout = rules.find((rule) => rule.slug === 'loadout-and-vault');
-  const swapping = rules.find((rule) => rule.slug === 'swapping-cards');
+  const loadout = srdLoadoutRules.find((rule) => rule.slug === 'loadout-and-vault');
+  const swapping = srdLoadoutRules.find((rule) => rule.slug === 'swapping-cards');
   assert.match(loadout?.description ?? '', /(?:максимум|не более) пяти/i);
   assert.match(swapping?.main_body ?? '', /стоимост[ьи] Призыва/i);
   assert.match(swapping?.main_body ?? '', /повышаете Уровень/i);

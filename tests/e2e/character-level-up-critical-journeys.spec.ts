@@ -4,12 +4,25 @@ import { openGmGame } from './game-route-helpers';
 import { createPopulatedGameDocument, filledCharacterName, filledCharacterResources, importGameDocument, openFilledGmGame } from './filled-game-helpers';
 
 async function chooseRichOption(page: Page, label: string, index = 0): Promise<void> {
-  await page.getByRole('button', { name: label, exact: true }).click();
+  const trigger = page.getByRole('button', { name: label, exact: true });
+  await trigger.scrollIntoViewIfNeeded();
+  await expect(trigger).toBeVisible();
+  await trigger.click();
   const picker = page.getByRole('dialog', { name: `Выбор: ${label}` });
   const options = picker.getByRole('option');
   const optionCount = await options.count();
   expect(optionCount).toBeGreaterThan(index);
   await options.nth(index).click();
+  await picker.getByRole('button', { name: 'Выбрать', exact: true }).click();
+}
+
+async function chooseRichOptionByTitle(page: Page, label: string, title: string): Promise<void> {
+  const trigger = page.getByRole('button', { name: label, exact: true });
+  await trigger.scrollIntoViewIfNeeded();
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  const picker = page.getByRole('dialog', { name: `Выбор: ${label}` });
+  await picker.getByRole('option').filter({ hasText: title }).click();
   await picker.getByRole('button', { name: 'Выбрать', exact: true }).click();
 }
 
@@ -163,9 +176,9 @@ test.describe('strict character level-up', () => {
     levelUp = page.getByRole('dialog', { name: 'Повышение уровня' });
     await levelUp.getByRole('button', { name: 'Добавить: Мультикласс' }).click();
     await levelUp.getByRole('button', { name: 'Дальше' }).click();
-    await levelUp.getByLabel('Новый класс').selectOption('Warrior');
+    await chooseRichOptionByTitle(page, 'Новый класс', 'Воин');
     await levelUp.getByLabel('Новый домен').selectOption('Blade');
-    await levelUp.getByLabel('Подкласс').selectOption({ index: 1 });
+    await chooseRichOption(page, 'Подкласс', 1);
     await levelUp.getByRole('button', { name: 'Дальше' }).click();
     await chooseRichOption(page, 'Карта домена мультикласса');
     await levelUp.getByRole('button', { name: 'Дальше' }).click();
