@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { EmptyState } from '../../../components/common/EmptyState';
 import { IconButton } from '../../../components/common/IconButton';
 import { TextControl } from '../../../components/common/Field';
-import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS } from '../constants';
+import { PLAYER_ROLL_FEED_REVEAL_DELAY_MS } from '../constants';
 import { P2PHealthIndicator } from '../../../p2p/P2PHealthIndicator';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainCards/types';
@@ -18,13 +18,8 @@ import { currentSettingsInviteContext, feedRollRevealId, revealedRollIdsFromActi
 import { playerViewUi$, playerViewUiActions } from '../playerViewUiState';
 import { PlayerRollConfirm } from '../PlayerRollConfirm';
 import type { PlayerRollDraft, TableViewRole } from '../types';
-import {
-  unrevealedRollIdsFromCompleted,
-  unrevealedRollIdsFromHistoricalActivity,
-  waitsForDiceReveal
-} from './activityReveal';
+import { delaysRollResult, unrevealedRollIdsFromHistoricalActivity } from './activityReveal';
 import { FeedCard } from './feedCards/FeedCard';
-import { gmPlayerSessionText } from './sessionText';
 
 type FeedCardRollDraftState = {
   draft: PlayerRollDraft;
@@ -50,7 +45,7 @@ export function PlayerLeftRail({
   const [clearChronicleOpen, setClearChronicleOpen] = useState(false);
   const p2pSession = useStream(p2pSessionService.session$);
   const encounter = useStream(encounterService.encounter$);
-  const { completedDiceRollIds, ephemeralFeedItem } = useStream(playerViewUi$);
+  const { ephemeralFeedItem } = useStream(playerViewUi$);
   const [revealedRollIds, setRevealedRollIds] = useState<Set<string>>(() => revealedRollIdsFromActivity(model.activity));
   const mountedAtRef = useRef(Date.now());
   const activityRef = useRef<HTMLDivElement>(null);
@@ -78,17 +73,13 @@ export function PlayerLeftRail({
   }, [ephemeralFeedItem?.id, visibleActivity.length]);
 
   useEffect(() => {
-    setRevealedRollIds((current) => unrevealedRollIdsFromCompleted(current, completedDiceRollIds) ?? current);
-  }, [completedDiceRollIds]);
-
-  useEffect(() => {
     setRevealedRollIds((current) => unrevealedRollIdsFromHistoricalActivity(current, activity, mountedAtRef.current) ?? current);
   }, [activity]);
 
   useEffect(() => {
     const timeoutIds = visibleActivity
-      .filter((event) => waitsForDiceReveal(event) && !revealedRollIds.has(feedRollRevealId(event)))
-      .map((event) => window.setTimeout(() => revealRoll(event), PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS));
+      .filter((event) => delaysRollResult(event) && !revealedRollIds.has(feedRollRevealId(event)))
+      .map((event) => window.setTimeout(() => revealRoll(event), PLAYER_ROLL_FEED_REVEAL_DELAY_MS));
     return () => timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
   }, [revealedRollIds, visibleActivity]);
 
@@ -134,8 +125,6 @@ export function PlayerLeftRail({
       // access is unavailable (for example, in an insecure browser context).
     }
   };
-  const gmSessionText = gmPlayerSessionText(p2pSession);
-
   return (
     <aside className="player-left-rail" aria-label="Хроника игры" aria-hidden={!accessible} inert={!accessible}>
       {rollDraftState && (
@@ -189,7 +178,6 @@ export function PlayerLeftRail({
       <section className={`player-activity-card ${role === 'gm' ? 'player-activity-card--gm' : ''}`}>
         <header className="player-chronicle-header">
           <div className="player-chronicle-header__title">
-            <span>{role === 'gm' ? gmSessionText : 'Общая история'}</span>
             <strong>Хроника</strong>
           </div>
           <div className="player-chronicle-header__actions">
@@ -222,7 +210,7 @@ export function PlayerLeftRail({
             />
           )}
           {visibleActivity.map((event) => {
-            const waitingForDice = waitsForDiceReveal(event) && !revealedRollIds.has(feedRollRevealId(event));
+            const waitingForResult = delaysRollResult(event) && !revealedRollIds.has(feedRollRevealId(event));
             const canRemoveEvent = (role === 'gm' || event.ephemeral) && event.id !== 'feed-empty';
             const eventClassName = [
               'player-activity-event',
@@ -231,7 +219,7 @@ export function PlayerLeftRail({
               event.id === 'feed-empty' ? 'player-activity-event--empty' : '',
               event.ephemeral ? 'player-activity-event--ephemeral' : '',
               canRemoveEvent ? 'player-activity-event--removable' : '',
-              waitingForDice ? 'dh-is-rolling' : ''
+              waitingForResult ? 'dh-is-rolling' : ''
               ].filter(Boolean).join(' ');
             return (
               <article className={eventClassName} key={event.id}>
@@ -250,7 +238,7 @@ export function PlayerLeftRail({
                 )}
                 <FeedCard
                   item={event}
-                  waitingForDice={waitingForDice}
+                  waitingForResult={waitingForResult}
                   role={role}
                   actorId={model.character?.id ?? null}
                   onRevealToPublic={(item) => feedService.revealToPublic(item.id)}

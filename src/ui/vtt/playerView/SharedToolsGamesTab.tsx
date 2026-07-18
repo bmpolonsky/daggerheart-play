@@ -98,7 +98,7 @@ export function SharedToolsGamesTab() {
             </div>}
           />
         ))}
-        {games.length === 0 && <EmptyState tone="transparent" title="Сохранённых игр пока нет" body="Они появятся после первого изменения кампании." />}
+        {games.length === 0 && <EmptyState tone="transparent" title="Сохранённых игр пока нет" />}
       </div>
 
       <input

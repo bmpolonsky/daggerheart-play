@@ -36,7 +36,6 @@ test.describe('dark glass visual system smoke', () => {
     await expectNoHorizontalOverflow(page, 1440);
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await expectInsideViewport(page, page.locator('.role-entry__title'));
     await expectInsideViewport(page, page.locator('.role-entry__gm-card'));
     await expectNoHorizontalOverflow(page, 390);
   });

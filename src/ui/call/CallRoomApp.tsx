@@ -173,8 +173,8 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
       <section className="call-room__stage" aria-label="Видео звонок">
         <header className="call-room__topbar">
           <div>
-            <span>Комната {roomId}</span>
-            <h1>Видеозвонок</h1>
+            <span>Видеозвонок</span>
+            <h1>Комната {roomId}</h1>
           </div>
           {!sideOpen && (
             <div className="call-room__top-actions">
@@ -189,7 +189,6 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
           <Surface className="call-room__join" aria-label="Вход в звонок">
             <SectionHeader
               title="Представьтесь"
-              subtitle="Можно выбрать созданного игрока или войти с произвольным именем."
               actions={<UserRound size={20} aria-hidden="true" />}
             />
             <Field label="Имя">

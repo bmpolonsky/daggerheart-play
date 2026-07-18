@@ -1988,7 +1988,10 @@ function playerCharacterResourceSignature(character: Character): string {
 const FRESH_ROLL_SNAPSHOT_WINDOW_MS = 15_000;
 
 function freshSnapshotRollId(rollLog: RollLogEntry[], snapshotCreatedAt: string): string | null {
-  const latest = rollLog.at(-1);
+  // DiceService prepends each new entry, so the first item is the newest one.
+  // Reading from the end accidentally compared an incoming snapshot with stale
+  // history and permanently held the player's result at “В процессе…”.
+  const latest = rollLog[0];
   if (!latest) return null;
   const rollAt = Date.parse(latest.createdAt);
   const snapshotAt = Date.parse(snapshotCreatedAt);

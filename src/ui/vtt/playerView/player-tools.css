@@ -1125,6 +1125,7 @@
 .character-editor-compact {
   min-width: 0;
   display: grid;
+  align-content: start;
   gap: 12px;
   font-size: 0.92rem;
 }

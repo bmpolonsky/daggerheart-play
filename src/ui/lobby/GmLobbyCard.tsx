@@ -64,7 +64,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
 
   return (
     <Surface className="role-entry__card role-entry__gm-card" aria-label="Создать сессию мастера">
-      <SectionHeader title="Мастер" subtitle="Управление комнатой и местами игроков." actions={<Crown size={20} aria-hidden="true" />} />
+      <SectionHeader title="Мастер" actions={<Crown size={20} aria-hidden="true" />} />
       <div className="role-entry__invite-grid">
         <label>
           <span>Код комнаты</span>
@@ -124,7 +124,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
             </IconButton>
           </article>
         ))}
-        {playerSeats.length === 0 && <EmptyState size="sm" title="Добавьте игроков" body="После этого они смогут выбирать свои места при входе." />}
+        {playerSeats.length === 0 && <EmptyState size="sm" title="Добавьте игроков" />}
       </div>
       <Toolbar className="role-entry__inline-actions">
         <Button variant="primary" type="button" onClick={enterGm}>

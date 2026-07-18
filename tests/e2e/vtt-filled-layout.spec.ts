@@ -56,6 +56,22 @@ test.describe('filled VTT layout regressions', () => {
     expect(hopeColors[0]).not.toBe(hopeColors.at(-1));
     await expect(sheet.getByRole('group', { name: 'Раны', exact: true }).getByRole('button')).toHaveCount(filledCharacterResources.hp.max);
     await expect(sheet.getByRole('group', { name: 'Стресс', exact: true }).getByRole('button')).toHaveCount(filledCharacterResources.stress.max);
+    const desktopDefenseRows = sheet.getByLabel('Защита').locator(':scope > div');
+    await expect(desktopDefenseRows).toHaveCount(2);
+    const desktopDefenseBoxes = await desktopDefenseRows.evaluateAll((elements) => elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      return { y: box.y, width: box.width, height: box.height };
+    }));
+    expect(desktopDefenseBoxes.every((box) => box.width > 130 && box.height <= 64)).toBe(true);
+    expect(Math.abs(desktopDefenseBoxes[0].y - desktopDefenseBoxes[1].y)).toBeLessThanOrEqual(1);
+    const desktopTraitCards = sheet.locator('.player-trait-grid .dh-choice-card');
+    await expect(desktopTraitCards).toHaveCount(6);
+    const desktopTraitBoxes = await desktopTraitCards.evaluateAll((elements) => elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      return { y: box.y, height: box.height };
+    }));
+    expect(Math.abs(desktopTraitBoxes[0].y - desktopTraitBoxes[2].y)).toBeLessThanOrEqual(1);
+    expect(desktopTraitBoxes[3].y).toBeGreaterThan(desktopTraitBoxes[0].y + desktopTraitBoxes[0].height);
     const desktopScroll = await sheet.evaluate((element) => ({ client: element.clientHeight, scroll: element.scrollHeight }));
     expect(desktopScroll.scroll).toBeGreaterThan(desktopScroll.client + 400);
     await sectionRail.getByRole('button', { name: 'Карты' }).click();
@@ -91,6 +107,25 @@ test.describe('filled VTT layout regressions', () => {
     await expect(mobileRail.getByRole('button')).toHaveCount(6);
     await expect(mobileRail.getByRole('button', { name: 'Снаряжение' })).toBeVisible();
     await expect(mobileSheet.locator('.player-sheet-section')).toHaveCount(6);
+    const defense = mobileSheet.getByLabel('Защита');
+    await defense.scrollIntoViewIfNeeded();
+    const defenseRows = defense.locator(':scope > div');
+    await expect(defenseRows).toHaveCount(2);
+    const defenseBoxes = await defenseRows.evaluateAll((elements) => elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    }));
+    expect(defenseBoxes.every((box) => box.width > 130 && box.height <= 64)).toBe(true);
+    expect(Math.abs(defenseBoxes[0].y - defenseBoxes[1].y)).toBeLessThanOrEqual(1);
+
+    const traitCards = mobileSheet.locator('.player-trait-grid .dh-choice-card');
+    await expect(traitCards).toHaveCount(6);
+    const traitBoxes = await traitCards.evaluateAll((elements) => elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    }));
+    expect(Math.abs(traitBoxes[0].y - traitBoxes[2].y)).toBeLessThanOrEqual(1);
+    expect(traitBoxes[3].y).toBeGreaterThan(traitBoxes[0].y + traitBoxes[0].height);
     await mobileRail.getByRole('button', { name: 'Снаряжение' }).click();
     await expect.poll(() => mobileSheet.evaluate((element) => element.scrollTop)).toBeGreaterThan(600);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);

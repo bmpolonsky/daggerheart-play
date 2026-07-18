@@ -74,10 +74,7 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, scen
     <section className="role-entry" aria-label="Лобби игрока">
       <div className="role-entry__scene" aria-hidden="true" style={{ '--role-entry-scene-image': `url("${sceneImageUrl}")` }} />
       <div className="role-entry__content role-entry__content--join">
-        <div className="role-entry__title">
-          <span>Комната {roomId}</span>
-          <h1>Выберите игрока</h1>
-        </div>
+        <span className="role-entry__join-context">Комната {roomId}</span>
         <div className="player-join-lobby">
           <Surface className="role-entry__card player-join-lobby__seats" aria-label="Игроки комнаты">
             <SectionHeader title="Игроки" subtitle={joinStatus} actions={<MonitorPlay size={20} aria-hidden="true" />} />

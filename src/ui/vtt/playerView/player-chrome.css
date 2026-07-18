@@ -167,14 +167,8 @@
   color: var(--dh-gold-400);
 }
 
-.player-seat-picker header strong,
-.player-seat-picker header span {
+.player-seat-picker header strong {
   display: block;
-}
-
-.player-seat-picker header span {
-  color: rgba(243, 234, 216, 0.66);
-  font-size: 0.8rem;
 }
 
 .player-seat-picker__list {

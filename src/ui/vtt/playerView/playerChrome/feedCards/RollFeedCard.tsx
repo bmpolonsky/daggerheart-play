@@ -13,17 +13,17 @@ import { DiceIcon } from './DiceIcon';
 
 export function RollFeedCard({
   item,
-  waitingForDice,
+  waitingForResult,
   role,
   onRevealToPublic
 }: {
   item: TableFeedItem;
-  waitingForDice: boolean;
+  waitingForResult: boolean;
   role: TableViewRole;
   onRevealToPublic: (item: TableFeedItem) => void;
 }) {
   const roll = item.roll;
-  const canReveal = role === 'gm' && item.publication === 'private' && !waitingForDice;
+  const canReveal = role === 'gm' && item.publication === 'private' && !waitingForResult;
   const rollDetails = roll ? rollDetailRows(roll) : [];
   return (
     <>
@@ -44,9 +44,9 @@ export function RollFeedCard({
         )}
       </FeedCardHeader>
       <div className="feed-roll-card">
-        {waitingForDice ? <PendingDiceSummary /> : roll?.dice && <DiceSummary dice={roll.dice} />}
+        {waitingForResult ? <PendingDiceSummary /> : roll?.dice && <DiceSummary dice={roll.dice} />}
         <div className="feed-roll-result">
-          {waitingForDice ? (
+          {waitingForResult ? (
             <b className="feed-roll-total feed-roll-total--pending" aria-label="Итог появится после броска">
               <span className="feed-roll-total__value">...</span>
             </b>

@@ -119,7 +119,7 @@ export function CharacterBuilderModal({
               </div>
             </div>
             <Button className="cinematic-builder-quickstart" variant="primary" type="button" iconBefore={<Sparkles size={16} aria-hidden="true" />} onClick={handlers.quickStart}>
-              Быстрый старт
+              Случайный герой
             </Button>
           </header>
 

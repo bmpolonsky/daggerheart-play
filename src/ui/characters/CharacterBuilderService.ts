@@ -208,7 +208,7 @@ export class CharacterBuilderService {
         setExperienceOne: (next: string) => this.updateDraft({ experienceOne: next }),
         setExperienceTwo: (next: string) => this.updateDraft({ experienceTwo: next }),
         setTrait: (trait: TraitId, value: number | null) => this.setTrait(trait, value),
-        quickStart: () => this.quickStart(catalog),
+        quickStart: () => this.quickStart(catalog, content, classes, equipment),
         selectArmor: (next: string) => this.updateDraft({ armorId: next }),
         selectPrimaryWeapon: (next: string) => this.updateDraft({ primaryWeaponId: next }),
         selectSecondaryWeapon: (next: string) => this.updateDraft({ secondaryWeaponId: next }),
@@ -265,18 +265,30 @@ export class CharacterBuilderService {
     });
   }
 
-  private quickStart(catalog: ReturnType<typeof buildCharacterBuilderCatalog>): void {
-    const quick = buildCharacterBuilderQuickStart(catalog);
-    this.updateDraft({
-      ancestryId: quick.ancestryId,
-      communityId: quick.communityId,
-      subclassId: quick.subclassId,
-      selectedCardIds: quick.selectedCardIds,
-      armorId: quick.armorId,
-      primaryWeaponId: quick.primaryWeaponId,
-      secondaryWeaponId: quick.secondaryWeaponId,
-      classItem: quick.classItem,
-      consumableId: quick.consumableId
+  private quickStart(
+    catalog: ReturnType<typeof buildCharacterBuilderCatalog>,
+    content: ContentState['generic'],
+    classes: LibraryClassItem[],
+    equipment: LibraryEquipmentItem[]
+  ): void {
+    this.draftStore.update((current) => {
+      const className = catalog.classOptions[Math.floor(Math.random() * catalog.classOptions.length)]?.className ?? current.className;
+      const randomCatalog = buildCharacterBuilderCatalog({ content, classes, equipment, className });
+      const quick = buildCharacterBuilderQuickStart(randomCatalog, Math.random);
+      return {
+        ...current,
+        className,
+        traits: { ...(CLASS_RECOMMENDED_TRAITS[className] ?? DEFAULT_TRAITS) },
+        ancestryId: quick.ancestryId,
+        communityId: quick.communityId,
+        subclassId: quick.subclassId,
+        selectedCardIds: quick.selectedCardIds,
+        armorId: quick.armorId,
+        primaryWeaponId: quick.primaryWeaponId,
+        secondaryWeaponId: quick.secondaryWeaponId,
+        classItem: quick.classItem,
+        consumableId: quick.consumableId
+      };
     });
   }
 

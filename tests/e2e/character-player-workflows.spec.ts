@@ -109,6 +109,11 @@ async function openGmCharacterEditor(gm: Page): Promise<Locator> {
   await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
   const editor = workspace.getByLabel('Редактор персонажа');
   await expect(editor).toBeVisible();
+  const headingBox = await editor.locator('.character-editor-heading h2').boundingBox();
+  const tabsBox = await editor.getByLabel('Разделы листа персонажа').boundingBox();
+  expect(headingBox).not.toBeNull();
+  expect(tabsBox).not.toBeNull();
+  expect((tabsBox?.y ?? 0) - (headingBox?.y ?? 0)).toBeLessThan(220);
   return editor;
 }
 

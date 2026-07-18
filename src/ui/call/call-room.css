@@ -79,8 +79,9 @@
 
 .call-room__topbar h1 {
   margin: 2px 0 0;
-  font-family: "DH Eveleth", "DH Overpass", sans-serif;
-  font-size: clamp(1.45rem, 3vw, 2.6rem);
+  font-family: "DH Overpass", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
   letter-spacing: 0;
 }
 

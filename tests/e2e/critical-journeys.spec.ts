@@ -179,7 +179,7 @@ test.describe('critical persisted journeys', () => {
     await workspace.getByRole('button', { name: 'Создать героя' }).click();
 
     const builder = page.getByRole('dialog', { name: 'Новый герой' });
-    await builder.getByRole('button', { name: 'Быстрый старт' }).click();
+    await builder.getByRole('button', { name: 'Случайный герой' }).click();
     await builder.getByRole('button', { name: 'Личность' }).click();
     await builder.getByLabel('Имя').fill('Эхо Северного ветра');
     await builder.getByRole('button', { name: 'Итог' }).click();

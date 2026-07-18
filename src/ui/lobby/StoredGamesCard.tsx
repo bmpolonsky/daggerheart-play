@@ -93,7 +93,7 @@ export function StoredGamesCard() {
               }
             />
           ))}
-          {storedGames.length === 0 && <EmptyState size="sm" title="Сохранений пока нет" body="Они появятся здесь после первого изменения игры." />}
+          {storedGames.length === 0 && <EmptyState size="sm" title="Сохранений пока нет" />}
         </div>
         <input
           ref={importFileRef}

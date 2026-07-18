@@ -16,20 +16,20 @@ import { WealthFeedCard } from './WealthFeedCard';
 export function FeedCard({
   actorId,
   item,
-  waitingForDice,
+  waitingForResult,
   role,
   onRevealToPublic,
   onDomainCardMacro
 }: {
   actorId: string | null;
   item: TableFeedItem;
-  waitingForDice: boolean;
+  waitingForResult: boolean;
   role: TableViewRole;
   onRevealToPublic: (item: TableFeedItem) => void;
   onDomainCardMacro?: (card: PlayerViewDomainCard, macro: PlayerViewDomainCardMacro, item: TableFeedItem) => void;
 }) {
   if (item.kind === 'roll') {
-    return <RollFeedCard item={item} waitingForDice={waitingForDice} role={role} onRevealToPublic={onRevealToPublic} />;
+    return <RollFeedCard item={item} waitingForResult={waitingForResult} role={role} onRevealToPublic={onRevealToPublic} />;
   }
   if (item.kind === 'card') {
     const canRunMacro = Boolean(onDomainCardMacro && (role === 'gm' || !item.actor?.actorId || item.actor.actorId === actorId));

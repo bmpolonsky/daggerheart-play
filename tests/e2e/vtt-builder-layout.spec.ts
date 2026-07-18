@@ -48,7 +48,7 @@ test.describe('character builder composition', () => {
     const actions = builder.getByRole('toolbar', { name: 'Действия создания героя' });
     const choiceDetail = builder.getByLabel('Описание выбора');
 
-    await builder.getByRole('button', { name: 'Быстрый старт' }).click();
+    await builder.getByRole('button', { name: 'Случайный герой' }).click();
     await builder.getByRole('button', { name: 'Карты' }).click();
     const choiceArea = builder.getByRole('group', { name: 'Шаг: Стартовые карты доменов' });
     await expect(choiceDetail).toBeVisible();
@@ -88,7 +88,7 @@ test.describe('character builder composition', () => {
     await openBuilder(page);
 
     const builder = page.getByRole('dialog', { name: 'Новый герой' });
-    await builder.getByRole('button', { name: 'Быстрый старт' }).click();
+    await builder.getByRole('button', { name: 'Случайный герой' }).click();
     for (const stepLabel of ['Подкласс', 'Экипировка', 'Карты']) {
       await builder.getByRole('button', { name: stepLabel }).click();
       const choiceArea = builder.getByRole('group', { name: `Шаг: ${stepLabel === 'Экипировка' ? 'Стартовая экипировка' : stepLabel === 'Карты' ? 'Стартовые карты доменов' : stepLabel}` });

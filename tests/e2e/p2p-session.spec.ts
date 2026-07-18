@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import type { P2PSessionState } from '../../src/services/P2PSessionService';
 import { createIsolatedDeterministicP2PRelay, installDeterministicP2PTransport, openGmGame, openPlayerGame, openSharedGmGame, openSharedPlayerGame } from './game-route-helpers';
-import { filledCharacterName, importPopulatedGame } from './filled-game-helpers';
+import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { expectInsideBounds, expectInsideViewport, expectNoOverlap, expectTopLayerAtPoint, rect } from './layout-helpers';
 
 async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Игра' | 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
@@ -345,7 +345,15 @@ test.describe('P2P session workflow', () => {
     const roomId = `SELF${Date.now().toString().slice(-6)}`;
     try {
       await openSharedGmGame(gm, roomId);
-      await importPopulatedGame(gm);
+      const document = createPopulatedGameDocument();
+      document.files['data/roll-log.json'].push({
+        id: 'historical-visible-roll',
+        type: 'manual',
+        createdAt: '2020-01-01T00:00:00.000Z',
+        title: 'Старый бросок',
+        text: 'Он не должен блокировать следующий бросок игрока.'
+      });
+      await importGameDocument(gm, document, 'e2e-player-roll-history.dhgame');
       await openSharedPlayerGame(player, roomId);
       await openSharedPlayerGame(observer, roomId);
 
@@ -360,7 +368,11 @@ test.describe('P2P session workflow', () => {
 
       await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
       await expect(gm.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
+      await expect(player.locator('.feed-roll-total--pending')).toHaveCount(0, { timeout: 2_500 });
       await expect(observer.locator('.player-dice-overlay .polyhedral-dice-stage')).toHaveCount(0, { timeout: 4_000 });
+      await Promise.all([player, gm].map((page) => (
+        expect(page.locator('.player-dice-overlay .polyhedral-dice-stage')).toHaveCount(0, { timeout: 12_000 })
+      )));
     } finally {
       await relay.close();
     }

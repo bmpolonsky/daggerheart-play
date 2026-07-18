@@ -28,7 +28,7 @@ export function PlayerQuickJoinCard({ onJoinRoom }: PlayerQuickJoinCardProps) {
 
   return (
     <Surface className="role-entry__card role-entry__join-card" aria-label="Присоединиться игроком">
-      <SectionHeader title="Игрок" subtitle="Быстрый вход в комнату." actions={<MonitorPlay size={20} aria-hidden="true" />} />
+      <SectionHeader title="Игрок" actions={<MonitorPlay size={20} aria-hidden="true" />} />
       <label>
         <span>Код комнаты</span>
         <TextControl value={joinRoomId} onInput={(event) => setJoinRoomId(event.currentTarget.value)} placeholder="Например 7K2Q" />

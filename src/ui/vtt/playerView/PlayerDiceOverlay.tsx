@@ -18,6 +18,7 @@ export function PlayerDiceOverlay({
   const [visibleDiceRollId, setVisibleDiceRollId] = useState<string | null>(null);
   const [fadingDiceRollId, setFadingDiceRollId] = useState<string | null>(null);
   const lastSeenRollId = useRef<string | null>(null);
+  const visibleDiceRollIdRef = useRef<string | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
   const fadeTimeoutRef = useRef<number | null>(null);
   const animationTimeoutRef = useRef<number | null>(null);
@@ -41,6 +42,9 @@ export function PlayerDiceOverlay({
   const hideVisibleRoll = useCallback((rollId: string) => {
     clearHoldTimeout();
     clearFadeTimeout();
+    if (visibleDiceRollIdRef.current === rollId) {
+      visibleDiceRollIdRef.current = null;
+    }
     setFadingDiceRollId((current) => current === rollId ? null : current);
     setVisibleDiceRollId((current) => current === rollId ? null : current);
   }, [clearFadeTimeout, clearHoldTimeout]);
@@ -84,23 +88,25 @@ export function PlayerDiceOverlay({
       }
       return;
     }
-    if (visibleDiceRollId && !completedRollIdsRef.current.has(visibleDiceRollId)) {
-      completedRollIdsRef.current.add(visibleDiceRollId);
-      rememberDiceRollSeen(visibleDiceRollId);
-      onRollComplete(visibleDiceRollId);
+    const activeDiceRollId = visibleDiceRollIdRef.current;
+    if (activeDiceRollId && !completedRollIdsRef.current.has(activeDiceRollId)) {
+      completedRollIdsRef.current.add(activeDiceRollId);
+      rememberDiceRollSeen(activeDiceRollId);
+      onRollComplete(activeDiceRollId);
     }
     lastSeenRollId.current = visualRoll.id;
     clearHoldTimeout();
     clearFadeTimeout();
     clearAnimationTimeout();
     setFadingDiceRollId(null);
+    visibleDiceRollIdRef.current = visualRoll.id;
     setVisibleDiceRollId(visualRoll.id);
     animationTimeoutRef.current = window.setTimeout(() => {
       animationTimeoutRef.current = null;
       revealRollAndHoldDice(visualRoll.id);
     }, PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS);
     return () => clearAnimationTimeout();
-  }, [animationReady, clearAnimationTimeout, clearFadeTimeout, clearHoldTimeout, onRollComplete, polyhedralDiceRoll?.id, revealRollAndHoldDice, visibleDiceRollId]);
+  }, [animationReady, clearAnimationTimeout, clearFadeTimeout, clearHoldTimeout, onRollComplete, polyhedralDiceRoll?.id, revealRollAndHoldDice]);
 
   useEffect(() => () => {
     clearHoldTimeout();

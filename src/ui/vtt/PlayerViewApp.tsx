@@ -144,7 +144,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     () => latestVisibleRollLogEntry(rollLog, { role, actorId: playerCharacterId }),
     [playerCharacterId, role, rollLog]
   );
-  const diceAnimationReady = role !== 'player' || !sessionRoomId || p2pSession.latestRollAnimationId === latestVisibleRoll?.id;
+  const diceAnimationReady = role !== 'player' || !sessionRoomId || !p2pSession.lastSnapshotAt || p2pSession.latestRollAnimationId === latestVisibleRoll?.id;
   const selectedPlayerName = selectedPlayerSeat?.name.trim() || undefined;
   const fallbackActorName = role === 'gm' ? 'Мастер' : 'Без персонажа';
   const displayedActor = displayedCharacter

@@ -264,23 +264,25 @@ export function CharacterSheet({
             <strong>{character.thresholds.severe}+</strong>
           </div>
         </section>
-        <section className="player-defense-row">
-          <div>
+        <section className="player-defense-row" aria-label="Защита">
+          <div className="player-defense-row__evasion">
             <Shield size={16} />
             <span>Уклонение</span>
             <strong>{character.evasion}</strong>
           </div>
-          <div>
+          <div className="player-defense-row__armor">
             <Swords size={16} />
             <span>Броня</span>
-            <strong>{Math.max(0, character.armor.score - character.armor.marked)}/{character.armor.score}</strong>
-            <TrackDots
-              value={character.armor.marked}
-              max={character.armor.score}
-              tone="armor"
-              label="Броня"
-              onSet={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
-            />
+            <div className="player-defense-row__armor-value">
+              <TrackDots
+                value={character.armor.marked}
+                max={character.armor.score}
+                tone="armor"
+                label="Броня"
+                onSet={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
+              />
+              <strong>{Math.max(0, character.armor.score - character.armor.marked)}/{character.armor.score}</strong>
+            </div>
           </div>
         </section>
         {canUseBeastform && (
@@ -419,7 +421,7 @@ export function CharacterSheet({
           />
         </section>
         </SheetSection>
-      <SheetSection id="player-sheet-traits" title="Броски и опыт">
+      <SheetSection id="player-sheet-traits" title="Характеристики и опыт">
         <section className="player-trait-grid">
           {character.traits.map((trait) => (
             <ChoiceCard key={trait.id} onClick={() => setRollDraft({ kind: 'trait', title: trait.label, subtitle: `${character.name} / ${signed(trait.value)}`, trait: trait.id })}>

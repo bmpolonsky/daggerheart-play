@@ -63,20 +63,52 @@ export function buildCharacterBuilderCatalog(input: CharacterBuilderCatalogInput
   };
 }
 
-export function buildCharacterBuilderQuickStart(catalog: ReturnType<typeof buildCharacterBuilderCatalog>): CharacterBuilderQuickStart {
-  const subclassId = catalog.classSubclasses[0]?.id ?? '';
+export function buildCharacterBuilderQuickStart(
+  catalog: ReturnType<typeof buildCharacterBuilderCatalog>,
+  random: () => number = () => 0
+): CharacterBuilderQuickStart {
+  const subclassId = chooseRandom(catalog.classSubclasses, random)?.id ?? '';
   const requiredCards = startingDomainCardCount(catalog.subclassRuleModifiers[subclassId] ?? []);
+  const primaryWeaponId = chooseRandom(catalog.equipmentCatalog.primaryWeapons, random)?.id ?? '';
+  const primaryWeapon = catalog.equipmentCatalog.primaryWeapons.find((weapon) => weapon.id === primaryWeaponId);
+  const classItems = catalog.classItems.length ? catalog.classItems : CLASS_STARTING_ITEMS[catalog.className]?.length ? CLASS_STARTING_ITEMS[catalog.className] : CLASS_STARTING_ITEMS.Custom;
   return {
-    ancestryId: catalog.builderContent.ancestries[0]?.id ?? '',
-    communityId: catalog.builderContent.communities[0]?.id ?? '',
+    ancestryId: chooseRandom(catalog.builderContent.ancestries, random)?.id ?? '',
+    communityId: chooseRandom(catalog.builderContent.communities, random)?.id ?? '',
     subclassId,
-    selectedCardIds: catalog.availableDomainCards.slice(0, requiredCards).map((card) => card.id),
-    armorId: catalog.equipmentCatalog.armor[0]?.id ?? '',
-    primaryWeaponId: catalog.equipmentCatalog.primaryWeapons[0]?.id ?? '',
-    secondaryWeaponId: catalog.equipmentCatalog.secondaryWeapons[0]?.id ?? '',
-    classItem: catalog.classItems[0] ?? CLASS_STARTING_ITEMS[catalog.className]?.[0] ?? CLASS_STARTING_ITEMS.Custom[0] ?? '',
-    consumableId: catalog.equipmentCatalog.consumables[0]?.id ?? ''
+    selectedCardIds: randomDomainCardSelection(catalog.availableDomainCards, requiredCards, random),
+    armorId: chooseRandom(catalog.equipmentCatalog.armor, random)?.id ?? '',
+    primaryWeaponId,
+    secondaryWeaponId: primaryWeapon?.burden === 'one-handed'
+      ? chooseRandom(catalog.equipmentCatalog.secondaryWeapons, random)?.id ?? ''
+      : '',
+    classItem: chooseRandom(classItems, random) ?? '',
+    consumableId: chooseRandom(catalog.equipmentCatalog.consumables, random)?.id ?? ''
   };
+}
+
+function randomDomainCardSelection(
+  items: Array<{ id: string }>,
+  required: number,
+  random: () => number
+): string[] {
+  const selected: string[] = [];
+  const remaining = [...items];
+  while (selected.length < required && remaining.length > 0) {
+    const index = randomIndex(remaining.length, random);
+    const [next] = remaining.splice(index, 1);
+    if (next) selected.push(next.id);
+  }
+  return selected;
+}
+
+function chooseRandom<T>(items: T[], random: () => number): T | undefined {
+  return items[randomIndex(items.length, random)];
+}
+
+function randomIndex(length: number, random: () => number): number {
+  if (length <= 0) return 0;
+  return Math.min(length - 1, Math.max(0, Math.floor(random() * length)));
 }
 
 function buildClassOptions(classes: LibraryClassItem[]): Array<{ className: DaggerheartClass; name: string; domains: string[]; imageUrl: string | null; body: string }> {

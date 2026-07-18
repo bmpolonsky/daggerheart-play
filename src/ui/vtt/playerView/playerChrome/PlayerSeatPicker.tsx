@@ -11,7 +11,6 @@ export function PlayerSeatPicker({ characters, seats, onSelect }: { characters: 
         <UserRound size={20} />
         <div>
           <strong>Кем вы играете?</strong>
-          <span>Выберите свое место в игре.</span>
         </div>
       </header>
       <div className="player-seat-picker__list">
