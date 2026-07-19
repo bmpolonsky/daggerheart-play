@@ -10,8 +10,7 @@ import {
 import { parseDomainCardCost } from '../rules/domainCards';
 import {
   characterBuilderRuleModifiersForSubclass,
-  startingDomainCardCount,
-  type CharacterRuleModifier
+  startingDomainCardCount
 } from '../rules/characterRuleModifiers';
 import type {
   Character,
@@ -247,7 +246,6 @@ export function buildCharacterBuilderChoicePreview(input: {
   selectedAncestry?: GenericLibraryItem;
   selectedCommunity?: GenericLibraryItem;
   selectedSubclass?: GenericLibraryItem;
-  selectedSubclassModifiers?: readonly CharacterRuleModifier[];
   selectedCards?: GenericLibraryItem[];
   availableDomainCards?: GenericLibraryItem[];
   selectedCardIds?: string[];
@@ -279,7 +277,7 @@ export function buildCharacterBuilderChoicePreview(input: {
     case 'community':
       return libraryItemPreview('Сообщество', input.selectedCommunity);
     case 'subclass':
-      return libraryItemPreview('Подкласс', input.selectedSubclass, subclassStartFacts(input.selectedSubclassModifiers));
+      return libraryItemPreview('Подкласс', input.selectedSubclass, subclassFacts(input.selectedSubclass));
     case 'cards': {
       const cardIds = input.selectedCardIds ?? [];
       const activeId = cardIds[cardIds.length - 1];
@@ -323,22 +321,21 @@ export function buildCharacterBuilderChoicePreview(input: {
 
 function libraryItemPreview(kicker: string, item?: GenericLibraryItem, facts?: string[]): CharacterBuilderChoicePreview | null {
   if (!item) return null;
+  const features = featureListText(item, 8);
+  const description = cleanRulesText(item.body);
   return {
     kicker,
     title: item.name,
     subtitle: item.subtitle,
-    body: featureListText(item, 8) || cleanRulesText(item.body),
+    body: [description, features].filter(Boolean).join('\n\n'),
     imageUrl: item.imageUrl,
     facts
   };
 }
 
-function subclassStartFacts(modifiers: readonly CharacterRuleModifier[] = []): string[] {
-  const startingCards = startingDomainCardCount(modifiers);
-  const modifierFacts = modifiers
-    .filter((modifier) => modifier.kind === 'startingDomainCards')
-    .map((modifier) => `${modifier.label}: ${modifier.amount >= 0 ? '+' : ''}${modifier.amount} карта домена на старте`);
-  return [`Стартовые карты домена: ${startingCards}`, ...modifierFacts];
+function subclassFacts(item: GenericLibraryItem | undefined): string[] {
+  const spellcastTrait = coerceTrait(item?.raw.spellcast_trait);
+  return spellcastTrait ? [`Характеристика заклинателя: ${TRAIT_LABELS[spellcastTrait]}`] : [];
 }
 
 export function domainCardFromLibrary(item: GenericLibraryItem, inLoadout: boolean): DomainCardRecord {
@@ -394,7 +391,6 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   const classDomains = classDomainsFor(input.classes, className, input.includePlaytest);
   const classStats = classStartingStatsFor(input.classes, className, input.includePlaytest);
   const classDefinition = classDefinitionFor(input.classes, className, input.includePlaytest);
-  const spellcastTrait = classSpellcastTrait(classDefinition);
   const classItems = classStartingItemsFor(input.classes, className, input.includePlaytest);
   const playableDomains = classDomains.filter((domain) => domain !== 'Custom');
   const warnings: string[] = [];
@@ -403,6 +399,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   const community = selectById(content.communities, input.communityId);
   const classSubclasses = content.subclasses.filter((item) => isSubclassForClass(item, className));
   const subclass = selectById(classSubclasses, input.subclassId);
+  const spellcastTrait = spellcastTraitFor(classDefinition, subclass);
   const ruleModifiers = characterBuilderRuleModifiersForSubclass(subclass);
   const requiredDomainCards = startingDomainCardCount(ruleModifiers);
 
@@ -493,8 +490,10 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   };
 }
 
-function classSpellcastTrait(item: LibraryClassItem | null): TraitId | null {
-  return coerceTrait(item?.raw.spellcast_trait);
+function spellcastTraitFor(classDefinition: LibraryClassItem | null, subclass: GenericLibraryItem | null): TraitId | null {
+  // Current SRD content stores the spellcast trait on subclasses. Keep the class
+  // lookup as a fallback for older/custom imports that used the previous shape.
+  return coerceTrait(subclass?.raw.spellcast_trait) ?? coerceTrait(classDefinition?.raw.spellcast_trait);
 }
 
 function mechanicalTextWarnings(cards: CharacterSheetCard[]): string[] {

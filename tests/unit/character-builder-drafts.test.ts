@@ -101,6 +101,20 @@ test('character builder models spellcast trait and warns on magic weapons withou
   });
   assert.equal(draft.draft.spellcastTrait, 'knowledge');
 
+  const spellSubclass = genericItem({
+    id: 'school-of-knowledge',
+    raw: { class_slug: 'wizard', spellcast_trait: 'knowledge' }
+  });
+  const subclassDraft = buildCharacterDraft({
+    content: { ancestries: [], communities: [], subclasses: [spellSubclass], domainCards: [] },
+    classes: [classItem({ slug: 'wizard', domain_slugs: ['codex', 'splendor'] })],
+    equipment: equipmentFixture(),
+    className: 'Wizard',
+    subclassId: spellSubclass.id,
+    primaryWeaponId: 'broadsword'
+  });
+  assert.equal(subclassDraft.draft.spellcastTrait, 'knowledge');
+
   const noSpell = buildCharacterDraft({
     content: { ancestries: [], communities: [], subclasses: [], domainCards: [] },
     classes: [],
@@ -290,26 +304,19 @@ test('character builder exposes subclass foundation features and their starting-
     id: 'school-of-knowledge',
     name: 'Школа знаний',
     raw: {
+      spellcast_trait: 'knowledge',
       foundation_features: [{ name: 'Подготовленный', main_body: 'Возьмите дополнительную карту домена первого уровня.' }]
     }
   });
   const preview = buildCharacterBuilderChoicePreview({
     step: 'subclass',
     selectedSubclass: subclass,
-    selectedSubclassModifiers: [{
-      id: 'school-of-knowledge:prepared:starting-domain-card',
-      kind: 'startingDomainCards',
-      source: 'subclass',
-      label: 'Подготовленный',
-      amount: 1
-    }]
   });
 
   assert.equal(firstFeatureText(subclass), 'Подготовленный: Возьмите дополнительную карту домена первого уровня.');
   assert.match(featureListText(subclass), /Подготовленный/);
   assert.deepEqual(preview?.facts, [
-    'Стартовые карты домена: 3',
-    'Подготовленный: +1 карта домена на старте'
+    'Характеристика заклинателя: Знание'
   ]);
 });
 

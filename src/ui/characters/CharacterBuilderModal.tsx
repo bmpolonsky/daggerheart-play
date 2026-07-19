@@ -56,7 +56,6 @@ export function CharacterBuilderModal({
     selectedAncestry: selectedAncestry ?? undefined,
     selectedCommunity: selectedCommunity ?? undefined,
     selectedSubclass: selectedSubclass ?? undefined,
-    selectedSubclassModifiers: options.subclassRuleModifiers[selectedSubclass?.id ?? ''] ?? [],
     selectedCards,
     availableDomainCards: options.availableDomainCards,
     selectedCardIds: fields.selectedCardIds,
@@ -130,7 +129,7 @@ export function CharacterBuilderModal({
               <section className="cinematic-builder-step" role="group" aria-label="Шаг: Класс">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Выберите класс</h3>
-                  <p className="cinematic-builder-copy">Класс задает стартовые значения, две области и список доступных подклассов.</p>
+                  <p className="cinematic-builder-copy">Класс задаёт стартовые значения, два домена и список доступных подклассов.</p>
                 </header>
                 <div className="dh-choice-grid cinematic-builder-choice-area dh-scroll">
                   {options.classOptions.map((item) => (
@@ -345,7 +344,7 @@ export function CharacterBuilderModal({
               <section className="cinematic-builder-step" role="group" aria-label="Шаг: Стартовые карты доменов">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Стартовые карты доменов</h3>
-                  <p className="cinematic-builder-copy">Выберите {options.requiredDomainCardCount} {domainCardCountLabel(options.requiredDomainCardCount)} первого уровня из областей класса: {options.classDomains.map(domainLabel).join(' + ')}.</p>
+                  <p className="cinematic-builder-copy">Выберите {options.requiredDomainCardCount} {domainCardCountLabel(options.requiredDomainCardCount)} первого уровня из доменов класса: {options.classDomains.map(domainLabel).join(' + ')}.</p>
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--cards cinematic-builder-choice-area dh-scroll">
                   {options.availableDomainCards.map((item) => (

@@ -791,6 +791,38 @@
 }
 
 @media (max-width: 680px) {
+  /* A choice preview is a separate mobile view, not a 124px summary above the list.
+     Keeping one scroll owner lets a player read long rules text without fighting a
+     nested, tiny scroll region. The close action returns to the choices. */
+  .cinematic-builder-workspace.dh-has-choice-detail {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .cinematic-builder-workspace.dh-has-choice-detail > .cinematic-builder-step {
+    display: none;
+  }
+
+  .cinematic-builder-choice-detail {
+    grid-row: 1;
+    height: 100%;
+    max-height: none;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(124px, 30dvh) minmax(0, 1fr);
+  }
+
+  .cinematic-builder-choice-detail.dh-no-choice-image {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .cinematic-builder-choice-detail-copy {
+    padding: 14px;
+  }
+
+  .cinematic-builder-choice-detail-copy p {
+    max-height: none;
+    overflow: visible;
+  }
+
   .cinematic-vtt {
     --dh-topbar-height: 178px;
     --dh-dock-height: 186px;

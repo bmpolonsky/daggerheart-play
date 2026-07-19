@@ -358,7 +358,7 @@ export function mapRawClassItem(raw: RawClassItem): LibraryClassItem {
     classItems: Array.isArray(raw.class_items) ? raw.class_items.map((item) => asString(item)).filter(Boolean) : [],
     backgroundQuestions: Array.isArray(raw.background_questions) ? raw.background_questions.map((item) => asString(item)).filter(Boolean) : [],
     connectionQuestions: Array.isArray(raw.connection_questions) ? raw.connection_questions.map((item) => asString(item)).filter(Boolean) : [],
-    body: asString(raw.short_description ?? raw.description),
+    body: combinedContentBody(raw.short_description, raw.description, raw.post_description),
     imageUrl: assetPath(raw.image_url),
     raw
   };
@@ -519,9 +519,17 @@ export function mapGenericItem(raw: RawContentItem, prefix: string): GenericLibr
     slug,
     name,
     subtitle: subtitleParts.join(' — '),
-    body: asString(raw.short_description ?? raw.description ?? raw.main_body ?? raw.mainBody ?? raw.text),
+    body: combinedContentBody(raw.short_description, raw.description, raw.main_body, raw.mainBody, raw.text),
     imageUrl: assetPath(raw.image_url),
     level: typeof raw.level === 'number' ? raw.level : undefined,
     raw
   };
+}
+
+function combinedContentBody(...values: unknown[]): string {
+  const parts = values
+    .map((value) => asString(value).trim())
+    .filter(Boolean)
+    .filter((value, index, all) => all.indexOf(value) === index);
+  return parts.join('\n\n');
 }

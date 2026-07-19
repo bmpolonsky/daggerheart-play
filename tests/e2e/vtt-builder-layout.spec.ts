@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openGmGame } from './game-route-helpers';
-import { expectAbove, expectInsideViewport, expectLeftOf, expectNoOverlap, rect } from './layout-helpers';
+import { expectAbove, expectInsideViewport, expectLeftOf, rect } from './layout-helpers';
 
 async function openBuilder(page: Page): Promise<void> {
   await openGmGame(page);
@@ -38,7 +38,7 @@ test.describe('character builder composition', () => {
     await expectLeftOf(choiceArea, choiceDetail, 4);
   });
 
-  test('mobile keeps builder surfaces stacked and compact', async ({ page }) => {
+  test('mobile gives a selected choice a full readable view', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openBuilder(page);
 
@@ -54,9 +54,14 @@ test.describe('character builder composition', () => {
     await expect(choiceDetail).toBeVisible();
     await expectInsideViewport(page, builder);
     await expectInsideViewport(page, choiceDetail);
-    await expectNoOverlap(choiceArea, choiceDetail, 2);
+    await expect(choiceArea).toBeHidden();
     await expectAbove(stage, workspace, 4);
     await expectAbove(workspace, actions, 4);
+    const detailCopy = choiceDetail.locator('.cinematic-builder-choice-detail-copy');
+    expect(await detailCopy.evaluate((node) => node.clientHeight)).toBeGreaterThan(200);
+    await expect(detailCopy).toHaveCSS('max-height', 'none');
+    await choiceDetail.getByRole('button', { name: 'Закрыть описание' }).click();
+    await expect(choiceArea).toBeVisible();
     expect((await rect(choiceArea)).height).toBeGreaterThanOrEqual(160);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
@@ -95,8 +100,11 @@ test.describe('character builder composition', () => {
 
     const detail = builder.getByLabel('Описание выбора');
     await expect(detail).toContainText('Подготовленный');
-    await expect(detail).toContainText('Стартовые карты домена: 3');
+    await expect(detail).toContainText('Характеристика заклинателя: Знание');
     await expectInsideViewport(page, detail);
+
+    await builder.getByRole('button', { name: 'Карты' }).click();
+    await expect(builder.getByRole('group', { name: 'Шаг: Стартовые карты доменов' })).toContainText('Выберите 3 карты первого уровня');
   });
 
   test('small mobile keeps every wizard choice area usable', async ({ page }) => {
@@ -108,6 +116,10 @@ test.describe('character builder composition', () => {
     for (const stepLabel of ['Подкласс', 'Экипировка', 'Карты']) {
       await builder.getByRole('button', { name: stepLabel }).click();
       const choiceArea = builder.getByRole('group', { name: `Шаг: ${stepLabel === 'Экипировка' ? 'Стартовая экипировка' : stepLabel === 'Карты' ? 'Стартовые карты доменов' : stepLabel}` });
+      const choiceDetail = builder.getByLabel('Описание выбора');
+      if (await choiceDetail.isVisible()) {
+        await choiceDetail.getByRole('button', { name: 'Закрыть описание' }).click();
+      }
       await expect(choiceArea).toBeVisible();
       expect((await rect(choiceArea)).height, `${stepLabel} choice area should remain usable`).toBeGreaterThanOrEqual(145);
       await expectInsideViewport(page, builder);

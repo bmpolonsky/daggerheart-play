@@ -217,7 +217,11 @@ function beastformEntry(item: LibraryBeastform): LibraryEntry {
 }
 
 function genericEntry(item: GenericLibraryItem): LibraryEntry {
-  const stats = item.level ? [`Уровень ${item.level}`] : [];
+  const spellcastTrait = traitLabel(item.raw.spellcast_trait);
+  const stats = [
+    item.level ? `Уровень ${item.level}` : '',
+    spellcastTrait ? `Характеристика заклинателя: ${spellcastTrait}` : ''
+  ].filter(Boolean);
   const sections = compactSections([
     ['Описание', item.body],
     ['Особенности', genericFeatureSections(item)]
@@ -232,6 +236,11 @@ function genericEntry(item: GenericLibraryItem): LibraryEntry {
     sections,
     actions: [shareAction(item.name, sections, stats)]
   };
+}
+
+function traitLabel(value: unknown): string | null {
+  const key = String(value ?? '').trim().toLowerCase();
+  return key in TRAIT_LABELS ? TRAIT_LABELS[key as TraitId] : null;
 }
 
 function shareAction(title: string, sections: LibraryDetailSection[], stats: string[] = []): LibraryDetailAction {

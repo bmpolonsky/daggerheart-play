@@ -5,7 +5,7 @@ import { applyBrowserCustomContent } from "../../src/core/persistence/browserPro
 import { createContentState } from "../../src/stores/contentStore";
 import { cleanRulesText, coerceDomainName, domainCardFromLibrary, isDomainCardForDomains, isSubclassForClass } from "../../src/domain/characterBuilder/index";
 import { queryLibraryContent } from "../../src/domain/content/query";
-import { mapRawEquipmentItem } from "../../src/domain/content/mappers";
+import { mapGenericItem, mapRawClassItem, mapRawEquipmentItem } from "../../src/domain/content/mappers";
 import { buildApiCollectionUrl, createContentManifest, summarizeContentSources } from "../../src/domain/content/source";
 import { genericItem } from "./helpers";
 
@@ -37,6 +37,25 @@ test('character builder maps and cleans library items without UI state', () => {
   assert.equal(mapped.cost, '');
   assert.equal(mapped.recallCost, 'Стресс 1');
   assert.equal(domainCardFromLibrary(structuredCostCard, true).cost, 'Надежда 1');
+});
+
+test('content mappers retain both summaries and full rule text', () => {
+  const classItem = mapRawClassItem({
+    slug: 'bard',
+    name: 'Бард',
+    short_description: 'Короткое описание.',
+    description: 'Полное описание класса.',
+    post_description: 'Важное примечание.'
+  });
+  const subclass = mapGenericItem({
+    slug: 'beastbound',
+    name: 'Звериные узы',
+    description: 'Короткое описание подкласса.',
+    main_body: 'Полные правила спутника.'
+  }, 'subclass');
+
+  assert.equal(classItem.body, 'Короткое описание.\n\nПолное описание класса.\n\nВажное примечание.');
+  assert.equal(subclass.body, 'Короткое описание подкласса.\n\nПолные правила спутника.');
 });
 
 test('content library query searches all compendium sections outside UI', () => {
