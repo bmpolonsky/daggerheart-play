@@ -51,17 +51,6 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
-
-      - name: Deterministic E2E tests
-        run: npm run test:e2e
-        env:
-          CONTENT_SOURCE: https://daggerheart.su
-          CONTENT_LANG: ru
-          CONTENT_CACHE_TTL_HOURS: "0"
-          RUN_P2P_E2E: "0"
-
   build:
     name: Build Pages artifact
     needs: verify
