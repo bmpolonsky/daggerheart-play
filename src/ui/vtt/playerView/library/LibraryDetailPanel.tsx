@@ -21,6 +21,8 @@ export function LibraryDetailPanel({
 }) {
   if (!entry) return null;
 
+  const hasFooter = entry.actions.length > 0 || Boolean(entry.custom && onEditCustom) || Boolean(actionMessage);
+
   return (
     <aside className="player-library-detail" aria-label="Полная запись компендиума">
       <div className="player-library-detail__body">
@@ -59,25 +61,29 @@ export function LibraryDetailPanel({
             </section>
           ))}
         </div>
-        {(entry.actions.length > 0 || (entry.custom && onEditCustom)) && (
-          <div className="player-library-detail__actions">
-            {entry.custom && onEditCustom && (
-              <Button size="sm" variant="primary" type="button" onClick={() => {
-                if (entry.custom) onEditCustom(entry.custom);
-              }}>
-                Редактировать
-              </Button>
-            )}
-            {entry.actions.map((action) => (
-              <Button size="sm" variant="secondary" type="button" key={action.label} onClick={() => {
-                const message = action.onClick();
-                if (message) onAction(message);
-              }}>{action.label}</Button>
-            ))}
-          </div>
-        )}
-        {actionMessage && <p className="player-library-detail__status" role="status">{actionMessage}</p>}
       </div>
+      {hasFooter && (
+        <footer className="player-library-detail__footer">
+          {(entry.actions.length > 0 || (entry.custom && onEditCustom)) && (
+            <div className="player-library-detail__actions">
+              {entry.custom && onEditCustom && (
+                <Button size="sm" variant="primary" type="button" onClick={() => {
+                  if (entry.custom) onEditCustom(entry.custom);
+                }}>
+                  Редактировать
+                </Button>
+              )}
+              {entry.actions.map((action) => (
+                <Button size="sm" variant="secondary" type="button" key={action.label} onClick={() => {
+                  const message = action.onClick();
+                  if (message) onAction(message);
+                }}>{action.label}</Button>
+              ))}
+            </div>
+          )}
+          {actionMessage && <p className="player-library-detail__status" role="status">{actionMessage}</p>}
+        </footer>
+      )}
     </aside>
   );
 }

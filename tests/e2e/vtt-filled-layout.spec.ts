@@ -207,6 +207,43 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
 
+  test('uses the workspace scroll for an opened combat opponent on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openFilledGmGame(page);
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+
+    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    const primaryNav = workspace.getByLabel('Разделы рабочего пространства');
+    const body = workspace.getByLabel('Содержимое рабочего пространства');
+    await primaryNav.getByRole('button', { name: 'Бой' }).click();
+
+    const combatCards = workspace.locator('.player-combat-card');
+    await expect.poll(() => combatCards.count()).toBeGreaterThan(10);
+    await combatCards.first().locator('.player-combat-card__open').click();
+
+    const detail = workspace.locator('.player-combat-detail');
+    const detailBody = detail.locator('.player-library-detail__body');
+    const encounter = workspace.locator('.player-combat-encounter');
+    await expect(detail).toBeVisible();
+    expect((await rect(detail)).height).toBeGreaterThan(600);
+    const [workspaceScroll, detailBodyScroll, encounterEntriesScroll] = await Promise.all([
+      scrollState(body),
+      scrollState(detailBody),
+      scrollState(encounter.locator('.player-combat-entries'))
+    ]);
+    expect(workspaceScroll.scrollHeight).toBeGreaterThan(workspaceScroll.clientHeight + 400);
+    expect(detailBodyScroll.overflowY).toBe('visible');
+    expect(encounterEntriesScroll.overflowY).toBe('visible');
+
+    const scrollTopBefore = await body.evaluate((element) => element.scrollTop);
+    await detailBody.hover({ position: { x: 28, y: 300 } });
+    await page.mouse.wheel(0, 1_000);
+    await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(scrollTopBefore + 200);
+    await encounter.scrollIntoViewIfNeeded();
+    await expectInsideViewport(page, encounter, 2);
+    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  });
+
   test('keeps the player Tools → Compendium list and detail scroll owners stable on desktop and mobile', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openPlayerGame(page);
@@ -225,10 +262,11 @@ test.describe('filled VTT layout regressions', () => {
     await expectStableGeometry([workspace, body, layout, list]);
     await cards.nth(await firstFullyVisibleIndex(cards)).click();
     const detail = workspace.locator('.player-library-detail');
+    const detailBody = detail.locator('.player-library-detail__body');
     await expect(detail).toBeVisible();
     await expect(list).toBeVisible();
     await expectStableGeometry([workspace, body, layout, list, detail]);
-    await expectSingleScrollOwner(body, list, detail);
+    await expectSingleScrollOwner(body, list, detailBody);
     expect(await body.evaluate((element) => element.scrollTop)).toBe(0);
     expect(await list.evaluate((element) => element.scrollTop)).toBe(desktopListScrollTop);
     await workspace.getByRole('button', { name: 'Закрыть описание' }).click();
@@ -245,12 +283,43 @@ test.describe('filled VTT layout regressions', () => {
     await expect(list).toBeHidden();
     await expect(detail).toBeVisible();
     await expectStableGeometry([workspace, body, layout, detail]);
-    await expectSingleScrollOwner(body, detail);
+    await expectSingleScrollOwner(body, detailBody);
     expect(await body.evaluate((element) => element.scrollTop)).toBe(0);
     await workspace.getByRole('button', { name: 'Закрыть описание' }).click();
     await expect(list).toBeVisible();
     expect(retainedMobileListScrollTop).toBeGreaterThanOrEqual(mobileListScrollTop - 1);
     await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBe(retainedMobileListScrollTop);
+    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  });
+
+  test('keeps compendium actions fixed below a scrolling environment detail', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 720 });
+    await openFilledGmGame(page);
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+
+    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Справочник' }).click();
+    await workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Окружения' }).click();
+    const environmentCard = workspace.locator('.player-library-card').filter({ hasText: filledEnvironmentName }).first();
+    await expect(environmentCard).toBeVisible();
+    await environmentCard.click();
+
+    const detail = workspace.getByLabel('Полная запись компендиума');
+    const detailBody = detail.locator('.player-library-detail__body');
+    const footer = detail.locator('.player-library-detail__footer');
+    await expect(detail.getByRole('button', { name: 'Добавить в столкновение' })).toBeVisible();
+    await expect(detail.getByRole('button', { name: 'Создать сцену' })).toBeVisible();
+    await detailBody.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+    await expect.poll(() => detailBody.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    const desktopDetail = await rect(detail);
+    const desktopFooter = await rect(footer);
+    expect(Math.abs(desktopDetail.bottom - desktopFooter.bottom)).toBeLessThanOrEqual(2);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(footer).toBeVisible();
+    const mobileDetail = await rect(detail);
+    const mobileFooter = await rect(footer);
+    expect(Math.abs(mobileDetail.bottom - mobileFooter.bottom)).toBeLessThanOrEqual(2);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
 

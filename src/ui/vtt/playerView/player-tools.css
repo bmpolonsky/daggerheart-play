@@ -630,7 +630,8 @@
   min-height: 0;
   height: 100%;
   display: grid;
-  overflow: auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   border: 0;
@@ -646,10 +647,14 @@
 }
 
 .player-library-detail__body {
+  min-height: 0;
   display: grid;
   align-content: start;
   gap: 12px;
   padding: 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .player-library-detail__header {
@@ -782,11 +787,17 @@
   border-bottom: 0;
 }
 
+.player-library-detail__footer {
+  display: grid;
+  gap: 8px;
+  padding: 10px 14px 14px;
+  background: rgba(7, 9, 12, 0.76);
+}
+
 .player-library-detail__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding-top: 2px;
 }
 
 .player-library-detail__status {
@@ -2302,6 +2313,23 @@
     min-height: 520px;
   }
 
+  /* On a stacked combat workspace, the modal body is the one scrollport.
+     A detail panel's desktop-only inner scroll would otherwise trap a touch
+     gesture before it can reach the encounter composition below. */
+  .player-combat-layout--with-detail .player-combat-detail {
+    min-height: 0;
+  }
+
+  .player-combat-layout--with-detail .player-library-detail {
+    height: auto;
+    overflow: visible;
+  }
+
+  .player-combat-layout--with-detail .player-library-detail__body {
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
+
   .player-combat-encounter {
     min-height: 420px;
   }
@@ -2337,6 +2365,11 @@
     flex: none;
     max-height: 360px;
     overflow-y: auto;
+  }
+
+  .player-combat-layout--with-detail .player-combat-entries {
+    max-height: none;
+    overflow: visible;
   }
 
   .player-combat-filters {
