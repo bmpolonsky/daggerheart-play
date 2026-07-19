@@ -15,6 +15,7 @@ import {
 } from "@combat/components/icons";
 import { Button } from "../../../../ui/components/common/Button";
 import { IconButton } from "../../../../ui/components/common/IconButton";
+import { rangeLabel } from "../../../../domain/rules/constants";
 
 interface AdversaryDetailsModalProps {
   adversary: Adversary;
@@ -49,18 +50,7 @@ function shortDamageTypeLabel(value: string) {
   return normalized || "—";
 }
 
-function attackRangeLabel(value: string) {
-  const normalized = value.trim().toLowerCase();
-  const compact = normalized.replace(/[\s_-]+/g, "");
-  if (!normalized) return "";
-  if (compact === "melee") return "Вплотную";
-  if (compact === "veryclose") return "Близко";
-  if (compact === "close") return "Средне";
-  if (compact === "far") return "Далеко";
-  if (compact === "veryfar") return "Очень Далеко";
-  if (compact === "any") return "Любая";
-  return value;
-}
+const attackRangeLabel = rangeLabel;
 
 export function AdversaryDetailsModal({
   adversary,
@@ -237,7 +227,7 @@ export function AdversaryDetailsModal({
 
             <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-700/60 pt-2">
               <span className="flex items-center gap-1.5 font-bold text-slate-300">
-                <IconSword size={13} className="text-orange-400" /> ATK{" "}
+                <IconSword size={13} className="text-orange-400" /> Бонус атаки{" "}
                 <span className="font-mono text-white">
                   {adversary.attackBonus.startsWith("-")
                     ? adversary.attackBonus

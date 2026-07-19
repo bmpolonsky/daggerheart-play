@@ -240,7 +240,7 @@ export class ContentService {
 
     const adversaries = state.adversaries.filter((item) => {
       const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.roleName, item.summary, item.motives, item.experiencesText].join(' ')).includes(normalizedSearch)
+        ? normalizeSearch([item.name, item.roleName, item.summary, item.motives, item.experiencesText, rawFeaturesText(item.raw.features)].join(' ')).includes(normalizedSearch)
         : true;
       const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
       return matchesSearch && matchesTier && sourceMatches(item.raw, state.sourceFilter);
@@ -248,7 +248,7 @@ export class ContentService {
 
     const classes = state.classes.filter((item) => {
       const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.domains.join(' '), item.body, item.classItems.join(' ')].join(' ')).includes(normalizedSearch)
+        ? normalizeSearch([item.name, item.domains.join(' '), item.body, item.classItems.join(' '), rawFeaturesText(item.raw.features)].join(' ')).includes(normalizedSearch)
         : true;
       return matchesSearch && sourceMatches(item.raw, state.sourceFilter);
     });
@@ -283,7 +283,12 @@ export class ContentService {
 
     const genericItems = selectedGeneric.filter((item) => {
       const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.subtitle, item.body].join(' ')).includes(normalizedSearch)
+        ? normalizeSearch([item.name, item.subtitle, item.body, rawFeaturesText([
+          ...(item.raw.features ?? []),
+          ...(item.raw.foundation_features ?? []),
+          ...(item.raw.specialization_features ?? []),
+          ...(item.raw.mastery_features ?? [])
+        ])].join(' ')).includes(normalizedSearch)
         : true;
       const matchesLevel = state.levelFilter === 'all' || item.level === state.levelFilter;
       return matchesSearch && matchesLevel && sourceMatches(item.raw, state.sourceFilter);
@@ -375,6 +380,11 @@ export class ContentService {
     const baseUrl = import.meta.env?.BASE_URL ?? './';
     return `${baseUrl}data/${file}`;
   }
+}
+
+function rawFeaturesText(features: Array<{ name?: unknown; main_body?: unknown; text?: unknown }> | undefined): string {
+  if (!Array.isArray(features)) return '';
+  return features.map((feature) => [feature.name, feature.main_body ?? feature.text].filter((value) => typeof value === 'string').join(' ')).join(' ');
 }
 
 function formatError(error: unknown): string {

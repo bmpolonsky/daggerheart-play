@@ -65,12 +65,12 @@ export function isToolBridgeEvent(value: unknown): value is ToolBridgeEvent {
 
 export function normalizeToolBridgeEvent(value: unknown): ToolBridgeNormalizeResult {
   if (!isToolBridgeEvent(value)) {
-    return { ok: false, event: null, warnings: ['Событие Tool Bridge имеет неизвестный формат.'] };
+    return { ok: false, event: null, warnings: ['Событие обмена с инструментом имеет неизвестный формат.'] };
   }
 
   if (value.type === 'combat-builder/encounter.export') {
     if (!isCombatBuilderEncounterSnapshot(value.payload)) {
-      return { ok: false, event: null, warnings: ['Payload combat-builder не похож на snapshot боя.'] };
+      return { ok: false, event: null, warnings: ['Данные конструктора боя не похожи на сохранённый состав столкновения.'] };
     }
     return { ok: true, event: value, warnings: [] };
   }

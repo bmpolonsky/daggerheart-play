@@ -293,7 +293,7 @@ export class TabletopService {
     const safeCount = Math.max(1, Math.trunc(count));
     const rank = characterLevelRank(character.level);
     const normalized = label.toLocaleLowerCase();
-    if (restType === 'short' && normalized.includes('hp')) {
+    if (restType === 'short' && (normalized.includes('hp') || normalized.includes('ран'))) {
       const roll = this.dependencies.diceService.rollManualDice({
         actorId: character.id,
         actorName: character.name,
@@ -333,7 +333,7 @@ export class TabletopService {
       this.dependencies.characterService.adjustHope(character.id, amount);
       return { appliedAmount: amount, note: `Получено Надежды: ${amount}.` };
     }
-    if (restType === 'long' && normalized.includes('hp')) {
+    if (restType === 'long' && (normalized.includes('hp') || normalized.includes('ран'))) {
       const amount = character.hp.marked;
       this.dependencies.characterService.clearHp(character.id, amount);
       return { appliedAmount: amount, note: `Очищены все раны: ${amount}.` };
@@ -363,9 +363,9 @@ function formulaRollValues(terms: FormulaTermRoll[]): number[] {
 }
 
 function longRestRecoveryLabel(move: LongRestRecoveryMove): string {
-  if (move === 'clearHp') return 'Очистить все раны';
-  if (move === 'clearStress') return 'Очистить весь стресс';
-  return 'Починить всю броню';
+  if (move === 'clearHp') return 'Залечить все Раны';
+  if (move === 'clearStress') return 'Снять весь Стресс';
+  return 'Полный ремонт Брони';
 }
 
 function clampWorld(value: number, min: number, max: number): number {

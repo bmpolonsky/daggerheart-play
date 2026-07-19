@@ -379,6 +379,7 @@ export interface Adversary {
   hp: TrackSlots;
   stress: TrackSlots;
   standardAttack: AdversaryAttack;
+  hordePerHp?: number | null;
   experiences: AdversaryExperience[];
   features: AdversaryFeature[];
   conditions: CharacterCondition[];

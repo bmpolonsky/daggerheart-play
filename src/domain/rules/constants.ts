@@ -1,4 +1,4 @@
-import type { DaggerheartClass, DomainName, TraitId } from './types';
+import type { AdversaryType, DaggerheartClass, DomainName, TraitId } from './types';
 
 export const TRAITS: Array<{ id: TraitId; label: string; hint: string }> = [
   { id: 'agility', label: 'Проворность', hint: 'Бег, прыжки, маневрирование' },
@@ -13,6 +13,23 @@ export const TRAIT_LABELS: Record<TraitId, string> = TRAITS.reduce(
   (acc, trait) => ({ ...acc, [trait.id]: trait.label }),
   {} as Record<TraitId, string>
 );
+
+export function adversaryTypeLabel(type: AdversaryType): string {
+  const labels: Record<AdversaryType, string> = {
+    Bruiser: 'Громила',
+    Horde: 'Орда',
+    Leader: 'Лидер',
+    Minion: 'Приспешник',
+    Ranged: 'Дальнобойный',
+    Skulk: 'Скрытный',
+    Social: 'Социальный',
+    Solo: 'Одиночка',
+    Standard: 'Обычный',
+    Support: 'Поддержка',
+    Custom: 'Свой тип'
+  };
+  return labels[type] ?? type;
+}
 
 export const DAGGERHEART_CLASSES: DaggerheartClass[] = [
   'Bard',
@@ -154,25 +171,50 @@ export const ADVERSARY_TYPES = [
   'Custom'
 ] as const;
 
-export const RANGES = ['Вплотную', 'Близко', 'Средне', 'Далеко', 'Очень далеко', 'Вне дистанции'] as const;
+export const RANGES = ['Вплотную', 'Близкая', 'Средняя', 'Далёкая', 'Очень далёкая', 'Вне дистанции'] as const;
 
 export const RANGE_LABELS: Record<string, string> = {
   Melee: 'Вплотную',
   melee: 'Вплотную',
-  'Very Close': 'Близко',
-  'very close': 'Близко',
-  Close: 'Средне',
-  close: 'Средне',
-  Far: 'Далеко',
-  far: 'Далеко',
-  'Very Far': 'Очень далеко',
-  'very far': 'Очень далеко',
+  'Very Close': 'Близкая',
+  'very close': 'Близкая',
+  veryclose: 'Близкая',
+  Close: 'Средняя',
+  close: 'Средняя',
+  Far: 'Далёкая',
+  far: 'Далёкая',
+  'Very Far': 'Очень далёкая',
+  'very far': 'Очень далёкая',
+  veryfar: 'Очень далёкая',
   'Out of Range': 'Вне дистанции',
   'out of range': 'Вне дистанции',
+  outofrange: 'Вне дистанции',
+  Any: 'Любая',
+  any: 'Любая',
   Вплотную: 'Вплотную',
-  Близко: 'Близко',
-  Средне: 'Средне',
-  Далеко: 'Далеко',
-  'Очень далеко': 'Очень далеко',
+  Близко: 'Близкая',
+  Близкая: 'Близкая',
+  Средне: 'Средняя',
+  Средняя: 'Средняя',
+  Далеко: 'Далёкая',
+  Далёкая: 'Далёкая',
+  'Очень далеко': 'Очень далёкая',
+  'Очень далёкая': 'Очень далёкая',
   'Вне дистанции': 'Вне дистанции'
 };
+
+export function rangeLabel(value: string | null | undefined): string {
+  const range = value?.trim() ?? '';
+  if (!range) return '';
+  const compact = range.toLowerCase().replace(/[\s_-]+/g, '');
+  return RANGE_LABELS[range] ?? RANGE_LABELS[compact] ?? range;
+}
+
+export const RANGE_OPTIONS = [
+  { id: 'melee', name: rangeLabel('melee') },
+  { id: 'very-close', name: rangeLabel('very-close') },
+  { id: 'close', name: rangeLabel('close') },
+  { id: 'far', name: rangeLabel('far') },
+  { id: 'very-far', name: rangeLabel('very-far') },
+  { id: 'any', name: rangeLabel('any') }
+] as const;

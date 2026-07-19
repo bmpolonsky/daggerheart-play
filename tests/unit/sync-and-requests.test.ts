@@ -117,7 +117,7 @@ test('player action requests stay pending until GM approval or rejection', () =>
     title: 'Надежда +1',
     payload: { actorId: 'hero-1', resource: 'hope', delta: 1 }
   });
-  assert.equal(requestService.approve(resourceRequest.id, 'gm-1')?.applyResult?.note, 'Заявка на ресурс подтверждена; GM применяет изменение вручную.');
+  assert.equal(requestService.approve(resourceRequest.id, 'gm-1')?.applyResult?.note, 'Заявка на ресурс подтверждена; Мастер применяет изменение вручную.');
 });
 
 test('player activation queue keeps raised hands in request order and syncs messages', async () => {

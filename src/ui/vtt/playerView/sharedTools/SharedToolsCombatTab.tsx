@@ -32,9 +32,9 @@ const difficultyOptions: Array<{ value: DifficultyMode; label: string }> = [
 ];
 
 function sourceLabel(adversary: Adversary) {
-  if (adversary.isCustom) return 'Homebrew';
-  if (adversary.sourceSlugs.includes('playtest-the-void')) return 'Void';
-  return 'Corebook';
+  if (adversary.isCustom) return 'Свой';
+  if (adversary.sourceSlugs.includes('playtest-the-void')) return 'The Void';
+  return 'Основная книга';
 }
 
 export function SharedToolsCombatTab() {
@@ -338,7 +338,7 @@ function combatAdversaryEntry(adversary: Adversary): LibraryEntry {
         `Раны: ${adversary.hp}`,
         `Стресс: ${adversary.stress}`,
         `Пороги: ${adversary.damageThresholds?.join(' / ') || '—'}`,
-        `ATK: ${signedAttack}`,
+        `Бонус атаки: ${signedAttack}`,
         `Атака: ${adversary.weaponName || '—'}`,
         `Урон: ${damage} ${adversary.damageType}`,
         `Дистанция: ${adversary.attackRange || '—'}`

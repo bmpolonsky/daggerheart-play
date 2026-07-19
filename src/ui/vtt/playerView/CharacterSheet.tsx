@@ -129,7 +129,7 @@ export function CharacterSheet({
             <span>Уровень {character.level} / {character.subtitle || character.className}</span>
             <div className="player-character-panel__hero-meta" aria-label="Ключевые параметры персонажа">
               <small>Мастерство {character.proficiency}</small>
-              {character.spellcastTrait && <small>Магия: {character.traits.find((trait) => trait.id === character.spellcastTrait)?.label ?? character.spellcastTrait}</small>}
+              {character.spellcastTrait && <small>Характеристика заклинателя: {character.traits.find((trait) => trait.id === character.spellcastTrait)?.label ?? character.spellcastTrait}</small>}
             </div>
           </div>
         </header>
@@ -445,7 +445,7 @@ export function CharacterSheet({
           />
         ))}
       </SheetSection>
-      <SheetSection id="player-sheet-features" title="Особенности" emptyLabel="Особенности появятся после заполнения листа">
+      <SheetSection id="player-sheet-features" title="Свойства" emptyLabel="Свойства появятся после заполнения листа">
         {character.features.map((feature) => {
           const detail = feature.text.trim();
           const summary = feature.subtitle || detail || 'Особенность';

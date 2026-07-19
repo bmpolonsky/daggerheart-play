@@ -139,7 +139,7 @@ export function isCardCreatorCustomCardPayload(value: unknown): value is CardCre
 export function normalizeCardCreatorCustomCardPayload(value: unknown): CardCreatorNormalizeResult {
   const warnings: string[] = [];
   if (!value || typeof value !== 'object') {
-    return { ok: false, card: null, warnings: ['Payload card-creator должен быть объектом.'] };
+    return { ok: false, card: null, warnings: ['Данные редактора карт должны быть объектом.'] };
   }
 
   const payload = value as CardCreatorCustomCardPayload;
@@ -147,23 +147,23 @@ export function normalizeCardCreatorCustomCardPayload(value: unknown): CardCreat
   const baseCard = payload.baseCard && typeof payload.baseCard === 'object' ? payload.baseCard : null;
   const typeId = normalizeCardType(payload.typeId);
   if (!typeId) {
-    return { ok: false, card: null, warnings: ['Payload card-creator содержит неизвестный тип карты.'] };
+    return { ok: false, card: null, warnings: ['Данные редактора карт содержат неизвестный тип карты.'] };
   }
 
   const id = firstText(payload.id, fields.slug, baseCard?.id, baseCard?.slug);
   const title = firstText(fields.title, baseCard?.name);
-  if (!id) warnings.push('У custom card нет id или slug.');
-  if (!title) warnings.push('У custom card нет названия.');
+  if (!id) warnings.push('У своей карты нет идентификатора.');
+  if (!title) warnings.push('У своей карты нет названия.');
 
   const stressCost = toSafeInteger(baseCard?.stressCost, 0);
   const stressText = firstText(fields.stressText);
-  const cost = stressText || (stressCost > 0 ? `${stressCost} Stress` : '');
+  const cost = stressText || (stressCost > 0 ? `Стресс ${stressCost}` : '');
 
   const card: NormalizedCardCreatorCustomCard = {
     id: id || 'card-creator-custom-card',
     typeId,
     slug: firstText(fields.slug, baseCard?.slug, id) || 'custom-card',
-    title: title || 'Custom card',
+    title: title || 'Своя карта',
     description: firstText(fields.description, fields.prelude, baseCard?.description),
     source: firstText(fields.source, baseCard?.sourceName),
     label: firstText(fields.label),
@@ -196,7 +196,7 @@ export function customCardToCharacterDomainCard(value: unknown, input?: Partial<
 
   const warnings = [...normalized.warnings];
   if (normalized.card.typeId !== 'domain-card') {
-    return { card: null, warnings: [...warnings, 'Только card-creator domain-card можно конвертировать в Character domain card.'] };
+    return { card: null, warnings: [...warnings, 'В лист персонажа можно добавить только карту домена из редактора карт.'] };
   }
 
   return {
@@ -262,7 +262,7 @@ function normalizeFeatures(value: unknown): NormalizedCardCreatorFeature[] {
       if (!name && !text) return null;
       return {
         id: stringOrNumber(feature.id) ?? index,
-        name: name || 'Feature',
+        name: name || 'Свойство',
         text,
         group: firstText(feature.group)
       };

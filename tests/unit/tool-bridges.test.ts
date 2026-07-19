@@ -12,7 +12,7 @@ test('card creator bridge normalizes custom domain cards into character cards', 
       title: '  Starfall  ',
       description: 'Spend Hope to call down light.',
       dataDomain: 'Splendor',
-      stressText: '1 Stress',
+      stressText: 'Стресс 1',
       label: 'Spell'
     },
     customImage: 'https://example.test/starfall.webp',
@@ -29,7 +29,7 @@ test('card creator bridge normalizes custom domain cards into character cards', 
   assert.equal(normalized.ok, true);
   assert.equal(normalized.card?.title, 'Starfall');
   assert.equal(normalized.card?.domain, 'Splendor');
-  assert.equal(normalized.card?.cost, '1 Stress');
+  assert.equal(normalized.card?.cost, 'Стресс 1');
 
   const converted = customCardToCharacterDomainCard(payload);
   assert.equal(converted.warnings.length, 0);

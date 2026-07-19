@@ -172,7 +172,7 @@ function colorsetFor(roll: PolyhedralDiceRoll): DiceBoxCustomColorset {
       outline: 'none',
       texture: 'none',
       material: 'glass',
-      description: 'Daggerheart Hope'
+      description: 'Daggerheart — Надежда'
     },
     fear: {
       name: 'dh-fear-purple',
@@ -181,7 +181,7 @@ function colorsetFor(roll: PolyhedralDiceRoll): DiceBoxCustomColorset {
       outline: '#24005f',
       texture: 'none',
       material: 'glass',
-      description: 'Daggerheart Fear'
+      description: 'Daggerheart — Страх'
     },
     damage: {
       name: 'dh-damage-red',
@@ -190,7 +190,7 @@ function colorsetFor(roll: PolyhedralDiceRoll): DiceBoxCustomColorset {
       outline: '#3f0710',
       texture: 'none',
       material: 'glass',
-      description: 'Daggerheart Damage'
+      description: 'Daggerheart — Урон'
     },
     advantage: {
       name: 'dh-advantage-green',
@@ -199,7 +199,7 @@ function colorsetFor(roll: PolyhedralDiceRoll): DiceBoxCustomColorset {
       outline: 'none',
       texture: 'none',
       material: 'glass',
-      description: 'Daggerheart Advantage'
+      description: 'Daggerheart — преимущество'
     },
     disadvantage: {
       name: 'dh-disadvantage-red',
@@ -208,7 +208,7 @@ function colorsetFor(roll: PolyhedralDiceRoll): DiceBoxCustomColorset {
       outline: '#7a1717',
       texture: 'none',
       material: 'glass',
-      description: 'Daggerheart Disadvantage'
+      description: 'Daggerheart — помеха'
     },
     critical: {
       name: 'dh-critical-gold',
@@ -217,7 +217,7 @@ function colorsetFor(roll: PolyhedralDiceRoll): DiceBoxCustomColorset {
       outline: 'none',
       texture: 'none',
       material: 'glass',
-      description: 'Daggerheart Critical'
+      description: 'Daggerheart — критический успех'
     },
     neutral: {
       name: 'dh-neutral-stone',
@@ -226,7 +226,7 @@ function colorsetFor(roll: PolyhedralDiceRoll): DiceBoxCustomColorset {
       outline: 'none',
       texture: 'none',
       material: 'glass',
-      description: 'Daggerheart Neutral'
+      description: 'Daggerheart — нейтральный'
     }
   };
   return colors[tone] ?? colors.neutral;

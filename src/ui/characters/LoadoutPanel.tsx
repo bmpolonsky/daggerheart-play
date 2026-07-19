@@ -3,9 +3,9 @@ import { Button } from '../components/common/Button';
 import { NumberField, SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
 import { RichChoicePicker } from '../components/common/RichChoicePicker';
-import { DAMAGE_TYPE_LABELS, DOMAIN_LABELS, RANGE_LABELS, RANGES, TRAITS, TRAIT_LABELS } from '../../domain/rules/constants';
+import { DAMAGE_TYPE_LABELS, DOMAIN_LABELS, RANGES, TRAITS, TRAIT_LABELS, rangeLabel } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
-import { domainCardFromLibrary, isDomainCardForDomains } from '../../domain/characterBuilder';
+import { cleanRulesText, domainCardFromLibrary, isDomainCardForDomains } from '../../domain/characterBuilder';
 import { buildEquipmentAttachmentPlan } from '../../domain/rules/equipment';
 import type { Character, DamageType, TraitId } from '../../domain/rules/types';
 import { useStream } from '../../core/hooks/useStream';
@@ -41,7 +41,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
           <details className="character-editor-item" key={weapon.id} open={index === 0}>
             <summary>
               <strong>{weaponLabel(weapon.name)}</strong>
-              <span>{TRAIT_LABELS[weapon.trait]} — {RANGE_LABELS[weapon.range] ?? weapon.range} — {weapon.damageFormula}</span>
+              <span>{TRAIT_LABELS[weapon.trait]} — {rangeLabel(weapon.range)} — {weapon.damageFormula}</span>
             </summary>
             <div className="character-editor-item__fields">
             <div className="grid-5">
@@ -72,7 +72,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
                 value={weapon.range}
                 onChange={(event) => characterService.updateWeapon(character.id, weapon.id, { range: event.currentTarget.value })}
               >
-                {RANGES.map((range) => <option key={range} value={range}>{RANGE_LABELS[range]}</option>)}
+                {RANGES.map((range) => <option key={range} value={range}>{rangeLabel(range)}</option>)}
               </SelectField>
               <TextField
                 label="Урон"
@@ -320,7 +320,7 @@ function equipmentPickerItem(item: LibraryEquipmentItem) {
     id: item.id,
     title: item.name,
     subtitle: item.typeName,
-    description: [item.featureText, typeof item.raw.main_body === 'string' ? item.raw.main_body : ''].filter(Boolean).join('\n\n'),
+    description: cleanRulesText([item.featureText, typeof item.raw.main_body === 'string' ? item.raw.main_body : ''].filter(Boolean).join('\n\n')),
     imageUrl: item.imageUrl
   };
 }
@@ -331,7 +331,7 @@ function domainCardPickerItem(item: GenericLibraryItem) {
     id: item.id,
     title: card.name,
     subtitle: `${DOMAIN_LABELS[card.domain] ?? card.domain} — уровень ${card.level}${card.cost ? ` — цена ${card.cost}` : ''}`,
-    description: card.text,
+    description: cleanRulesText(card.text),
     imageUrl: card.imageUrl
   };
 }

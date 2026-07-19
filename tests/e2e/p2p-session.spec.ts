@@ -188,7 +188,7 @@ test.describe('P2P session workflow', () => {
     const dialog = page.getByRole('dialog', { name: 'Диагностика соединения' });
     const cards = dialog.locator('.player-tools-peer-card');
     await expect(cards).toHaveCount(2);
-    await expect(dialog.locator('dd[aria-label="Логических peer"]')).toHaveText('2');
+    await expect(dialog.locator('dd[aria-label="Логических подключений"]')).toHaveText('2');
 
     const alphaCard = cards.nth(0);
     const betaCard = cards.nth(1);
@@ -534,20 +534,20 @@ test.describe('P2P session workflow', () => {
     await openCurrentSettings(player, 'Диагностика');
     await expect(sessionMeta(player, 'Роль')).toHaveText('player');
 
-    await expect(sessionMeta(gm, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
-    await expect(sessionMeta(player, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
+    await expect(sessionMeta(gm, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
+    await expect(sessionMeta(player, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
 
     await gm.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
     await gm.reload();
     await openCurrentSettings(gm, 'Диагностика');
     await expect(sessionMeta(gm, 'Роль')).toHaveText('gm', { timeout: 15_000 });
-    await expect(sessionMeta(gm, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
+    await expect(sessionMeta(gm, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
 
     await player.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
     await player.reload();
     await openCurrentSettings(player, 'Диагностика');
     await expect(sessionMeta(player, 'Роль')).toHaveText('player', { timeout: 15_000 });
-    await expect(sessionMeta(player, 'Логических peer')).toHaveText('1', { timeout: 15_000 });
+    await expect(sessionMeta(player, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
 
     await player.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
     await expect(player.getByLabel('Хроника игры')).toBeVisible();

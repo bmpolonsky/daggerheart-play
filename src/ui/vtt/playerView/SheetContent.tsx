@@ -75,7 +75,7 @@ export function SheetFeatureSection({
   features,
   isInteractive,
   onMacro,
-  title = 'Особенности'
+  title = 'Свойства'
 }: {
   emptyLabel?: string;
   features: SheetFeatureView[];

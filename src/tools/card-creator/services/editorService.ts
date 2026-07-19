@@ -427,7 +427,7 @@ function buildRawCustomCard(
     id,
     slug,
     source_slugs: ["custom"],
-    source_name: fields.source || "Custom",
+    source_name: fields.source || "Свой источник",
     language: "ru",
     name: fields.title || selectedCard?.name || "Без названия",
     image_url: imageUrl || selectedCard?.image || "",
@@ -447,7 +447,7 @@ function buildRawCustomCard(
       level: numberOrNull(fields.bannerText) ?? 1,
       card_type: fields.label || selectedCard?.cardType || "ability",
       domain_slug: fields.domainPrimary || fields.dataDomain || selectedCard?.domainSlug || "custom",
-      domain_name: fields.domainPrimary || fields.dataDomain || selectedCard?.domainName || "Custom",
+      domain_name: fields.domainPrimary || fields.dataDomain || selectedCard?.domainName || "Свой домен",
       domain_image_url: null,
     };
   }

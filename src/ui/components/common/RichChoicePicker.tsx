@@ -9,6 +9,7 @@ import { ListItem } from './ListItem';
 import { SearchField } from './SearchField';
 import { SectionHeader } from './SectionHeader';
 import { Surface } from './Surface';
+import { cleanMarkdownText } from '../../../core/utils/markdownText';
 import styles from './RichChoicePicker.module.css';
 
 export interface RichChoicePickerItem {
@@ -78,6 +79,7 @@ export function RichChoicePicker({
     ?? null;
   const previewEmptyOption = Boolean(emptyOptionLabel && previewId === '');
   const showPreview = preview || previewEmptyOption;
+  const previewDescription = preview?.description ? cleanMarkdownText(preview.description, { stripEmphasis: true, normalizeLineBreaks: true }) : '';
   const showItem = (id: string | null) => {
     setPreviewId(id);
     setNarrowDetailOpen(true);
@@ -156,7 +158,7 @@ export function RichChoicePicker({
                 <div className={styles.previewCopy}>
                   <strong className={styles.previewTitle}>{preview?.title ?? emptyOptionLabel}</strong>
                   {preview?.subtitle && <span className={styles.meta}>{preview.subtitle}</span>}
-                  {preview?.description && <p className={styles.description}>{preview.description}</p>}
+                {previewDescription && <p className={styles.description}>{previewDescription}</p>}
                 </div>
                 <Button
                   className={styles.choose}

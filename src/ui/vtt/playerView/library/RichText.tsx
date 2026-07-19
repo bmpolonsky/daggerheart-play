@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import type { VNode } from 'preact';
-import { stripMarkdownLinks } from '../../../../core/utils/markdownText';
+import { cleanMarkdownText, stripMarkdownLinks } from '../../../../core/utils/markdownText';
 
 export function RichText({ text }: { text: string }) {
   const blocks = richBlocks(text);
@@ -9,7 +9,7 @@ export function RichText({ text }: { text: string }) {
 }
 
 function richBlocks(text: string): VNode[] {
-  const normalized = normalizeDetailText(text);
+  const normalized = normalizeDetailText(cleanMarkdownText(text, { emphasizeLinks: true }));
   const blocks: VNode[] = [];
   let listItems: string[] = [];
 

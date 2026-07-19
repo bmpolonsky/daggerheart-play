@@ -219,7 +219,7 @@ export class EncounterService {
         ...adversary.features,
         {
           id: input?.id ?? `feature_${Date.now()}`,
-          name: input?.name ?? 'Feature',
+          name: input?.name ?? 'Свойство',
           kind: input?.kind ?? 'action',
           cost: input?.cost ?? '',
           text: input?.text ?? ''

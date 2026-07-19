@@ -264,12 +264,12 @@ export function buildCharacterBuilderChoicePreview(input: {
         subtitle: input.selectedClass.domains.map((domain) => DOMAIN_LABELS[domain as DomainName] ?? domain).join(' + '),
         body: [
           cleanRulesText(input.selectedClass.body),
-          input.selectedClass.featureText ? `Особенности\n${cleanRulesText(input.selectedClass.featureText)}` : ''
+          input.selectedClass.featureText ? `Свойства\n${cleanRulesText(input.selectedClass.featureText)}` : ''
         ].filter(Boolean).join('\n\n'),
         imageUrl: input.selectedClass.imageUrl,
         facts: [
           typeof input.selectedClass.evasion === 'number' ? `Уклонение ${input.selectedClass.evasion}` : '',
-          typeof input.selectedClass.hp === 'number' ? `HP ${input.selectedClass.hp}` : ''
+          typeof input.selectedClass.hp === 'number' ? `Раны ${input.selectedClass.hp}` : ''
         ].filter(Boolean)
       } : null;
     case 'ancestry':
@@ -404,7 +404,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   const requiredDomainCards = startingDomainCardCount(ruleModifiers);
 
   if (input.subclassId && !subclass) {
-    warnings.push(`Subclass ${input.subclassId} is not valid for ${className}.`);
+    warnings.push(`Подкласс ${input.subclassId} недоступен для класса ${CLASS_LABELS[className]}.`);
   }
 
   const availableDomainCards = content.domainCards
@@ -425,7 +425,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   });
   warnings.push(...equipment.warnings);
   if (!spellcastTrait && equipment.weapons.some((weapon) => weapon.damageType === 'magic')) {
-    warnings.push('Выбрано магическое оружие, но у класса не определена характеристика заклинаний. Проверьте доступность вручную.');
+    warnings.push('Выбрано магическое оружие, но у класса не определена характеристика заклинателя. Проверьте доступность вручную.');
   }
 
   const domainCards = selectedDomainCards.map((card) => domainCardFromLibrary(card, true));
@@ -687,7 +687,7 @@ function selectDomainCards(available: GenericLibraryItem[], selectedIds: string[
 
   for (const id of selectedIds) {
     if (selected.length >= limit) {
-      warnings.push(`Only the first ${limit} valid domain cards are included.`);
+      warnings.push(`Учтены только первые ${limit} допустимые карты домена.`);
       break;
     }
     if (seen.has(id)) continue;
@@ -695,7 +695,7 @@ function selectDomainCards(available: GenericLibraryItem[], selectedIds: string[
 
     const card = available.find((item) => item.id === id);
     if (!card) {
-      warnings.push(`Domain card ${id} is not a valid level 1 card for the selected class.`);
+      warnings.push(`Карта домена ${id} недоступна выбранному классу на 1 уровне.`);
       continue;
     }
     selected.push(card);

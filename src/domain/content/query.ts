@@ -63,15 +63,20 @@ function filterLimit<T>(items: T[], query: string, searchText: (item: T) => stri
 }
 
 function adversarySearchText(item: LibraryAdversary): string {
-  return [item.name, item.roleName, item.summary, item.motives, item.experiencesText].join(' ');
+  return [item.name, item.roleName, item.summary, item.motives, item.experiencesText, rawFeaturesText(item.raw.features)].join(' ');
 }
 
 function classSearchText(item: LibraryClassItem): string {
-  return [item.name, item.domains.join(' '), item.body].join(' ');
+  return [item.name, item.domains.join(' '), item.body, rawFeaturesText(item.raw.features)].join(' ');
 }
 
 function genericSearchText(item: GenericLibraryItem): string {
-  return [item.name, item.subtitle, item.body].join(' ');
+  return [item.name, item.subtitle, item.body, rawFeaturesText([
+    ...(item.raw.features ?? []),
+    ...(item.raw.foundation_features ?? []),
+    ...(item.raw.specialization_features ?? []),
+    ...(item.raw.mastery_features ?? [])
+  ])].join(' ');
 }
 
 function equipmentSearchText(item: LibraryEquipmentItem): string {
@@ -92,4 +97,9 @@ function beastformSearchText(item: LibraryBeastform): string {
 
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function rawFeaturesText(features: Array<{ name?: unknown; main_body?: unknown; text?: unknown }> | undefined): string {
+  if (!Array.isArray(features)) return '';
+  return features.map((feature) => [feature.name, feature.main_body ?? feature.text].filter((value) => typeof value === 'string').join(' ')).join(' ');
 }

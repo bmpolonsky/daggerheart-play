@@ -25,7 +25,7 @@ export interface FormulaRollResult {
 export function parseDiceFormula(input: string): ParsedFormulaTerm[] {
   const normalized = input.replace(/\s+/g, '').toLowerCase();
   if (!normalized) {
-    throw new Error('Formula is empty. Use values like 1d8+2 or 2d6+1d4+3.');
+    throw new Error('Формула пуста. Укажите, например, 1d8+2 или 2d6+1d4+3.');
   }
 
   const expression = /^[+-]/.test(normalized) ? normalized : `+${normalized}`;
@@ -46,13 +46,13 @@ export function parseDiceFormula(input: string): ParsedFormulaTerm[] {
     }
     const value = Number(match[4]);
     if (!Number.isFinite(value)) {
-      throw new Error(`Invalid flat value in formula: ${match[0]}`);
+      throw new Error(`Некорректное число в формуле: ${match[0]}`);
     }
     terms.push({ kind: 'flat', sign, value });
   }
 
   if (consumed !== expression || terms.length === 0) {
-    throw new Error(`Invalid dice formula: ${input}`);
+    throw new Error(`Некорректная формула броска: ${input}`);
   }
 
   return terms;
@@ -138,7 +138,7 @@ export function describeFormulaRoll(terms: FormulaTermRoll[]): string {
 
 export function rollDie(sides: number, rng = Math.random): number {
   if (!Number.isInteger(sides) || sides <= 0) {
-    throw new Error(`Invalid die sides: ${sides}`);
+    throw new Error(`Некорректное число граней кости: ${sides}`);
   }
   return Math.floor(rng() * sides) + 1;
 }
@@ -152,9 +152,9 @@ export function normalizeDamageType(value: string): DamageType {
 
 function validateDice(count: number, sides: number): void {
   if (!Number.isInteger(count) || count < 0 || count > 100) {
-    throw new Error(`Invalid dice count: ${count}`);
+    throw new Error(`Некорректное количество костей: ${count}`);
   }
   if (!Number.isInteger(sides) || sides < 2 || sides > 1000) {
-    throw new Error(`Invalid die sides: ${sides}`);
+    throw new Error(`Некорректное число граней кости: ${sides}`);
   }
 }

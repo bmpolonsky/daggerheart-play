@@ -596,7 +596,7 @@ function validateMulticlassFeatures(
 ): void {
   if (!choices.includes('multiclass')) {
     if ((input.multiclassClassCards ?? []).length > 0) {
-      addIssue(issues, 'multiclass.featuresRequired', 'Особенности другого класса можно добавить только через мультикласс.');
+      addIssue(issues, 'multiclass.featuresRequired', 'Свойства другого класса можно добавить только через мультикласс.');
     }
     return;
   }

@@ -1,4 +1,5 @@
 import { TRAIT_LABELS } from '../rules/constants';
+import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { hasRolledDiceTerms } from '../rules/diceFormula';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import type { ActionRollOutcome, Countdown, GameHandout, Character, DeathMoveFeedRequest, DiceVisualTone, DomainCardRecord, FeedActorReference, FeedEntry, FormulaTermRoll, ManualDiceRollEntry, ModifierPart, RestFeedRequest, RollLogEntry, RollPublication, TeamworkRollRequest, TraitId } from '../rules/types';
@@ -247,16 +248,21 @@ export function buildCharacterFeaturePreviewFeedItem(input: {
   feature: TableFeedFeaturePreview;
   actor?: FeedActorReference;
 }): TableFeedItem {
+  const feature = {
+    ...input.feature,
+    subtitle: input.feature.subtitle ? cleanMarkdownText(input.feature.subtitle, { emphasizeLinks: true }) : input.feature.subtitle,
+    text: cleanMarkdownText(input.feature.text, { emphasizeLinks: true })
+  };
   return {
     id: input.id,
     kind: 'feature',
     createdAt: input.createdAt,
     authorName: input.authorName.trim() || 'Игра',
-    kicker: input.feature.sourceLabel ?? 'Особенность',
-    title: input.feature.name,
-    body: input.feature.text || input.feature.subtitle || `${input.feature.name}: описание не заполнено.`,
+    kicker: feature.sourceLabel ?? 'Особенность',
+    title: feature.name,
+    body: feature.text || feature.subtitle || `${feature.name}: описание не заполнено.`,
     tone: 'hope',
-    feature: input.feature,
+    feature,
     actor: input.actor,
     publication: 'private',
     ephemeral: true

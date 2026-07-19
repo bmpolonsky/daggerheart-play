@@ -21,6 +21,7 @@ import type {
   RawRuleItem
 } from './types';
 import { createAdversary, createEncounterEnvironment } from '../rules/factories';
+import { rangeLabel } from '../rules/constants';
 import { createId } from '../../core/utils/id';
 
 const ADVERSARY_TYPES: AdversaryType[] = [
@@ -73,7 +74,11 @@ function asString(input: unknown, fallback = ''): string {
 }
 
 function cleanImportedRulesText(input: unknown, fallback = ''): string {
-  return cleanMarkdownText(asString(input, fallback), { emphasizeLinks: true, stripCodeTicks: true });
+  const text = asString(input, fallback)
+    // "карта домена" is a common noun in Russian rules prose, not a title.
+    // The source has both spellings; normalise it at the import boundary.
+    .replace(/(карт(?:а|ы|е|у|ой|ою|ами|ах)?)\s+домена/gi, (_match, card: string) => `${card} домена`);
+  return cleanMarkdownText(text, { emphasizeLinks: true, stripCodeTicks: true });
 }
 
 function asNumber(input: unknown, fallback = 0): number {
@@ -125,16 +130,6 @@ const TRAIT_BY_SLUG: Record<string, TraitId> = {
   instinct: 'instinct',
   presence: 'presence',
   knowledge: 'knowledge'
-};
-
-const RANGE_LABELS: Record<string, string> = {
-  melee: 'Вплотную',
-  veryclose: 'Близко',
-  'very-close': 'Близко',
-  close: 'Средне',
-  far: 'Далеко',
-  veryfar: 'Очень далеко',
-  'very-far': 'Очень далеко'
 };
 
 const CLASS_BY_SLUG: Record<string, DaggerheartClass> = {
@@ -210,7 +205,7 @@ function parseExperienceText(input: string) {
 }
 
 function mapFeature(feature: RawAdversaryFeature): AdversaryFeature {
-  const name = asString(feature.name, 'Feature');
+  const name = asString(feature.name, 'Свойство');
   const text = cleanImportedRulesText(feature.main_body ?? feature.text);
   const lower = `${name} ${text}`.toLowerCase();
   const explicitCost = inferExplicitAdversaryFeatureCost(lower);
@@ -247,6 +242,7 @@ export function mapRawAdversary(raw: RawAdversary): LibraryAdversary {
     damageType: coerceDamageType(raw.damage_type),
     attackRange: coerceRange(raw.attack_range) || 'Вплотную',
     weaponName: asString(raw.weapon_name, 'Обычная атака'),
+    hordePerHp: raw.horde_per_hp === null || raw.horde_per_hp === undefined ? null : Math.max(1, asNumber(raw.horde_per_hp, 1)),
     summary: cleanImportedRulesText(raw.short_description),
     motives: cleanImportedRulesText(raw.motives),
     experiencesText: cleanImportedRulesText(raw.experiences),
@@ -282,6 +278,7 @@ export function createAdversaryFromLibrary(item: LibraryAdversary): Adversary {
       damageFormula: item.damageFormula,
       damageType: item.damageType
     },
+    hordePerHp: item.hordePerHp,
     experiences: experiences.length ? experiences : [],
     features,
     notes: ''
@@ -325,6 +322,7 @@ export function mapRawEquipmentItem(raw: RawEquipmentItem): LibraryEquipmentItem
     typeName: asString(raw.type_name, type),
     tier,
     trait: coerceTrait(raw.char_trait),
+    usesSpellcastTrait: asString(raw.char_trait).trim().toLowerCase() === 'spellcast',
     range: coerceRange(raw.range),
     damageType: coerceDamageType(raw.damage_ty),
     damageFormula: buildEquipmentDamageFormula(raw),
@@ -355,9 +353,9 @@ export function mapRawClassItem(raw: RawClassItem): LibraryClassItem {
     domainSlugs,
     evasion: Math.max(0, asNumber(raw.evasion, 10)),
     hp: Math.max(1, asNumber(raw.hp, 6)),
-    classItems: Array.isArray(raw.class_items) ? raw.class_items.map((item) => asString(item)).filter(Boolean) : [],
-    backgroundQuestions: Array.isArray(raw.background_questions) ? raw.background_questions.map((item) => asString(item)).filter(Boolean) : [],
-    connectionQuestions: Array.isArray(raw.connection_questions) ? raw.connection_questions.map((item) => asString(item)).filter(Boolean) : [],
+    classItems: Array.isArray(raw.class_items) ? raw.class_items.map((item) => cleanImportedRulesText(item)).filter(Boolean) : [],
+    backgroundQuestions: Array.isArray(raw.background_questions) ? raw.background_questions.map((item) => cleanImportedRulesText(item)).filter(Boolean) : [],
+    connectionQuestions: Array.isArray(raw.connection_questions) ? raw.connection_questions.map((item) => cleanImportedRulesText(item)).filter(Boolean) : [],
     body: combinedContentBody(raw.short_description, raw.description, raw.post_description),
     imageUrl: assetPath(raw.image_url),
     raw
@@ -367,12 +365,12 @@ export function mapRawClassItem(raw: RawClassItem): LibraryClassItem {
 export function mapRawRuleItem(raw: RawRuleItem): LibraryRuleEntry {
   const name = asString(raw.name, 'Без названия');
   const slug = asString(raw.slug, slugify(name));
-  const body = asString(raw.main_body);
+  const body = cleanImportedRulesText(raw.main_body);
   return {
     id: `rule:${slug}`,
     slug,
     name,
-    summary: asString(raw.description, body.slice(0, 220)),
+    summary: cleanImportedRulesText(raw.description, body.slice(0, 220)),
     body,
     frameSlug: asString(raw.frame_slug) || null,
     frameName: asString(raw.frame_name) || null,
@@ -393,11 +391,11 @@ export function mapRawEnvironmentItem(raw: RawEnvironmentItem): LibraryEnvironme
     difficulty: Math.max(0, asNumber(raw.difficulty, 0)),
     type: asString(raw.type_slug, 'environment'),
     typeName: asString(raw.type_name, 'Окружение'),
-    summary: asString(raw.short_description),
-    body: asString(raw.main_body),
+    summary: cleanImportedRulesText(raw.short_description),
+    body: cleanImportedRulesText(raw.main_body),
     featureText: buildEnvironmentFeatureText(raw.features),
-    impulses: asString(raw.impulses),
-    potentialAdversaries: asString(raw.potential_adversaries),
+    impulses: cleanImportedRulesText(raw.impulses),
+    potentialAdversaries: cleanImportedRulesText(raw.potential_adversaries),
     imageUrl: assetPath(raw.image_url),
     raw
   };
@@ -423,9 +421,9 @@ export function mapRawBeastformItem(raw: RawBeastformItem): LibraryBeastform {
     attackRange: coerceRange(raw.attack_range),
     traitType: coerceTrait(raw.trait_type),
     traitBonus: asNumber(raw.trait_bonus, 0),
-    summary: asString(raw.short_description),
-    examples: asString(raw.examples),
-    advantages: asString(raw.advantages),
+    summary: cleanImportedRulesText(raw.short_description),
+    examples: cleanImportedRulesText(raw.examples),
+    advantages: cleanImportedRulesText(raw.advantages),
     featureText: buildEnvironmentFeatureText(raw.features),
     raw
   };
@@ -440,8 +438,8 @@ function buildEnvironmentFeatureText(features: RawAdversaryFeature[] | undefined
   if (!Array.isArray(features)) return '';
   return features
     .map((feature) => {
-      const title = asString(feature.name);
-      const body = asString(feature.main_body ?? feature.text);
+      const title = cleanImportedRulesText(feature.name);
+      const body = cleanImportedRulesText(feature.main_body ?? feature.text);
       if (!title) return body;
       if (!body) return `### ${title}`;
       return `### ${title}\n${body}`;
@@ -456,8 +454,7 @@ function coerceTrait(input: unknown): TraitId | null {
 }
 
 function coerceRange(input: unknown): string {
-  const value = asString(input).toLowerCase().replace(/[_\s-]/g, '');
-  return RANGE_LABELS[value] ?? asString(input);
+  return rangeLabel(asString(input));
 }
 
 function coerceBurden(input: unknown): LibraryEquipmentItem['burden'] {
@@ -485,7 +482,7 @@ function buildEquipmentDamageFormula(raw: RawEquipmentItem): string {
 function buildEquipmentFeatureText(features: RawEquipmentFeature[] | undefined, fallback: unknown): string {
   if (Array.isArray(features) && features.length > 0) {
     return features
-      .map((feature) => [asString(feature.name), asString(feature.main_body ?? feature.text)].filter(Boolean).join(': '))
+      .map((feature) => [cleanImportedRulesText(feature.name), cleanImportedRulesText(feature.main_body ?? feature.text)].filter(Boolean).join(': '))
       .filter(Boolean)
       .join('\n');
   }
@@ -496,11 +493,16 @@ function equipmentFeatureFromBody(body: string): string {
   if (!body) return '';
   const normalized = body.replace(/\r\n/g, '\n').trim();
   const featureMatch = normalized.match(/(?:^|\n)\s*\*\*(?:Feature|Особенность|Свойство):\*\*\s*([\s\S]*)$/i);
-  if (!featureMatch) return normalized;
+  if (!featureMatch) {
+    // The API occasionally sends only an English stat block here. Its values
+    // already have dedicated fields in the library, so it is not a feature.
+    if (/^\s*\*\*(?:Trait|Характеристика):\*\*/i.test(normalized)) return '';
+    return cleanImportedRulesText(normalized);
+  }
 
   const featureText = featureMatch[1].trim();
   const readableFeature = cleanMarkdownText(featureText, { stripEmphasis: true }).trim();
-  return /^[-—–]+$/.test(readableFeature) ? '' : featureText;
+  return /^[-—–]+$/.test(readableFeature) ? '' : cleanImportedRulesText(featureText);
 }
 
 export function mapGenericItem(raw: RawContentItem, prefix: string): GenericLibraryItem {
@@ -528,7 +530,7 @@ export function mapGenericItem(raw: RawContentItem, prefix: string): GenericLibr
 
 function combinedContentBody(...values: unknown[]): string {
   const parts = values
-    .map((value) => asString(value).trim())
+    .map((value) => cleanImportedRulesText(value).trim())
     .filter(Boolean)
     .filter((value, index, all) => all.indexOf(value) === index);
   return parts.join('\n\n');

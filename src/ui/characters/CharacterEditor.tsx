@@ -19,6 +19,7 @@ import { WizardStepButton } from '../components/common/WizardStepButton';
 import { CLASS_DOMAINS, CLASS_LABELS, DAGGERHEART_CLASSES, DOMAIN_LABELS, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
 import {
+  cleanRulesText,
   classDefinitionFor,
   classDomainsFor,
   classFeatureListText,
@@ -299,7 +300,7 @@ function CharacterStatsSummary({ character }: { character: Character }) {
       <ListItem title="Уклонение" value={character.evasion} />
       <ListItem title="Мастерство" value={character.proficiency} />
       <ListItem title="Пороги урона" value={`${character.thresholds.major} / ${character.thresholds.severe}`} />
-      <ListItem title="Броня" subtitle={character.armor.feature || character.armor.featureText || undefined} value={`${character.armor.score}`} />
+      <ListItem title="Броня" subtitle={cleanRulesText(character.armor.feature || character.armor.featureText || '') || undefined} value={`${character.armor.score}`} />
     </section>
   );
 }
@@ -326,7 +327,7 @@ function CharacterLoadoutSummary({ character }: { character: Character }) {
       ))}
       <SectionHeader title="Инвентарь" />
       {character.inventory.map((item) => (
-        <ListItem key={item.id} title={item.name} subtitle={item.text} value={item.quantity} />
+        <ListItem key={item.id} title={item.name} subtitle={cleanRulesText(item.text ?? '') || undefined} value={item.quantity} />
       ))}
     </section>
   );
@@ -449,7 +450,7 @@ function LevelUpPanel({
         id: `sheet-subclass-${selectedSubclass?.slug ?? character.id}-${nextSubclassTier}-${feature.id ?? index}`,
         kind: 'subclassFeature',
         name: String(feature.name ?? 'Особенность подкласса'),
-        text: String(feature.main_body ?? feature.text ?? ''),
+        text: cleanRulesText(String(feature.main_body ?? feature.text ?? '')),
         sourceId: selectedSubclass?.sourceId ?? selectedSubclass?.id,
         subclassTier: nextSubclassTier
       }))
@@ -777,7 +778,7 @@ function LevelUpPanel({
                         id: card.id,
                         title: card.name,
                         subtitle: `${DOMAIN_LABELS[card.domain] ?? card.domain} — уровень ${card.level}`,
-                        description: card.text,
+                        description: cleanRulesText(card.text),
                         imageUrl: card.imageUrl
                       }))}
                       onChange={(itemId) => {
@@ -832,7 +833,7 @@ function LevelUpPanel({
                     <ListItem title="Мультикласс" value={`${CLASS_LABELS[multiclassClass as DaggerheartClass]} — ${selectedMulticlassSubclass.name}`} />
                   )}
                   {isMulticlass && multiclassClassCards.length > 0 && (
-                    <ListItem title="Особенности класса" subtitle={multiclassClassCards.map((card) => card.name).join(' — ')} />
+                    <ListItem title="Свойства класса" subtitle={multiclassClassCards.map((card) => card.name).join(' — ')} />
                   )}
                   {(multiclassFoundationCards.length > 0 || subclassUpgradeCards.length > 0) && (
                     <ListItem title="Карта подкласса" subtitle={[...multiclassFoundationCards, ...subclassUpgradeCards].map((card) => card.name).join(' — ')} />
@@ -921,7 +922,7 @@ function domainCardPickerItem(item: GenericLibraryItem): RichChoicePickerItem {
     id: item.id,
     title: item.name,
     subtitle: `${DOMAIN_LABELS[card.domain] ?? card.domain} — уровень ${card.level}`,
-    description: card.text || item.body,
+    description: cleanRulesText(card.text || item.body),
     imageUrl: item.imageUrl
   };
 }

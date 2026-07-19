@@ -132,7 +132,7 @@ test('resolveRestMove rolls and applies selected short rest recovery once', () =
     participants: [{
       actorId: character.id,
       actorName: character.name,
-      choices: [{ id: 'heal', label: 'Исцелить HP: 1d4 + ранг' }]
+      choices: [{ id: 'heal', label: 'Залечить Раны' }]
     }]
   });
 

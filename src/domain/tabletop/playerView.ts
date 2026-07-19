@@ -5,7 +5,7 @@ import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTe
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
 import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId, CharacterWealth } from '../rules/types';
-import { RANGE_LABELS, TRAIT_LABELS, classLabel, domainLabel } from '../rules/constants';
+import { TRAIT_LABELS, adversaryTypeLabel, classLabel, domainLabel, rangeLabel } from '../rules/constants';
 import { normalizeStatusTag } from '../rules/statuses';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
 import { canViewFeedEntry, latestVisibleRollLogEntry } from './rollPublication';
@@ -94,6 +94,7 @@ export interface PlayerViewAdversarySummary {
   hp: { marked: number; max: number };
   stress: { marked: number; max: number };
   standardAttack: { name: string; range: string; damage: string; damageType: string };
+  hordePerHp: number | null;
   experiences: Array<{ id: string; name: string; modifier: number }>;
   features: Array<{ id: string; name: string; kind: string; cost: string; text: string }>;
   conditions: Array<{ id: string; name: string; notes: string }>;
@@ -346,27 +347,6 @@ function adversarySubtitle(adversary: Pick<Adversary, 'tier' | 'type'>): string 
   return `Ранг ${adversary.tier} / ${adversaryTypeLabel(adversary.type)}`;
 }
 
-export function adversaryTypeLabel(type: Adversary['type']): string {
-  const labels: Record<Adversary['type'], string> = {
-    Bruiser: 'Громила',
-    Horde: 'Орда',
-    Leader: 'Лидер',
-    Minion: 'Приспешник',
-    Ranged: 'Дальнобойный',
-    Skulk: 'Скрытный',
-    Social: 'Социальный',
-    Solo: 'Одиночка',
-    Standard: 'Обычный',
-    Support: 'Поддержка',
-    Custom: 'Свой тип'
-  };
-  return labels[type] ?? type;
-}
-
-function rangeLabel(range: string): string {
-  return RANGE_LABELS[range] ?? range;
-}
-
 function beastformAttackSummary(form: CharacterBeastformState): PlayerViewCharacterSummary['weapons'][number] {
   return {
     id: `beastform:${form.slug}:attack`,
@@ -392,7 +372,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       level: card.level,
       cost: card.cost?.trim() ?? '',
       recallCost: card.recallCost?.trim() ?? '',
-      text: card.text,
+      text: cleanMarkdownText(card.text, { emphasizeLinks: true }),
       imageUrl: card.imageUrl ?? '',
       inHand: Boolean(card.inLoadout) && !card.permanentlyVaulted,
       permanentlyVaulted: Boolean(card.permanentlyVaulted),
@@ -422,7 +402,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       name: character.armor.name,
       score: character.armor.score,
       marked: character.armor.markedSlots,
-      feature: character.armor.feature?.trim() ?? ''
+      feature: cleanMarkdownText(character.armor.feature?.trim() ?? '', { emphasizeLinks: true })
     },
     activeBeastform: character.activeBeastform ? { ...character.activeBeastform } : null,
     rangerMark: character.rangerMark ? { ...character.rangerMark } : null,
@@ -457,10 +437,11 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
         id: card.id,
         name: card.name,
         subtitle: characterSheetCardSubtitle(card),
-        text: card.text ?? ''
+        text: cleanMarkdownText(card.text ?? '', { emphasizeLinks: true })
       })),
     inventory: character.inventory.map((item) => ({
       ...item,
+      text: cleanMarkdownText(item.text ?? '', { emphasizeLinks: true }),
       uses: item.uses ? { ...item.uses } : undefined
     })),
     wealth: { ...character.wealth },
@@ -502,6 +483,7 @@ export function buildAdversarySummary(adversary: Adversary): PlayerViewAdversary
       damage: adversary.standardAttack.damageFormula,
       damageType: adversary.standardAttack.damageType
     },
+    hordePerHp: adversary.hordePerHp ?? null,
     experiences: adversary.experiences.map((experience) => ({
       id: experience.id,
       name: experience.name,

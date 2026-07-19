@@ -7,7 +7,7 @@ import type { PlayerViewModel, PlayerViewToken } from '../../../domain/tabletop/
 import { defaultCharacterPortraitUrl } from '../../../domain/tabletop/defaultArt';
 import { inferBasePathFromWorkspacePath } from '../../../domain/p2p/sessionLinks';
 import { publicAssetUrl } from '../../../domain/content/publicAssets';
-import { classLabel } from '../../../domain/rules/constants';
+import { adversaryTypeLabel, classLabel } from '../../../domain/rules/constants';
 import { appBasePath } from '../../../app/routing';
 import { buildEffectiveCharacterStats } from '../../../domain/rules/effects';
 import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
@@ -59,7 +59,7 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
         actorId: adversary.id,
         kind: 'adversary',
         name: adversary.name,
-        subtitle: `Ранг ${adversary.tier} / ${adversary.type}`,
+        subtitle: `Ранг ${adversary.tier} / ${adversaryTypeLabel(adversary.type)}`,
         imageUrl: adversary.imageUrl ?? '',
         isOnScene: placed.has(key),
         hidden: false

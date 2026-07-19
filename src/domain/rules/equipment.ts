@@ -129,11 +129,11 @@ export function buildStartingEquipmentLoadout(input: StartingEquipmentInput): St
   const secondaryWeapon = primaryWeapon?.burden === 'one-handed' ? requestedSecondary : null;
   const consumable = selectByIdOrSlug(catalog.consumables, input.consumableId) ?? catalog.consumables[0] ?? null;
 
-  if (!armorOption) warnings.push('No tier 1 armor loaded from /api/equipment.');
-  if (!primaryWeapon) warnings.push('No tier 1 primary weapon loaded from /api/equipment.');
-  if (input.armorId && armorOption && !matchesIdOrSlug(armorOption, input.armorId)) warnings.push(`Armor ${input.armorId} is not available at character creation.`);
-  if (input.primaryWeaponId && primaryWeapon && !matchesIdOrSlug(primaryWeapon, input.primaryWeaponId)) warnings.push(`Primary weapon ${input.primaryWeaponId} is not available at character creation.`);
-  if (input.secondaryWeaponId && requestedSecondary && !matchesIdOrSlug(requestedSecondary, input.secondaryWeaponId)) warnings.push(`Secondary weapon ${input.secondaryWeaponId} is not available at character creation.`);
+  if (!armorOption) warnings.push('Не удалось загрузить стартовую броню 1 ранга.');
+  if (!primaryWeapon) warnings.push('Не удалось загрузить стартовое основное оружие 1 ранга.');
+  if (input.armorId && armorOption && !matchesIdOrSlug(armorOption, input.armorId)) warnings.push(`Броня ${input.armorId} недоступна при создании персонажа.`);
+  if (input.primaryWeaponId && primaryWeapon && !matchesIdOrSlug(primaryWeapon, input.primaryWeaponId)) warnings.push(`Основное оружие ${input.primaryWeaponId} недоступно при создании персонажа.`);
+  if (input.secondaryWeaponId && requestedSecondary && !matchesIdOrSlug(requestedSecondary, input.secondaryWeaponId)) warnings.push(`Второе оружие ${input.secondaryWeaponId} недоступно при создании персонажа.`);
   if (input.secondaryWeaponId && primaryWeapon?.burden === 'two-handed') warnings.push(`${primaryWeapon.name} занимает обе руки, второе оружие не добавлено.`);
 
   const safeArmor = armorOption ?? emptyArmorOption();

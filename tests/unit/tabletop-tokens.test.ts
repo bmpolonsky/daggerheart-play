@@ -19,7 +19,7 @@ test('tabletop range measurement uses world coordinates and Daggerheart range ba
     48
   );
   assert.equal(range?.cells, 3);
-  assert.equal(range?.category, 'Близко');
+  assert.equal(range?.category, 'Близкая');
 });
 
 test('createTokenState defaults tokens inside safe tactical placement columns', () => {

@@ -1,6 +1,7 @@
 import { createAdversary } from '../rules/factories';
 import type { Adversary, AdversaryFeature, AdversaryType, DamageType, EncounterState } from '../rules/types';
 import { battlePointsForAdversaryType, inferExplicitAdversaryFeatureCost } from '../rules/adversaries';
+import { adversaryTypeLabel } from '../rules/constants';
 
 export interface CombatBuilderFeature {
   id: number | string;
@@ -168,7 +169,7 @@ function mapCoreAdversary(adversary: Adversary): CombatBuilderAdversary {
     slug: adversary.sourceSlug ?? adversary.id,
     tier: adversary.tier,
     roleId: ROLE_BY_TYPE[adversary.type] ?? 'standard',
-    roleName: adversary.type,
+    roleName: adversaryTypeLabel(adversary.type),
     name: adversary.sourceName?.trim() || adversary.name,
     summary: text(adversary.summary),
     image: text(adversary.imageUrl) || null,
@@ -254,7 +255,7 @@ function normalizeInstances(entry: CombatBuilderEncounterEntry, count: number): 
 }
 
 function mapFeature(feature: CombatBuilderFeature): AdversaryFeature {
-  const name = feature.name?.trim() || 'Feature';
+  const name = feature.name?.trim() || 'Свойство';
   const text = feature.text?.trim() || '';
   const lower = `${name} ${text}`.toLowerCase();
   const explicitCost = inferExplicitAdversaryFeatureCost(lower);

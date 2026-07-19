@@ -274,7 +274,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         <div><dt>Режим</dt><dd aria-label="Режим">{P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
         <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
         <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
-        <div><dt>Логических peer</dt><dd aria-label="Логических peer">{p2pPeers.length}</dd></div>
+        <div><dt>Логических подключений</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
         <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
       </dl>
       <div className="player-tools-peer-list" aria-label="Маршруты соединений">
@@ -294,7 +294,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           </Card>
         ))}
         {visibleRoutePeers.length === 0 && (
-          <Card className="player-tools-peer-card player-tools-peer-card--empty" title="Нет подключений" subtitle="Транспорты готовы к новому peer">
+          <Card className="player-tools-peer-card player-tools-peer-card--empty" title="Нет подключений" subtitle="Каналы связи готовы к новому подключению">
             <div className="player-tools-peer-routes">
               {P2P_ROUTE_COLUMNS.map((strategy) => (
                 <TransportRouteStatus key={strategy} route={p2pRoutes.find((item) => item.strategy === strategy)} strategy={strategy} />
@@ -384,7 +384,7 @@ function TransportRouteStatus({ route, strategy }: { route?: P2PTransportRouteDi
 function peerRouteDetail(route: P2PTransportPeerRouteDiagnostic): string {
   if (route.error) return route.error;
   const parts: string[] = [];
-  if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} ms`);
+  if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} мс`);
   if (route.physicalPeerId) parts.push(shortPeerId(route.physicalPeerId));
   return parts.join(' — ');
 }
@@ -392,8 +392,8 @@ function peerRouteDetail(route: P2PTransportPeerRouteDiagnostic): string {
 function transportRouteDetail(route: P2PTransportRouteDiagnostic): string {
   if (route.error) return route.error;
   const parts: string[] = [];
-  if (route.activePeers.length > 0) parts.push(`${route.activePeers.length} peer`);
-  if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} ms`);
+  if (route.activePeers.length > 0) parts.push(`${route.activePeers.length} подключ.`);
+  if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} мс`);
   return parts.join(' — ');
 }
 
@@ -418,8 +418,8 @@ function formatRouteDiagnosticTitle(route?: P2PTransportRouteDiagnostic): string
   if (!route) return 'Маршрут не найден';
   const parts = [
     `Статус: ${formatRouteStatus(route.status)}`,
-    `Активных peer: ${route.activePeers.length}`,
-    route.rttMs !== null ? `Пинг: ${Math.round(route.rttMs)} ms` : 'Пинг: нет',
+    `Активных подключений: ${route.activePeers.length}`,
+    route.rttMs !== null ? `Пинг: ${Math.round(route.rttMs)} мс` : 'Пинг: нет',
     route.lastSeenAt ? `Последний сигнал: ${new Date(route.lastSeenAt).toLocaleTimeString()}` : 'Последний сигнал: нет'
   ];
   if (route.error) parts.push(`Ошибка: ${route.error}`);
@@ -430,8 +430,8 @@ function formatPeerRouteTitle(route?: P2PTransportPeerRouteDiagnostic): string {
   if (!route) return 'Маршрут не найден';
   const parts = [
     `Статус: ${formatPeerRouteStatus(route.status)}`,
-    route.physicalPeerId ? `Физический peer: ${route.physicalPeerId}` : 'Физический peer: нет',
-    route.rttMs !== null ? `Пинг: ${Math.round(route.rttMs)} ms` : 'Пинг: нет',
+    route.physicalPeerId ? `Физическое подключение: ${route.physicalPeerId}` : 'Физическое подключение: нет',
+    route.rttMs !== null ? `Пинг: ${Math.round(route.rttMs)} мс` : 'Пинг: нет',
     route.lastSeenAt ? `Последний сигнал: ${new Date(route.lastSeenAt).toLocaleTimeString()}` : 'Последний сигнал: нет'
   ];
   if (route.error) parts.push(`Ошибка: ${route.error}`);

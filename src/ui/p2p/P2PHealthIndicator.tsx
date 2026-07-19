@@ -108,7 +108,7 @@ export function buildP2PHealthSummary(session: P2PSessionState): P2PHealthSummar
   }
 
   const pingMs = activePingMs(session.routePeers, session.peers);
-  const pingText = pingMs === null ? '' : `${Math.round(pingMs)} ms`;
+  const pingText = pingMs === null ? '' : `${Math.round(pingMs)} мс`;
 
   if (session.status === 'degraded') {
     return {

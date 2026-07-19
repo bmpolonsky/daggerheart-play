@@ -132,17 +132,15 @@ test.describe('filled-game player character workflows', () => {
       await expect(hand).toContainText('5/5');
 
       const previewRow = cardRow(hand, 'Заклинание 1');
-      const thumbBox = await previewRow.locator('.player-domain-card-thumb').boundingBox();
-      const previewBox = await previewRow.boundingBox();
-      expect(thumbBox).not.toBeNull();
-      expect(previewBox).not.toBeNull();
+      await expect(previewRow.locator('.player-domain-card-thumb')).toBeVisible();
       const previewHitTarget = previewRow.getByRole('button', { name: 'Заклинание 1', exact: true });
-      await previewHitTarget.click({ position: {
-        x: thumbBox!.x - previewBox!.x + thumbBox!.width / 2,
-        y: thumbBox!.y - previewBox!.y + thumbBox!.height / 2
-      } });
+      // The thumbnail starts after the row's 12px padding and is deliberately
+      // pointer-transparent, so this is a real click through the image into
+      // the row-wide hit target. Relative coordinates stay correct if WebKit
+      // completes a late layout pass between asserting and clicking.
+      await previewHitTarget.click({ position: { x: 30, y: 30 } });
       await expect(player.locator('.feed-domain-card').filter({ hasText: 'Заклинание 1' })).toBeVisible();
-      await previewHitTarget.click({ position: { x: 3, y: previewBox!.height - 3 } });
+      await previewHitTarget.click({ position: { x: 3, y: 3 } });
       await expect(player.locator('.feed-domain-card').filter({ hasText: 'Заклинание 1' })).toBeVisible();
 
       const pendingAcquisition = cardRow(vault, 'Заклинание 7');

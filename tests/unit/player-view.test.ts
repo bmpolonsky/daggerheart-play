@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildPresentedHandoutOverlay, selectPresentedHandout } from "../../src/domain/rules/handouts";
 import { createGameHandout, createGameState, createInventoryItem } from "../../src/domain/rules/factories";
 import { ActorStatus } from "../../src/domain/rules/statuses";
-import { buildPlayerViewModel } from "../../src/domain/tabletop/playerView";
+import { buildCharacterSummary, buildPlayerViewModel } from "../../src/domain/tabletop/playerView";
 import { defaultCharacterPortraitUrl, defaultSceneImageUrl } from "../../src/domain/tabletop/defaultArt";
 import { createMapAsset, createTableScene, createTokenState } from "../../src/domain/tabletop/factories";
 import { resetAllStores, charactersStore, sceneTableStore } from "../../src/stores/gameStores";
@@ -53,6 +53,36 @@ test('handout presentation selector exposes only player-visible live handouts', 
 
   game.presentedHandoutId = 'missing';
   assert.equal(buildPresentedHandoutOverlay(game), null);
+});
+
+test('character summaries clean legacy Markdown before sheet, preview, or inventory rendering', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  character.armor.feature = 'Очень тяжёлое: −2 к [Уклонению](/rule/evasion)';
+  character.inventory = [createInventoryItem({ name: 'Зелье', text: 'Излечите 1d4 [Ран](/rule/hit-points). ![](https://example.test/art.png)' })];
+  character.domainCards = [{
+    id: 'clean-card',
+    name: 'Свет',
+    domain: 'Splendor',
+    level: 1,
+    text: 'Дайте [Надежду](/rule/hope).',
+    inLoadout: true,
+    tokens: { value: 0, max: 0 }
+  }];
+  character.sheetCards = [{
+    id: 'clean-feature',
+    kind: 'classFeature',
+    name: 'Свойство',
+    subtitle: 'Основа',
+    text: 'Отметьте [Стресс](/rule/stress).'
+  }];
+
+  const summary = buildCharacterSummary(character);
+
+  assert.equal(summary.armor.feature.includes('/rule/'), false);
+  assert.equal(summary.inventory[0]?.text, 'Излечите 1d4 **Ран**.');
+  assert.equal(summary.domainCards[0]?.text, 'Дайте **Надежду**.');
+  assert.equal(summary.features[0]?.text, 'Отметьте **Стресс**.');
 });
 
 test('player view model exposes only public live scene state', () => {

@@ -346,6 +346,7 @@ export function createAdversary(input?: Partial<Adversary>): Adversary {
       damageFormula: '1d8+2',
       damageType: 'physical'
     },
+    hordePerHp: input?.hordePerHp ?? null,
     experiences: input?.experiences ?? [{ id: createId('advexp'), name: 'Острые чувства', modifier: 2 }],
     features: input?.features ?? [],
     conditions,

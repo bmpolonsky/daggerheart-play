@@ -18,9 +18,9 @@ export function SharedToolsLibraryTab({ libraryView, targetCharacterId }: { libr
   const [detailOpen, setDetailOpen] = useState(false);
   const sourceOptions = useMemo(() => [
     { value: 'all', label: 'Все' },
-    { value: 'core', label: 'Core' },
-    { value: 'void', label: 'Void' },
-    { value: 'homebrew', label: 'Homebrew' }
+    { value: 'core', label: 'Основная книга' },
+    { value: 'void', label: 'The Void' },
+    { value: 'homebrew', label: 'Свои' }
   ], []);
   useEffect(() => {
     setEditorState((current) => {

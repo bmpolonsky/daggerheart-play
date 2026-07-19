@@ -83,7 +83,7 @@ test('rest request feed entry carries participant choices and respects publicati
       actorId: actor.id,
       actorName: actor.name,
       ready: true,
-      choices: [{ id: 'heal-hp', label: 'Исцелить HP', count: 2 }]
+      choices: [{ id: 'heal-hp', label: 'Залечить Раны', count: 2 }]
     }]
   });
 

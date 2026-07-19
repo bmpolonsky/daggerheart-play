@@ -231,6 +231,7 @@ export interface LibraryAdversary {
   damageType: DamageType;
   attackRange: string;
   weaponName: string;
+  hordePerHp: number | null;
   summary: string;
   motives: string;
   experiencesText: string;
@@ -263,6 +264,7 @@ export interface LibraryEquipmentItem {
   typeName: string;
   tier: number | null;
   trait: TraitId | null;
+  usesSpellcastTrait: boolean;
   range: string;
   damageType: DamageType;
   damageFormula: string;

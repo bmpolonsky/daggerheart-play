@@ -183,7 +183,7 @@ test.describe('strict character level-up', () => {
     await chooseRichOption(page, 'Карта домена мультикласса');
     await levelUp.getByRole('button', { name: 'Дальше' }).click();
     await expect(levelUp.locator('.dh-list-item__title').getByText('Мультикласс', { exact: true })).toBeVisible();
-    await expect(levelUp.getByText('Особенности класса', { exact: true })).toBeVisible();
+    await expect(levelUp.getByText('Свойства класса', { exact: true })).toBeVisible();
     await expect(levelUp.getByText('Карта подкласса', { exact: true })).toBeVisible();
     await levelUp.getByRole('button', { name: 'Применить повышение' }).click();
     await expect(levelUp).toHaveCount(0);

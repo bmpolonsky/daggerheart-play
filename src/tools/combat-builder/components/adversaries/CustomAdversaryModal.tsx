@@ -10,6 +10,7 @@ import { Button } from "../../../../ui/components/common/Button";
 import { Field, NumberControl, SelectControl, TextAreaControl, TextControl } from "../../../../ui/components/common/Field";
 import { IconButton } from "../../../../ui/components/common/IconButton";
 import { Surface } from "../../../../ui/components/common/Surface";
+import { RANGE_OPTIONS } from "../../../../domain/rules/constants";
 
 interface CustomAdversaryModalProps {
   adversary?: Adversary | null;
@@ -51,12 +52,7 @@ interface FormState {
 
 const ATTACK_RANGE_OPTIONS = [
   { id: "", name: "Не указано" },
-  { id: "melee", name: "Вплотную" },
-  { id: "very-close", name: "Близко" },
-  { id: "close", name: "Средне" },
-  { id: "far", name: "Далеко" },
-  { id: "very-far", name: "Очень далеко" },
-  { id: "any", name: "Любая" },
+  ...RANGE_OPTIONS,
 ];
 
 const DAMAGE_TYPE_OPTIONS = [
@@ -355,7 +351,7 @@ export function CustomAdversaryModal({
                 onInput={updateField("thresholdMajor")}
               />
             </Field>
-            <Field label="ATK">
+            <Field label="Бонус атаки">
               <TextControl
                 value={state.attackBonus}
                 onInput={updateField("attackBonus")}

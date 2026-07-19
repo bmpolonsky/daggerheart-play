@@ -145,11 +145,11 @@ export class PlayerActionRequestService {
     }
 
     if (request.kind === 'card') {
-      return { note: 'Заявка на карту подтверждена; GM применяет эффект вручную.' };
+      return { note: 'Заявка на карту подтверждена; Мастер применяет эффект вручную.' };
     }
 
     if (request.kind === 'resourceChange') {
-      return { note: 'Заявка на ресурс подтверждена; GM применяет изменение вручную.' };
+      return { note: 'Заявка на ресурс подтверждена; Мастер применяет изменение вручную.' };
     }
 
     return { note: 'Заявка подтверждена.' };

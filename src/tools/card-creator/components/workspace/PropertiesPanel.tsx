@@ -250,7 +250,7 @@ export function PropertiesPanel({
           </Field>
         )}
         {typeConfig.supportsSpellcast && (
-          <Field label="Заклинатель (Spellcast)">
+          <Field label="Характеристика заклинателя">
             <Input
               id="card-spellcast"
               value={cardFields.spellcast}

@@ -204,7 +204,7 @@ export function SharedToolsCustomCompendiumEditor({
         <aside className="player-custom-compendium-sidebar">
           <SearchField value={searchTerm} onInput={(event) => setSearchTerm(event.currentTarget.value)} placeholder="Поиск..." />
           <div className="player-custom-compendium-list">
-            <EntityListButton active={selectedId === 'new'} title="Новая запись" subtitle={kind === 'adversary' ? 'Homebrew противник' : 'Homebrew окружение'} onClick={startNewDraft} />
+            <EntityListButton active={selectedId === 'new'} title="Новая запись" subtitle={kind === 'adversary' ? 'Свой противник' : 'Своё окружение'} onClick={startNewDraft} />
             {kind === 'adversary' && filteredAdversaries.map((item) => (
               <EntityListButton key={item.id} active={selectedId === String(item.id)} title={item.name} subtitle={`Ранг ${item.tier} / ${item.roleName}`} onClick={() => selectExisting(String(item.id))} />
             ))}
@@ -280,7 +280,7 @@ function AdversaryForm({ draft, onChange }: { draft: AdversaryDraft; onChange: (
         <Field label="Сложность"><TextControl value={draft.difficulty} onInput={(event) => onChange({ difficulty: event.currentTarget.value })} /></Field>
         <Field label="Раны"><TextControl value={draft.hp} onInput={(event) => onChange({ hp: event.currentTarget.value })} /></Field>
         <Field label="Стресс"><TextControl value={draft.stress} onInput={(event) => onChange({ stress: event.currentTarget.value })} /></Field>
-        <Field label="ATK"><TextControl value={draft.attackBonus} onInput={(event) => onChange({ attackBonus: event.currentTarget.value })} /></Field>
+        <Field label="Бонус атаки"><TextControl value={draft.attackBonus} onInput={(event) => onChange({ attackBonus: event.currentTarget.value })} /></Field>
         <Field label="Кости"><TextControl value={draft.damageDieCount} onInput={(event) => onChange({ damageDieCount: event.currentTarget.value })} /></Field>
         <Field label="Грани"><TextControl value={draft.damageDieSize} onInput={(event) => onChange({ damageDieSize: event.currentTarget.value })} /></Field>
         <Field label="Бонус урона"><TextControl value={draft.damageBonus} onInput={(event) => onChange({ damageBonus: event.currentTarget.value })} /></Field>
@@ -293,7 +293,7 @@ function AdversaryForm({ draft, onChange }: { draft: AdversaryDraft; onChange: (
       <Field label="Мотивы"><TextAreaControl value={draft.motives} rows={3} onInput={(event) => onChange({ motives: event.currentTarget.value })} /></Field>
       <Field label="Опыт"><TextAreaControl value={draft.experiences} rows={3} onInput={(event) => onChange({ experiences: event.currentTarget.value })} /></Field>
       <Field label="Описание"><TextAreaControl value={draft.mainBody} rows={6} onInput={(event) => onChange({ mainBody: event.currentTarget.value })} /></Field>
-      <Field label="Особенности"><TextAreaControl value={draft.featuresText} rows={8} onInput={(event) => onChange({ featuresText: event.currentTarget.value })} /></Field>
+      <Field label="Свойства"><TextAreaControl value={draft.featuresText} rows={8} onInput={(event) => onChange({ featuresText: event.currentTarget.value })} /></Field>
     </div>
   );
 }
@@ -312,7 +312,7 @@ function EnvironmentForm({ draft, onChange }: { draft: EnvironmentDraft; onChang
         <ImageFilePicker label="Изображение" imageUrl={draft.imageUrl} aspectRatio="4 / 3" onFileSelect={async (file) => onChange({ imageUrl: await readFileAsDataUrl(file) })} onClear={() => onChange({ imageUrl: '' })} />
       </div>
       <Field label="Описание"><TextAreaControl value={draft.body} rows={6} onInput={(event) => onChange({ body: event.currentTarget.value })} /></Field>
-      <Field label="Особенности"><TextAreaControl value={draft.featureText} rows={8} onInput={(event) => onChange({ featureText: event.currentTarget.value })} /></Field>
+      <Field label="Свойства"><TextAreaControl value={draft.featureText} rows={8} onInput={(event) => onChange({ featureText: event.currentTarget.value })} /></Field>
       <Field label="Импульсы"><TextAreaControl value={draft.impulses} rows={3} onInput={(event) => onChange({ impulses: event.currentTarget.value })} /></Field>
       <Field label="Потенциальные противники"><TextAreaControl value={draft.potentialAdversaries} rows={3} onInput={(event) => onChange({ potentialAdversaries: event.currentTarget.value })} /></Field>
     </div>

@@ -1,5 +1,6 @@
 const INLINE_MARKER_REGEX = /#\{([^}]*)\}#/g;
 const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\([^)]+\)/g;
+const MARKDOWN_IMAGE_REGEX = /!\[([^\]]*)\]\([^)]+\)/g;
 const MARKDOWN_EMPHASIS_REGEX = /\*\*\*|\*\*|\*/g;
 
 export function stripInlineMarkers(value: string) {
@@ -15,6 +16,16 @@ export function stripMarkdownLinks(value: string, options: { emphasizeLabels?: b
     if (text.startsWith('**') || text.startsWith('***')) return text;
     return `**${text}**`;
   });
+}
+
+export function stripMarkdownImages(value: string) {
+  if (!value) return '';
+  // Image URLs have nowhere to render in compact sheets and feed cards. An
+  // authored alt label is still useful copy, while decorative `![](...)` is
+  // deliberately removed.
+  return value
+    .replace(MARKDOWN_IMAGE_REGEX, (_match, alt: string) => alt.trim())
+    .replace(/[ \t]{2,}/g, ' ');
 }
 
 export function stripMarkdownEmphasis(value: string): string {
@@ -36,7 +47,7 @@ export function cleanMarkdownText(value: string, options: {
   normalizeLineBreaks?: boolean;
   trim?: boolean;
 } = {}): string {
-  let text = stripMarkdownLinks(stripInlineMarkers(value), { emphasizeLabels: options.emphasizeLinks });
+  let text = stripMarkdownLinks(stripMarkdownImages(stripInlineMarkers(value)), { emphasizeLabels: options.emphasizeLinks });
   if (options.stripCodeTicks) text = text.replace(/`([^`]+)`/g, '$1');
   if (options.stripEmphasis) text = stripMarkdownEmphasis(text);
   if (options.normalizeLineBreaks) text = normalizeMarkdownLineBreaks(text);

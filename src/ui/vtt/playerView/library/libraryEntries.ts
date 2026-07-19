@@ -8,7 +8,7 @@ import type {
   LibraryRuleEntry,
   RawAdversaryFeature
 } from '../../../../domain/content/types';
-import { RANGE_LABELS, TRAIT_LABELS, domainLabel } from '../../../../domain/rules/constants';
+import { TRAIT_LABELS, domainLabel, rangeLabel } from '../../../../domain/rules/constants';
 import type { TraitId } from '../../../../domain/rules/types';
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import { characterService, contentService, feedService, sceneTableService } from '../../../../services/serviceRegistry';
@@ -30,6 +30,7 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
   const stats = [
     `Сложность ${item.difficulty}`,
     `Раны ${item.hp}`,
+    item.hordePerHp ? `Раны на противника ${item.hordePerHp}` : '',
     `Стресс ${item.stress}`,
     `Атака ${item.attackModifier >= 0 ? '+' : ''}${item.attackModifier}`,
     `${item.weaponName}: ${item.damageFormula}`,
@@ -41,9 +42,10 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
       `Роль: ${item.roleName || item.type}`,
       `Сложность: ${item.difficulty}`,
       `Раны: ${item.hp}`,
+      item.hordePerHp ? `Раны на противника: ${item.hordePerHp}` : '',
       `Стресс: ${item.stress}`,
       `Пороги: ${item.thresholds.major} / ${item.thresholds.severe}`,
-      `ATK: ${item.attackModifier >= 0 ? '+' : ''}${item.attackModifier}`,
+      `Бонус атаки: ${item.attackModifier >= 0 ? '+' : ''}${item.attackModifier}`,
       `Атака: ${item.weaponName}`,
       `Урон: ${item.damageFormula} ${damageType}`,
       `Дистанция: ${attackRange}`
@@ -51,7 +53,7 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
     ['Мотивы и тактика', item.motives],
     ['Опыт', item.experiencesText],
     ['Описание', item.mainBody],
-    ['Особенности', featureSections(item.raw.features)]
+    ['Свойства', featureSections(item.raw.features)]
   ]);
   return {
     id: item.id,
@@ -77,8 +79,8 @@ function classEntry(item: LibraryClassItem): LibraryEntry {
   const stats = [`Уклонение ${item.evasion}`, `Раны ${item.hp}`];
   const sections = compactSections([
     ['Описание', item.body],
-    ['Особенности', featureSections(item.raw.features)],
-    ['Предметы класса', item.classItems.join('\n')],
+    ['Свойства', featureSections(item.raw.features)],
+    ['Начальные предметы', item.classItems.join('\n')],
     ['Вопросы предыстории', item.backgroundQuestions.join('\n')],
     ['Вопросы связей', item.connectionQuestions.join('\n')]
   ]);
@@ -149,22 +151,25 @@ function equipmentEntry(item: LibraryEquipmentItem, targetCharacterId?: string |
   const range = formatRange(item.range);
   const damageType = formatDamageType(item.damageType);
   const trait = formatTrait(item.trait);
+  const traitDescription = trait ? `Характеристика ${trait}` : item.usesSpellcastTrait ? 'Характеристика заклинателя' : '';
   const stats = [
     item.tier ? `Ранг ${item.tier}` : '',
-    trait ? `Характеристика ${trait}` : '',
+    traitDescription,
     range,
     item.damageFormula,
-    item.armorScore ? `Броня ${item.armorScore}` : ''
+    item.armorScore ? `Показатель брони ${item.armorScore}` : '',
+    item.uses !== null ? `Использований ${item.uses}` : ''
   ].filter(Boolean);
   const sections = compactSections([
     ['Параметры', [
       item.typeName,
       item.tier ? `Ранг ${item.tier}` : '',
-      trait ? `Характеристика: ${trait}` : '',
+      traitDescription,
       item.range ? `Дистанция: ${range}` : '',
       item.damageFormula ? `Урон: ${item.damageFormula} ${damageType}` : '',
-      item.burden ? `Занятость: ${item.burden}` : '',
-      item.armorScore ? `Броня: ${item.armorScore}` : ''
+      item.burden ? `Хват: ${formatBurden(item.burden)}` : '',
+      item.armorScore ? `Показатель брони: ${item.armorScore}` : '',
+      item.uses !== null ? `Использований: ${item.uses}` : ''
     ].filter(Boolean).join('\n')],
     ['Описание', item.featureText],
     ['Пороги брони', item.baseThresholds ? `Ощутимый ${item.baseThresholds.major} / Тяжелый ${item.baseThresholds.severe}` : '']
@@ -218,13 +223,17 @@ function beastformEntry(item: LibraryBeastform): LibraryEntry {
 
 function genericEntry(item: GenericLibraryItem): LibraryEntry {
   const spellcastTrait = traitLabel(item.raw.spellcast_trait);
+  const cardType = domainCardTypeLabel(item.raw.card_type);
+  const recallCost = domainCardRecallCost(item.raw.stress_cost);
   const stats = [
     item.level ? `Уровень ${item.level}` : '',
+    cardType,
+    recallCost,
     spellcastTrait ? `Характеристика заклинателя: ${spellcastTrait}` : ''
   ].filter(Boolean);
   const sections = compactSections([
     ['Описание', item.body],
-    ['Особенности', genericFeatureSections(item)]
+    ['Свойства', genericFeatureSections(item)]
   ]);
   return {
     id: item.id,
@@ -308,10 +317,15 @@ function genericFeatureSections(item: GenericLibraryItem): string {
   const raw = item.raw;
   return [
     featureSections(raw.features),
-    featureSections(raw.foundation_features),
-    featureSections(raw.specialization_features),
-    featureSections(raw.mastery_features)
+    titledFeatureSections('Свойства основы', raw.foundation_features),
+    titledFeatureSections('Свойства специализации', raw.specialization_features),
+    titledFeatureSections('Свойства мастерства', raw.mastery_features)
   ].filter(Boolean).join('\n\n');
+}
+
+function titledFeatureSections(title: string, features: RawAdversaryFeature[] | undefined): string {
+  const body = featureSections(features);
+  return body ? `### ${title}\n${body}` : '';
 }
 
 function detailText(sections: LibraryDetailSection[], stats: string[]): string {
@@ -327,18 +341,7 @@ function normalizeDetailText(value: unknown): string {
     .trim();
 }
 
-function formatRange(range: string): string {
-  const compact = range.trim().toLowerCase().replace(/[\s_-]+/g, '');
-  const byCompact: Record<string, string> = {
-    melee: 'Вплотную',
-    veryclose: 'Близко',
-    close: 'Средне',
-    far: 'Далеко',
-    veryfar: 'Очень далеко',
-    any: 'Любая'
-  };
-  return byCompact[compact] ?? RANGE_LABELS[range] ?? range;
-}
+const formatRange = rangeLabel;
 
 function formatDamageType(type: string): string {
   const normalized = type.trim().toLowerCase();
@@ -348,6 +351,25 @@ function formatDamageType(type: string): string {
   if (normalized === 'mixed') return 'смеш.';
   if (normalized === 'any') return 'Любой';
   return type;
+}
+
+function formatBurden(burden: LibraryEquipmentItem['burden']): string {
+  if (burden === 'one-handed') return 'Одноручное';
+  if (burden === 'two-handed') return 'Двуручное';
+  return '';
+}
+
+function domainCardTypeLabel(value: unknown): string {
+  const type = String(value ?? '').trim().toLowerCase();
+  if (type === 'spell') return 'Заклинание';
+  if (type === 'ability') return 'Способность';
+  if (type === 'grimoire') return 'Гримуар';
+  return '';
+}
+
+function domainCardRecallCost(value: unknown): string {
+  const cost = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(cost) && cost > 0 ? `Призыв: Стресс ${cost}` : '';
 }
 
 function formatTrait(trait: TraitId | null): string {

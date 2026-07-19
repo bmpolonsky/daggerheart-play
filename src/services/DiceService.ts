@@ -509,7 +509,7 @@ export class DiceService {
     const parsed = parseDiceFormula(formula);
     const diceTerms = parsed.filter((term) => term.kind === 'dice');
     if (diceTerms.length === 0) {
-      throw new Error('Manual dice roll requires at least one die term.');
+      throw new Error('Для ручного броска нужна хотя бы одна кость.');
     }
     const unsupported = diceTerms.find((term) => !allowedSides.has(term.sides));
     if (unsupported) {

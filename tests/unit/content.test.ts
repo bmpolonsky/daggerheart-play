@@ -5,7 +5,7 @@ import { applyBrowserCustomContent } from "../../src/core/persistence/browserPro
 import { createContentState } from "../../src/stores/contentStore";
 import { cleanRulesText, coerceDomainName, domainCardFromLibrary, isDomainCardForDomains, isSubclassForClass } from "../../src/domain/characterBuilder/index";
 import { queryLibraryContent } from "../../src/domain/content/query";
-import { mapGenericItem, mapRawClassItem, mapRawEquipmentItem } from "../../src/domain/content/mappers";
+import { createAdversaryFromLibrary, mapGenericItem, mapRawAdversary, mapRawClassItem, mapRawEquipmentItem } from "../../src/domain/content/mappers";
 import { buildApiCollectionUrl, createContentManifest, summarizeContentSources } from "../../src/domain/content/source";
 import { genericItem } from "./helpers";
 
@@ -76,6 +76,7 @@ test('content library query searches all compendium sections outside UI', () => 
     damageType: 'physical' as const,
     attackRange: 'Вплотную',
     weaponName: 'Меч',
+    hordePerHp: null,
     summary: 'Костяной страж',
     motives: '',
     experiencesText: '',
@@ -99,6 +100,28 @@ test('content library query searches all compendium sections outside UI', () => 
   assert.deepEqual(queried.adversaries.map((item) => item.id), ['adv:1']);
   assert.deepEqual(queried.domainCards.map((item) => item.id), ['card']);
   assert.equal(queried.references.length, 0);
+});
+
+test('content library search includes a card effect even when its description is empty', () => {
+  const card = genericItem({
+    id: 'domain-card:chaos',
+    name: 'Высвобождение хаоса',
+    body: '',
+    raw: { features: [{ name: null, main_body: 'Потратьте жетоны, чтобы нанести магический урон.' }] }
+  });
+  const queried = queryLibraryContent({
+    query: 'жетоны',
+    adversaries: [],
+    classes: [],
+    references: [],
+    domainCards: [card],
+    equipment: [],
+    rules: [],
+    environments: [],
+    beastforms: []
+  });
+
+  assert.deepEqual(queried.domainCards.map((item) => item.id), ['domain-card:chaos']);
 });
 
 test('content library source filter separates corebook void and homebrew', () => {
@@ -133,6 +156,21 @@ test('equipment mapper preserves consumable uses', () => {
   assert.equal(item.uses, 1);
 });
 
+test('adversary mapper retains the Horde wounds-per-figure rule', () => {
+  const horde = mapRawAdversary({
+    id: 'zombie-pack',
+    slug: 'zombie-pack',
+    name: 'Стая зомби',
+    tier: 1,
+    type_slug: 'horde',
+    type_name: 'Орда',
+    horde_per_hp: 2
+  });
+
+  assert.equal(horde.hordePerHp, 2);
+  assert.equal(createAdversaryFromLibrary(horde).hordePerHp, 2);
+});
+
 test('equipment mapper extracts fallback features without stat block noise', () => {
   const emptyFeatureWeapon = mapRawEquipmentItem({
     slug: 'crossbow',
@@ -164,7 +202,48 @@ test('equipment mapper extracts fallback features without stat block noise', () 
 
   assert.equal(emptyFeatureWeapon.featureText, '');
   assert.equal(fallbackFeatureWeapon.featureText.includes('Trait:'), false);
-  assert.equal(fallbackFeatureWeapon.featureText, '***Heavy:*** −1 к [Уклонению](/rule/evasion)');
+  assert.equal(fallbackFeatureWeapon.featureText, '***Heavy:*** −1 к **Уклонению**');
+});
+
+test('equipment mapper does not turn a technical stat block into item copy', () => {
+  const spear = mapRawEquipmentItem({
+    slug: 'spear',
+    name: 'Копьё',
+    type_slug: 'primary-weapon',
+    char_trait: 'finesse',
+    range: 'very-close',
+    damage_ty: 'physical',
+    die_num: 1,
+    die_size: 8,
+    bonus: 3,
+    burden: 2,
+    features: [],
+    main_body: '**Trait:** Finesse; **Range:** Very Close; **Damage:** d8+3 phy; **Burden:** Two-Handed'
+  });
+
+  assert.equal(spear.featureText, '');
+});
+
+test('equipment mapper keeps a spellcast trait instead of silently dropping it', () => {
+  const wheelchair = mapRawEquipmentItem({
+    slug: 'arcane-frame',
+    name: 'Чародейское кресло',
+    type_slug: 'combat-wheelchair',
+    char_trait: 'spellcast'
+  });
+
+  assert.equal(wheelchair.trait, null);
+  assert.equal(wheelchair.usesSpellcastTrait, true);
+});
+
+test('content import removes decorative markdown images and normalizes rules terminology', () => {
+  const item = mapGenericItem({
+    id: 'reference',
+    name: 'Справка',
+    description: 'Возьмите дополнительную Карту Домена.\n\n![](https://example.test/art.png)'
+  }, 'rule');
+
+  assert.equal(item.body, 'Возьмите дополнительную Карту домена.');
 });
 
 test('content service normalizes custom tool content into library collections during reload', async () => {

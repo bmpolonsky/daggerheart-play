@@ -8,7 +8,7 @@ export const DEFAULT_SCENE_HEIGHT = 960;
 
 export interface RangeMeasurement {
   cells: number;
-  category: 'Вплотную' | 'Близко' | 'Средне' | 'Далеко' | 'Очень далеко';
+  category: 'Вплотную' | 'Близкая' | 'Средняя' | 'Далёкая' | 'Очень далёкая';
   line: {
     left: number;
     top: number;
@@ -123,10 +123,10 @@ export function measureRange(source: TokenState | null, target: TokenState | nul
 
 export function rangeCategoryForCells(cells: number): RangeMeasurement['category'] {
   if (cells <= 1) return 'Вплотную';
-  if (cells <= 3) return 'Близко';
-  if (cells <= 6) return 'Средне';
-  if (cells <= 12) return 'Далеко';
-  return 'Очень далеко';
+  if (cells <= 3) return 'Близкая';
+  if (cells <= 6) return 'Средняя';
+  if (cells <= 12) return 'Далёкая';
+  return 'Очень далёкая';
 }
 
 export function isTokenVisibleToRole(token: TokenState, role: 'gm' | 'player' | 'observer'): boolean {
