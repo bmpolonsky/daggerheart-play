@@ -18,17 +18,14 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
   const sceneTransferPausedByTab = sceneTable.musicDeliveryMode === 'broadcast' && scene.music.playing && (
     broadcastState.deliveryKind === 'display' || broadcastState.requestedKind === 'display'
   );
-  const musicStatus = sceneTransferPausedByTab
+  const musicNotice = sceneTransferPausedByTab
     ? 'Играет у мастера — передача игрокам приостановлена звуком вкладки'
     : sceneTransferFailed
     ? broadcastState.message
-    : hasMusicFile
-      ? (scene.music.playing ? 'Играет файл сцены' : 'Готов к запуску')
-      : 'Выберите файл в сценах';
+    : '';
   const tabAudioStarting = broadcastState.tabAudioStatus === 'starting';
   const tabAudioLive = broadcastState.deliveryKind === 'display' && broadcastState.tabAudioStatus === 'live';
   const tabAudioFailed = broadcastState.tabAudioStatus === 'error' || broadcastState.tabAudioStatus === 'unsupported';
-  const tabAudioStatus = broadcastState.tabAudioMessage;
 
   const toggleSceneMusic = () => {
     if (scene.music.playing) {
@@ -84,7 +81,7 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
           aria-label="Громкость музыки сцены"
           onInput={(event) => sceneTableService.setSceneMusicVolume(scene.id, Number(event.currentTarget.value))}
         />
-        <p className={`player-scene-audio__status ${sceneTransferFailed ? 'is-error' : ''}`} role="status">{musicStatus}</p>
+        {musicNotice && <Notice tone={sceneTransferFailed ? 'error' : 'warning'}>{musicNotice}</Notice>}
       </Surface>
 
       <Surface as="section" tone="subtle" padding="sm" className="player-scene-audio__block" aria-label="Звук вкладки">
@@ -92,7 +89,7 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
           <Radio size={16} aria-hidden="true" />
           <div>
             <strong>Звук вкладки</strong>
-            <span title={tabAudioLive ? broadcastState.sourceLabel : undefined}>{tabAudioLive ? broadcastState.sourceLabel : 'Отдельная трансляция'}</span>
+            {tabAudioLive && <span title={broadcastState.sourceLabel}>{broadcastState.sourceLabel}</span>}
           </div>
         </div>
         <div className="player-scene-audio__controls">
@@ -123,9 +120,7 @@ export function SceneMusicControls({ sceneTable }: { sceneTable: SceneTableState
           aria-label="Громкость звука вкладки"
           onInput={(event) => sceneAudioBroadcastService.setTabAudioVolume(Number(event.currentTarget.value))}
         />
-        {tabAudioFailed
-          ? <Notice tone="error">{tabAudioStatus}</Notice>
-          : <p className="player-scene-audio__status" role="status">{tabAudioStatus}</p>}
+        {tabAudioFailed && <Notice tone="error">{broadcastState.tabAudioMessage}</Notice>}
       </Surface>
     </div>
   );
