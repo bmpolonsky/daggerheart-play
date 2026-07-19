@@ -114,6 +114,10 @@ jobs:
           path: dist
 
   deploy:
+    # `verify` is intentionally skipped when this workflow is called from CI.
+    # Without an explicit condition GitHub's implicit `success()` also sees
+    # that skipped ancestor and silently skips the actual Pages deployment.
+    if: always() && needs.build.result == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
