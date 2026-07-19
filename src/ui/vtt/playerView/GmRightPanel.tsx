@@ -21,6 +21,7 @@ import { SceneMusicControls } from "./gmPanel/SceneMusicControls";
 import { GmCombatTracker } from "./gmPanel/GmCombatTracker";
 import { EmptyState } from "../../components/common/EmptyState";
 import { TabButton, Tabs } from "../../components/common/Tabs";
+import { SceneAddMenu, type SceneAddTarget } from './SceneAddMenu';
 
 type GmPanelView = 'cast' | 'scenes' | 'actions' | 'media';
 
@@ -39,6 +40,7 @@ export function GmRightPanel({
   onDomainCardPreview,
   onFeaturePreview,
   onOpenChronicle,
+  onAddToScene,
   onForceMutePlayer,
   onWealthEdit,
   onOpenActor
@@ -57,6 +59,7 @@ export function GmRightPanel({
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onOpenChronicle?: () => void;
+  onAddToScene?: (target: SceneAddTarget) => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
@@ -86,7 +89,7 @@ export function GmRightPanel({
         <TabButton active={activeView === 'actions'} onClick={() => setActiveView('actions')}>Действия</TabButton>
         <TabButton active={activeView === 'media'} onClick={() => setActiveView('media')}>Материалы</TabButton>
       </Tabs>
-      <div className="player-context-body">
+      <div className={`player-context-body ${activeView === 'cast' ? 'player-context-body--cast' : ''}`}>
         {activeView === 'cast' && (
           <section className="player-gm-overview__actors" aria-label="Участники">
             <div className="player-participant-feed">
@@ -138,6 +141,11 @@ export function GmRightPanel({
                 <EmptyState className="player-participant-feed__empty" tone="transparent" size="sm" icon={<Users size={18} />} title="Сцена пока пуста" body="Добавьте героя, противника или окружение." />
               )}
             </div>
+            {onAddToScene && (
+              <div className="player-gm-overview__add-bar">
+                <SceneAddMenu className="player-gm-overview__add-menu" onSelect={onAddToScene} />
+              </div>
+            )}
           </section>
         )}
         {activeView === 'scenes' && <LiveSceneSwitcher sceneTable={sceneTable} />}

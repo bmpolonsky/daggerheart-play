@@ -10,6 +10,7 @@ import type { PlayerRosterActor, PlayerViewedActor, TableViewRole } from "./type
 import type { PlayerViewDomainCard } from "./domainCards/types";
 import { GmRightPanel } from "./GmRightPanel";
 import { PlayerRightPanel } from "./PlayerRightPanel";
+import type { SceneAddTarget } from './SceneAddMenu';
 
 export function PlayerCharacterPanel({
   activeAdversaryId,
@@ -27,6 +28,7 @@ export function PlayerCharacterPanel({
   onDomainCardPreview,
   onFeaturePreview,
   onOpenChronicle,
+  onAddToScene,
   onEmptyAction,
   onForceMutePlayer,
   onWealthEdit,
@@ -48,6 +50,7 @@ export function PlayerCharacterPanel({
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onOpenChronicle?: () => void;
+  onAddToScene?: (target: SceneAddTarget) => void;
   onEmptyAction?: () => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
@@ -90,6 +93,7 @@ export function PlayerCharacterPanel({
         onDomainCardPreview={onDomainCardPreview}
         onFeaturePreview={onFeaturePreview}
         onOpenChronicle={onOpenChronicle}
+        onAddToScene={onAddToScene}
         onForceMutePlayer={onForceMutePlayer}
         onWealthEdit={onWealthEdit}
         onOpenActor={onOpenActor}

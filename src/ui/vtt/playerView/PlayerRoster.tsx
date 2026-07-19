@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Eye, EyeOff, Hand, Mic, MicOff, Plus, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Hand, MapPlus, Mic, MicOff, Trash2 } from 'lucide-react';
 import { Avatar } from '../../components/common/Avatar';
 import { IconButton } from '../../components/common/IconButton';
 import { ListItem } from '../../components/common/ListItem';
@@ -157,7 +157,7 @@ export function PlayerRoster({
                         onAddActorToScene({ kind: actor.kind, actorId: actor.actorId }, sceneId);
                       }}
                     >
-                      <Plus size={13} aria-hidden="true" />
+                      <MapPlus size={13} aria-hidden="true" />
                     </IconButton>
                   )}
                 </>

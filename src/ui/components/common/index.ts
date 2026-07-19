@@ -1,4 +1,5 @@
 export * from './Avatar';
+export * from './ActionMenu';
 export * from './AssetImage';
 export * from './Badge';
 export * from './Button';

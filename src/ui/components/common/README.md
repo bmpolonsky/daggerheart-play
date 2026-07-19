@@ -532,6 +532,24 @@ Use for compact command clusters.
 </Toolbar>
 ```
 
+### ActionMenu
+
+Use for a compact context menu opened by an existing command button when several nearby actions share the same intent.
+
+```tsx
+<ActionMenu
+  ariaLabel="Добавить"
+  items={items}
+  renderTrigger={(props) => <IconButton {...props} aria-label="Добавить"><Plus /></IconButton>}
+/>
+```
+
+Guidance:
+
+- Keep the trigger visible wherever its actions are relevant; do not hide it only behind an empty state.
+- Use short commands in the menu. A menu item should take the user to the appropriate focused flow rather than duplicate that flow inside the popover.
+- The primitive closes on outside click and Escape, restores trigger focus, and supports arrow-key navigation.
+
 ### SectionHeader
 
 Use for section headings with optional actions.
@@ -705,6 +723,7 @@ Guidance:
 | `RangeField` | Bounded numeric adjustments | Exact or unbounded text entry |
 | `Tabs` / `TabButton` | Tab navigation | Segmented boolean choices |
 | `Toolbar` | Compact command groups | Layout panels |
+| `ActionMenu` | Compact contextual command choices | A modal or a multi-step editor |
 | `SectionHeader` | Heading + actions | Whole panels |
 | `Dialog` | Dialog windows | Nested dialog content cards |
 | `Checkbox` | Boolean options | Multi-choice tabs |

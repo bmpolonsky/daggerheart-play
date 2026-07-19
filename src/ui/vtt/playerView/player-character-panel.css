@@ -79,6 +79,14 @@
   min-height: 0;
 }
 
+.player-context-body--cast {
+  overflow: hidden;
+}
+
+.player-context-body--cast > .player-gm-overview__actors {
+  height: 100%;
+}
+
 .player-context-media {
   display: grid;
   align-content: start;
@@ -88,9 +96,19 @@
 .player-gm-overview__actors {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 9px;
   overflow: hidden;
+}
+
+.player-gm-overview__add-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 2px 2px;
+}
+
+.player-gm-overview__add-menu {
+  flex: 0 0 auto;
 }
 
 .player-participant-feed {

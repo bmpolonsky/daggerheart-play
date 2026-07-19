@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, MapPlus, Trash2 } from 'lucide-react';
 import { useMemo } from 'preact/hooks';
 import { useStream } from '../../../../core/hooks/useStream';
 import { encounterService, sceneTableService, tabletopService } from '../../../../services/serviceRegistry';
@@ -100,7 +100,7 @@ export function GmCombatTracker({
                       );
                     }}
                   >
-                    <Plus size={13} aria-hidden="true" />
+                    <MapPlus size={13} aria-hidden="true" />
                   </IconButton>
                 )}
               </span>

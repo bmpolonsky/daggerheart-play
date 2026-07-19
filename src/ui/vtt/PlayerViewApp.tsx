@@ -41,6 +41,7 @@ import type { SceneMusicState } from '../../domain/audio/sceneAudio';
 import type { Character, DaggerheartClass, DomainCardRecord, DomainName, EncounterEnvironment } from '../../domain/rules/types';
 import type { PlayerViewDomainCard } from './playerView/domainCards/types';
 import type { PlayerMobileLayer, PlayerViewedActor, SharedToolsTab, TableViewRole } from './playerView/types';
+import type { SceneAddTarget } from './playerView/SceneAddMenu';
 import { TabButton, Tabs } from '../components/common/Tabs';
 import { Dialog } from '../components/common/Dialog';
 import { IconButton } from '../components/common/IconButton';
@@ -226,6 +227,16 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const changeSettingsSection = useCallback((section: string) => {
     commitRoutedUi({ toolsOpen: true, toolsTab: 'settings', settingsSection: section });
   }, [commitRoutedUi]);
+  const openSceneAddTarget = useCallback((target: SceneAddTarget) => {
+    const destination = target === 'character'
+      ? { toolsTab: 'characters' as const }
+      : target === 'adversary'
+        ? { toolsTab: 'library' as const, libraryCollection: 'adversaries' as const }
+        : target === 'environment'
+          ? { toolsTab: 'library' as const, libraryCollection: 'environments' as const }
+          : { toolsTab: 'combat' as const };
+    commitRoutedUi({ toolsOpen: true, ...destination });
+  }, [commitRoutedUi]);
   const createPlayerCharacterFromBuilder = useCallback((input: Partial<Character> & { className?: DaggerheartClass }) => {
     setPlayerCharacterBuilderOpen(false);
     if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
@@ -365,7 +376,14 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         model={model}
         role={role}
       />
-      <PlayerScene latestRoll={latestVisibleRoll} diceAnimationReady={diceAnimationReady} model={model} role={role} onOpenActor={openActor} onRollComplete={completeDiceRoll} />
+      <PlayerScene
+        latestRoll={latestVisibleRoll}
+        diceAnimationReady={diceAnimationReady}
+        model={model}
+        role={role}
+        onOpenActor={openActor}
+        onRollComplete={completeDiceRoll}
+      />
       <SceneAudioRuntime
         music={resolveSceneMusicSource(model.scene.music, assetUrls)}
         musicDeliveryMode={sceneTable.musicDeliveryMode}
@@ -411,6 +429,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onDomainCardPreview={previewDomainCard}
           onFeaturePreview={previewCharacterFeature}
           onOpenChronicle={() => { setActivityOpen(true); setMobileLayer('feed'); }}
+          onAddToScene={role === 'gm' ? openSceneAddTarget : undefined}
           onWealthEdit={editCharacterWealth}
           onEditCharacter={role === 'player' && model.character ? () => setPlayerCharacterEditorOpen(true) : undefined}
           onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
