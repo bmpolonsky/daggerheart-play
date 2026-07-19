@@ -47,6 +47,7 @@
   gap: 5px;
   overflow-x: auto;
   padding: 2px 0;
+  scroll-snap-type: x proximity;
   scrollbar-width: none;
 }
 
@@ -55,16 +56,22 @@
 }
 
 .cinematic-builder-stepper .dh-wizard-step-button {
-  min-width: 72px;
-  flex: 1 1 0;
+  min-width: max-content;
+  flex: 0 0 auto;
   gap: 5px;
   padding-inline: 6px;
   font-size: 0.7rem;
+  scroll-snap-align: start;
 }
 
 .cinematic-builder-stepper .dh-wizard-step-button > span:first-child {
   width: 22px;
   height: 22px;
+}
+
+.cinematic-builder-stepper .dh-wizard-step-button > span:last-child {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .cinematic-builder-panel {
