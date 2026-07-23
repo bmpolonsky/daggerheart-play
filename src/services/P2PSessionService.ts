@@ -1214,13 +1214,13 @@ export class P2PSessionService {
         ? { ...character.hope, value: clamp(toSafeInteger(resources.hope.value, character.hope.value), 0, effective.hope.max) }
         : character.hope,
       hp: resources.hp
-        ? { ...character.hp, marked: clamp(toSafeInteger(resources.hp.marked, character.hp.marked), 0, character.hp.max) }
+        ? { ...character.hp, marked: clamp(toSafeInteger(resources.hp.marked, character.hp.marked), 0, effective.hp.max) }
         : character.hp,
       stress: resources.stress
-        ? { ...character.stress, marked: clamp(toSafeInteger(resources.stress.marked, character.stress.marked), 0, character.stress.max) }
+        ? { ...character.stress, marked: clamp(toSafeInteger(resources.stress.marked, character.stress.marked), 0, effective.stress.max) }
         : character.stress,
       armor: resources.armor
-        ? { ...character.armor, markedSlots: clamp(toSafeInteger(resources.armor.markedSlots, character.armor.markedSlots), 0, character.armor.score) }
+        ? { ...character.armor, markedSlots: clamp(toSafeInteger(resources.armor.markedSlots, character.armor.markedSlots), 0, effective.armorScore) }
         : character.armor,
       wealth: resources.wealth
         ? sanitizeWealth({ ...character.wealth, ...resources.wealth })

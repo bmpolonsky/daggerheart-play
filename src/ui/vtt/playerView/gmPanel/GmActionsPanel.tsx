@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { Bed, Coffee, Hourglass, Swords, Users } from "lucide-react";
 import { useStream } from "../../../../core/hooks/useStream";
-import type { RestType } from "../../../../domain/rules/rest";
+import { partyRestRulesForCharacters, restParticipantRulesForCharacter, type RestType } from "../../../../domain/rules/rest";
 import { characterService, feedService } from "../../../../services/serviceRegistry";
 import { ListItem } from "../../../components/common/ListItem";
 import { playerViewUiActions } from "../playerViewUiState";
@@ -17,9 +17,28 @@ export function GmActionsPanel({ onOpenChronicle }: { onOpenChronicle?: () => vo
     };
   });
   const requestRest = (restType: RestType) => {
+    const characters = charactersState.order.flatMap((characterId) => {
+      const character = charactersState.entities[characterId];
+      return character ? [character] : [];
+    });
+    const partyRules = partyRestRulesForCharacters(characters, restType);
+    const participants = charactersState.order.flatMap((characterId) => {
+      const character = charactersState.entities[characterId];
+      if (!character) return [];
+      const rules = restParticipantRulesForCharacter(character, restType);
+      return [{
+        actorId: character.id,
+        actorName: character.name,
+        availableMoves: Array.from(new Set([...rules.availableMoves, ...partyRules.flatMap((rule) => rule.moveLabel ? [rule.moveLabel] : [])])),
+        maxChoices: rules.maxChoices,
+        longRestMoveLabels: rules.longRestMoveLabels,
+        maxLongRestMoves: rules.maxLongRestMoves,
+        ruleNotes: Array.from(new Set([...rules.notes, ...partyRules.map((rule) => rule.note)]))
+      }];
+    });
     feedService.requestRest(restType, {
       requestedBy: { actorName: 'Мастер', actorType: 'system' },
-      participants: actorOptions
+      participants
     });
     onOpenChronicle?.();
   };

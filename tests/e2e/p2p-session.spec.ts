@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import type { P2PSessionState } from '../../src/services/P2PSessionService';
+import { createSheetCard } from '../../src/domain/rules/factories';
 import { createIsolatedDeterministicP2PRelay, installDeterministicP2PTransport, openGmGame, openPlayerGame, openSharedGmGame, openSharedPlayerGame } from './game-route-helpers';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { expectInsideBounds, expectInsideViewport, expectNoOverlap, expectTopLayerAtPoint, rect } from './layout-helpers';
@@ -346,6 +347,21 @@ test.describe('P2P session workflow', () => {
     try {
       await openSharedGmGame(gm, roomId);
       const document = createPopulatedGameDocument();
+      const ownedCharacter = document.files['data/characters.json'].entities['e2e-character-cadsuane'];
+      ownedCharacter.sheetCards.push(
+        createSheetCard({
+          id: 'e2e-feature-limited',
+          kind: 'classFeature',
+          name: 'Высвобождение хаоса',
+          text: 'Эту способность можно использовать один раз до следующего продолжительного отдыха.'
+        }),
+        createSheetCard({
+          id: 'e2e-feature-passive',
+          kind: 'ancestryFeature',
+          name: 'Каменная кожа',
+          text: 'Получаете бонус +1 к показателю Брони и порогам урона.'
+        })
+      );
       document.files['data/roll-log.json'].push({
         id: 'historical-visible-roll',
         type: 'manual',
@@ -354,6 +370,39 @@ test.describe('P2P session workflow', () => {
         text: 'Он не должен блокировать следующий бросок игрока.'
       });
       await importGameDocument(gm, document, 'e2e-player-roll-history.dhgame');
+
+      await gm.getByRole('button', { name: 'Инструменты' }).click();
+      const gmWorkspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await gmWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+      await gmWorkspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
+      const gmEditor = gmWorkspace.getByLabel('Редактор персонажа');
+      await gmEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Эффекты' }).click();
+      await gmEditor.getByRole('button', { name: 'Редактировать', exact: true }).click();
+      await gmEditor.getByRole('button', { name: 'Добавить свойство', exact: true }).click();
+      const customFeatureDialog = gm.getByRole('dialog', { name: 'Новое свойство' });
+      await gm.setViewportSize({ width: 390, height: 568 });
+      await expectInsideViewport(gm, customFeatureDialog);
+      await expectInsideViewport(gm, customFeatureDialog.getByRole('button', { name: 'Сохранить', exact: true }));
+      const customFeatureBody = customFeatureDialog.locator('.character-custom-feature-dialog__body');
+      const customFeatureBodySize = await customFeatureBody.evaluate((element) => ({
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight
+      }));
+      expect(customFeatureBodySize.scrollHeight).toBeGreaterThan(customFeatureBodySize.clientHeight);
+      await customFeatureDialog.getByLabel('Название').fill('Домашняя выучка');
+      await customFeatureDialog.getByLabel('Источник или тип').fill('Домашнее правило');
+      await customFeatureDialog.getByLabel('Текст правила').fill('Получаете постоянный бонус +1 к Уклонению.');
+      await expect(customFeatureDialog.getByLabel('Распознанные эффекты свойства')).toContainText('Уклонение: +1');
+      await expect(customFeatureDialog.getByLabel('Распознанные эффекты свойства')).toContainText('Применено');
+      await customFeatureDialog.getByRole('button', { name: 'Сохранить', exact: true }).click();
+      await gm.setViewportSize({ width: 1440, height: 900 });
+      await expect(gmEditor.getByLabel('Ключевые параметры').getByText('12', { exact: true })).toBeVisible();
+      await gmEditor.getByRole('button', { name: 'Готово', exact: true }).click();
+      const gmLimitedFeature = gmEditor.locator('.character-rule-feature').filter({ hasText: 'Высвобождение хаоса' });
+      await expect(gmLimitedFeature).toContainText('Эту способность можно использовать один раз до следующего продолжительного отдыха.');
+      await expect(gmLimitedFeature.locator('[aria-describedby]')).toHaveCount(1);
+      await gmWorkspace.getByRole('button', { name: 'Закрыть' }).click();
+
       await openSharedPlayerGame(player, roomId);
       await openSharedPlayerGame(observer, roomId);
 
@@ -361,6 +410,46 @@ test.describe('P2P session workflow', () => {
       await expect(seatPicker).toBeVisible({ timeout: 15_000 });
       await seatPicker.getByRole('button', { name: `Игрок 1 ${filledCharacterName}` }).click();
       await expect(player.getByLabel('Персонаж игрока')).toContainText(filledCharacterName, { timeout: 15_000 });
+      await expect(player.getByText('Эффекты правил', { exact: true })).toHaveCount(0);
+
+      await player.setViewportSize({ width: 390, height: 844 });
+      await player.getByRole('button', { name: 'Инструменты' }).click();
+      const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
+      await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+      const ownSheet = workspace.getByLabel('Персонаж игрока');
+      await expect(ownSheet).toContainText(filledCharacterName);
+      await expect(ownSheet).toContainText('Домашняя выучка');
+      await expect(ownSheet).toContainText('Уклонение: +1');
+      await expect(workspace.getByText('Ран', { exact: true })).toHaveCount(0);
+      await expect(workspace.getByText('Ири', { exact: true })).toHaveCount(0);
+      await expect(workspace.getByRole('button', { name: 'Создать героя' })).toHaveCount(0);
+      await expect(workspace.getByRole('button', { name: 'Редактировать' })).toHaveCount(0);
+      const limitedFeature = ownSheet.locator('.player-sheet-feature-block').filter({ hasText: 'Высвобождение хаоса' });
+      const limitedMarker = limitedFeature.locator('[aria-describedby]').first();
+      await limitedMarker.dispatchEvent('pointerup', { pointerType: 'touch' });
+      const tooltipId = await limitedMarker.getAttribute('aria-describedby');
+      expect(tooltipId).toBeTruthy();
+      const tooltip = player.locator(`[id="${tooltipId}"]`);
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip).toContainText('Распознано: Использований: 1 до продолжительного отдыха');
+      await limitedFeature.getByRole('button', { name: 'Настроить трекер Высвобождение хаоса' }).click();
+      const trackerDialog = player.getByRole('dialog', { name: 'Трекер: Высвобождение хаоса' });
+      await expect(trackerDialog.getByLabel('Количество использований')).toHaveValue('1');
+      await expect(trackerDialog.getByLabel('Сброс')).toHaveValue('long');
+      await trackerDialog.getByRole('button', { name: 'Сохранить' }).click();
+      await expect(limitedFeature.getByLabel('До продолжительного отдыха: 0 из 1')).toBeVisible();
+      const passiveFeature = ownSheet.locator('.player-sheet-feature-block').filter({ hasText: 'Каменная кожа' });
+      await expect(passiveFeature.getByRole('button', { name: 'Настроить трекер Каменная кожа' })).toHaveCount(0);
+      await expect(ownSheet.getByText('Эффекты правил', { exact: true })).toBeVisible();
+      await expect(ownSheet.getByText('Оба порога: +1', { exact: true })).toHaveCount(1);
+      const sheetSize = await ownSheet.evaluate((element) => ({
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight
+      }));
+      expect(sheetSize.scrollHeight).toBeGreaterThan(sheetSize.clientHeight);
+      await expect(player.locator('body')).toHaveJSProperty('scrollWidth', 390);
+      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+      await player.setViewportSize({ width: 1440, height: 900 });
 
       await player.getByRole('button', { name: 'Открыть панель костей' }).click();
       await player.getByRole('checkbox', { name: 'Приватный бросок' }).check();

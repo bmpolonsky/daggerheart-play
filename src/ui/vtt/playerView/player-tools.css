@@ -105,6 +105,40 @@
   justify-self: end;
 }
 
+.player-tools-player-character-section {
+  height: 100%;
+  min-height: 0;
+  place-items: stretch center;
+  overflow: hidden;
+}
+
+.player-tools-player-character-section .player-character-panel-shell {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  width: min(720px, 100%);
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  pointer-events: auto;
+}
+
+.player-tools-player-character-section .player-character-panel-shell > .player-character-panel {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  display: grid;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.player-tools-player-character-section .player-character-panel__section-rail {
+  display: none;
+}
+
 .player-tools-section > header {
   position: relative;
   display: flex;
@@ -1252,6 +1286,85 @@
   gap: 18px;
 }
 
+.character-rule-feature-list {
+  display: grid;
+  gap: 16px;
+}
+
+.character-rule-feature {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding-bottom: 2px;
+}
+
+.character-rule-feature > strong {
+  color: var(--dh-paper-100);
+  font-size: 0.92rem;
+}
+
+.character-rule-feature > span {
+  color: var(--dh-paper-faint);
+  font-size: 0.72rem;
+  font-weight: 780;
+}
+
+.character-rule-feature > p {
+  margin: 0;
+  color: var(--dh-paper-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.character-rule-feature__heading {
+  min-width: 0;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.character-rule-feature__heading > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.character-rule-feature__heading strong {
+  color: var(--dh-paper-100);
+  font-size: 0.92rem;
+}
+
+.character-rule-feature__heading span {
+  color: var(--dh-paper-faint);
+  font-size: 0.72rem;
+  font-weight: 780;
+}
+
+.character-custom-feature-dialog {
+  width: min(620px, calc(100vw - 24px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.character-custom-feature-dialog__body {
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.character-custom-feature-dialog__preview {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.character-custom-feature-dialog__actions {
+  justify-content: end;
+  padding-top: 2px;
+}
+
 .character-editor-section--split {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 28px;
@@ -1844,6 +1957,10 @@
 
   .player-tools-modal__context-nav {
     padding-inline: 16px;
+  }
+
+  .player-tools-player-character-section {
+    padding: 10px;
   }
 
   .player-library-controls {

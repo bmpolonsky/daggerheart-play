@@ -151,3 +151,20 @@ test('resolveRestMove rolls and applies selected short rest recovery once', () =
   assert.equal(second.applied, false);
   assert.equal(characterService.getCharacter(character.id)?.hp.marked, updatedCharacter?.hp.marked);
 });
+
+test('a long-rest move substituted into short rest keeps its long-rest operation', () => {
+  resetAllStores();
+  const character = characterService.createCharacter({ name: 'Кланк', hp: { marked: 5, max: 6 } });
+  const rest = feedService.requestRest('short', {
+    participants: [{
+      actorId: character.id,
+      actorName: character.name,
+      choices: [{ id: 'clear-all', label: 'Залечить все Раны' }]
+    }]
+  });
+
+  const result = tabletopService.resolveRestMove(rest.id, character.id, 'clear-all');
+  assert.equal(result.applied, true);
+  assert.equal(result.result?.formula, undefined);
+  assert.equal(characterService.getCharacter(character.id)?.hp.marked, 0);
+});

@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { Bed, CheckSquare, Coffee, RotateCcw } from 'lucide-react';
-import { canApplyRestChoice, canSelectRestChoices } from '../../../../../domain/rules/rest';
+import { canApplyRestChoice, canSelectRestChoices, restMoveRequiresRoll } from '../../../../../domain/rules/rest';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { feedService, p2pSessionService, tabletopService } from '../../../../../services/serviceRegistry';
 import { Button } from '../../../../components/common/Button';
@@ -33,6 +33,8 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
   }
   const Icon = rest.restType === 'short' ? Coffee : Bed;
   const readyCount = rest.participants.filter((participant) => participant.ready).length;
+  const choiceLimits = Array.from(new Set(rest.participants.map((participant) => participant.maxChoices ?? rest.maxChoicesPerParticipant)));
+  const choiceLimitLabel = choiceLimits.length === 1 ? `выборов: ${choiceLimits[0]}` : 'лимит указан у каждого';
   const isClosed = rest.status === 'resolved' || rest.status === 'cancelled';
   const canResolve = role === 'gm' && !isClosed;
   const applyRestChoice = (actorId: string, choiceId: string) => {
@@ -50,7 +52,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
           <Icon size={17} />
           <div>
             <strong>{item.title}</strong>
-            <span>{readyCount}/{rest.participants.length} готовы — до {rest.maxChoicesPerParticipant} выборов</span>
+            <span>{readyCount}/{rest.participants.length} готовы — {choiceLimitLabel}</span>
           </div>
         </div>
         {rest.participants.length > 0 ? (
@@ -67,6 +69,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
               });
               const expandedChoices = expandRestChoices(participant.choices);
               const selectedCount = expandedChoices.length;
+              const maxChoices = participant.maxChoices ?? rest.maxChoicesPerParticipant;
               const updateChoices = (choices: string[]) => {
                 void p2pSessionService.updateRestParticipantChoices(item.id, participant.actorId, choices);
               };
@@ -75,7 +78,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
                   <div className="feed-rest-participant__header">
                     <CheckSquare size={13} />
                     <strong>{participant.actorName}</strong>
-                    <span>{participant.ready ? 'готов' : `${selectedCount}/${rest.maxChoicesPerParticipant}`}</span>
+                    <span>{participant.ready ? 'готов' : `${selectedCount}/${maxChoices}`}</span>
                     {canSelectChoices && selectedCount > 0 && (
                       <IconButton
                         className="feed-rest-participant__reset"
@@ -89,11 +92,16 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
                       </IconButton>
                     )}
                   </div>
+                  {participant.ruleNotes && participant.ruleNotes.length > 0 && (
+                    <p className="feed-rest-card__rule-note" title={participant.ruleNotes.join('\n')}>
+                      {participant.ruleNotes.join(' — ')}
+                    </p>
+                  )}
                   <RestMoveList
-                    moves={rest.availableMoves}
+                    moves={participant.availableMoves ?? rest.availableMoves}
                     choices={participant.choices}
                     selectedLabels={expandedChoices}
-                    maxChoices={rest.maxChoicesPerParticipant}
+                    maxChoices={maxChoices}
                     canSelect={canSelectChoices}
                     showAvailable={showAvailableChoices}
                     canApply={canApplyChoice}
@@ -186,7 +194,7 @@ function RestMoveList({
               )}
               {canApply && pendingChoice && (
                 <Button className="feed-rest-move__apply" variant="primary" size="sm" type="button" onClick={() => onApply(pendingChoice.id)}>
-                  {pendingChoice.label.includes('1d4') ? 'Бросить' : 'Применить'}
+                  {restMoveRequiresRoll(pendingChoice.label) ? 'Бросить' : 'Применить'}
                 </Button>
               )}
               {selectedChoice?.result && <small>{selectedChoice.result.note}</small>}

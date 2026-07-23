@@ -84,7 +84,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build with cached Daggerheart content
+      - name: Refresh cached Daggerheart content
+        run: node scripts/cache-daggerheart-data.mjs
+        env:
+          CONTENT_SOURCE: https://daggerheart.su
+          CONTENT_LANG: ru
+          CONTENT_CACHE_TTL_HOURS: "0"
+          # Always fetch rule text before the corpus contract. The cache script
+          # falls back to the last good payload if the source is unavailable.
+          CONTENT_REFRESH: "1"
+          CONTENT_REFRESH_ASSETS: ${{ github.event_name == 'workflow_dispatch' && inputs['refresh-assets'] && '1' || '0' }}
+          CONTENT_ASSET_CONCURRENCY: "8"
+
+      - name: Verify refreshed rules corpus
+        run: npx vitest run tests/unit/feature-effects-corpus.test.ts
+
+      - name: Build with verified Daggerheart content
         run: npm run build
         env:
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
@@ -94,8 +109,8 @@ jobs:
           CONTENT_SOURCE: https://daggerheart.su
           CONTENT_LANG: ru
           CONTENT_CACHE_TTL_HOURS: "0"
-          CONTENT_REFRESH: ${{ github.event_name == 'schedule' && '1' || '0' }}
-          CONTENT_REFRESH_ASSETS: ${{ github.event_name == 'workflow_dispatch' && inputs['refresh-assets'] && '1' || '0' }}
+          CONTENT_REFRESH: "0"
+          CONTENT_REFRESH_ASSETS: "0"
           CONTENT_ASSET_CONCURRENCY: "8"
 
       - name: Save Daggerheart content cache

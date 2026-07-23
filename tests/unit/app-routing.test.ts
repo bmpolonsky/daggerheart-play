@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { replaceLegacyRoute, routeNavigation } from "../../src/app/routing";
-import { buildRoutedPlayerViewLocation, parseRoutedPlayerViewState } from "../../src/ui/vtt/playerView/routedUiState";
+import { buildRoutedPlayerViewLocation, parseRoutedPlayerViewState, sharedToolsTabsForRole } from "../../src/ui/vtt/playerView/routedUiState";
 
 test('app route navigation canonicalizes legacy route events', () => {
   assert.deepEqual(routeNavigation('gm'), {
@@ -60,6 +60,19 @@ test('app routing treats library paths as player view state', () => {
     libraryCollection: null,
     settingsSection: 'diagnostics'
   });
+});
+
+test('player shared tools expose the owned-character area without GM-only tabs', () => {
+  assert.deepEqual(sharedToolsTabsForRole('player'), ['characters', 'handouts', 'library', 'settings']);
+  assert.deepEqual(parseRoutedPlayerViewState('/library/characters', 'player'), {
+    toolsOpen: true,
+    toolsTab: 'characters',
+    libraryCollection: null,
+    settingsSection: null
+  });
+  assert.equal(sharedToolsTabsForRole('player').includes('scenes'), false);
+  assert.equal(sharedToolsTabsForRole('player').includes('combat'), false);
+  assert.equal(sharedToolsTabsForRole('player').includes('notes'), false);
 });
 
 test('app routing builds path-based library URLs without query params', () => {

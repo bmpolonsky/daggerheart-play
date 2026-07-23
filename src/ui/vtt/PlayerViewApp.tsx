@@ -441,7 +441,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         <SharedToolsModal
           role={role}
           tab={routedUi.toolsTab}
-          targetCharacterId={viewedCharacterId ?? model.character?.id ?? null}
+          targetCharacterId={role === 'player' ? model.character?.id ?? null : viewedCharacterId ?? model.character?.id ?? null}
           onClose={closeTools}
           onLibraryCollectionChange={changeLibraryCollection}
           onSettingsSectionChange={changeSettingsSection}

@@ -6,6 +6,7 @@ import { P2PRoomConnection } from "../../src/services/p2p/P2PRoomConnection";
 import { AssetService } from "../../src/services/AssetService";
 import type { AssetBlobStore } from "../../src/core/persistence/assetBlobStore";
 import type { CharacterChangeRecord } from "../../src/domain/rules/types";
+import { buildEffectiveCharacterStats } from "../../src/domain/rules/effects";
 import { createTestP2PSession, createTestPlayerSync, installTimerWindow, ScriptedP2PNetwork, waitFor } from "./helpers";
 
 function createMemoryAssetService(blobs = new Map<string, Blob>()): { assetService: AssetService; blobs: Map<string, Blob> } {
@@ -439,6 +440,12 @@ test('P2P GM clamps owned resource patches and rejects patches for another actor
 
   try {
     await gm.startGmRoom({ roomId: 'resource-room', participantName: 'GM' });
+    characterService.addSheetCard(character.id, {
+      id: 'resource-capacity',
+      kind: 'custom',
+      name: 'Запас сил',
+      text: 'Получите дополнительную ячейку Ран. Получите дополнительную ячейку Стресса.'
+    });
     const participant = Object.values(sceneTableStore.get().participants).find((seat) => seat.actorIds.includes(character.id));
     assert.ok(participant);
     await playerSync.connectReadOnly('RESOURCE-ROOM', {
@@ -448,7 +455,7 @@ test('P2P GM clamps owned resource patches and rejects patches for another actor
       actorIds: [character.id],
       connected: true,
       updatedAt: '2026-05-26T00:00:00.000Z'
-    });
+    }, () => undefined);
     await waitFor(() => {
       assert.equal((playerSync.getTransport() as P2PRoomConnection).peers().length, 1);
       assert.equal(gm.session$.get().peers.length, 1);
@@ -483,8 +490,8 @@ test('P2P GM clamps owned resource patches and rejects patches for another actor
     }), true);
     const updated = characterService.getCharacter(character.id);
     assert.equal(updated?.hope.value, updated?.hope.max);
-    assert.equal(updated?.hp.marked, updated?.hp.max);
-    assert.equal(updated?.stress.marked, updated?.stress.max);
+    assert.equal(updated?.hp.marked, (updated?.hp.max ?? 0) + 1);
+    assert.equal(updated?.stress.marked, (updated?.stress.max ?? 0) + 1);
     assert.equal(updated?.armor.markedSlots, updated?.armor.score);
 
     assert.equal(await playerSync.publishPlayerCharacterResources({
@@ -571,6 +578,21 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
         ...canonicalBeforeUpdate,
         name: 'Ари после правки',
         notes: 'Заметка игрока',
+        sheetCards: [...canonicalBeforeUpdate.sheetCards, {
+          id: 'custom-training',
+          kind: 'custom',
+          name: 'Домашняя выучка',
+          text: 'Получаете постоянный бонус +1 к Уклонению. Один раз до следующего продолжительного отдыха.'
+        }],
+        usageTrackers: [...(canonicalBeforeUpdate.usageTrackers ?? []), {
+          id: 'custom-training-uses',
+          targetKind: 'feature',
+          targetId: 'custom-training',
+          label: 'До продолжительного отдыха',
+          current: 1,
+          max: 1,
+          reset: 'long'
+        }],
         changeHistory: [injectedHistory]
       },
       revision: 2,
@@ -584,6 +606,9 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
     const updated = characterService.getCharacter(character.id);
     assert.ok(updated);
     assert.equal(updated.notes, 'Заметка игрока');
+    assert.equal(updated.sheetCards.some((card) => card.id === 'custom-training'), true);
+    assert.equal(updated.usageTrackers?.some((tracker) => tracker.id === 'custom-training-uses'), true);
+    assert.equal(buildEffectiveCharacterStats(updated).evasion, updated.evasion + 1);
     assert.deepEqual(updated.playerSyncRevision, { participantId: participant.id, revision: 2 });
     assert.equal(updated.changeHistory?.length, 1);
     const authorityRecord = updated.changeHistory?.[0];
@@ -596,7 +621,7 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
     });
     assert.equal(authorityRecord.kind, 'edit');
     assert.equal(authorityRecord.summary, 'Изменения игрока');
-    assert.deepEqual(authorityRecord.changes.map((change) => change.path.join('.')).sort(), ['name', 'notes']);
+    assert.deepEqual(authorityRecord.changes.map((change) => change.path.join('.')).sort(), ['name', 'notes', 'sheetCards', 'usageTrackers']);
 
     assert.equal(await playerSync.publishPlayerCharacterUpdate({
       type: 'playerCharacterUpdate',

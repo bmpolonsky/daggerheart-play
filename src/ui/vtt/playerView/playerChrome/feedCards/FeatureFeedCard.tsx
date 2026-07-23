@@ -1,7 +1,8 @@
 /** @jsxImportSource preact */
 import { parseDomainCardTextMacros } from '../../../../../domain/rules/domainCards';
+import { analyzeFeatureRules } from '../../../../../domain/rules/featureEffects';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
-import { DomainCardMacroText } from '../../domainCards/DomainCardMacroText';
+import { RulesMacroText } from '../../domainCards/RulesMacroText';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../../domainCards/types';
 import type { TableViewRole } from '../../types';
 import { renderRulesText } from '../../sheetText';
@@ -9,7 +10,6 @@ import { FeedCardHeader } from './RollFeedCard';
 
 export function FeatureFeedCard({
   item,
-  role,
   onMacro
 }: {
   item: TableFeedItem;
@@ -26,8 +26,9 @@ export function FeatureFeedCard({
       </>
     );
   }
-  const previewCard = toFeaturePreviewCard(feature);
-  const hasText = Boolean(feature.text.trim());
+  const analysis = analyzeFeatureRules(feature.text);
+  const previewCard = toFeaturePreviewCard(feature, analysis.text);
+  const hasText = Boolean(analysis.text.trim());
   return (
     <>
       <FeedCardHeader item={item} label={item.kicker} />
@@ -36,9 +37,12 @@ export function FeatureFeedCard({
         {feature.subtitle && <span>{feature.subtitle}</span>}
         {hasText && (
           <p>
-            {onMacro
-              ? <DomainCardMacroText card={previewCard} role={role} onMacro={onMacro} />
-              : renderRulesText(feature.text)}
+            <RulesMacroText
+              text={analysis.text}
+              macros={previewCard.macros}
+              effects={analysis.effects}
+              onMacro={onMacro ? (macro) => onMacro(previewCard, macro) : undefined}
+            />
           </p>
         )}
       </div>
@@ -46,7 +50,7 @@ export function FeatureFeedCard({
   );
 }
 
-function toFeaturePreviewCard(feature: NonNullable<TableFeedItem['feature']>): PlayerViewDomainCard {
+function toFeaturePreviewCard(feature: NonNullable<TableFeedItem['feature']>, text = feature.text): PlayerViewDomainCard {
   return {
     id: feature.id,
     name: feature.name,
@@ -55,12 +59,12 @@ function toFeaturePreviewCard(feature: NonNullable<TableFeedItem['feature']>): P
     level: 1,
     cost: '',
     recallCost: '',
-    text: feature.text,
+    text,
     imageUrl: '',
     inHand: false,
     permanentlyVaulted: false,
     loadoutChoicePending: false,
     tokens: { value: 0, max: 0 },
-    macros: parseDomainCardTextMacros(feature.text)
+    macros: parseDomainCardTextMacros(text)
   };
 }

@@ -1,5 +1,5 @@
-import { Check, Pencil, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Avatar } from '../components/common/Avatar';
 import { Button } from '../components/common/Button';
 import { Checkbox } from '../components/common/Checkbox';
@@ -46,8 +46,16 @@ import { ResourcePanel } from './ResourcePanel';
 import { ExperienceList } from './ExperienceList';
 import { LoadoutPanel } from './LoadoutPanel';
 import { CharacterHistoryPanel } from './CharacterHistoryPanel';
+import { analyzeFeatureRules } from '../../domain/rules/featureEffects';
+import type { FeatureRuleEffect } from '../../domain/rules/featureEffects';
+import { buildEffectiveCharacterStats } from '../../domain/rules/effects';
+import { RuleEffectText, ruleEffectApplicationLabel, uniqueRuleEffectMessages } from '../components/common/RuleEffectText';
 
-type CharacterEditorSection = 'identity' | 'stats' | 'resources' | 'loadout' | 'notes' | 'history';
+type CharacterEditorSection = 'identity' | 'stats' | 'resources' | 'loadout' | 'rules' | 'notes' | 'history';
+
+// Common controls are typed with Preact while this legacy editor still imports
+// React types. Both resolve to preact/compat at runtime.
+const CharacterRuleEffectText = RuleEffectText as unknown as ComponentType<Parameters<typeof RuleEffectText>[0]>;
 
 export function CharacterEditor({
   character,
@@ -67,6 +75,7 @@ export function CharacterEditor({
   const armorOptions = content?.equipment.filter((item) => item.type === 'armor') ?? [];
   const selectedArmorId = equipmentIdByName(armorOptions, character.armor.name);
   const domains = content ? classDomainsFor(content.classes, character.className) : character.domains;
+  const effectiveStats = useMemo(() => buildEffectiveCharacterStats(character), [character]);
 
   useEffect(() => () => characterService.endHistoryGroup(character.id), [character.id]);
 
@@ -119,8 +128,8 @@ export function CharacterEditor({
           )}
         />
         <div className="character-editor-vitals" aria-label="Ключевые параметры">
-          <InlineStat label="Уклонение" value={character.evasion} />
-          <InlineStat label="Броня" value={`${Math.max(0, character.armor.score - character.armor.markedSlots)}/${character.armor.score}`} />
+          <InlineStat label="Уклонение" value={effectiveStats.evasion} />
+          <InlineStat label="Броня" value={`${Math.max(0, effectiveStats.armorScore - character.armor.markedSlots)}/${effectiveStats.armorScore}`} />
           <InlineStat label="Домены" value={domains.map((domain) => DOMAIN_LABELS[domain]).join(' + ')} />
         </div>
       </header>
@@ -150,6 +159,7 @@ export function CharacterEditor({
         <TabButton active={section === 'stats'} onClick={() => setSection('stats')}>Характеристики</TabButton>
         <TabButton active={section === 'resources'} onClick={() => setSection('resources')}>Ресурсы</TabButton>
         <TabButton active={section === 'loadout'} onClick={() => setSection('loadout')}>Снаряжение</TabButton>
+        <TabButton active={section === 'rules'} onClick={() => setSection('rules')}>Эффекты</TabButton>
         <TabButton active={section === 'notes'} onClick={() => setSection('notes')}>Заметки</TabButton>
         <TabButton active={section === 'history'} onClick={() => setSection('history')}>История</TabButton>
       </Tabs>
@@ -254,6 +264,8 @@ export function CharacterEditor({
           </section>
         )}
 
+        {section === 'rules' && <CharacterRuleEffectsSummary character={character} editable={editMode} />}
+
         {section === 'notes' && !editMode && (
           <section className="character-editor-section" aria-label="Заметки персонажа">
             <p className="muted-text">{character.notes.trim() || 'Заметок пока нет.'}</p>
@@ -290,19 +302,179 @@ function CharacterIdentitySummary({ character }: { character: Character }) {
 }
 
 function CharacterStatsSummary({ character }: { character: Character }) {
+  const effective = buildEffectiveCharacterStats(character);
   return (
     <section className="character-editor-section" aria-label="Характеристики персонажа">
       <div className="stat-strip">
         {(Object.keys(TRAIT_LABELS) as TraitId[]).map((trait) => (
-          <InlineStat key={trait} label={TRAIT_LABELS[trait]} value={character.traits[trait]} />
+          <InlineStat key={trait} label={TRAIT_LABELS[trait]} value={effective.traits[trait]} />
         ))}
       </div>
-      <ListItem title="Уклонение" value={character.evasion} />
+      <ListItem title="Уклонение" value={effective.evasion} />
       <ListItem title="Мастерство" value={character.proficiency} />
-      <ListItem title="Пороги урона" value={`${character.thresholds.major} / ${character.thresholds.severe}`} />
-      <ListItem title="Броня" subtitle={cleanRulesText(character.armor.feature || character.armor.featureText || '') || undefined} value={`${character.armor.score}`} />
+      <ListItem title="Пороги урона" value={`${effective.thresholds.major} / ${effective.thresholds.severe}`} />
+      <ListItem title="Броня" subtitle={cleanRulesText(character.armor.feature || character.armor.featureText || '') || undefined} value={`${effective.armorScore}`} />
     </section>
   );
+}
+
+function CharacterRuleEffectsSummary({ character, editable }: { character: Character; editable: boolean }) {
+  const [editingCard, setEditingCard] = useState<CharacterSheetCard | null | 'new'>(null);
+  const [deleteCard, setDeleteCard] = useState<CharacterSheetCard | null>(null);
+  const features = character.sheetCards.flatMap((card) => {
+    if (!['classFeature', 'ancestryFeature', 'communityFeature', 'subclassFeature', 'custom'].includes(card.kind)) return [];
+    const analysis = analyzeFeatureRules(card.text ?? '');
+    return [{ card, analysis }];
+  });
+  const items = features.flatMap(({ card, analysis }) => (
+    uniqueRuleEffectMessages(analysis.effects).map((effect) => ({ card, effect }))
+  ));
+  return (
+    <section className="character-editor-section" aria-label="Эффекты правил персонажа">
+      <SectionHeader
+        title="Свойства"
+        subtitle="Распознанные правила отмечены прямо в исходном тексте"
+        actions={editable ? (
+          <Button size="sm" variant="secondary" iconBefore={<Plus size={14} aria-hidden="true" />} onClick={() => setEditingCard('new')}>
+            Добавить свойство
+          </Button>
+        ) : undefined}
+      />
+      {features.length === 0 && <p className="muted-text">Свойств пока нет.</p>}
+      {features.length > 0 && (
+        <div className="character-rule-feature-list">
+          {features.map(({ card, analysis }) => (
+            <article className="character-rule-feature" key={card.id}>
+              <div className="character-rule-feature__heading">
+                <div>
+                  <strong>{card.name}</strong>
+                  {card.subtitle && <span>{card.subtitle}</span>}
+                </div>
+                {editable && card.kind === 'custom' && (
+                  <Toolbar aria-label={`Действия свойства ${card.name}`}>
+                    <IconButton size="xs" variant="ghost" title="Редактировать свойство" aria-label={`Редактировать свойство ${card.name}`} onClick={() => setEditingCard(card)}>
+                      <Pencil size={13} aria-hidden="true" />
+                    </IconButton>
+                    <IconButton size="xs" variant="danger" title="Удалить свойство" aria-label={`Удалить свойство ${card.name}`} onClick={() => setDeleteCard(card)}>
+                      <Trash2 size={13} aria-hidden="true" />
+                    </IconButton>
+                  </Toolbar>
+                )}
+              </div>
+              {analysis.text.trim() && (
+                <p>{renderRuleEffectProse(analysis.text, analysis.effects)}</p>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+      <SectionHeader title="Эффекты правил" subtitle="Что приложение учитывает автоматически или помогает отслеживать" />
+      {items.length === 0 && <p className="muted-text">В свойствах персонажа нет распознанных эффектов.</p>}
+      {items.map(({ card, effect }) => (
+        <ListItem
+          key={`${card.id}:${ruleEffectApplicationLabel(effect)}:${effect.summary}`}
+          title={card.name}
+          subtitle={effect.summary}
+          value={ruleEffectApplicationLabel(effect)}
+          density="compact"
+        />
+      ))}
+      {editingCard && (
+        <CustomFeatureDialog
+          card={editingCard === 'new' ? null : editingCard}
+          onClose={() => setEditingCard(null)}
+          onSave={(input) => {
+            if (editingCard === 'new') characterService.addSheetCard(character.id, { kind: 'custom', ...input });
+            else characterService.updateSheetCard(character.id, editingCard.id, input);
+            setEditingCard(null);
+          }}
+        />
+      )}
+      {deleteCard && (
+        <ConfirmDialog
+          title={`Удалить свойство «${deleteCard.name}»?`}
+          body="Свойство и рассчитанные из него эффекты будут удалены из листа."
+          onCancel={() => setDeleteCard(null)}
+          onConfirm={() => {
+            characterService.removeSheetCard(character.id, deleteCard.id);
+            setDeleteCard(null);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+function CustomFeatureDialog({
+  card,
+  onClose,
+  onSave
+}: {
+  card: CharacterSheetCard | null;
+  onClose: () => void;
+  onSave: (input: Pick<CharacterSheetCard, 'name' | 'subtitle' | 'text'>) => void;
+}) {
+  const [name, setName] = useState(card?.name ?? '');
+  const [subtitle, setSubtitle] = useState(card?.subtitle ?? '');
+  const [text, setText] = useState(card?.text ?? '');
+  const effects = useMemo(() => uniqueRuleEffectMessages(analyzeFeatureRules(text).effects), [text]);
+  const canSave = name.trim().length > 0 && text.trim().length > 0;
+
+  return (
+    <Dialog className="character-custom-feature-dialog" aria-label={card ? `Редактирование свойства ${card.name}` : 'Новое свойство'} onClose={onClose}>
+      <SectionHeader
+        title={card ? 'Редактировать свойство' : 'Новое свойство'}
+        actions={(
+          <IconButton size="sm" variant="ghost" title="Закрыть" aria-label="Закрыть редактор свойства" onClick={onClose}>
+            <X size={16} aria-hidden="true" />
+          </IconButton>
+        )}
+      />
+      <div className="character-custom-feature-dialog__body">
+        <TextField autoFocus label="Название" value={name} onChange={(event) => setName(event.currentTarget.value)} />
+        <TextField label="Источник или тип" value={subtitle} onChange={(event) => setSubtitle(event.currentTarget.value)} />
+        <TextAreaField label="Текст правила" rows={10} value={text} onChange={(event) => setText(event.currentTarget.value)} />
+        <section className="character-custom-feature-dialog__preview" aria-label="Распознанные эффекты свойства">
+          <SectionHeader title="Распознано" />
+          {effects.length === 0 ? (
+            <p className="muted-text">Механических эффектов не найдено. Текст сохранится как обычное игровое правило.</p>
+          ) : effects.map((effect) => (
+            <ListItem
+              key={`${effect.id}:${effect.summary}`}
+              title={effect.summary}
+              value={ruleEffectApplicationLabel(effect)}
+              density="compact"
+            />
+          ))}
+        </section>
+      </div>
+      <Toolbar className="character-custom-feature-dialog__actions" aria-label="Сохранение свойства">
+        <Button size="sm" variant="ghost" onClick={onClose}>Отмена</Button>
+        <Button size="sm" variant="primary" disabled={!canSave} onClick={() => onSave({ name: name.trim(), subtitle: subtitle.trim(), text: text.trim() })}>Сохранить</Button>
+      </Toolbar>
+    </Dialog>
+  );
+}
+
+function renderRuleEffectProse(text: string, effects: readonly FeatureRuleEffect[]): ReactNode[] {
+  const ranges = Array.from(new Map(effects.map((effect) => [
+    `${effect.evidence.start}:${effect.evidence.end}`,
+    { start: effect.evidence.start, end: effect.evidence.end, effects: effects.filter((candidate) => candidate.evidence.start === effect.evidence.start && candidate.evidence.end === effect.evidence.end) }
+  ])).values()).sort((left, right) => left.start - right.start || left.end - right.end);
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+  for (const range of ranges) {
+    if (range.start < cursor) continue;
+    if (range.start > cursor) nodes.push(text.slice(cursor, range.start));
+    nodes.push(
+      <CharacterRuleEffectText key={`${range.start}:${range.end}`} effects={range.effects}>
+        {text.slice(range.start, range.end)}
+      </CharacterRuleEffectText>
+    );
+    cursor = range.end;
+  }
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
 }
 
 function CharacterLoadoutSummary({ character }: { character: Character }) {
@@ -373,21 +545,46 @@ function LevelUpPanel({
   const [applyIssues, setApplyIssues] = useState<string[]>([]);
   const choices = selections.map((selection) => selection.choice);
   const ruleModifiers = character.ruleModifiers;
+  const isMulticlass = choices.includes('multiclass');
+  const isSubclassUpgrade = choices.includes('subclass');
+  const multiclassSubclassOptions = multiclassClass && content
+    ? filterBuilderContent(content.generic).subclasses.filter((item) => isSubclassForClass(item, multiclassClass))
+    : [];
+  const selectedMulticlassSubclass = multiclassSubclassOptions.find((item) => item.id === multiclassSubclassId) ?? null;
+  const selectedSubclass = content?.generic.subclasses.find((item) => (
+    item.slug === character.subclassSlug || item.name.trim().toLowerCase() === character.subclassName.trim().toLowerCase()
+  ));
+  const currentSubclassTiers = new Set(character.sheetCards.filter((card) => card.kind === 'subclassFeature').map((card) => card.subclassTier));
+  const nextSubclassTier = currentSubclassTiers.has('specialization') ? 'mastery' : 'specialization';
+  const subclassFeatures = selectedSubclass?.raw[nextSubclassTier === 'mastery' ? 'mastery_features' : 'specialization_features'];
+  const multiclassFoundationCards = isMulticlass
+    ? startingSubclassFeatureSheetCards(selectedMulticlassSubclass)
+    : [];
+  const subclassUpgradeCards: Array<Partial<CharacterSheetCard>> = isSubclassUpgrade && Array.isArray(subclassFeatures)
+    ? subclassFeatures.map((feature, index) => ({
+        id: `sheet-subclass-${selectedSubclass?.slug ?? character.id}-${nextSubclassTier}-${feature.id ?? index}`,
+        kind: 'subclassFeature',
+        name: String(feature.name ?? 'Особенность подкласса'),
+        text: cleanRulesText(String(feature.main_body ?? feature.text ?? '')),
+        sourceId: selectedSubclass?.sourceId ?? selectedSubclass?.id,
+        subclassTier: nextSubclassTier
+      }))
+    : [];
+  const levelUpSubclassCards = isMulticlass ? multiclassFoundationCards : subclassUpgradeCards;
   const plan = useMemo(() => buildCharacterLevelUpPlan(character, {
     targetLevel,
     advancementChoices: choices,
     advancementSelections: selections,
     multiclassClass,
     multiclassDomain,
-    ruleModifiers
-  }), [character, choices, multiclassClass, multiclassDomain, ruleModifiers, selections, targetLevel]);
+    ruleModifiers,
+    subclassCards: levelUpSubclassCards
+  }), [character, choices, levelUpSubclassCards, multiclassClass, multiclassDomain, ruleModifiers, selections, targetLevel]);
   const selectedChoiceCost = plan.advancementChoiceCost;
   const choiceDefinitions = CHARACTER_ADVANCEMENT_CHOICES.filter((choice) => choice.id !== 'manual');
   const availableSourceRanks = plan.targetRank > 2
     ? [plan.targetRank - 1, plan.targetRank] as Array<2 | 3 | 4>
     : [2] as Array<2 | 3 | 4>;
-  const isMulticlass = choices.includes('multiclass');
-  const isSubclassUpgrade = choices.includes('subclass');
   const effectiveMulticlassDomain = multiclassDomain || character.advancement?.multiclass?.domain || '';
   const domainCardOptions = useMemo(() => {
     const cards = content?.generic.domainCards ?? [];
@@ -416,12 +613,6 @@ function LevelUpPanel({
     const alreadyOwned = character.domainCards.some((card) => String(card.sourceId ?? card.id) === String(item.sourceId ?? item.id));
     return allowedDomain && mapped.level <= exchangeOutCard.level && mapped.level <= domainLevelLimit && !alreadyOwned && !selectedDomainCardIds.includes(item.id);
   });
-  const selectedSubclass = content?.generic.subclasses.find((item) => (
-    item.slug === character.subclassSlug || item.name.trim().toLowerCase() === character.subclassName.trim().toLowerCase()
-  ));
-  const multiclassSubclassOptions = multiclassClass && content
-    ? filterBuilderContent(content.generic).subclasses.filter((item) => isSubclassForClass(item, multiclassClass))
-    : [];
   const multiclassClassOptions: RichChoicePickerItem[] = DAGGERHEART_CLASSES
     .filter((className) => className !== 'Custom' && className !== character.className)
     .map((className) => {
@@ -435,25 +626,8 @@ function LevelUpPanel({
         imageUrl: definition?.imageUrl
       };
     });
-  const selectedMulticlassSubclass = multiclassSubclassOptions.find((item) => item.id === multiclassSubclassId) ?? null;
   const multiclassClassCards = isMulticlass && multiclassClass
     ? classFeatureSheetCards(classDefinitionFor(content?.classes, multiclassClass))
-    : [];
-  const multiclassFoundationCards = isMulticlass
-    ? startingSubclassFeatureSheetCards(selectedMulticlassSubclass)
-    : [];
-  const currentSubclassTiers = new Set(character.sheetCards.filter((card) => card.kind === 'subclassFeature').map((card) => card.subclassTier));
-  const nextSubclassTier = currentSubclassTiers.has('specialization') ? 'mastery' : 'specialization';
-  const subclassFeatures = selectedSubclass?.raw[nextSubclassTier === 'mastery' ? 'mastery_features' : 'specialization_features'];
-  const subclassUpgradeCards: Array<Partial<CharacterSheetCard>> = isSubclassUpgrade && Array.isArray(subclassFeatures)
-    ? subclassFeatures.map((feature, index) => ({
-        id: `sheet-subclass-${selectedSubclass?.slug ?? character.id}-${nextSubclassTier}-${feature.id ?? index}`,
-        kind: 'subclassFeature',
-        name: String(feature.name ?? 'Особенность подкласса'),
-        text: cleanRulesText(String(feature.main_body ?? feature.text ?? '')),
-        sourceId: selectedSubclass?.sourceId ?? selectedSubclass?.id,
-        subclassTier: nextSubclassTier
-      }))
     : [];
   const traitBonuses = Object.fromEntries(selectedTraits.map((trait) => [trait, 1])) as Partial<Record<TraitId, number>>;
   const resolvedActor: CharacterChangeActor = actor ?? {
@@ -473,7 +647,7 @@ function LevelUpPanel({
     ...(exchangeOutCard && exchangeInCard ? {
       domainCardExchange: { removeCardId: exchangeOutCard.id, replacement: exchangeInCard }
     } : {}),
-    subclassCards: isMulticlass ? multiclassFoundationCards : subclassUpgradeCards,
+    subclassCards: levelUpSubclassCards,
     multiclassClassCards,
     thresholdBonus: plan.expectedThresholds,
     traitBonuses,

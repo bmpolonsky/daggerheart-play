@@ -116,7 +116,7 @@ test('starter-card service consumes the same subclass modifier instead of a hard
   assert.equal(service.ensureStarterDomainCardsFromLibrary(character.id, library, undefined, subclass), true);
   assert.equal(service.getCharacter(character.id)?.domainCards.length, 3);
   assert.deepEqual(service.getCharacter(character.id)?.ruleModifiers.map((modifier) => modifier.id), [
-    'school-of-knowledge:prepared:starting-domain-card'
+    'subclass:208:foundation:0:starting-domain-card'
   ]);
 });
 
@@ -144,7 +144,7 @@ test('builder persists subclass rule modifiers on the resulting Character draft'
     selectedCardIds: ['codex-1', 'codex-2', 'splendor-1']
   });
   assert.deepEqual(result.draft.ruleModifiers?.map((modifier) => modifier.id), [
-    'school-of-knowledge:prepared:starting-domain-card'
+    'subclass:208:foundation:0:starting-domain-card'
   ]);
 });
 

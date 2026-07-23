@@ -1,11 +1,13 @@
 import { Minus, Plus, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { FeatureUsageLimitEffect } from '../../domain/rules/featureEffects';
 import type { CharacterChangeActor, CharacterUsageTracker, CharacterUsageTrackerReset, CharacterUsageTrackerTargetKind } from '../../domain/rules/types';
 import { characterService } from '../../services/serviceRegistry';
 import { Button } from '../components/common/Button';
 import { Dialog } from '../components/common/Dialog';
 import { NumberField, SelectField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
+import { Notice } from '../components/common/Notice';
 import { SectionHeader } from '../components/common/SectionHeader';
 import styles from './UsageTrackerControl.module.css';
 
@@ -16,7 +18,9 @@ export function UsageTrackerControl({
   targetName,
   tracker,
   actor,
-  compact = false
+  compact = false,
+  suggestedUsage,
+  onlyWhenSuggested = false
 }: {
   characterId: string;
   targetKind: CharacterUsageTrackerTargetKind;
@@ -25,33 +29,53 @@ export function UsageTrackerControl({
   tracker?: CharacterUsageTracker;
   actor?: CharacterChangeActor;
   compact?: boolean;
+  suggestedUsage?: FeatureUsageLimitEffect | null;
+  onlyWhenSuggested?: boolean;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const context = actor ? { actor } : undefined;
+  const suggestion = usageTrackerSuggestionDefaults(suggestedUsage);
   const updateCurrent = (current: number) => {
     if (!tracker) return;
     characterService.updateUsageTracker(characterId, tracker.id, { current }, context);
   };
 
   if (!tracker) {
+    if (onlyWhenSuggested && !suggestion) return null;
     return (
       <>
-        <Button
-          size="xs"
-          variant="ghost"
-          title={`Настроить трекер для «${targetName}»`}
-          aria-label={`Настроить трекер ${targetName}`}
-          iconBefore={<SlidersHorizontal size={13} aria-hidden="true" />}
-          onClick={(event) => {
-            event.stopPropagation();
-            setSettingsOpen(true);
-          }}
-        >
-          {compact ? '' : 'Трекер'}
-        </Button>
+        {compact ? (
+          <IconButton
+            size="xs"
+            variant="ghost"
+            title={`Настроить трекер для «${targetName}»`}
+            aria-label={`Настроить трекер ${targetName}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              setSettingsOpen(true);
+            }}
+          >
+            <SlidersHorizontal size={13} aria-hidden="true" />
+          </IconButton>
+        ) : (
+          <Button
+            size="xs"
+            variant="ghost"
+            title={`Настроить трекер для «${targetName}»`}
+            aria-label={`Настроить трекер ${targetName}`}
+            iconBefore={<SlidersHorizontal size={13} aria-hidden="true" />}
+            onClick={(event) => {
+              event.stopPropagation();
+              setSettingsOpen(true);
+            }}
+          >
+            Трекер
+          </Button>
+        )}
         {settingsOpen && (
           <UsageTrackerDialog
             targetName={targetName}
+            suggestion={suggestion}
             onClose={() => setSettingsOpen(false)}
             onSave={(input) => {
               characterService.configureUsageTracker(characterId, { targetKind, targetId, ...input }, context);
@@ -97,20 +121,22 @@ export function UsageTrackerControl({
 function UsageTrackerDialog({
   targetName,
   tracker,
+  suggestion,
   onClose,
   onRemove,
   onSave
 }: {
   targetName: string;
   tracker?: CharacterUsageTracker;
+  suggestion?: UsageTrackerSuggestionDefaults | null;
   onClose: () => void;
   onRemove?: () => void;
   onSave: (input: { label: string; max: number; current: number; reset: CharacterUsageTrackerReset }) => void;
 }) {
-  const [label, setLabel] = useState(tracker?.label ?? 'Использование');
-  const [max, setMax] = useState(tracker?.max ?? 1);
+  const [label, setLabel] = useState(tracker?.label ?? suggestion?.label ?? 'Использование');
+  const [max, setMax] = useState(tracker?.max ?? suggestion?.max ?? 1);
   const [current, setCurrent] = useState(tracker?.current ?? 0);
-  const [reset, setReset] = useState<CharacterUsageTrackerReset>(tracker?.reset ?? 'manual');
+  const [reset, setReset] = useState<CharacterUsageTrackerReset>(tracker?.reset ?? suggestion?.reset ?? 'manual');
 
   useEffect(() => setCurrent((value) => Math.min(value, max)), [max]);
 
@@ -125,6 +151,11 @@ function UsageTrackerDialog({
         )}
       />
       <div className={styles.dialogBody}>
+        {suggestion && !tracker && (
+          <Notice tone="info">
+            Распознано из текста: {suggestion.summary}.{suggestion.manualReset ? ' Сброс нужно отмечать вручную.' : ''}
+          </Notice>
+        )}
         <TextField autoFocus label="Название трекера" value={label} onChange={(event) => setLabel(event.currentTarget.value)} />
         <NumberField label="Количество использований" min={1} max={99} value={max} onChange={(event) => setMax(Math.max(1, Math.min(99, Number(event.currentTarget.value) || 1)))} />
         <SelectField label="Сброс" value={reset} onChange={(event) => setReset(event.currentTarget.value as CharacterUsageTrackerReset)}>
@@ -147,4 +178,29 @@ function UsageTrackerDialog({
       </div>
     </Dialog>
   );
+}
+
+export interface UsageTrackerSuggestionDefaults {
+  label: string;
+  max: number;
+  reset: CharacterUsageTrackerReset;
+  summary: string;
+  manualReset: boolean;
+}
+
+export function usageTrackerSuggestionDefaults(
+  effect: FeatureUsageLimitEffect | null | undefined
+): UsageTrackerSuggestionDefaults | null {
+  if (!effect || effect.scope !== 'feature') return null;
+  const presentation = {
+    rest: { label: 'До следующего отдыха', reset: 'short' as const, manualReset: false },
+    longRest: { label: 'До продолжительного отдыха', reset: 'long' as const, manualReset: false },
+    session: { label: 'За сессию', reset: 'manual' as const, manualReset: true },
+    scene: { label: 'За сцену', reset: 'manual' as const, manualReset: true }
+  }[effect.reset];
+  return {
+    ...presentation,
+    max: effect.max,
+    summary: effect.summary
+  };
 }

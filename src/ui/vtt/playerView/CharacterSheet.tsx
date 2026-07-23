@@ -29,11 +29,15 @@ import { ListItem } from "../../components/common/ListItem";
 import { RichChoicePicker } from "../../components/common/RichChoicePicker";
 import { PLAYER_SHEET_SECTIONS } from "./constants";
 import { UsageTrackerControl } from "../../characters/UsageTrackerControl";
+import { analyzeFeatureRules, type FeatureUsageLimitEffect } from "../../../domain/rules/featureEffects";
+import { SheetFeatureSection } from "./SheetContent";
+import { ruleEffectApplicationLabel, uniqueRuleEffectMessages } from "../../components/common/RuleEffectText";
 
 export function CharacterSheet({
   character,
   beastforms = [],
   role,
+  showRuleEffects = false,
   showBackButton = false,
   onBack,
   onDomainCardPreview,
@@ -44,6 +48,8 @@ export function CharacterSheet({
   character: PlayerViewCharacterSummary;
   beastforms?: LibraryBeastform[];
   role: TableViewRole;
+  /** Full rule audit belongs to the library sheet, not the compact table-side panel. */
+  showRuleEffects?: boolean;
   showBackButton?: boolean;
   onBack?: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
@@ -61,6 +67,9 @@ export function CharacterSheet({
     const rank = characterLevelRank(character.level);
     return beastforms.filter((beastform) => beastform.tier <= rank);
   }, [beastforms, character.level]);
+  const featureRuleEffects = useMemo(() => character.features.flatMap((feature) => (
+    uniqueRuleEffectMessages(analyzeFeatureRules(feature.text).effects).map((effect) => ({ feature, effect }))
+  )), [character.features]);
   const selectedBeastform = availableBeastforms.find((beastform) => beastform.id === selectedBeastformId) ?? availableBeastforms[0] ?? null;
   const canUseBeastform = character.className === 'Druid' || character.features.some((feature) => /зверин|beastform|beast form/i.test(`${feature.name}\n${feature.text}`));
   const canUseCompanion = character.className === 'Ranger' && (
@@ -445,12 +454,46 @@ export function CharacterSheet({
           />
         ))}
       </SheetSection>
-      <SheetSection id="player-sheet-features" title="Свойства" emptyLabel="Свойства появятся после заполнения листа">
-        {character.features.map((feature) => {
-          const detail = feature.text.trim();
-          const summary = feature.subtitle || detail || 'Особенность';
-          const tracker = character.usageTrackers.find((item) => item.targetKind === 'feature' && item.targetId === feature.id);
-          if (!detail) {
+      {showRuleEffects ? (
+        <SheetFeatureSection
+          id="player-sheet-features"
+          title="Свойства"
+          emptyLabel="Свойства появятся после заполнения листа"
+          features={character.features}
+          highlightRuleEffects
+          rightAccessory={(feature) => {
+            const suggestedUsage = featureUsageSuggestion(feature.text, feature.name, character.features);
+            return (
+              <UsageTrackerControl
+                compact
+                characterId={character.id}
+                targetKind="feature"
+                targetId={feature.id}
+                targetName={feature.name || 'Особенность'}
+                tracker={character.usageTrackers.find((item) => item.targetKind === 'feature' && item.targetId === feature.id)}
+                suggestedUsage={suggestedUsage}
+                onlyWhenSuggested
+              />
+            );
+          }}
+        />
+      ) : (
+        <SheetSection id="player-sheet-features" title="Свойства" emptyLabel="Свойства появятся после заполнения листа">
+          {character.features.map((feature) => {
+            const detail = feature.text.trim();
+            const summary = feature.subtitle || detail || 'Особенность';
+            const tracker = character.usageTrackers.find((item) => item.targetKind === 'feature' && item.targetId === feature.id);
+            if (!detail) {
+              return (
+                <ListItem
+                  key={feature.id}
+                  title={feature.name}
+                  subtitle={summary}
+                  lines={2}
+                  rightAccessory={<UsageTrackerControl compact characterId={character.id} targetKind="feature" targetId={feature.id} targetName={feature.name} tracker={tracker} />}
+                />
+              );
+            }
             return (
               <ListItem
                 key={feature.id}
@@ -458,21 +501,25 @@ export function CharacterSheet({
                 subtitle={summary}
                 lines={2}
                 rightAccessory={<UsageTrackerControl compact characterId={character.id} targetKind="feature" targetId={feature.id} targetName={feature.name} tracker={tracker} />}
+                onClick={() => onFeaturePreview?.(character, feature)}
               />
             );
-          }
-          return (
+          })}
+        </SheetSection>
+      )}
+      {showRuleEffects && (
+        <SheetSection title="Эффекты правил" emptyLabel="В свойствах персонажа не распознано автоматических или отслеживаемых эффектов">
+          {featureRuleEffects.map(({ feature, effect }) => (
             <ListItem
-              key={feature.id}
+              key={`${feature.id}:${effect.id}`}
               title={feature.name}
-              subtitle={summary}
-              lines={2}
-              rightAccessory={<UsageTrackerControl compact characterId={character.id} targetKind="feature" targetId={feature.id} targetName={feature.name} tracker={tracker} />}
-              onClick={() => onFeaturePreview?.(character, feature)}
+              subtitle={effect.summary}
+              value={ruleEffectApplicationLabel(effect)}
+              density="compact"
             />
-          );
-        })}
-      </SheetSection>
+          ))}
+        </SheetSection>
+      )}
       <SheetSection id="player-sheet-domain-cards" title="Карты доменов" emptyLabel="Карты доменов не подготовлены">
         <CharacterSheetDomainCards
           characterId={character.id}
@@ -594,4 +641,25 @@ function inventoryUsesLabel(item: PlayerViewCharacterSummary['inventory'][number
 function canUseInventoryItem(item: PlayerViewCharacterSummary['inventory'][number]): boolean {
   if (item.quantity <= 0) return false;
   return item.uses ? item.uses.current > 0 || item.quantity > 1 : true;
+}
+
+export function featureUsageSuggestion(
+  text: string,
+  featureName = '',
+  allFeatures: readonly Pick<TableFeedFeaturePreview, 'name' | 'text'>[] = []
+): FeatureUsageLimitEffect | null {
+  const normalizedName = normalizeFeatureName(featureName);
+  const override = normalizedName ? allFeatures.flatMap((feature) => analyzeFeatureRules(feature.text).effects).find((effect): effect is FeatureUsageLimitEffect => (
+    effect.kind === 'usageLimit' &&
+    effect.scope === 'targetFeature' &&
+    normalizeFeatureName(effect.targetLabel ?? '') === normalizedName
+  )) : null;
+  if (override) return { ...override, scope: 'feature' };
+  return analyzeFeatureRules(text).effects.find((effect): effect is FeatureUsageLimitEffect => (
+    effect.kind === 'usageLimit' && effect.scope === 'feature'
+  )) ?? null;
+}
+
+function normalizeFeatureName(value: string): string {
+  return value.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/[^а-яa-z0-9]+/g, ' ').trim();
 }

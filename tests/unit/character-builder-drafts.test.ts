@@ -320,6 +320,25 @@ test('character builder exposes subclass foundation features and their starting-
   ]);
 });
 
+test('character builder applies unambiguous inventory grants from feature prose', () => {
+  const community = genericItem({
+    id: 'custom-wanderers',
+    name: 'Странники',
+    raw: {
+      features: [{ id: 1, name: 'Сумка', main_body: 'Добавьте в свой инвентарь Походную сумку.' }]
+    }
+  });
+  const result = buildCharacterDraft({
+    content: { ancestries: [], communities: [community], subclasses: [], domainCards: [] },
+    equipment: equipmentFixture(),
+    className: 'Bard',
+    communityId: community.id
+  });
+
+  assert.equal(result.draft.inventory?.filter((item) => item.name === 'Походная сумка').length, 1);
+  assert.equal(result.draft.inventory?.find((item) => item.name === 'Походная сумка')?.quantity, 1);
+});
+
 test('character builder equipment preview cleans markdown links', () => {
   const result = buildCharacterDraft({
     content: { ancestries: [], communities: [], subclasses: [], domainCards: [] },

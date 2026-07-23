@@ -7,7 +7,7 @@ import {
   permanentlyVaultDomainCard,
   planDomainCardMove
 } from '../../src/domain/rules/cardLoadout';
-import { createCharacter, createDomainCard } from '../../src/domain/rules/factories';
+import { createCharacter, createDomainCard, createSheetCard } from '../../src/domain/rules/factories';
 import { CharacterService } from '../../src/services/CharacterService';
 import { resetAllStores } from '../../src/stores/gameStores';
 import type { RawRuleItem } from '../../src/domain/content/types';
@@ -84,6 +84,26 @@ test('rest and level-up swaps are free, but insufficient Stress blocks an advent
     assert.equal(result.plan.stressCost, 0);
     assert.equal(result.character.stress.marked, 5);
   }
+});
+
+test('Recall Cost can use a permanent extra Stress slot derived from feature text', () => {
+  const character = createCharacter({
+    domainCards: cards(),
+    stress: { marked: 6, max: 6 },
+    sheetCards: [createSheetCard({
+      id: 'extra-stress',
+      kind: 'ancestryFeature',
+      name: 'Высокая выносливость',
+      text: 'Получаете дополнительную ячейку Стресса при создании персонажа.'
+    })]
+  });
+  const request = { cardId: 'card-1', to: 'vault', context: 'rest' } as const;
+  const vaulted = applyDomainCardMove(character, request).character;
+  const result = applyDomainCardMove(vaulted, { cardId: 'card-1', to: 'hand', context: 'adventure' });
+
+  assert.equal(result.applied, true);
+  assert.equal(result.plan.stressCost, 1);
+  assert.equal(result.character.stress.marked, 7);
 });
 
 test('permanent Vault removes a card from play and forbids every recall context', () => {

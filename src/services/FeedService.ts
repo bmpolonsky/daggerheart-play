@@ -28,6 +28,11 @@ interface RestParticipantInput {
   actorId: string;
   actorName: string;
   playerId?: string;
+  availableMoves?: string[];
+  maxChoices?: number;
+  longRestMoveLabels?: string[];
+  maxLongRestMoves?: number;
+  ruleNotes?: string[];
   ready?: boolean;
   choices?: RestChoiceInput[];
 }
@@ -272,7 +277,7 @@ export class FeedService {
         resolvedAt,
         participants: entry.rest.participants.map((participant) => ({
           ...participant,
-          ready: participant.ready || countRestChoices(participant.choices) >= entry.rest.maxChoicesPerParticipant,
+          ready: participant.ready || countRestChoices(participant.choices) >= restChoiceLimit(entry.rest, participant),
           choices: participant.choices.map((choice) => ({ ...choice, status: 'resolved' }))
         }))
       };
@@ -566,6 +571,11 @@ function normalizeRestParticipants(participants: RestParticipantInput[]): RestFe
     actorId: participant.actorId,
     actorName: participant.actorName,
     playerId: participant.playerId,
+    ...(participant.availableMoves?.length ? { availableMoves: uniqueNonEmptyText(participant.availableMoves) } : {}),
+    ...(Number.isFinite(participant.maxChoices) ? { maxChoices: Math.max(1, Math.trunc(participant.maxChoices ?? 1)) } : {}),
+    ...(participant.longRestMoveLabels?.length ? { longRestMoveLabels: uniqueNonEmptyText(participant.longRestMoveLabels) } : {}),
+    ...(Number.isFinite(participant.maxLongRestMoves) ? { maxLongRestMoves: Math.max(0, Math.trunc(participant.maxLongRestMoves ?? 0)) } : {}),
+    ...(participant.ruleNotes?.length ? { ruleNotes: uniqueNonEmptyText(participant.ruleNotes) } : {}),
     ready: Boolean(participant.ready),
     choices: normalizeRestChoices(participant.choices ?? [])
   }));
@@ -593,13 +603,13 @@ function matchesDeathMoveEntry(entry: DeathMoveFeedEntry, deathMoveEntryId: stri
 }
 
 function updateRestChoices(rest: RestFeedRequest, participantIndex: number, choices: string[]): RestFeedRequest {
-  const selectedChoices = normalizeRestChoiceSelection(rest, choices);
   const participants = rest.participants.map((participant, index) => {
     if (index !== participantIndex) return participant;
+    const selectedChoices = normalizeRestChoiceSelection(rest, participant, choices);
     const selectedCount = countRestChoices(selectedChoices);
     return {
       ...participant,
-      ready: selectedCount >= rest.maxChoicesPerParticipant,
+      ready: selectedCount >= restChoiceLimit(rest, participant),
       choices: selectedChoices
     };
   });
@@ -610,12 +620,21 @@ function updateRestChoices(rest: RestFeedRequest, participantIndex: number, choi
   };
 }
 
-function normalizeRestChoiceSelection(rest: RestFeedRequest, choices: string[]): RestFeedChoice[] {
-  const allowedMoves = new Set(rest.availableMoves);
+function normalizeRestChoiceSelection(rest: RestFeedRequest, participant: RestFeedParticipant, choices: string[]): RestFeedChoice[] {
+  const allowedMoves = new Set(participant.availableMoves ?? rest.availableMoves);
+  const longMoves = new Set(participant.longRestMoveLabels ?? []);
+  const maxLongMoves = Math.max(0, Math.trunc(participant.maxLongRestMoves ?? 0));
+  let selectedLongMoves = 0;
   const selected = choices
     .map((choice) => choice.trim())
     .filter((choice) => choice && allowedMoves.has(choice))
-    .slice(0, rest.maxChoicesPerParticipant);
+    .filter((choice) => {
+      if (!longMoves.has(choice)) return true;
+      if (selectedLongMoves >= maxLongMoves) return false;
+      selectedLongMoves += 1;
+      return true;
+    })
+    .slice(0, restChoiceLimit(rest, participant));
   const counts = new Map<string, number>();
   selected.forEach((choice) => counts.set(choice, (counts.get(choice) ?? 0) + 1));
   return Array.from(counts.entries()).map(([label, count]) => ({
@@ -628,6 +647,14 @@ function normalizeRestChoiceSelection(rest: RestFeedRequest, choices: string[]):
 
 function countRestChoices(choices: RestFeedChoice[]): number {
   return choices.reduce((total, choice) => total + Math.max(0, Math.trunc(choice.count)), 0);
+}
+
+function restChoiceLimit(rest: RestFeedRequest, participant: RestFeedParticipant): number {
+  return Math.max(1, Math.trunc(participant.maxChoices ?? rest.maxChoicesPerParticipant));
+}
+
+function uniqueNonEmptyText(values: string[]): string[] {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
 function restChoiceId(label: string): string {

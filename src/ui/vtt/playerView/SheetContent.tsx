@@ -5,6 +5,7 @@ import { cssImageUrl, initials } from "./helpers";
 import { SheetSection } from "./PlayerSheetControls";
 import { RulesMacroText } from "./domainCards/RulesMacroText";
 import { cleanRulesTextForInlineMacros, renderRulesText } from "./sheetText";
+import { analyzeFeatureRules } from "../../../domain/rules/featureEffects";
 
 export interface SheetFeatureView {
   id: string;
@@ -73,28 +74,42 @@ export function SheetTextSection({ icon, text, title }: { icon?: JSX.Element; te
 export function SheetFeatureSection({
   emptyLabel,
   features,
+  highlightRuleEffects = false,
+  id,
   isInteractive,
   onMacro,
+  rightAccessory,
   title = 'Свойства'
 }: {
   emptyLabel?: string;
   features: SheetFeatureView[];
+  highlightRuleEffects?: boolean;
+  id?: string;
   isInteractive?: (macro: DomainCardTextMacro) => boolean;
   onMacro?: (feature: SheetFeatureView, macro: DomainCardTextMacro) => void;
+  rightAccessory?: (feature: SheetFeatureView) => JSX.Element | null;
   title?: string;
 }) {
   return (
-    <SheetSection title={title} emptyLabel={emptyLabel}>
+    <SheetSection id={id} title={title} emptyLabel={emptyLabel}>
       {features.map((feature) => {
-        const text = cleanRulesTextForInlineMacros(feature.text);
+        const sourceText = cleanRulesTextForInlineMacros(feature.text);
+        const analysis = highlightRuleEffects ? analyzeFeatureRules(sourceText) : { text: sourceText, effects: [] };
+        const { text, effects } = analysis;
         return (
           <article className="player-sheet-row player-sheet-row--fulltext player-sheet-feature-block" key={feature.id}>
-            {feature.name && <strong>{feature.name}</strong>}
+            {(feature.name || rightAccessory) && (
+              <header className="player-sheet-feature-block__header">
+                {feature.name && <strong>{feature.name}</strong>}
+                {rightAccessory?.(feature)}
+              </header>
+            )}
             {text && (
               <p>
                 <RulesMacroText
                   text={text}
                   macros={parseDomainCardTextMacros(text)}
+                  effects={effects}
                   isInteractive={isInteractive}
                   onMacro={onMacro ? (macro) => onMacro(feature, macro) : undefined}
                 />

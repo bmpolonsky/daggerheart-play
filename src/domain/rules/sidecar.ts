@@ -134,7 +134,7 @@ function buildOverviewResources(character: Character): CharacterSidecarResource[
     { id: 'hope', value: effective.hope.value, max: effective.hope.max },
     { id: 'hp', value: effective.hp.max - effective.hp.marked, marked: effective.hp.marked, max: effective.hp.max },
     { id: 'stress', value: effective.stress.max - effective.stress.marked, marked: effective.stress.marked, max: effective.stress.max },
-    { id: 'armor', value: character.armor.score - character.armor.markedSlots, marked: character.armor.markedSlots, max: character.armor.score },
+    { id: 'armor', value: Math.max(0, effective.armorScore - character.armor.markedSlots), marked: Math.min(character.armor.markedSlots, effective.armorScore), max: effective.armorScore },
     { id: 'evasion', value: effective.evasion },
     { id: 'majorThreshold', value: effective.thresholds.major },
     { id: 'severeThreshold', value: effective.thresholds.severe },

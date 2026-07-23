@@ -193,7 +193,9 @@ function sanitizeArmor(armor: Character['armor']): Character['armor'] {
     sourceSlug: typeof armor.sourceSlug === 'string' ? armor.sourceSlug : undefined,
     tier: armor.tier ?? null,
     score,
-    markedSlots: clamp(toSafeInteger(armor.markedSlots, 0), 0, score),
+    // Feature-derived Armor slots are applied after hydration; keep their marks
+    // even when the persisted base Armor score is lower.
+    markedSlots: clamp(toSafeInteger(armor.markedSlots, 0), 0, 12),
     feature: armor.feature ?? armor.featureText ?? '',
     featureText: armor.featureText ?? armor.feature ?? ''
   };

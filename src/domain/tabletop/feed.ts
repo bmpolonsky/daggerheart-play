@@ -386,6 +386,10 @@ function buildRestFeedItem(entry: Extract<FeedEntry, { type: 'rest' }>): TableFe
   const participantCount = entry.rest.participants.length;
   const statusLabel = restStatusLabel(entry.rest.status);
   const restTypeLabel = entry.rest.restType === 'short' ? 'Короткий отдых' : 'Продолжительный отдых';
+  const choiceLimits = Array.from(new Set(entry.rest.participants.map((participant) => participant.maxChoices ?? entry.rest.maxChoicesPerParticipant)));
+  const choiceText = choiceLimits.length === 1
+    ? `Каждый выбирает ${choiceLimits[0]}.`
+    : 'Лимит выборов указан у каждого персонажа.';
   return {
     id: entry.id,
     kind: 'rest',
@@ -394,7 +398,7 @@ function buildRestFeedItem(entry: Extract<FeedEntry, { type: 'rest' }>): TableFe
     kicker: statusLabel,
     title: restTypeLabel,
     body: participantCount > 0
-      ? `${readyCount}/${participantCount} участников готовы. Каждый выбирает ${entry.rest.maxChoicesPerParticipant}.`
+      ? `${readyCount}/${participantCount} участников готовы. ${choiceText}`
       : entry.body,
     tone: entry.rest.status === 'resolved' ? 'hope' : entry.rest.status === 'cancelled' ? 'danger' : 'neutral',
     rest: entry.rest,

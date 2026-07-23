@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ExternalLink, X } from 'lucide-react';
 import { useStream } from '../../../core/hooks/useStream';
+import { buildCharacterSummary } from '../../../domain/tabletop/playerView';
 import type { Character, DaggerheartClass } from '../../../domain/rules/types';
 import { characterService, contentService, gameService, sceneTableService, tabletopService } from '../../../services/serviceRegistry';
 import { Dialog } from '../../components/common/Dialog';
@@ -25,6 +26,8 @@ import {
   SharedToolsScenesTab
 } from './SharedToolsTabs';
 import { SharedToolsCombatTab } from './sharedTools/SharedToolsCombatTab';
+import { CharacterSheet } from './CharacterSheet';
+import { EmptyState } from '../../components/common/EmptyState';
 import type { SharedToolsTab, TableViewRole } from './types';
 import type { ContentCollectionKey } from '../../../domain/content/types';
 import './player-tools.css';
@@ -166,6 +169,9 @@ export function SharedToolsModal({
           {activeTab === 'characters' && role === 'gm' && (
             <SharedToolsCharactersTabHost />
           )}
+          {activeTab === 'characters' && role === 'player' && (
+            <SharedToolsPlayerCharacterTabHost characterId={targetCharacterId ?? null} />
+          )}
           {activeTab === 'combat' && role === 'gm' && (
             <SharedToolsCombatTab />
           )}
@@ -183,6 +189,35 @@ export function SharedToolsModal({
           )}
         </div>
       </Dialog>
+    </section>
+  );
+}
+
+function SharedToolsPlayerCharacterTabHost({ characterId }: { characterId: string | null }) {
+  const characters = useStream(characterService.characters$);
+  const content = useStream(contentService.content$);
+  const character = characterId ? characters.entities[characterId] ?? null : null;
+
+  if (!character) {
+    return (
+      <section className="player-tools-section player-tools-player-character-section">
+        <EmptyState
+          tone="transparent"
+          title="Персонаж не выбран"
+          body="Выберите своё место игрока, чтобы открыть лист персонажа."
+        />
+      </section>
+    );
+  }
+
+  return (
+    <section className="player-tools-section player-tools-player-character-section" aria-label="Мой персонаж">
+      <CharacterSheet
+        character={buildCharacterSummary(character)}
+        beastforms={content.beastforms}
+        role="player"
+        showRuleEffects
+      />
     </section>
   );
 }

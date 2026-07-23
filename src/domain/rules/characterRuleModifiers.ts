@@ -1,4 +1,5 @@
 import type { GenericLibraryItem } from '../content/types';
+import { automaticFeatureRuleEffects } from './featureEffects';
 import type { CharacterAdvancementChoiceId } from './types';
 
 const MODIFIER_AMOUNT_MIN = -20;
@@ -137,32 +138,32 @@ function normalizeSourceId(value: unknown): string | number | undefined {
   return undefined;
 }
 
-const SCHOOL_OF_KNOWLEDGE_SLUG = 'school-of-knowledge';
-const PREPARED_FEATURE_IDS = new Set(['208']);
-const PREPARED_FEATURE_NAMES = new Set(['prepared', 'подготовленный']);
-
 /**
- * Mechanical modifiers are intentionally registered from stable content identity.
- * Rules text is supporting evidence only, never parsed as executable homebrew.
+ * Foundation features are compiled from the same strict rule phrases for
+ * official and custom content. The subclass identity and translated feature
+ * name are deliberately irrelevant.
  */
 export function characterBuilderRuleModifiersForSubclass(subclass: GenericLibraryItem | null | undefined): CharacterRuleModifier[] {
-  if (!subclass || normalizeSlug(subclass.slug) !== SCHOOL_OF_KNOWLEDGE_SLUG) return [];
+  if (!subclass) return [];
   const foundation = Array.isArray(subclass.raw.foundation_features) ? subclass.raw.foundation_features : [];
-  const prepared = foundation.find((feature) => {
-    const featureId = String(feature.id ?? '');
-    const featureName = String(feature.name ?? '').trim().toLowerCase();
-    return PREPARED_FEATURE_IDS.has(featureId) || PREPARED_FEATURE_NAMES.has(featureName);
+  return foundation.flatMap((feature, index) => {
+    const text = typeof feature.main_body === 'string'
+      ? feature.main_body
+      : typeof feature.text === 'string' ? feature.text : '';
+    const amount = automaticFeatureRuleEffects(text).reduce((total, effect) => (
+      effect.kind === 'domainCardGrant' ? total + effect.count : total
+    ), 0);
+    if (amount === 0) return [];
+    const sourceId = feature.id ?? subclass.sourceId ?? subclass.id;
+    return [{
+      id: `subclass:${String(sourceId)}:foundation:${index}:starting-domain-card`,
+      kind: 'startingDomainCards' as const,
+      source: 'subclass' as const,
+      sourceId,
+      label: String(feature.name ?? 'Дополнительная карта домена'),
+      amount
+    }];
   });
-  if (!prepared) return [];
-
-  return [{
-    id: `${SCHOOL_OF_KNOWLEDGE_SLUG}:prepared:starting-domain-card`,
-    kind: 'startingDomainCards',
-    source: 'subclass',
-    sourceId: prepared.id ?? subclass.sourceId,
-    label: String(prepared.name ?? 'Prepared'),
-    amount: 1
-  }];
 }
 
 export function startingDomainCardCount(modifiers: readonly CharacterRuleModifier[] = []): number {
@@ -211,8 +212,4 @@ function modifierTotal<K extends CharacterRuleModifier['kind']>(modifiers: reado
 
 function safeModifierAmount(value: number): number {
   return Number.isFinite(value) ? Math.trunc(value) : 0;
-}
-
-function normalizeSlug(value: string): string {
-  return value.trim().toLowerCase().replace(/_/g, '-');
 }

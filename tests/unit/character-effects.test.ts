@@ -7,7 +7,7 @@ import { characterService } from "../../src/services/serviceRegistry";
 import { mapRawBeastformItem } from "../../src/domain/content/mappers";
 import { firstCharacter } from "./helpers";
 
-test('passive domain card effects are derived dynamically without mutating base character stats', () => {
+test('domain-card prose never becomes a permanent character stat effect', () => {
   resetAllStores();
   const character = firstCharacter();
   characterService.updateTrait(character.id, 'agility', 1);
@@ -24,12 +24,12 @@ test('passive domain card effects are derived dynamically without mutating base 
   assert.equal(stored.evasion, 10);
   assert.equal(stored.stress.max, 6);
   assert.equal(stored.traits.agility, 1);
-  assert.equal(effective.evasion, 12);
-  assert.equal(effective.stress.max, 7);
-  assert.equal(effective.traits.agility, 2);
-  assert.equal(effective.thresholds.major, stored.thresholds.major + 2);
-  assert.equal(summary.evasion, 12);
-  assert.equal(summary.stress.max, 7);
+  assert.equal(effective.evasion, stored.evasion);
+  assert.equal(effective.stress.max, stored.stress.max);
+  assert.equal(effective.traits.agility, stored.traits.agility);
+  assert.deepEqual(effective.thresholds, stored.thresholds);
+  assert.equal(summary.evasion, stored.evasion);
+  assert.equal(summary.stress.max, stored.stress.max);
 });
 
 test('permanent SRD sheet card effects are derived from ancestry and subclass features', () => {
@@ -72,6 +72,18 @@ test('permanent SRD sheet card effects are derived from ancestry and subclass fe
       kind: 'subclassFeature',
       name: 'Вознесенный',
       text: 'Получите постоянный бонус +4 к вашему порогу [Тяжёлого](/rule/severe-damage) урона.'
+    },
+    {
+      id: 'homebrew-permanent-trait',
+      kind: 'communityFeature',
+      name: 'Меткий взгляд',
+      text: 'Получите постоянный бонус +1 к вашему Знанию.'
+    },
+    {
+      id: 'earthkin-stone-skin',
+      kind: 'ancestryFeature',
+      name: 'Каменная кожа',
+      text: 'Получите бонус +1 к вашему Показателю Брони и Порогам Урона.'
     }
   ];
 
@@ -80,8 +92,65 @@ test('permanent SRD sheet card effects are derived from ancestry and subclass fe
   assert.equal(effective.hp.max, character.hp.max + 1);
   assert.equal(effective.stress.max, character.stress.max + 1);
   assert.equal(effective.evasion, character.evasion + 1);
-  assert.equal(effective.thresholds.major, character.thresholds.major + 3);
-  assert.equal(effective.thresholds.severe, character.thresholds.severe + 7);
+  assert.equal(effective.armorScore, character.armor.score + 1);
+  assert.equal(effective.traits.knowledge, character.traits.knowledge + 1);
+  assert.equal(effective.thresholds.major, character.thresholds.major + 4);
+  assert.equal(effective.thresholds.severe, character.thresholds.severe + 8);
+});
+
+test('safe passive grammar also applies to a custom pasted feature', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  characterService.addSheetCard(character.id, {
+    id: 'custom-passive',
+    kind: 'custom',
+    name: 'Домашнее правило',
+    text: 'Получаете постоянный бонус +2 к Уклонению.'
+  });
+  characterService.configureUsageTracker(character.id, {
+    id: 'custom-passive-uses',
+    targetKind: 'feature',
+    targetId: 'custom-passive',
+    max: 1
+  });
+
+  let stored = characterService.getCharacter(character.id)!;
+  assert.equal(buildEffectiveCharacterStats(stored).evasion, stored.evasion + 2);
+
+  characterService.updateSheetCard(character.id, 'custom-passive', {
+    text: 'Получаете постоянный бонус +1 к Уклонению.'
+  });
+  stored = characterService.getCharacter(character.id)!;
+  assert.equal(buildEffectiveCharacterStats(stored).evasion, stored.evasion + 1);
+
+  characterService.removeSheetCard(character.id, 'custom-passive');
+  stored = characterService.getCharacter(character.id)!;
+  assert.equal(buildEffectiveCharacterStats(stored).evasion, stored.evasion);
+  assert.equal(stored.usageTrackers?.some((tracker) => tracker.targetId === 'custom-passive') ?? false, false);
+});
+
+test('editing a base track maximum preserves marks allowed by a parsed permanent slot', () => {
+  resetAllStores();
+  const character = characterService.createCharacter({
+    hp: { marked: 0, max: 5 },
+    stress: { marked: 0, max: 6 }
+  });
+  characterService.addSheetCard(character.id, {
+    id: 'extra-capacity',
+    kind: 'custom',
+    name: 'Запас сил',
+    text: 'Получите дополнительную ячейку Ран. Получите дополнительную ячейку Стресса.'
+  });
+  characterService.markSlots(character.id, 'hp', 6);
+  characterService.markSlots(character.id, 'stress', 7);
+
+  characterService.updateResourceMax(character.id, 'hp', 4);
+  characterService.updateResourceMax(character.id, 'stress', 5);
+  const updated = characterService.getCharacter(character.id)!;
+  assert.equal(updated.hp.marked, 5);
+  assert.equal(updated.stress.marked, 6);
+  assert.equal(buildEffectiveCharacterStats(updated).hp.max, 5);
+  assert.equal(buildEffectiveCharacterStats(updated).stress.max, 6);
 });
 
 test('sheet card effects ignore non-permanent resource and situational bonuses', () => {

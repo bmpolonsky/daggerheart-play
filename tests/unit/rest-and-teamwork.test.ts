@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { canApplyRestChoice, canSelectRestChoices, rollRestFear } from "../../src/domain/rules/rest";
+import { canApplyRestChoice, canSelectRestChoices, partyRestRulesForCharacters, restMoveOperation, restMoveRequiresRoll, restParticipantRulesForCharacter, rollRestFear } from "../../src/domain/rules/rest";
 import { buildTableFeedFromEntries } from "../../src/domain/tabletop/feed";
 import { resetAllStores, feedStore } from "../../src/stores/gameStores";
 import { gameService, characterService, feedService, tabletopService } from "../../src/services/serviceRegistry";
@@ -19,6 +19,66 @@ test('SRD rest fear helper uses short and long rest formulas', () => {
   assert.equal(longRest.modifier, 3);
   assert.equal(longRest.total, 4);
   assert.equal(longRest.formula, '1d4 + 3');
+});
+
+test('rest variants are compiled from feature text without ancestry or subclass identity checks', () => {
+  resetAllStores();
+  const elfLike = characterService.createCharacter({
+    name: 'Домашний транс',
+    sheetCards: [{
+      id: 'homebrew-extra-rest',
+      kind: 'custom',
+      name: 'Своя формулировка',
+      text: 'Во время отдыха вы можете погрузиться в транс и совершить дополнительный Ход Отдыха.'
+    }]
+  });
+  const clankLike = characterService.createCharacter({
+    name: 'Домашняя эффективность',
+    sheetCards: [{
+      id: 'homebrew-rest-swap',
+      kind: 'communityFeature',
+      name: 'Иная механика',
+      text: 'Когда вы совершаете короткий отдых, вы можете заменить один из ваших ходов короткого отдыха на ход продолжительного отдыха.'
+    }]
+  });
+
+  const extra = restParticipantRulesForCharacter(elfLike, 'short');
+  const swap = restParticipantRulesForCharacter(clankLike, 'short');
+  assert.equal(extra.maxChoices, 3);
+  assert.equal(swap.maxLongRestMoves, 1);
+  assert.ok(swap.availableMoves.includes('Залечить все Раны'));
+  assert.equal(restMoveOperation('Залечить все Раны'), 'clearHp');
+  assert.equal(restMoveRequiresRoll('Залечить Раны'), true);
+  assert.equal(restMoveRequiresRoll('Исцелить HP: 1d4 + ранг'), true);
+  assert.equal(restMoveRequiresRoll('Залечить все Раны'), false);
+});
+
+test('a party rest move discovered in one character feature is available to the whole group', () => {
+  resetAllStores();
+  const source = characterService.createCharacter({
+    sheetCards: [{
+      id: 'party-rest-move',
+      kind: 'subclassFeature',
+      name: 'Тренировка',
+      text: 'Ваша группа получает доступ к Ходу Отдыха под названием Боевая Подготовка.'
+    }]
+  });
+  const rules = partyRestRulesForCharacters([source], 'short');
+  assert.deepEqual(rules.map((rule) => rule.moveLabel), ['Боевая Подготовка']);
+});
+
+test('a short-rest reroll may be used by the owner or an ally without becoming a fake rest move', () => {
+  resetAllStores();
+  const source = characterService.createCharacter({
+    sheetCards: [{
+      id: 'oasis',
+      kind: 'communityFeature',
+      name: 'Оазис',
+      text: 'Во время короткого отдыха вы или ваш союзник можете перебросить одну кость хода отдыха.'
+    }]
+  });
+  const rules = partyRestRulesForCharacters([source], 'short');
+  assert.deepEqual(rules, [{ note: 'Вы или союзник можете один раз перебросить кость хода короткого отдыха' }]);
 });
 
 test('tabletop rest flow grants Fear and explicit long rest recovery clears group tracks', () => {
@@ -101,6 +161,19 @@ test('rest request feed entry carries participant choices and respects publicati
   assert.equal(ownerFeed[0].rest?.participants[0]?.ready, true);
   assert.equal(strangerFeed.length, 0);
   assert.equal(gmFeed[0].kind, 'rest');
+});
+
+test('rest feed summary does not claim one shared limit when participants have individual limits', () => {
+  resetAllStores();
+  const entry = feedService.requestRest('short', {
+    participants: [
+      { actorId: 'regular', actorName: 'Обычный герой', maxChoices: 2 },
+      { actorId: 'extra', actorName: 'Герой с трансом', maxChoices: 3 }
+    ]
+  });
+  const item = buildTableFeedFromEntries({ feed: [entry], role: 'gm' })[0];
+  assert.match(item?.body ?? '', /Лимит выборов указан у каждого персонажа/);
+  assert.doesNotMatch(item?.body ?? '', /Каждый выбирает 2/);
 });
 
 test('rest feed choices update by participant slots and completion stores fear plan', () => {

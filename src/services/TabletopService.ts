@@ -1,5 +1,5 @@
 import { characterLevelRank } from '../domain/rules/levelUp';
-import { rollRestFear, type LongRestRecoveryMove, type RestFearPlan, type RestType } from '../domain/rules/rest';
+import { restMoveOperation, rollRestFear, type LongRestRecoveryMove, type RestFearPlan, type RestType } from '../domain/rules/rest';
 import { GameService } from './GameService';
 import { CharacterService } from './CharacterService';
 import { DiceService } from './DiceService';
@@ -249,7 +249,7 @@ export class TabletopService {
     const modifierText = plan.modifier > 0 ? ` + ${plan.modifier} персонаж(ей)` : '';
     this.dependencies.rollLogService.addManual(
       restTitle,
-      `Страх: 1d4 (${plan.die})${modifierText} = ${plan.total}. Каждый персонаж выбирает два хода отдыха.`,
+      `Страх: 1d4 (${plan.die})${modifierText} = ${plan.total}.`,
       { authorName: 'Мастер', feedType: 'system' }
     );
     return plan;
@@ -289,11 +289,11 @@ export class TabletopService {
     return measureRange(source, target, gridSize);
   }
 
-  private applyRestMove(character: Character, restType: RestType, label: string, count: number): RestChoiceResult {
+  private applyRestMove(character: Character, _restType: RestType, label: string, count: number): RestChoiceResult {
     const safeCount = Math.max(1, Math.trunc(count));
     const rank = characterLevelRank(character.level);
-    const normalized = label.toLocaleLowerCase();
-    if (restType === 'short' && (normalized.includes('hp') || normalized.includes('ран'))) {
+    const operation = restMoveOperation(label);
+    if (operation === 'rollHp') {
       const roll = this.dependencies.diceService.rollManualDice({
         actorId: character.id,
         actorName: character.name,
@@ -304,7 +304,7 @@ export class TabletopService {
       this.dependencies.characterService.clearHp(character.id, roll.total);
       return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount: roll.total, note: `Исцелено ран: ${roll.total}.` };
     }
-    if (restType === 'short' && normalized.includes('стресс')) {
+    if (operation === 'rollStress') {
       const roll = this.dependencies.diceService.rollManualDice({
         actorId: character.id,
         actorName: character.name,
@@ -315,7 +315,7 @@ export class TabletopService {
       this.dependencies.characterService.clearStress(character.id, roll.total);
       return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount: roll.total, note: `Очищено стресса: ${roll.total}.` };
     }
-    if (restType === 'short' && normalized.includes('брон')) {
+    if (operation === 'rollArmor') {
       const roll = this.dependencies.diceService.rollManualDice({
         actorId: character.id,
         actorName: character.name,
@@ -328,22 +328,22 @@ export class TabletopService {
       }, false);
       return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount: roll.total, note: `Починено брони: ${roll.total}.` };
     }
-    if (normalized.includes('надежд') || normalized.includes('подготов')) {
+    if (operation === 'prepare') {
       const amount = safeCount;
       this.dependencies.characterService.adjustHope(character.id, amount);
       return { appliedAmount: amount, note: `Получено Надежды: ${amount}.` };
     }
-    if (restType === 'long' && (normalized.includes('hp') || normalized.includes('ран'))) {
+    if (operation === 'clearHp') {
       const amount = character.hp.marked;
       this.dependencies.characterService.clearHp(character.id, amount);
       return { appliedAmount: amount, note: `Очищены все раны: ${amount}.` };
     }
-    if (restType === 'long' && normalized.includes('стресс')) {
+    if (operation === 'clearStress') {
       const amount = character.stress.marked;
       this.dependencies.characterService.clearStress(character.id, amount);
       return { appliedAmount: amount, note: `Очищен весь стресс: ${amount}.` };
     }
-    if (restType === 'long' && normalized.includes('брон')) {
+    if (operation === 'clearArmor') {
       const amount = character.armor.markedSlots;
       this.dependencies.characterService.updateArmor(character.id, { markedSlots: 0 }, false);
       return { appliedAmount: amount, note: `Починена вся броня: ${amount}.` };

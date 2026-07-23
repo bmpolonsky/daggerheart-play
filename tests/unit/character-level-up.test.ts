@@ -19,6 +19,13 @@ test('strict level-up applies one level, rank achievement, two improvements and 
     domains: ['Grace', 'Codex'],
     experiences: [{ id: 'exp-scout', name: 'Следопыт', modifier: 2 }]
   });
+  service.addSheetCard(character.id, {
+    id: 'extra-stress-capacity',
+    kind: 'custom',
+    name: 'Высокая выносливость',
+    text: 'Получите дополнительную ячейку Стресса.'
+  });
+  service.markSlots(character.id, 'stress', character.stress.max + 1);
   const input = {
     actor: { id: 'player-1', name: 'Иван', role: 'player' as const },
     level: 2,
@@ -42,6 +49,7 @@ test('strict level-up applies one level, rank achievement, two improvements and 
   assert.equal(updated.proficiency, character.proficiency + 1);
   assert.equal(updated.hp.max, character.hp.max + 1);
   assert.equal(updated.stress.max, character.stress.max);
+  assert.equal(updated.stress.marked, character.stress.max + 1);
   assert.equal(updated.traits.agility, character.traits.agility + 1);
   assert.equal(updated.traits.strength, character.traits.strength + 1);
   assert.equal(updated.domainCards.length, 1);
@@ -159,6 +167,50 @@ test('level-up rule modifiers extend choices, card grants and stat effects witho
   assert.equal(plan.requiredAdvancementChoices, 3);
   assert.equal(plan.requiredDomainCards, 2);
   assert.equal(validateCharacterLevelUp(character, input).strictlyValid, true);
+});
+
+test('a subclass upgrade feature grants its additional domain card from text', () => {
+  const character = createCharacter({ level: 4, domains: ['Codex', 'Splendor'] });
+  const subclassCards = [{
+    id: 'knowledge-specialization',
+    kind: 'subclassFeature' as const,
+    subclassTier: 'specialization' as const,
+    name: 'Опытный исследователь',
+    text: 'Возьмите дополнительную Карту Домена вашего уровня или ниже из домена, к которому у вас есть доступ.'
+  }];
+  const plan = buildCharacterLevelUpPlan(character, {
+    targetLevel: 5,
+    advancementChoices: ['subclass', 'hp'],
+    subclassCards
+  });
+  assert.equal(plan.requiredDomainCards, 2);
+  const multiclassPlan = buildCharacterLevelUpPlan(character, {
+    targetLevel: 5,
+    advancementChoices: ['multiclass', 'hp'],
+    multiclassClass: 'Wizard',
+    multiclassDomain: 'Codex',
+    subclassCards
+  });
+  assert.equal(multiclassPlan.requiredDomainCards, 2);
+
+  const validation = validateCharacterLevelUp(character, {
+    level: 5,
+    advancementChoices: ['subclass', 'hp'],
+    proficiency: character.proficiency + 1,
+    experiences: [{ name: 'Исследователь', modifier: 2 }],
+    experienceIncreases: [],
+    domainCards: [
+      createDomainCard({ id: 'codex-level', sourceId: 'codex-level', domain: 'Codex', level: 5 }),
+      createDomainCard({ id: 'splendor-level', sourceId: 'splendor-level', domain: 'Splendor', level: 5 })
+    ],
+    subclassCards,
+    thresholdBonus: { major: character.thresholds.major + 1, severe: character.thresholds.severe + 1 },
+    traitBonuses: {},
+    hpMax: character.hp.max + 1,
+    stressMax: character.stress.max,
+    evasion: character.evasion
+  });
+  assert.equal(validation.issues.some((issue) => issue.code === 'domainCards.count'), false);
 });
 
 test('CharacterService automatically applies persisted modifiers and ignores caller-only rule escalation', () => {

@@ -631,6 +631,22 @@ Props:
 - `showHeader`: hides the built-in label/value row when the surrounding composition already owns it.
 - `className`: integrates contextual pip sizing without duplicating interaction markup.
 
+### RuleEffectText
+
+Use for prose ranges recognized as typed feature effects. It is deliberately
+non-clickable: hover distinguishes a currently applied rule from a rule used
+during character creation or card selection and from assisted/manual handling.
+
+```tsx
+<RuleEffectText effects={effects}>Получите дополнительную ячейку Ран.</RuleEffectText>
+```
+
+Guidance:
+
+- Keep the original rule text visible; the tooltip only explains what the app understood.
+- Interactive roll or resource macros may remain nested inside this marker.
+- Do not use it as a button or as confirmation that an assisted effect was applied.
+
 ### ImageFilePicker and FilePicker
 
 Use for image/music upload controls.

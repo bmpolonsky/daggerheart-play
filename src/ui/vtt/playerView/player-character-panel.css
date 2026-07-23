@@ -1415,7 +1415,14 @@
   white-space: normal;
 }
 
-.player-sheet-feature-block > strong {
+.player-sheet-feature-block__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.player-sheet-feature-block__header > strong {
   color: #fff7e7;
   font-size: 0.92rem;
   line-height: 1.18;

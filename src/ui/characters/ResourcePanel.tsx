@@ -21,22 +21,22 @@ export function ResourcePanel({ character, allowStructureEdit = false }: { chara
         />
         <ResourcePips
           label="Отмеченные Раны"
-          current={character.hp.marked}
-          max={character.hp.max}
+          current={effective.hp.marked}
+          max={effective.hp.max}
           tone="hp"
           onChange={(next) => characterService.markSlots(character.id, 'hp', next - character.hp.marked)}
         />
         <ResourcePips
           label="Отмеченный Стресс"
-          current={character.stress.marked}
-          max={character.stress.max}
+          current={effective.stress.marked}
+          max={effective.stress.max}
           tone="stress"
           onChange={(next) => characterService.markSlots(character.id, 'stress', next - character.stress.marked)}
         />
         <ResourcePips
           label="Ячейки Брони"
-          current={character.armor.markedSlots}
-          max={character.armor.score}
+          current={Math.min(character.armor.markedSlots, effective.armorScore)}
+          max={effective.armorScore}
           tone="armor"
           onChange={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
         />

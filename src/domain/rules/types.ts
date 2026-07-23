@@ -602,6 +602,13 @@ export interface RestFeedParticipant {
   actorId: string;
   actorName: string;
   playerId?: string;
+  /** Per-character overrides for ancestry, community, and feature rules. */
+  availableMoves?: string[];
+  maxChoices?: number;
+  /** A short-rest replacement may allow only a limited number of long-rest moves. */
+  longRestMoveLabels?: string[];
+  maxLongRestMoves?: number;
+  ruleNotes?: string[];
   ready: boolean;
   choices: RestFeedChoice[];
 }

@@ -400,8 +400,8 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
     thresholds: { ...effective.thresholds },
     armor: {
       name: character.armor.name,
-      score: character.armor.score,
-      marked: character.armor.markedSlots,
+      score: effective.armorScore,
+      marked: Math.min(character.armor.markedSlots, effective.armorScore),
       feature: cleanMarkdownText(character.armor.feature?.trim() ?? '', { emphasizeLinks: true })
     },
     activeBeastform: character.activeBeastform ? { ...character.activeBeastform } : null,

@@ -1,6 +1,7 @@
 import { clamp, toSafeInteger } from '../../core/utils/clamp';
 import { characterHandSize, type CharacterRuleModifier } from './characterRuleModifiers';
 import { parseDomainCardCost } from './domainCards';
+import { buildEffectiveCharacterStats } from './effects';
 import type { Character, DomainCardRecord } from './types';
 
 export type DomainCardMoveContext = 'rest' | 'adventure' | 'levelUp';
@@ -78,7 +79,8 @@ export function planDomainCardMove(character: Character, request: DomainCardMove
     addIssue(issues, 'replacement.invalid', 'Замена не требуется, пока в Руке есть свободное место.');
   }
 
-  const availableStress = Math.max(0, character.stress.max - character.stress.marked);
+  const effectiveStress = buildEffectiveCharacterStats(character).stress;
+  const availableStress = Math.max(0, effectiveStress.max - effectiveStress.marked);
   if (stressCost > availableStress) {
     addIssue(issues, 'stress.insufficient', `Для призыва нужно отметить Стресс: ${stressCost}.`);
   }
@@ -104,13 +106,14 @@ export function applyDomainCardMove(character: Character, request: DomainCardMov
     if (card.id === plan.replacementCardId) return { ...card, inLoadout: false };
     return card;
   });
+  const effectiveStressMax = buildEffectiveCharacterStats(character).stress.max;
   return {
     character: {
       ...character,
       domainCards,
       stress: {
         ...character.stress,
-        marked: clamp(character.stress.marked + plan.stressCost, 0, character.stress.max)
+        marked: clamp(character.stress.marked + plan.stressCost, 0, effectiveStressMax)
       }
     },
     plan,

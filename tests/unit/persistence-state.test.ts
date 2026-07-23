@@ -6,6 +6,7 @@ import { migratePersistedState } from "../../src/domain/migrations/persistedStat
 import { snapshotPersistedState, hydratePersistedState, isPersistedState } from "../../src/stores/persistedState";
 import { characterService, encounterService, importExportService, sceneTableService } from "../../src/services/serviceRegistry";
 import type { GameDocument } from "../../src/domain/game/gameDocument";
+import { buildEffectiveCharacterStats } from "../../src/domain/rules/effects";
 
 test('persistence v5 includes table scenes and import/export hydrates them', async () => {
   resetAllStores();
@@ -73,6 +74,45 @@ test('persistence v5 includes table scenes and import/export hydrates them', asy
     assets: Object.values(snapshot.sceneTable.assets)
   };
   assert.equal(importExportService.previewImportJson(JSON.stringify(legacyArchive)).ok, true);
+});
+
+test('custom text effects and their usage trackers survive game export and import', async () => {
+  resetAllStores();
+  const character = characterService.createCharacter({ name: 'Герой с домашним правилом', evasion: 10 });
+  characterService.addSheetCard(character.id, {
+    id: 'custom-training',
+    kind: 'custom',
+    name: 'Домашняя выучка',
+    subtitle: 'Домашнее правило',
+    text: 'Получаете постоянный бонус +1 к Уклонению. Вы можете использовать это свойство один раз до следующего продолжительного отдыха.'
+  });
+  characterService.configureUsageTracker(character.id, {
+    id: 'custom-training-uses',
+    targetKind: 'feature',
+    targetId: 'custom-training',
+    label: 'До продолжительного отдыха',
+    current: 1,
+    max: 1,
+    reset: 'long'
+  });
+
+  const exported = importExportService.exportGameJson(false);
+  resetAllStores();
+  assert.deepEqual(await importExportService.importJson(exported), { ok: true });
+
+  const restored = characterService.getCharacter(character.id);
+  assert.ok(restored);
+  assert.equal(restored.sheetCards.find((card) => card.id === 'custom-training')?.text?.startsWith('Получаете постоянный бонус'), true);
+  assert.deepEqual(restored.usageTrackers?.find((tracker) => tracker.id === 'custom-training-uses'), {
+    id: 'custom-training-uses',
+    targetKind: 'feature',
+    targetId: 'custom-training',
+    label: 'До продолжительного отдыха',
+    current: 1,
+    max: 1,
+    reset: 'long'
+  });
+  assert.equal(buildEffectiveCharacterStats(restored).evasion, 11);
 });
 
 test('synced game store registry backs snapshots, hydration, and subscriptions', () => {

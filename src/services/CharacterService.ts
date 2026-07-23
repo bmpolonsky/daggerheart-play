@@ -235,12 +235,16 @@ export class CharacterService {
   updateClass(id: string, className: DaggerheartClass): void {
     this.patchCharacter(id, (character) => {
       const stats = CLASS_STARTING_STATS[className];
-      return {
+      const nextCharacter = {
         ...character,
         className,
         domains: CLASS_DOMAINS[className],
         evasion: stats.evasion,
-        hp: { ...character.hp, max: stats.hp, marked: Math.min(character.hp.marked, stats.hp) }
+        hp: { ...character.hp, max: stats.hp }
+      };
+      return {
+        ...nextCharacter,
+        hp: { ...nextCharacter.hp, marked: Math.min(character.hp.marked, buildEffectiveCharacterStats(nextCharacter).hp.max) }
       };
     });
   }
@@ -293,14 +297,19 @@ export class CharacterService {
           : card)
         : current.domainCards;
       const nextDomainCards = placeAcquiredDomainCards(exchangedDomainCards, newDomainCards, current.ruleModifiers);
-      return {
+      const nextSheetCards = [
+        ...current.sheetCards,
+        ...(input.multiclassClassCards ?? []).map((card) => createSheetCard({ ...card, kind: 'classFeature' })),
+        ...(input.subclassCards ?? []).map((card) => createSheetCard({ ...card, kind: 'subclassFeature' }))
+      ];
+      const nextCharacter: Character = {
         ...current,
         level,
         proficiency,
         evasion,
         traits,
-        hp: { ...current.hp, max: hpMax, marked: Math.min(current.hp.marked, hpMax) },
-        stress: { ...current.stress, max: stressMax, marked: Math.min(current.stress.marked, stressMax) },
+        hp: { ...current.hp, max: hpMax },
+        stress: { ...current.stress, max: stressMax },
         thresholds: {
           major: clamp(toSafeInteger(thresholdBonus.major ?? current.thresholds.major + Math.max(0, level - current.level), current.thresholds.major), 0, 999),
           severe: clamp(toSafeInteger(thresholdBonus.severe ?? current.thresholds.severe + Math.max(0, level - current.level), current.thresholds.severe), 0, 999)
@@ -312,13 +321,15 @@ export class CharacterService {
           ...(input.experiences ?? []).map((experience) => ({ ...createExperience(), ...experience }))
         ],
         domainCards: nextDomainCards,
-        sheetCards: [
-          ...current.sheetCards,
-          ...(input.multiclassClassCards ?? []).map((card) => createSheetCard({ ...card, kind: 'classFeature' })),
-          ...(input.subclassCards ?? []).map((card) => createSheetCard({ ...card, kind: 'subclassFeature' }))
-        ],
+        sheetCards: nextSheetCards,
         advancement: nextCharacterAdvancementState(current, input),
         notes: input.notes ? [current.notes, input.notes].filter(Boolean).join('\n') : current.notes
+      };
+      const effective = buildEffectiveCharacterStats(nextCharacter);
+      return {
+        ...nextCharacter,
+        hp: { ...nextCharacter.hp, marked: Math.min(current.hp.marked, effective.hp.max) },
+        stress: { ...nextCharacter.stress, marked: Math.min(current.stress.marked, effective.stress.max) }
       };
     }, {
       actor: override?.actor ?? input.actor,
@@ -361,17 +372,17 @@ export class CharacterService {
   updateArmor(id: string, armorPatch: Partial<ArmorState>, recalculate = true): void {
     this.patchCharacter(id, (character) => {
       const score = clamp(toSafeInteger(armorPatch.score ?? character.armor.score), 0, MAX_ARMOR_SCORE);
-      const armor = {
+      const armorBase = {
         ...character.armor,
         ...armorPatch,
-        markedSlots: clamp(
-          toSafeInteger(armorPatch.markedSlots ?? character.armor.markedSlots),
-          0,
-          score
-        ),
         score,
         baseMajor: clamp(toSafeInteger(armorPatch.baseMajor ?? character.armor.baseMajor), 0, 999),
         baseSevere: clamp(toSafeInteger(armorPatch.baseSevere ?? character.armor.baseSevere), 0, 999)
+      };
+      const effectiveScore = buildEffectiveCharacterStats({ ...character, armor: armorBase }).armorScore;
+      const armor = {
+        ...armorBase,
+        markedSlots: clamp(toSafeInteger(armorPatch.markedSlots ?? character.armor.markedSlots), 0, effectiveScore)
       };
       return {
         ...character,
@@ -424,19 +435,26 @@ export class CharacterService {
       const nextCharacter = {
         ...character,
         [resource]: {
-          marked: Math.min(character[resource].marked, safeMax),
+          marked: character[resource].marked,
           max: safeMax
         }
       };
-      if (resource === 'hp') {
-        return syncCharacterDefeatedCondition(nextCharacter);
-      }
       const effective = buildEffectiveCharacterStats(nextCharacter);
-      return {
+      const clampedCharacter = {
         ...nextCharacter,
-        conditions: safeMax > 0 && nextCharacter.stress.marked >= effective.stress.max
-          ? ensureCharacterCondition(nextCharacter.conditions, ActorStatus.Vulnerable)
-          : removeCharacterConditionByName(nextCharacter.conditions, ActorStatus.Vulnerable)
+        [resource]: {
+          ...nextCharacter[resource],
+          marked: Math.min(nextCharacter[resource].marked, effective[resource].max)
+        }
+      };
+      if (resource === 'hp') {
+        return syncCharacterDefeatedCondition(clampedCharacter);
+      }
+      return {
+        ...clampedCharacter,
+        conditions: effective.stress.max > 0 && clampedCharacter.stress.marked >= effective.stress.max
+          ? ensureCharacterCondition(clampedCharacter.conditions, ActorStatus.Vulnerable)
+          : removeCharacterConditionByName(clampedCharacter.conditions, ActorStatus.Vulnerable)
       };
     });
     if (resource === 'hp') {
@@ -761,7 +779,10 @@ export class CharacterService {
   removeSheetCard(id: string, cardId: string): void {
     this.patchCharacter(id, (character) => ({
       ...character,
-      sheetCards: (character.sheetCards ?? []).filter((card) => card.id !== cardId)
+      sheetCards: (character.sheetCards ?? []).filter((card) => card.id !== cardId),
+      usageTrackers: (character.usageTrackers ?? []).filter((tracker) => (
+        tracker.targetKind !== 'feature' || tracker.targetId !== cardId
+      ))
     }));
   }
 

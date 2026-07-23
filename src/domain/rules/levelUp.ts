@@ -7,6 +7,7 @@ import {
   type CharacterRuleModifier
 } from './characterRuleModifiers';
 import { CLASS_DOMAINS } from './constants';
+import { automaticFeatureRuleEffects } from './featureEffects';
 import type {
   Character,
   CharacterAdvancementChoiceId,
@@ -51,6 +52,8 @@ export interface CharacterLevelUpPlanInput {
   multiclassSubclassName?: string;
   multiclassSubclassSlug?: string;
   ruleModifiers?: CharacterRuleModifier[];
+  /** Subclass features actually selected in this level-up; their prose may grant cards. */
+  subclassCards?: Array<Partial<CharacterSheetCard>>;
 }
 
 export interface CharacterLevelUpApplicationInput extends CharacterLevelUpPlanInput {
@@ -61,7 +64,6 @@ export interface CharacterLevelUpApplicationInput extends CharacterLevelUpPlanIn
   experienceIncreases?: Array<{ experienceId: string }>;
   domainCards?: Array<Partial<DomainCardRecord>>;
   domainCardExchange?: { removeCardId: string; replacement: Partial<DomainCardRecord> };
-  subclassCards?: Array<Partial<CharacterSheetCard>>;
   multiclassClassCards?: Array<Partial<CharacterSheetCard>>;
   thresholdBonus?: Partial<Thresholds>;
   traitBonuses?: Partial<Record<TraitId, number>>;
@@ -172,6 +174,12 @@ export function characterRankAchievements(level: number): string[] {
   return [];
 }
 
+function domainCardGrantCount(text: string): number {
+  return automaticFeatureRuleEffects(text).reduce((total, effect) => (
+    effect.kind === 'domainCardGrant' ? total + effect.count : total
+  ), 0);
+}
+
 export function buildCharacterLevelUpPlan(character: Character, input: CharacterLevelUpPlanInput = {}): CharacterLevelUpPlan {
   const currentLevel = clamp(toSafeInteger(character.level, 1), 1, 10);
   const requestedLevel = toSafeInteger(input.targetLevel, currentLevel + 1);
@@ -193,7 +201,12 @@ export function buildCharacterLevelUpPlan(character: Character, input: Character
   }).map((issue) => issue.message);
   if (targetLevel !== currentLevel + 1 || targetLevel > 10) warnings.unshift('Обычное повышение должно увеличивать уровень ровно на один.');
   const requiredChoices = levelUpAdvancementChoiceCount(ruleModifiers);
-  const requiredCards = levelUpDomainCardCount(ruleModifiers) + countChoice(advancementChoices, 'domainCard');
+  const subclassDomainCardGrants = (input.subclassCards ?? []).reduce((total, card) => (
+    total + domainCardGrantCount(card.text ?? '')
+  ), 0);
+  const requiredCards = levelUpDomainCardCount(ruleModifiers) +
+    countChoice(advancementChoices, 'domainCard') +
+    subclassDomainCardGrants;
   const rankProficiency = rankAchievements.some((item) => item.includes('Мастерств')) ? 1 : 0;
 
   const summary = [
@@ -518,7 +531,10 @@ function validateDomainCards(
   issues: CharacterLevelUpIssue[]
 ): void {
   const cards = input.domainCards ?? [];
-  const requiredCards = levelUpDomainCardCount(modifiers) + countChoice(choices, 'domainCard');
+  const subclassDomainCardGrants = (input.subclassCards ?? []).reduce((total, card) => (
+    total + domainCardGrantCount(card.text ?? '')
+  ), 0);
+  const requiredCards = levelUpDomainCardCount(modifiers) + countChoice(choices, 'domainCard') + subclassDomainCardGrants;
   if (cards.length !== requiredCards) addIssue(issues, 'domainCards.count', `При этом повышении нужно выбрать карт домена: ${requiredCards}.`);
   const seen = new Set(character.domainCards.map((card) => String(card.sourceId ?? card.id)));
   const multiclassDomain = input.multiclassDomain || character.advancement?.multiclass?.domain || '';

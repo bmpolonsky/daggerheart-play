@@ -8,6 +8,8 @@ import {
   type StartingWeaponOption
 } from '../rules/equipment';
 import { parseDomainCardCost } from '../rules/domainCards';
+import { analyzeFeatureRules, automaticFeatureRuleEffects } from '../rules/featureEffects';
+import { createInventoryItem } from '../rules/factories';
 import {
   characterBuilderRuleModifiersForSubclass,
   startingDomainCardCount
@@ -442,6 +444,24 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   const backgroundAnswers = buildQuestionAnswers('background', backgroundQuestionsFor(classDefinition), input.backgroundAnswers ?? []);
   const connections = buildConnections(connectionQuestionsFor(classDefinition), input.connectionAnswers ?? []);
   const description = buildDescription(input);
+  const featureInventory = sheetCards.flatMap((card) => {
+    if (!['classFeature', 'ancestryFeature', 'communityFeature', 'subclassFeature'].includes(card.kind)) return [];
+    return automaticFeatureRuleEffects(card.text ?? '').flatMap((effect) => (
+      effect.kind === 'inventoryGrant' ? [createInventoryItem({
+        id: `feature-item-${card.id}-${effect.evidence.start}`,
+        name: effect.name,
+        kind: 'item',
+        quantity: effect.count,
+        sourceId: card.sourceId
+      })] : []
+    ));
+  });
+  const inventory = [...equipment.inventory];
+  for (const item of featureInventory) {
+    const existing = inventory.find((candidate) => candidate.name.localeCompare(item.name, 'ru', { sensitivity: 'base' }) === 0);
+    if (existing) existing.quantity += item.quantity;
+    else inventory.push(item);
+  }
   warnings.push(...mechanicalTextWarnings(sheetCards));
 
   return {
@@ -470,7 +490,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
       ruleModifiers,
       sheetCards,
       weapons: equipment.weapons,
-      inventory: equipment.inventory,
+      inventory,
       wealth: { coins: 0, handfuls: 1, bags: 0, chests: 0 },
       description,
       backgroundAnswers,
@@ -500,14 +520,23 @@ function mechanicalTextWarnings(cards: CharacterSheetCard[]): string[] {
   const warnings: string[] = [];
   for (const card of cards) {
     const text = `${card.name} ${card.text ?? ''}`.replace(/−/g, '-').toLowerCase();
-    if (containsManualMechanicalAdjustment(text)) {
+    const effects = analyzeFeatureRules(card.text ?? '').effects;
+    const hasCompiledStatEffect = effects.some((effect) => effect.kind === 'statDelta' && effect.automatic);
+    const setupEffects = effects.filter((effect) => (
+      effect.kind === 'creationChoice' ||
+      effect.kind === 'resourceInit' ||
+      effect.kind === 'companionGrant' ||
+      effect.kind === 'advancementGrant'
+    ));
+    setupEffects.forEach((effect) => warnings.push(`${card.name}: ${effect.summary}.`));
+    if (containsManualMechanicalAdjustment(text) && !hasCompiledStatEffect && setupEffects.length === 0) {
       warnings.push(`${card.name}: проверьте механический эффект вручную.`);
       continue;
     }
-    if (/(experience|опыт)/.test(text) && /(?:gain|add|получ|добав)/.test(text)) {
+    if (/(experience|опыт)/.test(text) && /(?:gain|add|получ|добав)/.test(text) && !effects.some((effect) => effect.kind === 'creationChoice' && effect.choice === 'experienceBonus')) {
       warnings.push(`${card.name}: проверьте дополнительный Опыт вручную.`);
     }
-    if (/(threshold|порог)/.test(text) && /[+-]\s*\d+/.test(text)) {
+    if (/(threshold|порог)/.test(text) && /[+-]\s*\d+/.test(text) && !effects.some((effect) => effect.kind === 'statDelta' && (effect.target === 'thresholdMajor' || effect.target === 'thresholdSevere'))) {
       warnings.push(`${card.name}: проверьте изменение порогов вручную.`);
     }
   }
