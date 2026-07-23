@@ -97,7 +97,7 @@ jobs:
           CONTENT_ASSET_CONCURRENCY: "8"
 
       - name: Verify refreshed rules corpus
-        run: npx vitest run tests/unit/feature-effects-corpus.test.ts
+        run: npx vitest run tests/content/feature-effects-corpus.test.ts
 
       - name: Build with verified Daggerheart content
         run: npm run build

@@ -43,6 +43,7 @@ test.describe('strict character level-up', () => {
     await expect(levelUp.getByText('0 из 2 очков')).toBeVisible();
     await expect(levelUp.getByText('Устаревшая ручная пометка')).toHaveCount(0);
     await levelUp.getByRole('button', { name: 'Добавить: Добавить ячейку Ран' }).click();
+    await expect(levelUp.getByText('1 из 2 очков')).toBeVisible();
     await levelUp.getByRole('button', { name: 'Добавить: Добавить ячейку Стресса' }).click();
     await expect(levelUp.getByText('2 из 2 очков')).toBeVisible();
 
