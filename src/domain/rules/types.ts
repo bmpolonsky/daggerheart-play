@@ -256,6 +256,7 @@ export interface CharacterRangerMarkState {
 
 export interface CharacterCompanionState {
   name: string;
+  imageUrl?: string;
   evasion: number;
   stress: TrackSlots;
   attackName: string;

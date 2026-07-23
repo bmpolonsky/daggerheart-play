@@ -198,8 +198,53 @@ test('player view model exposes only public live scene state', () => {
   ]);
   assert.deepEqual(assignedModel.character?.features.map((feature) => feature.name), ['Ribbet Leap', 'Companion', 'Advanced Companion', 'Master Companion']);
   assert.deepEqual(assignedModel.character?.features.map((feature) => feature.subtitle), ['Ancestry', 'Основа', 'Специализация', 'Мастерство']);
+  assert.deepEqual(assignedModel.character?.features.map((feature) => feature.sourceLabel), [
+    'Родословная',
+    'Подкласс · Основа',
+    'Подкласс · Специализация',
+    'Подкласс · Мастерство'
+  ]);
   assert.deepEqual(assignedModel.character?.inventory.map((item) => item.name), ['Lantern', 'Rope']);
   assert.deepEqual(assignedModel.character?.conditions.map((condition) => condition.name), [ActorStatus.Hidden]);
+});
+
+test('player view exposes a ranger companion as its own scene token', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  characterService.ensureRangerCompanion(character.id, {
+    name: 'Искра',
+    imageUrl: 'https://example.test/spark.webp'
+  });
+  const scene = createTableScene({
+    tokens: [
+      createTokenState({ kind: 'companion', id: character.id }, { id: 'companion-token', x: 240, y: 320 })
+    ]
+  });
+
+  const model = buildPlayerViewModel({
+    game: createGameState(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
+    liveScene: scene,
+    assets: {},
+    assetUrls: {},
+    rollLog: [],
+    playerCharacterId: character.id
+  });
+
+  assert.deepEqual(model.tokens.map((token) => ({
+    id: token.id,
+    actorId: token.actorId,
+    kind: token.kind,
+    name: token.name,
+    imageUrl: token.imageUrl
+  })), [{
+    id: 'companion-token',
+    actorId: character.id,
+    kind: 'companion',
+    name: 'Искра',
+    imageUrl: 'https://example.test/spark.webp'
+  }]);
 });
 
 test('mini dice launcher mode follows role and selected actor', () => {

@@ -96,6 +96,7 @@ export function PlayerCharacterPanel({
         onAddToScene={onAddToScene}
         onForceMutePlayer={onForceMutePlayer}
         onWealthEdit={onWealthEdit}
+        onEditCharacter={onEditCharacter}
         onOpenActor={onOpenActor}
       />
     );

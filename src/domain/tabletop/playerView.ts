@@ -3,7 +3,7 @@ import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { buildEffectiveCharacterStats } from '../rules/effects';
 import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
-import { isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
+import { characterSheetCardSourceLabel, isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
 import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId, CharacterWealth } from '../rules/types';
 import { TRAIT_LABELS, adversaryTypeLabel, classLabel, domainLabel, rangeLabel } from '../rules/constants';
 import { normalizeStatusTag } from '../rules/statuses';
@@ -17,7 +17,7 @@ import type { MapAsset, TableScene, TokenState } from './types';
 export interface PlayerViewToken {
   id: string;
   actorId: string;
-  kind: 'character' | 'adversary' | 'environment';
+  kind: 'character' | 'adversary' | 'environment' | 'companion';
   name: string;
   subtitle: string;
   imageUrl: string;
@@ -57,7 +57,7 @@ export interface PlayerViewCharacterSummary {
   loadoutCards: PlayerViewDomainCardSummary[];
   handLimit: number;
   usageTrackers: NonNullable<Character['usageTrackers']>;
-  features: Array<{ id: string; name: string; subtitle: string; text: string }>;
+  features: Array<{ id: string; name: string; subtitle: string; sourceLabel: string; text: string }>;
   inventory: CharacterInventoryItem[];
   wealth: CharacterWealth;
   conditions: Array<{ id: string; name: string; notes: string }>;
@@ -291,6 +291,28 @@ export function buildPlayerTokens(tokens: TokenState[], characters: Record<strin
       });
       return;
     }
+    if (token.actor.kind === 'companion') {
+      const character = characters[token.actor.id];
+      const companion = character?.companion;
+      if (!character || !companion) return;
+      visibleTokens.push({
+        id: token.id,
+        actorId: character.id,
+        kind: 'companion',
+        name: companion.name,
+        subtitle: `Компаньон ${character.name}`,
+        imageUrl: companion.imageUrl ?? '',
+        x: token.x,
+        y: token.y,
+        width: token.width,
+        height: token.height,
+        tint: token.tint,
+        aura: token.aura,
+        hidden: token.hidden,
+        visibility: token.ownership.visibility
+      });
+      return;
+    }
     if (token.actor.kind === 'adversary') {
       const adversary = encounter.adversaries[token.actor.id];
       if (!adversary) return;
@@ -437,6 +459,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
         id: card.id,
         name: card.name,
         subtitle: characterSheetCardSubtitle(card),
+        sourceLabel: characterSheetCardSourceLabel(card),
         text: cleanMarkdownText(card.text ?? '', { emphasizeLinks: true })
       })),
     inventory: character.inventory.map((item) => ({

@@ -122,7 +122,7 @@ Use for small counters, tags, and compact status pills.
 Props:
 
 - `tone`: `neutral | gold | success | danger | blue`
-- `size`: `sm | md`
+- `size`: `xs | sm | md` (`xs` is for quiet source/type labels beside a title)
 
 Guidance:
 

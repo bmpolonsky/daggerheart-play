@@ -29,4 +29,5 @@ export type PlayerRollType = 'action' | 'reaction';
 export type PlayerRollDraft =
   | { kind: 'trait'; title: string; subtitle: string; trait: TraitId; difficulty?: number; notes?: string; rollType?: PlayerRollType }
   | { kind: 'weapon'; title: string; subtitle: string; trait: TraitId; damageFormula: string; damageType: string; rollType?: PlayerRollType }
-  | { kind: 'card'; title: string; subtitle: string; trait: TraitId; cardId: string; difficulty?: number; notes?: string; rollType?: PlayerRollType };
+  | { kind: 'card'; title: string; subtitle: string; trait: TraitId; cardId: string; difficulty?: number; notes?: string; rollType?: PlayerRollType }
+  | { kind: 'companion'; title: string; subtitle: string; trait: TraitId; damageFormula: string; damageType: string; difficulty?: number; notes?: string; rollType?: PlayerRollType };

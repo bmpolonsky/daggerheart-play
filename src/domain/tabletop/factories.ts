@@ -70,13 +70,13 @@ export function createTokenState(actor: ActorRef, input?: Partial<TokenState>): 
 
 export function defaultTokenPositionForActor(actor: ActorRef): Pick<TokenState, 'x' | 'y'> {
   return {
-    x: actor.kind === 'character' ? SAFE_TACTICAL_PLACEMENT.characterX : SAFE_TACTICAL_PLACEMENT.adversaryX,
+    x: actor.kind === 'character' || actor.kind === 'companion' ? SAFE_TACTICAL_PLACEMENT.characterX : SAFE_TACTICAL_PLACEMENT.adversaryX,
     y: SAFE_TACTICAL_PLACEMENT.defaultY
   };
 }
 
 export function arrangedTokenPositionForActor(actor: ActorRef, index: number): Pick<TokenState, 'x' | 'y'> {
-  const isCharacter = actor.kind === 'character';
+  const isCharacter = actor.kind === 'character' || actor.kind === 'companion';
   const capacity = SAFE_TACTICAL_PLACEMENT.arrangedRowsPerColumn * SAFE_TACTICAL_PLACEMENT.arrangedMaxColumns;
   const slot = Math.max(0, Math.floor(index)) % capacity;
   const row = slot % SAFE_TACTICAL_PLACEMENT.arrangedRowsPerColumn;

@@ -1,6 +1,7 @@
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Avatar } from '../components/common/Avatar';
+import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { Checkbox } from '../components/common/Checkbox';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
@@ -50,6 +51,7 @@ import { analyzeFeatureRules } from '../../domain/rules/featureEffects';
 import type { FeatureRuleEffect } from '../../domain/rules/featureEffects';
 import { buildEffectiveCharacterStats } from '../../domain/rules/effects';
 import { RuleEffectText, ruleEffectApplicationLabel, uniqueRuleEffectMessages } from '../components/common/RuleEffectText';
+import { characterSheetCardSourceLabel } from '../../domain/rules/sidecar';
 
 type CharacterEditorSection = 'identity' | 'stats' | 'resources' | 'loadout' | 'rules' | 'notes' | 'history';
 
@@ -159,7 +161,7 @@ export function CharacterEditor({
         <TabButton active={section === 'stats'} onClick={() => setSection('stats')}>Характеристики</TabButton>
         <TabButton active={section === 'resources'} onClick={() => setSection('resources')}>Ресурсы</TabButton>
         <TabButton active={section === 'loadout'} onClick={() => setSection('loadout')}>Снаряжение</TabButton>
-        <TabButton active={section === 'rules'} onClick={() => setSection('rules')}>Эффекты</TabButton>
+        <TabButton active={section === 'rules'} onClick={() => setSection('rules')}>Свойства</TabButton>
         <TabButton active={section === 'notes'} onClick={() => setSection('notes')}>Заметки</TabButton>
         <TabButton active={section === 'history'} onClick={() => setSection('history')}>История</TabButton>
       </Tabs>
@@ -330,7 +332,7 @@ function CharacterRuleEffectsSummary({ character, editable }: { character: Chara
     uniqueRuleEffectMessages(analysis.effects).map((effect) => ({ card, effect }))
   ));
   return (
-    <section className="character-editor-section" aria-label="Эффекты правил персонажа">
+    <section className="character-editor-section" aria-label="Свойства персонажа">
       <SectionHeader
         title="Свойства"
         subtitle="Распознанные правила отмечены прямо в исходном тексте"
@@ -347,7 +349,10 @@ function CharacterRuleEffectsSummary({ character, editable }: { character: Chara
             <article className="character-rule-feature" key={card.id}>
               <div className="character-rule-feature__heading">
                 <div>
-                  <strong>{card.name}</strong>
+                  <div className="character-rule-feature__identity">
+                    <strong>{card.name}</strong>
+                    <Badge size="xs">{characterSheetCardSourceLabel(card)}</Badge>
+                  </div>
                   {card.subtitle && <span>{card.subtitle}</span>}
                 </div>
                 {editable && card.kind === 'custom' && (

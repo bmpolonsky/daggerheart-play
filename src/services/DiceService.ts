@@ -95,9 +95,7 @@ export class DiceService {
       modifiers.push({ label: TRAIT_LABELS[request.trait], value: actorStats.traits[request.trait] ?? 0 });
     }
 
-    const selectedExperiences = actor
-      ? actor.experiences.filter((experience) => request.experienceIds?.includes(experience.id))
-      : [];
+    const selectedExperiences = selectedRollExperiences(actor, request.experienceIds);
 
     if (selectedExperiences.length > 0) {
       if (request.spendHopeForExperiences !== false) {
@@ -112,7 +110,8 @@ export class DiceService {
         }
       }
       for (const experience of selectedExperiences) {
-        modifiers.push({ label: request.spendHopeForExperiences === false ? `Опыт без списания: ${experience.name}` : `Опыт: ${experience.name}`, value: experience.modifier });
+        const label = experience.source === 'companion' ? 'Опыт компаньона' : 'Опыт';
+        modifiers.push({ label: request.spendHopeForExperiences === false ? `${label} без списания: ${experience.name}` : `${label}: ${experience.name}`, value: experience.modifier });
       }
     }
 
@@ -195,9 +194,7 @@ export class DiceService {
       modifiers.push({ label: TRAIT_LABELS[request.trait], value: actorStats.traits[request.trait] ?? 0 });
     }
 
-    const selectedExperiences = actor
-      ? actor.experiences.filter((experience) => request.experienceIds?.includes(experience.id))
-      : [];
+    const selectedExperiences = selectedRollExperiences(actor, request.experienceIds);
 
     if (selectedExperiences.length > 0) {
       if (request.spendHopeForExperiences !== false) {
@@ -212,7 +209,8 @@ export class DiceService {
         }
       }
       for (const experience of selectedExperiences) {
-        modifiers.push({ label: request.spendHopeForExperiences === false ? `Опыт без списания: ${experience.name}` : `Опыт: ${experience.name}`, value: experience.modifier });
+        const label = experience.source === 'companion' ? 'Опыт компаньона' : 'Опыт';
+        modifiers.push({ label: request.spendHopeForExperiences === false ? `${label} без списания: ${experience.name}` : `${label}: ${experience.name}`, value: experience.modifier });
       }
     }
 
@@ -521,6 +519,19 @@ export class DiceService {
     rollLogStore.update((log) => [entry, ...log].slice(0, 200));
     this.feedService.addRoll(entry);
   }
+}
+
+function selectedRollExperiences(actor: Character | null, experienceIds: string[] | undefined) {
+  if (!actor || !experienceIds?.length) return [];
+  const selectedIds = new Set(experienceIds);
+  return [
+    ...actor.experiences
+      .filter((experience) => selectedIds.has(experience.id))
+      .map((experience) => ({ ...experience, source: 'character' as const })),
+    ...(actor.companion?.experiences ?? [])
+      .filter((experience) => selectedIds.has(experience.id))
+      .map((experience) => ({ ...experience, source: 'companion' as const }))
+  ];
 }
 
 function countRolledDice(terms: ReturnType<typeof rollFormula>['terms']): number {

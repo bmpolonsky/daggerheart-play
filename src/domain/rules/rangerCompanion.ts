@@ -11,6 +11,7 @@ export function hasRangerCompanionFeature(character: Pick<Character, 'className'
 export function createDefaultRangerCompanion(input: Partial<CharacterCompanionState> = {}): CharacterCompanionState {
   return normalizeRangerCompanion({
     name: input.name ?? 'Компаньон',
+    imageUrl: input.imageUrl ?? '',
     evasion: input.evasion ?? 10,
     stress: input.stress ?? { marked: 0, max: 3 },
     attackName: input.attackName ?? 'Обычная атака',
@@ -31,6 +32,7 @@ export function normalizeRangerCompanion(input: CharacterCompanionState): Charac
   const stressMarked = clamp(toSafeInteger(input.stress.marked, 0), 0, stressMax);
   return {
     name: input.name?.trim() || 'Компаньон',
+    imageUrl: input.imageUrl?.trim() || '',
     evasion: clamp(toSafeInteger(input.evasion, 10), 0, 99),
     stress: { marked: stressMarked, max: stressMax },
     attackName: input.attackName?.trim() || 'Обычная атака',

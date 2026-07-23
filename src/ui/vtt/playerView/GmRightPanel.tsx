@@ -43,6 +43,7 @@ export function GmRightPanel({
   onAddToScene,
   onForceMutePlayer,
   onWealthEdit,
+  onEditCharacter,
   onOpenActor
 }: {
   activeAdversaryId: string | null;
@@ -62,6 +63,7 @@ export function GmRightPanel({
   onAddToScene?: (target: SceneAddTarget) => void;
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
+  onEditCharacter?: () => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
   const { handouts } = useStream(gameService.game$);
@@ -74,7 +76,7 @@ export function GmRightPanel({
     return <EnvironmentSheet environment={environment} onBack={onClearActor} />;
   }
   if (character) {
-    return <CharacterSheet character={character} beastforms={beastforms} role="gm" showBackButton onBack={onClearActor} onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} onWealthEdit={onWealthEdit} />;
+    return <CharacterSheet character={character} beastforms={beastforms} role="gm" showBackButton onBack={onClearActor} onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} onWealthEdit={onWealthEdit} onEdit={onEditCharacter} />;
   }
 
   const playerActors = actors.filter((actor) => actor.kind === 'character');

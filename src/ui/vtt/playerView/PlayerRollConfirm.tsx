@@ -3,7 +3,7 @@ import { createPortal } from 'preact/compat';
 import { useState } from 'preact/hooks';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { addAdvantageDie, buildActionComposerRollOptions, type ActionComposerRollOptions, type AdvantageMode } from '../../../domain/rules/actionComposer';
-import type { RollPublication, TraitId } from '../../../domain/rules/types';
+import type { Experience, RollPublication, TraitId } from '../../../domain/rules/types';
 import { signed } from './helpers';
 import { RollConfirmCloseButton, RollPrivateToggle, rollConfirmDefaultPosition } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
@@ -16,6 +16,8 @@ export function PlayerRollConfirm({
   initialAdvantageMode = 0,
   initialAdvantageCount,
   initialDisadvantageCount,
+  experiences,
+  forceSpendHopeForExperiences = false,
   onTraitChange,
   onRoll,
   onDamage,
@@ -26,6 +28,8 @@ export function PlayerRollConfirm({
   initialAdvantageMode?: AdvantageMode;
   initialAdvantageCount?: number;
   initialDisadvantageCount?: number;
+  experiences?: Experience[];
+  forceSpendHopeForExperiences?: boolean;
   onTraitChange: (trait: TraitId) => void;
   onRoll: (options: ActionComposerRollOptions, rollType: PlayerRollType, publication: RollPublication) => void;
   onDamage?: (options: { publication: RollPublication }) => void;
@@ -38,7 +42,8 @@ export function PlayerRollConfirm({
   const [disadvantageCount, setDisadvantageCount] = useState(initialDisadvantageCount ?? (initialAdvantageMode < 0 ? 1 : 0));
   const [experienceIds, setExperienceIds] = useState<string[]>([]);
   const [spendHopeForExperiences, setSpendHopeForExperiences] = useState(true);
-  const experienceModifier = character.experiences
+  const availableExperiences = experiences ?? character.experiences;
+  const experienceModifier = availableExperiences
     .filter((experience) => experienceIds.includes(experience.id))
     .reduce((sum, experience) => sum + experience.modifier, 0);
   const toggleExperience = (experienceId: string) => {
@@ -60,7 +65,7 @@ export function PlayerRollConfirm({
       <DraggableSurface
         className="player-roll-confirm"
         aria-label="Подтверждение броска"
-        title={draft.kind === 'weapon' ? 'Атака' : draft.kind === 'card' ? 'Карта домена' : 'Характеристика'}
+        title={draft.kind === 'weapon' ? 'Атака' : draft.kind === 'card' ? 'Карта домена' : draft.kind === 'companion' ? 'Атака компаньона' : 'Характеристика'}
         actions={<RollConfirmCloseButton onClose={onClose} />}
         defaultPosition={rollConfirmDefaultPosition}
         bounds={{ top: 72, right: 12, bottom: 18, left: 12 }}
@@ -100,10 +105,10 @@ export function PlayerRollConfirm({
         </Button>
       </div>
       <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
-      {character.experiences.length > 0 && (
+      {availableExperiences.length > 0 && (
         <div className="player-roll-confirm__checks">
           <span>Опыт {experienceModifier ? signed(experienceModifier) : ''}</span>
-          {character.experiences.map((experience) => (
+          {availableExperiences.map((experience) => (
             <Checkbox
               key={experience.id}
               className="player-roll-confirm__check"
@@ -114,7 +119,7 @@ export function PlayerRollConfirm({
               onChange={() => toggleExperience(experience.id)}
             />
           ))}
-          {experienceIds.length > 0 && (
+          {experienceIds.length > 0 && !forceSpendHopeForExperiences && (
             <Checkbox
               className="player-roll-confirm__check player-roll-confirm__hope-toggle"
               size="sm"

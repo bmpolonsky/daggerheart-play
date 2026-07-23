@@ -376,7 +376,7 @@ test.describe('P2P session workflow', () => {
       await gmWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
       await gmWorkspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
       const gmEditor = gmWorkspace.getByLabel('Редактор персонажа');
-      await gmEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Эффекты' }).click();
+      await gmEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Свойства' }).click();
       await gmEditor.getByRole('button', { name: 'Редактировать', exact: true }).click();
       await gmEditor.getByRole('button', { name: 'Добавить свойство', exact: true }).click();
       const customFeatureDialog = gm.getByRole('dialog', { name: 'Новое свойство' });

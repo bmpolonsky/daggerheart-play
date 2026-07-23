@@ -15,6 +15,7 @@ import {
 } from "../../src/domain/characterBuilder/index";
 import type { ContentState } from "../../src/domain/content/types";
 import { classFixture, classItem, equipmentFixture, equipmentItem, firstCharacter, genericItem } from "./helpers";
+import { buildEffectiveCharacterStats } from "../../src/domain/rules/effects";
 
 test('character builder applies starting equipment to draft outside UI', () => {
   const content: ContentState['generic'] = {
@@ -45,6 +46,31 @@ test('character builder applies starting equipment to draft outside UI', () => {
   assert.equal(result.draft.inventory?.some((item) => item.name === 'Малое Зелье Выносливости' && item.uses?.max === 1), true);
   assert.equal(result.selections.secondaryWeapon?.slug, 'tower-shield');
   assert.equal(result.warnings.some((warning) => warning.includes('модификаторы')), true);
+});
+
+test('ranger giant starts with the ancestry bonus as a seventh HP slot', () => {
+  resetAllStores();
+  const giant = genericItem({
+    id: 'giant',
+    name: 'Великан',
+    raw: {
+      features: [{
+        id: 238,
+        name: 'Выносливость',
+        main_body: 'Получите дополнительную ячейку [Ран](/rule/hit-points) при создании персонажа.'
+      }]
+    }
+  });
+  const result = buildCharacterDraft({
+    content: { ancestries: [giant], communities: [], subclasses: [], domainCards: [] },
+    equipment: equipmentFixture(),
+    className: 'Ranger',
+    ancestryId: giant.id
+  });
+  const character = characterService.createCharacter(result.draft);
+
+  assert.equal(character.hp.max, 6);
+  assert.equal(buildEffectiveCharacterStats(character).hp.max, 7);
 });
 
 test('character builder uses API class data for stats, domains, and mementos', () => {

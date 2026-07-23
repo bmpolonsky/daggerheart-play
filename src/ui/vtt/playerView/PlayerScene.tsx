@@ -88,7 +88,10 @@ export function PlayerScene({
                 }
                 if (canControlToken) setSelectedTokenId(token.id);
                 if (role === 'gm' || canControlToken) {
-                  onOpenActor({ kind: token.kind, actorId: token.actorId });
+                  onOpenActor({
+                    kind: token.kind === 'companion' ? 'character' : token.kind,
+                    actorId: token.actorId
+                  });
                 }
               }}
               onPointerDown={(event) => {
@@ -145,7 +148,11 @@ export function PlayerScene({
                 top: `${(token.y / PLAYER_SCENE_HEIGHT) * 100}%`,
                 width: `${(Math.max(54, token.width) / PLAYER_SCENE_WIDTH) * 100}%`,
                 height: `${(Math.max(54, token.height) / PLAYER_SCENE_HEIGHT) * 100}%`,
-                '--token-aura': token.aura ?? (token.kind === 'character' ? 'rgba(240, 201, 106, 0.54)' : 'rgba(231, 89, 83, 0.48)')
+                '--token-aura': token.aura ?? (
+                  token.kind === 'character' || token.kind === 'companion'
+                    ? 'rgba(240, 201, 106, 0.54)'
+                    : 'rgba(231, 89, 83, 0.48)'
+                )
               } as JSX.CSSProperties}
             >
               {token.imageUrl ? <img src={cssImageUrl(token.imageUrl)} alt="" draggable={false} onDragStart={(event) => event.preventDefault()} /> : <span>{initials(token.name)}</span>}
@@ -163,7 +170,10 @@ export function PlayerScene({
 
 function playerTokensForCharacter(tokens: PlayerViewToken[], characterId: string | null): PlayerViewToken[] {
   if (!characterId) return [];
-  return tokens.filter((token) => token.kind === 'character' && token.actorId === characterId);
+  return tokens.filter((token) => (
+    (token.kind === 'character' || token.kind === 'companion') &&
+    token.actorId === characterId
+  ));
 }
 
 function movePlayerTokenFromPointer(event: { clientX: number; clientY: number; currentTarget: EventTarget | null }, sceneId: string, tokenId: string, actorId: string | null, allowRestricted = false): void {

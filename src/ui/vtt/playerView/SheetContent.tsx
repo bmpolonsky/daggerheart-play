@@ -6,10 +6,12 @@ import { SheetSection } from "./PlayerSheetControls";
 import { RulesMacroText } from "./domainCards/RulesMacroText";
 import { cleanRulesTextForInlineMacros, renderRulesText } from "./sheetText";
 import { analyzeFeatureRules } from "../../../domain/rules/featureEffects";
+import { Badge } from "../../components/common/Badge";
 
 export interface SheetFeatureView {
   id: string;
   name?: string;
+  sourceLabel?: string;
   text: string;
 }
 
@@ -100,7 +102,10 @@ export function SheetFeatureSection({
           <article className="player-sheet-row player-sheet-row--fulltext player-sheet-feature-block" key={feature.id}>
             {(feature.name || rightAccessory) && (
               <header className="player-sheet-feature-block__header">
-                {feature.name && <strong>{feature.name}</strong>}
+                <div className="player-sheet-feature-block__identity">
+                  {feature.name && <strong>{feature.name}</strong>}
+                  {feature.sourceLabel && <Badge size="xs">{feature.sourceLabel}</Badge>}
+                </div>
                 {rightAccessory?.(feature)}
               </header>
             )}

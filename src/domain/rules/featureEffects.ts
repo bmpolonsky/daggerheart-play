@@ -726,7 +726,9 @@ function isConditionalAutomaticRule(text: string, result: RuleMatch): boolean {
   const sentenceEnd = followingBoundaries.length > 0 ? Math.min(...followingBoundaries) : text.length;
   const sentence = text
     .slice(sentenceStart, sentenceEnd)
-    .replace(/при\s+создании\s+(?:вашего\s+)?персонаж[а-яa-z]*/gi, '');
+    .replace(/(?:при|во\s+время)\s+создани[а-яa-z]*\s+(?:вашего\s+)?персонаж[а-яa-z]*/gi, '')
+    .replace(/(?:during|at)\s+(?:your\s+)?character\s+creation/gi, '')
+    .replace(/when\s+creating\s+(?:your\s+)?character/gi, '');
 
   return /(?:^|[\s,(])(?:если|когда|пока|после|прежде\s+чем|до\s+тех\s+пор|до\s+конц[а-яa-z]*|до\s+следующ[а-яa-z]*|находясь|во\s+время|при(?=\s)|в\s+(?:начал[а-яa-z]*|конц[а-яa-z]*|течени[а-яa-z]*)|на\s+(?:время|следующ[а-яa-z]*)|кажд[а-яa-z]*\s+раз|всяк[а-яa-z]*\s+раз|if|when|whenever|while|after|before|during|until|at\s+the\s+(?:start|end)|for\s+the\s+next|as\s+long\s+as)(?:[\s,)]+|$)/i.test(sentence);
 }

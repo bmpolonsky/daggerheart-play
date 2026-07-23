@@ -72,7 +72,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const [panelOpen, setPanelOpen] = useState(defaultDetailPanelOpen);
   const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(typeof window === 'undefined' ? '' : window.location.pathname, role));
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
-  const [playerCharacterEditorOpen, setPlayerCharacterEditorOpen] = useState(false);
+  const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role, sceneTable.musicDeliveryMode);
   const viewedCharacterId = viewedActor?.kind === 'character' ? viewedActor.actorId : null;
   const viewedAdversaryId = viewedActor?.kind === 'adversary' ? viewedActor.actorId : null;
@@ -431,7 +431,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onOpenChronicle={() => { setActivityOpen(true); setMobileLayer('feed'); }}
           onAddToScene={role === 'gm' ? openSceneAddTarget : undefined}
           onWealthEdit={editCharacterWealth}
-          onEditCharacter={role === 'player' && model.character ? () => setPlayerCharacterEditorOpen(true) : undefined}
+          onEditCharacter={displayedCharacter ? () => setEditingCharacterId(displayedCharacter.id) : undefined}
           onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
           onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
           onOpenActor={openActor}
@@ -458,20 +458,24 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onCreate={createPlayerCharacterFromBuilder}
         />
       )}
-      {playerCharacterEditorOpen && role === 'player' && playerCharacterId && characters.entities[playerCharacterId] && (
-        <Dialog className="player-character-editor-dialog" aria-label="Редактор моего персонажа" onClose={() => setPlayerCharacterEditorOpen(false)}>
+      {editingCharacterId && characters.entities[editingCharacterId] && (
+        <Dialog
+          className="player-character-editor-dialog"
+          aria-label={role === 'player' ? 'Редактор моего персонажа' : 'Редактор персонажа'}
+          onClose={() => setEditingCharacterId(null)}
+        >
           <SectionHeader
-            title={characters.entities[playerCharacterId].name}
+            title={characters.entities[editingCharacterId].name}
             actions={(
-              <IconButton variant="ghost" title="Закрыть" aria-label="Закрыть редактор персонажа" onClick={() => setPlayerCharacterEditorOpen(false)}>
+              <IconButton variant="ghost" title="Закрыть" aria-label="Закрыть редактор персонажа" onClick={() => setEditingCharacterId(null)}>
                 <X size={17} aria-hidden="true" />
               </IconButton>
             )}
           />
           <CharacterEditor
-            character={characters.entities[playerCharacterId]}
+            character={characters.entities[editingCharacterId]}
             content={content}
-            role="player"
+            role={role}
             actor={mutationActor}
           />
         </Dialog>

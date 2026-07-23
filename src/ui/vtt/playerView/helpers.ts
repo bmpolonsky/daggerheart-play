@@ -15,7 +15,9 @@ import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
 export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: CharactersState | null = null, adversaries: Record<string, Adversary> | null = null, environments: Record<string, EncounterEnvironment> | null = null): PlayerRosterActor[] {
   const seen = new Set<string>();
   const placed = new Set(tokens.map((token) => `${token.kind}:${token.actorId}`));
-  const actors = tokens.filter((token) => {
+  const actors = tokens.filter((token): token is PlayerViewToken & { kind: PlayerRosterActor['kind'] } => (
+    token.kind !== 'companion'
+  )).filter((token) => {
     const key = `${token.kind}:${token.actorId}`;
     if (seen.has(key)) return false;
     seen.add(key);

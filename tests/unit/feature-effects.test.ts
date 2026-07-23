@@ -86,7 +86,24 @@ test('keeps conditional structural phrases inert instead of making them permanen
 });
 
 test('still recognizes permanent properties established during character creation', () => {
-  assert.deepEqual(semanticEffects('Получите дополнительную ячейку Ран при создании персонажа.'), [{
-    kind: 'statDelta', target: 'hpMax', amount: 1, automatic: true
-  }]);
+  const examples = [
+    'Получите дополнительную ячейку Ран при создании персонажа.',
+    'Во время создания персонажа получите дополнительную ячейку Ран.'
+  ];
+  for (const example of examples) {
+    assert.deepEqual(semanticEffects(example), [{
+      kind: 'statDelta', target: 'hpMax', amount: 1, automatic: true
+    }], example);
+  }
+
+  const englishExamples = [
+    'During character creation, gain a permanent +1 to your Evasion.',
+    'When creating your character, gain a permanent +1 to your Evasion.',
+    'At character creation, gain a permanent +1 to your Evasion.'
+  ];
+  for (const example of englishExamples) {
+    assert.deepEqual(semanticEffects(example), [{
+      kind: 'statDelta', target: 'evasion', amount: 1, automatic: true
+    }], example);
+  }
 });

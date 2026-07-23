@@ -586,7 +586,10 @@ export class SceneTableService {
       if (!scene) return state;
       const tokens = scene.tokens.map((token) => {
         if (token.id !== tokenId) return token;
-        if (!allowRestricted && ownerActorId && (token.actor.kind !== 'character' || token.actor.id !== ownerActorId)) return token;
+        if (!allowRestricted && ownerActorId && (
+          (token.actor.kind !== 'character' && token.actor.kind !== 'companion') ||
+          token.actor.id !== ownerActorId
+        )) return token;
         if (token.locked || (!allowRestricted && (token.hidden || token.ownership.visibility !== 'public'))) return token;
         moved = true;
         return moveTokenWithinWorld(token, x, y);

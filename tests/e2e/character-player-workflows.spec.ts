@@ -6,6 +6,7 @@ import {
   openSharedPlayerGame,
   type IsolatedDeterministicP2PRelay
 } from './game-route-helpers';
+import type { Character } from '../../src/domain/rules/types';
 
 const fixtureName = 'e2e-character-player-workflows.dhgame';
 
@@ -18,7 +19,8 @@ interface JoinedTable {
 async function openJoinedFilledTable(
   browser: Browser,
   suffix: string,
-  viewport = { width: 1440, height: 900 }
+  viewport = { width: 1440, height: 900 },
+  configureCharacter?: (character: Character) => void
 ): Promise<JoinedTable> {
   const relay = await createIsolatedDeterministicP2PRelay(
     browser,
@@ -29,7 +31,7 @@ async function openJoinedFilledTable(
   const roomId = `${suffix.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5)}${Date.now().toString().slice(-5)}`;
 
   await openSharedGmGame(gm, roomId);
-  await importCharacterWorkflowFixture(gm);
+  await importCharacterWorkflowFixture(gm, configureCharacter);
   await openSharedPlayerGame(player, roomId);
 
   const seatPicker = player.getByRole('region', { name: 'Выбор игрока' });
@@ -40,7 +42,7 @@ async function openJoinedFilledTable(
   return { relay, gm, player };
 }
 
-async function importCharacterWorkflowFixture(gm: Page): Promise<void> {
+async function importCharacterWorkflowFixture(gm: Page, configureCharacter?: (character: Character) => void): Promise<void> {
   const document = createPopulatedGameDocument();
   const character = document.files['data/characters.json'].entities['e2e-character-cadsuane'];
   if (!character) throw new Error('Filled-game fixture lost its primary character.');
@@ -61,6 +63,7 @@ async function importCharacterWorkflowFixture(gm: Page): Promise<void> {
   // Emulates the durable result of acquiring a new level-up card while the Hand
   // is full. The player must resolve this choice explicitly and for free.
   character.domainCards[6] = { ...character.domainCards[6], loadoutChoicePending: true };
+  configureCharacter?.(character);
 
   await gm.getByRole('button', { name: 'Инструменты' }).click();
   const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
@@ -280,6 +283,25 @@ test.describe('filled-game player character workflows', () => {
   test('keeps trusted player editing explicit, synchronized, auditable, undoable, and usable on mobile', async ({ browser }) => {
     const { relay, gm, player } = await openJoinedFilledTable(browser, 'edit');
     try {
+      await gm.getByLabel('Участники сцены').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
+      const gmSheet = gm.getByLabel('Персонаж игрока');
+      const gmHero = gmSheet.locator('.player-character-panel__hero');
+      const heroBox = await gmHero.boundingBox();
+      const backBox = await gmSheet.getByRole('button', { name: 'К ростеру' }).boundingBox();
+      const editBox = await gmSheet.getByRole('button', { name: 'Редактировать' }).boundingBox();
+      expect(heroBox).not.toBeNull();
+      expect(backBox).not.toBeNull();
+      expect(editBox).not.toBeNull();
+      expect(backBox!.y).toBeGreaterThanOrEqual(heroBox!.y);
+      expect(editBox!.y).toBeGreaterThanOrEqual(heroBox!.y);
+      expect(backBox!.y + backBox!.height).toBeLessThanOrEqual(heroBox!.y + heroBox!.height);
+      expect(editBox!.y + editBox!.height).toBeLessThanOrEqual(heroBox!.y + heroBox!.height);
+      await gmSheet.getByRole('button', { name: 'Редактировать' }).click();
+      const directGmEditor = gm.getByRole('dialog', { name: 'Редактор персонажа' });
+      await expect(directGmEditor).toBeVisible();
+      await expect(directGmEditor).toContainText(filledCharacterName);
+      await directGmEditor.getByRole('button', { name: 'Закрыть редактор персонажа' }).click();
+
       await player.getByLabel('Персонаж игрока').getByRole('button', { name: 'Редактировать' }).click();
       let dialog = player.getByRole('dialog', { name: 'Редактор моего персонажа' });
       await expect(dialog).toBeVisible();
@@ -330,6 +352,76 @@ test.describe('filled-game player character workflows', () => {
       await expect(dialog.getByText('Свободное редактирование обходит игровые ограничения')).toBeVisible();
       await expect(dialog.getByLabel('Имя')).toBeVisible();
       await expect(player.locator('body')).toHaveJSProperty('scrollWidth', 390);
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('keeps the ranger companion compact and uses the standard attack composer', async ({ browser }) => {
+    const { relay, gm, player } = await openJoinedFilledTable(browser, 'pet', { width: 1440, height: 900 }, (character) => {
+      character.className = 'Ranger';
+      character.subclassName = 'Звериный союз';
+      character.spellcastTrait = 'instinct';
+      character.sheetCards.push({
+        id: 'e2e-companion-feature',
+        kind: 'subclassFeature',
+        name: 'Компаньон',
+        subclassTier: 'foundation',
+        text: 'У вас есть животное-компаньон. Оно следует за вами и действует по вашей команде.'
+      });
+      character.companion = {
+        name: 'Искра',
+        imageUrl: '',
+        evasion: 10,
+        stress: { marked: 0, max: 3 },
+        attackName: 'Когти',
+        attackRange: 'Вплотную',
+        attackFormula: '1d6',
+        attackDamageType: 'physical',
+        experiences: [
+          { id: 'companion-exp-scout', name: 'Разведчица', modifier: 2 },
+          { id: 'companion-exp-guard', name: 'Защитница', modifier: 2 }
+        ],
+        unavailableUntilLongRest: false,
+        notes: ''
+      };
+    });
+    try {
+      const playerSheet = player.getByLabel('Персонаж игрока');
+      const companion = playerSheet.getByLabel('Компаньон следопыта');
+      await expect(companion).toBeVisible();
+      await expect(companion).toContainText('Искра');
+      await expect(companion).toContainText('Уклонение 10');
+      await expect(companion).not.toContainText('Не на сцене');
+      await expect(companion).not.toContainText('Опыт компаньона');
+      await expect(companion).not.toContainText('Успех с Надеждой');
+      await expect(companion.getByRole('button', { name: 'Когти' })).toBeVisible();
+
+      await companion.getByRole('button', { name: 'Когти' }).click();
+      const roll = player.getByLabel('Подтверждение броска');
+      await expect(roll).toContainText('Атака компаньона');
+      await expect(roll.getByLabel('Разведчица +2')).toBeVisible();
+      await expect(roll.getByLabel('Защитница +2')).toBeVisible();
+      await expect(roll.getByRole('button', { name: 'Бросить действие' })).toBeVisible();
+      await expect(roll.getByRole('button', { name: 'Бросить урон' })).toBeVisible();
+      await roll.getByRole('button', { name: 'Закрыть', exact: true }).click();
+
+      await gm.getByLabel('Участники сцены').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
+      const gmCompanion = gm.getByLabel('Персонаж игрока').getByLabel('Компаньон следопыта');
+      await expect(gmCompanion.getByRole('button', { name: 'Редактировать компаньона Искра' })).toBeVisible();
+      await expect(gmCompanion.getByRole('button', { name: 'Добавить Искра на сцену' })).toBeVisible();
+
+      await gmCompanion.getByRole('button', { name: 'Редактировать компаньона Искра' }).click();
+      const editor = gm.getByRole('dialog', { name: 'Редактирование компаньона Искра' });
+      await expect(editor.getByLabel('Имя')).toHaveValue('Искра');
+      await editor.getByLabel('Имя').fill('Искра Лесная');
+      await editor.getByRole('button', { name: 'Сохранить' }).click();
+      await expect(gmCompanion).toContainText('Искра Лесная');
+
+      await gmCompanion.getByRole('button', { name: 'Добавить Искра Лесная на сцену' }).click();
+      await expect(gm.getByLabel('Игровая сцена').getByRole('button', { name: 'Искра Лесная' })).toBeVisible();
+      await expect(player.getByLabel('Игровая сцена').getByRole('button', { name: 'Искра Лесная' })).toBeVisible({ timeout: 15_000 });
+      await expect(gmCompanion.getByRole('button', { name: 'Убрать Искра Лесная со сцены' })).toBeVisible();
     } finally {
       await relay.close();
     }

@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import type { JSX } from "preact";
 import { useMemo, useRef, useState } from "preact/hooks";
-import { ChevronLeft, Crosshair, Heart, PawPrint, Pencil, Shield, Swords, Zap } from "lucide-react";
+import { ChevronLeft, Crosshair, Heart, MapPlus, PawPrint, Pencil, Shield, Swords, Trash2, Zap } from "lucide-react";
 import { useStream } from "../../../core/hooks/useStream";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
@@ -13,7 +13,7 @@ import { companionDamageFormula } from "../../../domain/rules/rangerCompanion";
 import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import type { DamageType, TraitId } from "../../../domain/rules/types";
 import { formatWealthSummary } from "../../../domain/rules/wealthPresentation";
-import { gameService, characterService, diceService, feedService, p2pSessionService } from "../../../services/serviceRegistry";
+import { gameService, characterService, diceService, feedService, p2pSessionService, sceneTableService } from "../../../services/serviceRegistry";
 import { compactDamageTypeLabel, cssImageUrl, signed } from "./helpers";
 import { CharacterSheetDomainCards } from "./CharacterSheetDomainCards";
 import type { PlayerViewDomainCard } from "./domainCards/types";
@@ -22,6 +22,7 @@ import { PlayerSheetSectionRail, SheetSection, TrackDots, TrackRow } from "./Pla
 import { StatusChips } from "./StatusChips";
 import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./types";
 import { Button } from "../../components/common/Button";
+import { Badge } from "../../components/common/Badge";
 import { ChoiceCard } from "../../components/common/ChoiceCard";
 import { SelectControl } from "../../components/common/Field";
 import { IconButton } from "../../components/common/IconButton";
@@ -32,6 +33,7 @@ import { UsageTrackerControl } from "../../characters/UsageTrackerControl";
 import { analyzeFeatureRules, type FeatureUsageLimitEffect } from "../../../domain/rules/featureEffects";
 import { SheetFeatureSection } from "./SheetContent";
 import { ruleEffectApplicationLabel, uniqueRuleEffectMessages } from "../../components/common/RuleEffectText";
+import { CompanionEditorDialog } from "./CompanionEditorDialog";
 
 export function CharacterSheet({
   character,
@@ -58,10 +60,12 @@ export function CharacterSheet({
   onEdit?: () => void;
 }) {
   const game = useStream(gameService.game$);
+  const sceneTable = useStream(sceneTableService.sceneTable$);
   const [activeSheetSection, setActiveSheetSection] = useState<PlayerSheetSectionId>('overview');
   const sheetRef = useRef<HTMLElement | null>(null);
   const [rollDraft, setRollDraft] = useState<PlayerRollDraft | null>(null);
   const [selectedBeastformId, setSelectedBeastformId] = useState('');
+  const [companionEditorOpen, setCompanionEditorOpen] = useState(false);
   const [evolutionTrait, setEvolutionTrait] = useState(character.traits[0]?.id ?? 'agility');
   const availableBeastforms = useMemo(() => {
     const rank = characterLevelRank(character.level);
@@ -76,6 +80,8 @@ export function CharacterSheet({
     /зверин|beastbound|beast bound/i.test(character.subtitle) ||
     character.features.some((feature) => /компаньон|companion|зверин/i.test(`${feature.name}\n${feature.text}`))
   );
+  const activeScene = sceneTable.scenes[sceneTable.activeSceneId] ?? null;
+  const companionToken = activeScene?.tokens.find((token) => token.actor.kind === 'companion' && token.actor.id === character.id) ?? null;
   const portraitUrl = defaultCharacterPortraitUrl(character);
   const heroStyle = {
     '--player-character-portrait': `url("${cssImageUrl(portraitUrl)}")`
@@ -121,17 +127,17 @@ export function CharacterSheet({
     <div className="player-character-panel-shell">
       <PlayerSheetSectionRail activeSheetSection={activeSheetSection} onSelect={selectSheetSection} />
       <aside ref={sheetRef} className="player-character-panel" aria-label="Персонаж игрока" data-vtt-side-panel onScroll={trackVisibleSection}>
-        {showBackButton && (
-          <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
-            <ChevronLeft size={17} aria-hidden="true" />
-          </IconButton>
-        )}
-        {onEdit && (
-          <Button className="player-character-panel__edit" size="xs" variant="ghost" iconBefore={<Pencil size={13} aria-hidden="true" />} onClick={onEdit}>
-            Редактировать
-          </Button>
-        )}
         <header className="player-character-panel__hero" style={heroStyle}>
+          {showBackButton && (
+            <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
+              <ChevronLeft size={17} aria-hidden="true" />
+            </IconButton>
+          )}
+          {onEdit && (
+            <Button className="player-character-panel__edit" size="xs" variant="ghost" iconBefore={<Pencil size={13} aria-hidden="true" />} onClick={onEdit}>
+              Редактировать
+            </Button>
+          )}
           <img src={cssImageUrl(portraitUrl)} alt="" />
           <div className="player-character-panel__hero-copy">
             <strong>{character.name}</strong>
@@ -146,9 +152,12 @@ export function CharacterSheet({
         <PlayerRollConfirm
           character={character}
           draft={rollDraft}
+          experiences={rollDraft.kind === 'companion' ? character.companion?.experiences : undefined}
+          forceSpendHopeForExperiences={rollDraft.kind === 'companion'}
           onTraitChange={(trait) => setRollDraft((current) => current ? { ...current, trait } : current)}
           onClose={() => setRollDraft(null)}
           onRoll={(rollOptions, rollType, publication) => {
+            const rollNotes = 'notes' in rollDraft ? rollDraft.notes : undefined;
             if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
               void p2pSessionService.submitPlayerRollIntent({
                 actorId: character.id,
@@ -160,7 +169,7 @@ export function CharacterSheet({
                   trait: rollDraft.trait,
                   difficulty: 'difficulty' in rollDraft ? rollDraft.difficulty ?? 0 : 0,
                   ...rollOptions,
-                  notes: 'notes' in rollDraft ? rollDraft.notes : undefined
+                  notes: rollNotes
                 }
               });
               setRollDraft(null);
@@ -173,7 +182,7 @@ export function CharacterSheet({
               difficulty: 'difficulty' in rollDraft ? rollDraft.difficulty ?? 0 : 0,
               ...rollOptions,
               publication,
-              notes: 'notes' in rollDraft ? rollDraft.notes : undefined
+              notes: rollNotes
             };
             if (rollType === 'reaction') {
               diceService.rollReaction(rollRequest);
@@ -185,17 +194,24 @@ export function CharacterSheet({
             }
             setRollDraft(null);
           }}
-          onDamage={rollDraft.kind === 'weapon' ? ({ publication }) => {
+          onDamage={rollDraft.kind === 'weapon' || rollDraft.kind === 'companion' ? ({ publication }) => {
+            const damageFormula = scaleWeaponFormulaByProficiency(rollDraft.damageFormula, character.proficiency);
+            const damageNotes = rollDraft.kind === 'companion'
+              ? `Компаньон: ${rollDraft.title}`
+              : `Оружие: ${rollDraft.title}`;
+            const damageActorName = rollDraft.kind === 'companion'
+              ? character.companion?.name ?? character.name
+              : character.name;
             if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
               void p2pSessionService.submitPlayerRollIntent({
                 actorId: character.id,
-                actorName: character.name,
+                actorName: damageActorName,
                 publication,
                 intent: {
                   type: 'damage',
-                  formula: scaleWeaponFormulaByProficiency(rollDraft.damageFormula, character.proficiency),
+                  formula: damageFormula,
                   damageType: rollDraft.damageType as DamageType,
-                  notes: `Оружие: ${rollDraft.title}`
+                  notes: damageNotes
                 }
               });
               setRollDraft(null);
@@ -203,11 +219,11 @@ export function CharacterSheet({
             }
             diceService.rollDamage({
               actorId: character.id,
-              actorName: character.name,
-              formula: scaleWeaponFormulaByProficiency(rollDraft.damageFormula, character.proficiency),
+              actorName: damageActorName,
+              formula: damageFormula,
               damageType: rollDraft.damageType as DamageType,
               publication,
-              notes: `Оружие: ${rollDraft.title}`
+              notes: damageNotes
             });
             setRollDraft(null);
           } : undefined}
@@ -351,7 +367,24 @@ export function CharacterSheet({
           <section className="player-companion-panel" aria-label="Компаньон следопыта">
             <header>
               <span>Компаньон</span>
-              {character.companion && <strong>{character.companion.name}</strong>}
+              {character.companion && (
+                <div className="player-companion-panel__header-actions">
+                  <IconButton size="xs" variant="ghost" title="Редактировать компаньона" aria-label={`Редактировать компаньона ${character.companion.name}`} onClick={() => setCompanionEditorOpen(true)}>
+                    <Pencil size={13} aria-hidden="true" />
+                  </IconButton>
+                  {role === 'gm' && activeScene && (
+                    companionToken ? (
+                      <IconButton size="xs" variant="ghost" tone="danger" title="Убрать со сцены" aria-label={`Убрать ${character.companion.name} со сцены`} onClick={() => sceneTableService.removeTokenFromSceneInScene(activeScene.id, companionToken.id)}>
+                        <Trash2 size={13} aria-hidden="true" />
+                      </IconButton>
+                    ) : (
+                      <IconButton size="xs" variant="secondary" title="Добавить на сцену" aria-label={`Добавить ${character.companion.name} на сцену`} onClick={() => sceneTableService.addActorTokenToScene(activeScene.id, { kind: 'companion', id: character.id })}>
+                        <MapPlus size={13} aria-hidden="true" />
+                      </IconButton>
+                    )
+                  )}
+                </div>
+              )}
             </header>
             {character.rangerMark && (
               <div className="player-companion-panel__mark">
@@ -362,10 +395,33 @@ export function CharacterSheet({
             )}
             {character.companion ? (
               <div className="player-companion-panel__body">
-                <div className="player-companion-panel__stats">
-                  <span>Уклонение <strong>{character.companion.evasion}</strong></span>
-                  <span>{character.companion.attackRange} — {companionDamageFormula(character.companion, character.proficiency)} {compactDamageTypeLabel(character.companion.attackDamageType)}</span>
+                <div className="player-companion-panel__identity">
+                  <div className="player-companion-panel__avatar">
+                    {character.companion.imageUrl
+                      ? <img src={cssImageUrl(character.companion.imageUrl)} alt="" />
+                      : <PawPrint size={16} aria-hidden="true" />}
+                  </div>
+                  <div>
+                    <strong>{character.companion.name}</strong>
+                    <span>Уклонение {character.companion.evasion}</span>
+                  </div>
                 </div>
+                <ListItem
+                  density="compact"
+                  title={character.companion.attackName}
+                  subtitle={`${character.companion.attackRange} / ${companionDamageFormula(character.companion, character.proficiency)} ${compactDamageTypeLabel(character.companion.attackDamageType)}`}
+                  tone="featured"
+                  onClick={() => setRollDraft({
+                    kind: 'companion',
+                    title: character.companion?.attackName ?? 'Атака компаньона',
+                    subtitle: `${character.companion?.name ?? 'Компаньон'} / Бросок Заклинания`,
+                    trait: character.spellcastTrait ?? 'instinct',
+                    damageFormula: character.companion?.attackFormula ?? '1d6',
+                    damageType: character.companion?.attackDamageType ?? 'physical',
+                    difficulty: 0,
+                    notes: `Команда компаньону: ${character.companion?.name ?? 'Компаньон'}`
+                  })}
+                />
                 <TrackRow
                   icon={<Zap size={16} />}
                   label="Стресс"
@@ -374,49 +430,23 @@ export function CharacterSheet({
                   onSet={(next) => characterService.markCompanionStress(character.id, next - character.companion!.stress.marked)}
                 />
                 {character.companion.unavailableUntilLongRest && <small>Недоступен до продолжительного отдыха</small>}
-                <div className="player-companion-panel__actions">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    type="button"
-                    onClick={() => {
-                      diceService.rollAction({
-                        actorId: character.id,
-                        actorName: character.name,
-                        trait: character.spellcastTrait ?? 'instinct',
-                        difficulty: 0,
-                        notes: `Команда компаньону: ${character.companion?.name ?? 'Компаньон'}`,
-                        applyConsequences: gameService.game$.get().autoApplyRollConsequences
-                      });
-                    }}
-                  >
-                    Команда
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    type="button"
-                    onClick={() => {
-                      if (!character.companion) return;
-                      diceService.rollDamage({
-                        actorId: character.id,
-                        actorName: character.companion.name,
-                        formula: companionDamageFormula(character.companion, character.proficiency),
-                        damageType: character.companion.attackDamageType,
-                        notes: `Компаньон: ${character.companion.attackName}`
-                      });
-                    }}
-                  >
-                    Урон
-                  </Button>
-                </div>
               </div>
             ) : (
-              <Button className="player-companion-panel__create" size="sm" variant="secondary" type="button" onClick={() => characterService.ensureRangerCompanion(character.id)} iconBefore={<PawPrint size={16} aria-hidden="true" />}>
+              <Button className="player-companion-panel__create" size="sm" variant="secondary" type="button" onClick={() => setCompanionEditorOpen(true)} iconBefore={<PawPrint size={16} aria-hidden="true" />}>
                 Создать
               </Button>
             )}
           </section>
+        )}
+        {companionEditorOpen && (
+          <CompanionEditorDialog
+            companion={character.companion}
+            onClose={() => setCompanionEditorOpen(false)}
+            onSave={(input) => {
+              characterService.ensureRangerCompanion(character.id, input);
+              setCompanionEditorOpen(false);
+            }}
+          />
         )}
         <section className="player-sheet-status-block">
           <header>
@@ -487,7 +517,12 @@ export function CharacterSheet({
               return (
                 <ListItem
                   key={feature.id}
-                  title={feature.name}
+                  title={(
+                    <span className="player-sheet-feature-title">
+                      {feature.name}
+                      <Badge size="xs">{feature.sourceLabel}</Badge>
+                    </span>
+                  )}
                   subtitle={summary}
                   lines={2}
                   rightAccessory={<UsageTrackerControl compact characterId={character.id} targetKind="feature" targetId={feature.id} targetName={feature.name} tracker={tracker} />}
@@ -497,7 +532,12 @@ export function CharacterSheet({
             return (
               <ListItem
                 key={feature.id}
-                title={feature.name}
+                title={(
+                  <span className="player-sheet-feature-title">
+                    {feature.name}
+                    <Badge size="xs">{feature.sourceLabel}</Badge>
+                  </span>
+                )}
                 subtitle={summary}
                 lines={2}
                 rightAccessory={<UsageTrackerControl compact characterId={character.id} targetKind="feature" targetId={feature.id} targetName={feature.name} tracker={tracker} />}

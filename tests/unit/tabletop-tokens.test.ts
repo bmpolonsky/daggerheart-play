@@ -24,9 +24,11 @@ test('tabletop range measurement uses world coordinates and Daggerheart range ba
 
 test('createTokenState defaults tokens inside safe tactical placement columns', () => {
   const characterToken = createTokenState({ kind: 'character', id: 'safe-hero' });
+  const companionToken = createTokenState({ kind: 'companion', id: 'safe-hero' });
   const adversaryToken = createTokenState({ kind: 'adversary', id: 'safe-raider' });
 
   assert.equal(characterToken.x, 360);
+  assert.equal(companionToken.x, 360);
   assert.equal(adversaryToken.x, 600);
   assert.equal(characterToken.y, 520);
   assert.equal(adversaryToken.y, 520);
@@ -105,23 +107,29 @@ test('locked tabletop tokens cannot be moved through the service', () => {
   assert.equal(token?.y, 180);
 });
 
-test('player token movement guard only moves the assigned public character token', () => {
+test('player token movement guard moves the assigned character and companion tokens only', () => {
   resetAllStores();
   const character = firstCharacter();
   const scene = createTableScene({
     tokens: [
       createTokenState({ kind: 'character', id: character.id }, { id: 'player-token', x: 120, y: 180 }),
+      createTokenState({ kind: 'companion', id: character.id }, { id: 'companion-token', x: 200, y: 180 }),
+      createTokenState({ kind: 'companion', id: 'another-character' }, { id: 'foreign-companion-token', x: 260, y: 180 }),
       createTokenState({ kind: 'adversary', id: 'raider' }, { id: 'npc-token', x: 320, y: 180 })
     ]
   });
   sceneTableService.updateActiveScene(scene);
 
   assert.equal(sceneTableService.moveTokenInScene(scene.id, 'npc-token', 640, 360, character.id), false);
+  assert.equal(sceneTableService.moveTokenInScene(scene.id, 'foreign-companion-token', 640, 360, character.id), false);
   assert.equal(sceneTableService.moveTokenInScene(scene.id, 'player-token', 640, 360, character.id), true);
+  assert.equal(sceneTableService.moveTokenInScene(scene.id, 'companion-token', 700, 360, character.id), true);
 
   const tokens = sceneTableService.getActiveScene().tokens;
   assert.equal(tokens.find((token) => token.id === 'npc-token')?.x, 320);
+  assert.equal(tokens.find((token) => token.id === 'foreign-companion-token')?.x, 260);
   assert.equal(tokens.find((token) => token.id === 'player-token')?.x, 640);
+  assert.equal(tokens.find((token) => token.id === 'companion-token')?.x, 700);
 });
 
 test('hiding a tabletop token clears selected state', () => {

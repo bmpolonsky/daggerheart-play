@@ -1336,6 +1336,14 @@
   font-size: 0.92rem;
 }
 
+.character-rule-feature__identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
 .character-rule-feature__heading span {
   color: var(--dh-paper-faint);
   font-size: 0.72rem;

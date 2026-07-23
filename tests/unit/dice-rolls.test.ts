@@ -31,10 +31,11 @@ test('ranger companion tracks SRD stress and uses owner proficiency for damage',
   resetAllStores();
   const ranger = characterService.createCharacter({ className: 'Ranger', level: 3, proficiency: 2, name: 'Следопыт' });
 
-  assert.equal(characterService.ensureRangerCompanion(ranger.id, { name: 'Волчок' }), true);
+  assert.equal(characterService.ensureRangerCompanion(ranger.id, { name: 'Волчок', imageUrl: ' https://example.test/wolf.webp ' }), true);
   const companion = characterService.getCharacter(ranger.id)?.companion;
 
   assert.equal(companion?.name, 'Волчок');
+  assert.equal(companion?.imageUrl, 'https://example.test/wolf.webp');
   assert.equal(companion?.evasion, 10);
   assert.deepEqual(companion?.stress, { marked: 0, max: 3 });
 
@@ -50,6 +51,16 @@ test('ranger companion tracks SRD stress and uses owner proficiency for damage',
     damageType: 'physical'
   });
   assert.equal(damage.formula, '2d6');
+
+  const command = diceService.rollAction({
+    actorId: ranger.id,
+    trait: 'instinct',
+    difficulty: 0,
+    experienceIds: ['companion-exp-1'],
+    spendHopeForExperiences: true
+  });
+  assert.equal(characterService.getCharacter(ranger.id)?.hope.value, ranger.hope.value - 1);
+  assert.equal(command.modifiers.some((modifier) => modifier.label === 'Опыт компаньона: Разведчик' && modifier.value === 2), true);
 });
 
 test('manual dice rolls support launcher formulas and reject unsupported dice', () => {

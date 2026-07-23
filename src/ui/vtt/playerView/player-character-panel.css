@@ -269,23 +269,13 @@
 }
 
 .player-character-panel__back {
-  position: sticky;
-  top: 2px;
-  left: 2px;
+  position: absolute;
+  top: 10px;
+  left: 10px;
   z-index: 5;
-  grid-row: 1;
-  grid-column: 1;
-  align-self: start;
-  justify-self: start;
   width: 30px;
   min-width: 30px;
   height: 30px;
-  margin: 2px 0 0 2px;
-}
-
-.player-character-panel__back + .player-character-panel__hero {
-  grid-row: 1;
-  grid-column: 1;
 }
 
 .player-roster {
@@ -1213,6 +1203,63 @@
   gap: 8px;
 }
 
+.player-companion-panel__identity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.player-companion-panel__avatar {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 7px;
+  background: rgba(7, 9, 12, 0.28);
+  color: rgba(255, 226, 160, 0.72);
+}
+
+.player-companion-panel__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-companion-panel__identity > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.player-companion-panel__identity strong,
+.player-companion-panel__identity span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-companion-panel__identity strong {
+  color: #fff7e7;
+  font-size: 13px;
+}
+
+.player-companion-panel__identity span {
+  color: rgba(243, 234, 216, 0.6);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.player-companion-panel__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .player-companion-panel__mark,
 .player-companion-panel__stats,
 .player-companion-panel small {
@@ -1222,6 +1269,37 @@
 
 .player-companion-panel__create {
   width: fit-content;
+}
+
+.player-companion-editor {
+  width: min(720px, calc(100vw - 24px));
+}
+
+.player-companion-editor__body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 0 2px;
+}
+
+.player-companion-editor__fields {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.player-companion-editor__grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.player-companion-editor__actions {
+  justify-content: flex-end;
 }
 
 @media (max-width: 720px) {
@@ -1237,6 +1315,11 @@
 
   .player-companion-panel__actions .dh-button {
     width: 100%;
+  }
+
+  .player-companion-editor__body,
+  .player-companion-editor__grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1422,10 +1505,26 @@
   gap: 10px;
 }
 
-.player-sheet-feature-block__header > strong {
+.player-sheet-feature-block__identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.player-sheet-feature-block__identity > strong {
   color: #fff7e7;
   font-size: 0.92rem;
   line-height: 1.18;
+}
+
+.player-sheet-feature-title {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
 .player-sheet-feature-block p {
@@ -1790,10 +1889,6 @@
     min-height: 132px;
     gap: 12px;
     margin: -14px -14px 0;
-  }
-
-  .player-character-panel__back {
-    margin: -2px 0 0 -2px;
   }
 
   .player-character-panel__hero img,

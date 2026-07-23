@@ -128,6 +128,18 @@ export function sheetCardKindLabel(kind: CharacterSheetCard['kind']): string {
   }
 }
 
+export function characterSheetCardSourceLabel(
+  card: Pick<CharacterSheetCard, 'kind' | 'subtitle' | 'subclassTier'>
+): string {
+  const source = sheetCardKindLabel(card.kind);
+  const tier = card.subclassTier
+    ? subclassFeatureTierLabel(card.subclassTier)
+    : card.kind === 'subclassFeature'
+      ? subclassFeatureTierLabel(card.subtitle)
+      : '';
+  return [source, tier].filter(Boolean).join(' · ');
+}
+
 function buildOverviewResources(character: Character): CharacterSidecarResource[] {
   const effective = buildEffectiveCharacterStats(character);
   return [
