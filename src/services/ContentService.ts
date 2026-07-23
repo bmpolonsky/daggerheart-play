@@ -5,6 +5,11 @@ import { readRawCustomCardCollections } from '../domain/content/customCardLibrar
 import { encounterStore } from '../stores/gameStores';
 import { mapGenericItem, mapRawAdversary, createAdversaryFromLibrary, createEnvironmentFromLibrary, mapRawBeastformItem, mapRawClassItem, mapRawEnvironmentItem, mapRawEquipmentItem, mapRawRuleItem } from '../domain/content/mappers';
 import {
+  contentSearchDocuments,
+  rankContentSearch,
+  type ContentSearchDocument
+} from '../domain/content/search';
+import {
   buildApiCollectionUrl,
   CONTENT_COLLECTIONS,
   createContentManifest,
@@ -60,6 +65,7 @@ export interface ContentLibraryView {
   beastforms: LibraryBeastform[];
   equipment: LibraryEquipmentItem[];
   genericItems: GenericLibraryItem[];
+  searchPreviews: Record<string, string>;
   collectionCounts: Record<ContentCollectionKey, number>;
   tierOptions: number[];
   levelOptions: number[];
@@ -221,8 +227,15 @@ export class ContentService {
   }
 
   buildLibraryView(state: ContentState): ContentLibraryView {
-    const normalizedSearch = normalizeSearch(state.searchTerm);
     const visibleRules = state.rules.filter((item) => !item.hidden);
+    const searchPreviews: Record<string, string> = {};
+    const searchItems = <T extends { id: string }>(
+      items: T[],
+      documentFor: (item: T) => ContentSearchDocument
+    ): T[] => rankContentSearch(items, state.searchTerm, documentFor).map((match) => {
+      if (match.preview) searchPreviews[match.item.id] = match.preview;
+      return match.item;
+    });
     const collectionCounts: Record<ContentCollectionKey, number> = {
       adversaries: state.adversaries.length,
       classes: state.classes.length,
@@ -249,61 +262,37 @@ export class ContentService {
       .map((item) => item.level)
       .filter(isNumber))).sort((left, right) => left - right);
 
-    const adversaries = state.adversaries.filter((item) => {
-      const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.roleName, item.summary, item.motives, item.experiencesText, rawFeaturesText(item.raw.features)].join(' ')).includes(normalizedSearch)
-        : true;
+    const adversaries = searchItems(state.adversaries.filter((item) => {
       const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
-      return matchesSearch && matchesTier && sourceMatches(item.raw, state.sourceFilter);
-    });
+      return matchesTier && sourceMatches(item.raw, state.sourceFilter);
+    }), contentSearchDocuments.adversary);
 
-    const classes = state.classes.filter((item) => {
-      const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.domains.join(' '), item.body, item.classItems.join(' '), rawFeaturesText(item.raw.features)].join(' ')).includes(normalizedSearch)
-        : true;
-      return matchesSearch && sourceMatches(item.raw, state.sourceFilter);
-    });
-    const rules = visibleRules.filter((item) => {
-      const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.frameName, item.summary, item.body].join(' ')).includes(normalizedSearch)
-        : true;
-      return matchesSearch && sourceMatches(item.raw, state.sourceFilter);
-    });
-    const environments = state.environments.filter((item) => {
-      const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.typeName, item.summary, item.body, item.featureText, item.impulses].join(' ')).includes(normalizedSearch)
-        : true;
+    const classes = searchItems(
+      state.classes.filter((item) => sourceMatches(item.raw, state.sourceFilter)),
+      contentSearchDocuments.classItem
+    );
+    const rules = searchItems(
+      visibleRules.filter((item) => sourceMatches(item.raw, state.sourceFilter)),
+      contentSearchDocuments.rule
+    );
+    const environments = searchItems(state.environments.filter((item) => {
       const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
-      return matchesSearch && matchesTier && sourceMatches(item.raw, state.sourceFilter);
-    });
-    const beastforms = state.beastforms.filter((item) => {
-      const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.summary, item.examples, item.advantages, item.featureText].join(' ')).includes(normalizedSearch)
-        : true;
+      return matchesTier && sourceMatches(item.raw, state.sourceFilter);
+    }), contentSearchDocuments.environment);
+    const beastforms = searchItems(state.beastforms.filter((item) => {
       const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
       const matchesLevel = state.levelFilter === 'all' || item.level === state.levelFilter;
-      return matchesSearch && matchesTier && matchesLevel && sourceMatches(item.raw, state.sourceFilter);
-    });
-    const equipment = state.equipment.filter((item) => {
-      const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.typeName, item.featureText, item.damageFormula, item.range].join(' ')).includes(normalizedSearch)
-        : true;
+      return matchesTier && matchesLevel && sourceMatches(item.raw, state.sourceFilter);
+    }), contentSearchDocuments.beastform);
+    const equipment = searchItems(state.equipment.filter((item) => {
       const matchesTier = state.tierFilter === 'all' || item.tier === state.tierFilter;
-      return matchesSearch && matchesTier && sourceMatches(item.raw, state.sourceFilter);
-    });
+      return matchesTier && sourceMatches(item.raw, state.sourceFilter);
+    }), contentSearchDocuments.equipment);
 
-    const genericItems = selectedGeneric.filter((item) => {
-      const matchesSearch = normalizedSearch
-        ? normalizeSearch([item.name, item.subtitle, item.body, rawFeaturesText([
-          ...(item.raw.features ?? []),
-          ...(item.raw.foundation_features ?? []),
-          ...(item.raw.specialization_features ?? []),
-          ...(item.raw.mastery_features ?? [])
-        ])].join(' ')).includes(normalizedSearch)
-        : true;
+    const genericItems = searchItems(selectedGeneric.filter((item) => {
       const matchesLevel = state.levelFilter === 'all' || item.level === state.levelFilter;
-      return matchesSearch && matchesLevel && sourceMatches(item.raw, state.sourceFilter);
-    });
+      return matchesLevel && sourceMatches(item.raw, state.sourceFilter);
+    }), contentSearchDocuments.generic);
 
     return {
       selectedCollection: state.selectedCollection,
@@ -325,6 +314,7 @@ export class ContentService {
       beastforms,
       equipment,
       genericItems,
+      searchPreviews,
       collectionCounts,
       tierOptions,
       levelOptions
@@ -393,18 +383,9 @@ export class ContentService {
   }
 }
 
-function rawFeaturesText(features: Array<{ name?: unknown; main_body?: unknown; text?: unknown }> | undefined): string {
-  if (!Array.isArray(features)) return '';
-  return features.map((feature) => [feature.name, feature.main_body ?? feature.text].filter((value) => typeof value === 'string').join(' ')).join(' ');
-}
-
 function formatError(error: unknown): string {
   if (error instanceof DOMException && error.name === 'AbortError') return 'timeout';
   return error instanceof Error ? error.message : String(error);
-}
-
-function normalizeSearch(value: string): string {
-  return value.trim().toLowerCase();
 }
 
 function markCustomRawContent(item: RawContentItem): RawContentItem {

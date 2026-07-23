@@ -19,18 +19,38 @@ export function buildLibraryEntries(
   targetCharacterId?: string | null,
   targetRule?: LibraryRuleEntry | null
 ): LibraryEntry[] {
-  if (libraryView.selectedCollection === 'adversaries') return libraryView.adversaries.map(adversaryEntry);
-  if (libraryView.selectedCollection === 'classes') return libraryView.classes.map(classEntry);
-  if (libraryView.selectedCollection === 'rules') {
-    const rules = targetRule && !libraryView.rules.some((item) => item.id === targetRule.id)
-      ? [targetRule, ...libraryView.rules]
-      : libraryView.rules;
-    return rules.map(ruleEntry);
+  let entries: LibraryEntry[];
+  switch (libraryView.selectedCollection) {
+    case 'adversaries':
+      entries = libraryView.adversaries.map(adversaryEntry);
+      break;
+    case 'classes':
+      entries = libraryView.classes.map(classEntry);
+      break;
+    case 'rules': {
+      const rules = targetRule && !libraryView.rules.some((item) => item.id === targetRule.id)
+        ? [targetRule, ...libraryView.rules]
+        : libraryView.rules;
+      entries = rules.map(ruleEntry);
+      break;
+    }
+    case 'environments':
+      entries = libraryView.environments.map(environmentEntry);
+      break;
+    case 'equipment':
+      entries = libraryView.equipment.map((item) => equipmentEntry(item, targetCharacterId));
+      break;
+    case 'beastforms':
+      entries = libraryView.beastforms.map(beastformEntry);
+      break;
+    default:
+      entries = libraryView.genericItems.map(genericEntry);
   }
-  if (libraryView.selectedCollection === 'environments') return libraryView.environments.map(environmentEntry);
-  if (libraryView.selectedCollection === 'equipment') return libraryView.equipment.map((item) => equipmentEntry(item, targetCharacterId));
-  if (libraryView.selectedCollection === 'beastforms') return libraryView.beastforms.map(beastformEntry);
-  return libraryView.genericItems.map(genericEntry);
+
+  return entries.map((entry) => ({
+    ...entry,
+    preview: libraryView.searchPreviews[entry.id] || entry.preview
+  }));
 }
 
 function adversaryEntry(item: LibraryAdversary): LibraryEntry {

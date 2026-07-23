@@ -63,7 +63,10 @@ export function SharedToolsLibraryTab({
           className="player-library-search"
           aria-label="Поиск по справочнику"
           value={libraryView.searchTerm}
-          onInput={(event) => contentService.setSearchTerm(event.currentTarget.value)}
+          onInput={(event) => {
+            if (libraryView.selectedCollection === 'rules') onRuleSelectionChange?.(null);
+            contentService.setSearchTerm(event.currentTarget.value);
+          }}
           placeholder="Найти по названию, эффекту или типу..."
         />
         <SegmentedControl

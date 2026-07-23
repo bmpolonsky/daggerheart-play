@@ -5,7 +5,7 @@ import { applyBrowserCustomContent } from "../../src/core/persistence/browserPro
 import { createContentState } from "../../src/stores/contentStore";
 import { cleanRulesText, coerceDomainName, domainCardFromLibrary, isDomainCardForDomains, isSubclassForClass } from "../../src/domain/characterBuilder/index";
 import { queryLibraryContent } from "../../src/domain/content/query";
-import { createAdversaryFromLibrary, mapGenericItem, mapRawAdversary, mapRawClassItem, mapRawEquipmentItem } from "../../src/domain/content/mappers";
+import { createAdversaryFromLibrary, mapGenericItem, mapRawAdversary, mapRawClassItem, mapRawEquipmentItem, mapRawRuleItem } from "../../src/domain/content/mappers";
 import { buildApiCollectionUrl, createContentManifest, summarizeContentSources } from "../../src/domain/content/source";
 import { genericItem } from "./helpers";
 
@@ -122,6 +122,93 @@ test('content library search includes a card effect even when its description is
   });
 
   assert.deepEqual(queried.domainCards.map((item) => item.id), ['domain-card:chaos']);
+});
+
+test('content library search ranks a matching title above incidental body matches', () => {
+  const incidental = mapRawRuleItem({
+    slug: 'reaction-roll',
+    name: 'Бросок реакции',
+    description: 'Иногда персонаж становится Уязвимым.'
+  });
+  const exact = mapRawRuleItem({
+    slug: 'vulnerable',
+    name: 'Уязвимость',
+    description: 'Состояние, при котором броски против существа имеют преимущество.'
+  });
+  const queried = queryLibraryContent({
+    query: 'уязвим',
+    adversaries: [],
+    classes: [],
+    references: [],
+    domainCards: [],
+    equipment: [],
+    rules: [incidental, exact],
+    environments: [],
+    beastforms: []
+  });
+
+  assert.deepEqual(queried.rules.map((item) => item.slug), ['vulnerable', 'reaction-roll']);
+});
+
+test('content library search finds a title from a short prefix', () => {
+  const vulnerable = mapRawRuleItem({
+    slug: 'vulnerable',
+    name: 'Уязвимость',
+    description: 'Состояние персонажа.'
+  });
+  const queried = queryLibraryContent({
+    query: 'Уяз',
+    adversaries: [],
+    classes: [],
+    references: [],
+    domainCards: [],
+    equipment: [],
+    rules: [vulnerable],
+    environments: [],
+    beastforms: []
+  });
+
+  assert.deepEqual(queried.rules.map((item) => item.slug), ['vulnerable']);
+});
+
+test('content library search tolerates a light typo in a title', () => {
+  const vulnerable = mapRawRuleItem({
+    slug: 'vulnerable',
+    name: 'Уязвимость',
+    description: 'Состояние персонажа.'
+  });
+  const queried = queryLibraryContent({
+    query: 'уязвимсоть',
+    adversaries: [],
+    classes: [],
+    references: [],
+    domainCards: [],
+    equipment: [],
+    rules: [vulnerable],
+    environments: [],
+    beastforms: []
+  });
+
+  assert.deepEqual(queried.rules.map((item) => item.slug), ['vulnerable']);
+});
+
+test('content library view exposes a relevant preview for the ranked search result', () => {
+  const service = new ContentService();
+  const state = createContentState();
+  const vulnerable = mapRawRuleItem({
+    slug: 'vulnerable',
+    name: 'Уязвимость',
+    description: 'Коротко о состоянии.',
+    main_body: 'Когда существо становится Уязвимым, броски против него получают преимущество.'
+  });
+  state.selectedCollection = 'rules';
+  state.searchTerm = 'преимущество';
+  state.rules = [vulnerable];
+
+  const view = service.buildLibraryView(state);
+
+  assert.deepEqual(view.rules.map((item) => item.slug), ['vulnerable']);
+  assert.match(view.searchPreviews[vulnerable.id], /преимущество/i);
 });
 
 test('content library source filter separates corebook void and homebrew', () => {

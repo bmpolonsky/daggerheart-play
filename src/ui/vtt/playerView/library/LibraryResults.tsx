@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { LibraryRuleEntry } from '../../../../domain/content/types';
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import { ListDetailLayout } from '../../../components/common';
@@ -31,17 +31,24 @@ export function LibraryResults({
   );
   const [selectedId, setSelectedId] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const previousSearchTerm = useRef('');
   const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? null;
 
   useEffect(() => {
+    const searchTerm = libraryView.searchTerm.trim();
+    const searchChanged = searchTerm !== previousSearchTerm.current;
+    previousSearchTerm.current = searchTerm;
     setSelectedId((current) => {
       if (selectedRuleSlug) {
         return entries.find((entry) => entry.routeSlug === selectedRuleSlug)?.id ?? '';
       }
+      if (searchTerm && (searchChanged || !entries.some((entry) => entry.id === current))) {
+        return entries[0]?.id ?? '';
+      }
       return entries.some((entry) => entry.id === current) ? current : '';
     });
     setActionMessage('');
-  }, [entries, selectedRuleSlug]);
+  }, [entries, libraryView.searchTerm, selectedRuleSlug]);
 
   useEffect(() => {
     onDetailOpenChange?.(Boolean(selectedEntry));

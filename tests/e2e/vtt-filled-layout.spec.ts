@@ -207,6 +207,27 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
 
+  test('ranks compendium search results and opens the best match', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openFilledGmGame(page);
+    await page.getByRole('button', { name: 'Инструменты' }).click();
+
+    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Справочник' }).click();
+    await workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Правила' }).click();
+    const search = workspace.getByLabel('Поиск по справочнику');
+    const cards = workspace.locator('.player-library-card');
+
+    await search.fill('Уяз');
+    await expect(cards.first().locator('strong')).toHaveText('Уязвимость');
+    await expect(cards.first()).toContainText(/Уязвим/i);
+    await expect(workspace.getByLabel('Полная запись компендиума').getByRole('heading', { name: 'Уязвимость' })).toBeVisible();
+
+    await search.fill('уязвимсоть');
+    await expect(cards.first().locator('strong')).toHaveText('Уязвимость');
+    await expect(workspace.getByLabel('Полная запись компендиума').getByRole('heading', { name: 'Уязвимость' })).toBeVisible();
+  });
+
   test('uses the workspace scroll for an opened combat opponent on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openFilledGmGame(page);
