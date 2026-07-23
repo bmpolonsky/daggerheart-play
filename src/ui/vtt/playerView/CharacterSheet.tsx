@@ -34,6 +34,7 @@ import { analyzeFeatureRules, type FeatureUsageLimitEffect } from "../../../doma
 import { SheetFeatureSection } from "./SheetContent";
 import { ruleEffectApplicationLabel, uniqueRuleEffectMessages } from "../../components/common/RuleEffectText";
 import { CompanionEditorDialog } from "./CompanionEditorDialog";
+import { CompendiumRuleTerm } from "./CompendiumRuleTerm";
 
 export function CharacterSheet({
   character,
@@ -143,7 +144,7 @@ export function CharacterSheet({
             <strong>{character.name}</strong>
             <span>Уровень {character.level} / {character.subtitle || character.className}</span>
             <div className="player-character-panel__hero-meta" aria-label="Ключевые параметры персонажа">
-              <small>Мастерство {character.proficiency}</small>
+              <small><CompendiumRuleTerm ruleSlug="proficiency">Мастерство</CompendiumRuleTerm> {character.proficiency}</small>
               {character.spellcastTrait && <small>Характеристика заклинателя: {character.traits.find((trait) => trait.id === character.spellcastTrait)?.label ?? character.spellcastTrait}</small>}
             </div>
           </div>
@@ -232,7 +233,7 @@ export function CharacterSheet({
         <SheetSection id="player-sheet-overview" title="Ресурсы">
         <section className="player-character-panel__hope">
           <header>
-            <span>НАДЕЖДА</span>
+            <span><CompendiumRuleTerm ruleSlug="hope">НАДЕЖДА</CompendiumRuleTerm></span>
             <strong>{character.hope.value}/{character.hope.max}</strong>
           </header>
           <TrackDots
@@ -260,7 +261,8 @@ export function CharacterSheet({
         <section className="player-track-list">
           <TrackRow
             icon={<Heart size={16} />}
-            label="Раны"
+            label={<CompendiumRuleTerm ruleSlug="hit-points">Раны</CompendiumRuleTerm>}
+            labelText="Раны"
             value={character.hp.marked}
             max={character.hp.max}
             tone="hp"
@@ -268,7 +270,8 @@ export function CharacterSheet({
           />
           <TrackRow
             icon={<Zap size={16} />}
-            label="Стресс"
+            label={<CompendiumRuleTerm ruleSlug="stress">Стресс</CompendiumRuleTerm>}
+            labelText="Стресс"
             value={character.stress.marked}
             max={character.stress.max}
             tone="stress"
@@ -292,12 +295,12 @@ export function CharacterSheet({
         <section className="player-defense-row" aria-label="Защита">
           <div className="player-defense-row__evasion">
             <Shield size={16} />
-            <span>Уклонение</span>
+            <span><CompendiumRuleTerm ruleSlug="evasion">Уклонение</CompendiumRuleTerm></span>
             <strong>{character.evasion}</strong>
           </div>
           <div className="player-defense-row__armor">
             <Swords size={16} />
-            <span>Броня</span>
+            <span><CompendiumRuleTerm ruleSlug="armor">Броня</CompendiumRuleTerm></span>
             <div className="player-defense-row__armor-value">
               <TrackDots
                 value={character.armor.marked}
@@ -366,7 +369,11 @@ export function CharacterSheet({
         {canUseCompanion && (
           <section className="player-companion-panel" aria-label="Компаньон следопыта">
             <header>
-              <span>Компаньон</span>
+              <span>
+                <CompendiumRuleTerm ruleSlug="ranger-companion" sectionAnchor="using-spellcast-rolls-hope-and-experiences">
+                  Компаньон
+                </CompendiumRuleTerm>
+              </span>
               {character.companion && (
                 <div className="player-companion-panel__header-actions">
                   <IconButton size="xs" variant="ghost" title="Редактировать компаньона" aria-label={`Редактировать компаньона ${character.companion.name}`} onClick={() => setCompanionEditorOpen(true)}>
@@ -401,9 +408,20 @@ export function CharacterSheet({
                       ? <img src={cssImageUrl(character.companion.imageUrl)} alt="" />
                       : <PawPrint size={16} aria-hidden="true" />}
                   </div>
-                  <div>
+                  <div className="player-companion-panel__copy">
                     <strong>{character.companion.name}</strong>
                     <span>Уклонение {character.companion.evasion}</span>
+                  </div>
+                  <div className="player-companion-panel__stress">
+                    <span><CompendiumRuleTerm ruleSlug="stress">Стресс</CompendiumRuleTerm></span>
+                    <TrackDots
+                      value={character.companion.stress.marked}
+                      max={character.companion.stress.max}
+                      tone="stress"
+                      label="Стресс компаньона"
+                      onSet={(next) => characterService.markCompanionStress(character.id, next - character.companion!.stress.marked)}
+                    />
+                    <strong>{character.companion.stress.marked}/{character.companion.stress.max}</strong>
                   </div>
                 </div>
                 <ListItem
@@ -421,13 +439,6 @@ export function CharacterSheet({
                     difficulty: 0,
                     notes: `Команда компаньону: ${character.companion?.name ?? 'Компаньон'}`
                   })}
-                />
-                <TrackRow
-                  icon={<Zap size={16} />}
-                  label="Стресс"
-                  value={character.companion.stress.marked}
-                  max={character.companion.stress.max}
-                  onSet={(next) => characterService.markCompanionStress(character.id, next - character.companion!.stress.marked)}
                 />
                 {character.companion.unavailableUntilLongRest && <small>Недоступен до продолжительного отдыха</small>}
               </div>
@@ -450,7 +461,7 @@ export function CharacterSheet({
         )}
         <section className="player-sheet-status-block">
           <header>
-            <span>Состояния</span>
+            <span><CompendiumRuleTerm ruleSlug="condition">Состояния</CompendiumRuleTerm></span>
           </header>
           <StatusChips
             conditions={character.conditions}
@@ -460,11 +471,20 @@ export function CharacterSheet({
           />
         </section>
         </SheetSection>
-      <SheetSection id="player-sheet-traits" title="Характеристики и опыт">
+      <SheetSection
+        id="player-sheet-traits"
+        title={(
+          <span className="player-sheet-heading-terms">
+            <CompendiumRuleTerm ruleSlug="character-traits">Характеристики</CompendiumRuleTerm>
+            <span>{'\u00a0и\u00a0'}</span>
+            <CompendiumRuleTerm ruleSlug="experience" sectionAnchor="using-experiences">опыт</CompendiumRuleTerm>
+          </span>
+        )}
+      >
         <section className="player-trait-grid">
           {character.traits.map((trait) => (
             <ChoiceCard key={trait.id} onClick={() => setRollDraft({ kind: 'trait', title: trait.label, subtitle: `${character.name} / ${signed(trait.value)}`, trait: trait.id })}>
-              <span>{trait.label}</span>
+              <span><CompendiumRuleTerm ruleSlug={trait.id} tooltipOnly>{trait.label}</CompendiumRuleTerm></span>
               <strong>{signed(trait.value)}</strong>
             </ChoiceCard>
           ))}

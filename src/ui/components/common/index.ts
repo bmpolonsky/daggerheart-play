@@ -20,6 +20,7 @@ export * from './NavButton';
 export * from './Notice';
 export * from './ResourcePips';
 export * from './RuleEffectText';
+export * from './RuleTerm';
 export * from './RichChoicePicker';
 export * from './RangeField';
 export * from './SectionHeader';

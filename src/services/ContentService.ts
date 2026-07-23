@@ -124,7 +124,9 @@ export class ContentService {
       const customCards = readRawCustomCardCollections(customContent);
       const adversaries = [...customAdversaries, ...(adversaryPayload.data ?? []).map(mapRawAdversary)].sort(sortAdversaries);
       const classes = (classesPayload.data ?? []).map(mapRawClassItem).sort(sortClasses);
-      const rules = (rulesPayload.data ?? []).map(mapRawRuleItem).filter((item) => !item.hidden).sort(sortRules);
+      // Hidden rules are still valid reference articles for contextual help.
+      // The library view filters them from ordinary browsing below.
+      const rules = (rulesPayload.data ?? []).map(mapRawRuleItem).sort(sortRules);
       const environments = [...customEnvironments, ...(environmentsPayload.data ?? []).map(mapRawEnvironmentItem)].sort(sortEnvironments);
       const beastforms = (beastformsPayload.data ?? []).map(mapRawBeastformItem).sort(sortBeastforms);
       const generic = {
@@ -212,10 +214,11 @@ export class ContentService {
 
   buildLibraryView(state: ContentState): ContentLibraryView {
     const normalizedSearch = normalizeSearch(state.searchTerm);
+    const visibleRules = state.rules.filter((item) => !item.hidden);
     const collectionCounts: Record<ContentCollectionKey, number> = {
       adversaries: state.adversaries.length,
       classes: state.classes.length,
-      rules: state.rules.length,
+      rules: visibleRules.length,
       environments: state.environments.length,
       beastforms: state.beastforms.length,
       ancestries: state.generic.ancestries.length,
@@ -252,7 +255,7 @@ export class ContentService {
         : true;
       return matchesSearch && sourceMatches(item.raw, state.sourceFilter);
     });
-    const rules = state.rules.filter((item) => {
+    const rules = visibleRules.filter((item) => {
       const matchesSearch = normalizedSearch
         ? normalizeSearch([item.name, item.frameName, item.summary, item.body].join(' ')).includes(normalizedSearch)
         : true;

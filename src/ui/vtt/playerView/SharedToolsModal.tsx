@@ -40,7 +40,9 @@ export function SharedToolsModal({
   targetCharacterId,
   onClose,
   onLibraryCollectionChange,
+  onLibraryRuleChange,
   onSettingsSectionChange,
+  routedLibraryEntrySlug,
   routedSettingsSection,
   onTabChange
 }: {
@@ -49,7 +51,9 @@ export function SharedToolsModal({
   targetCharacterId?: string | null;
   onClose: () => void;
   onLibraryCollectionChange?: (collection: ContentCollectionKey) => void;
+  onLibraryRuleChange?: (slug: string | null) => void;
   onSettingsSectionChange?: (section: SettingsSectionId) => void;
+  routedLibraryEntrySlug?: string | null;
   routedSettingsSection?: string | null;
   onTabChange: (tab: SharedToolsTab) => void;
 }) {
@@ -64,6 +68,9 @@ export function SharedToolsModal({
   );
   const settingsSections = settingsSectionsForRole(role);
   const normalizedSettingsSection = normalizeSettingsSection(activeSettingsSection, role);
+  const targetedRule = routedLibraryEntrySlug
+    ? content.rules.find((rule) => rule.slug === routedLibraryEntrySlug) ?? null
+    : null;
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,12 +79,16 @@ export function SharedToolsModal({
 
   useEffect(() => {
     if (activeTab !== 'library') return;
+    // A direct rule-article route is already authoritative. The parent will
+    // synchronize the rules collection; applying the ordinary fallback here
+    // would erase the targeted article slug during the first render.
+    if (routedLibraryEntrySlug) return;
     if (compendiumCollections.some((collection) => collection.key === libraryView.selectedCollection)) return;
     const fallback = compendiumCollections[0];
     if (!fallback) return;
     contentService.setSelectedCollection(fallback.key);
     onLibraryCollectionChange?.(fallback.key);
-  }, [activeTab, compendiumCollections, libraryView.selectedCollection, onLibraryCollectionChange]);
+  }, [activeTab, compendiumCollections, libraryView.selectedCollection, onLibraryCollectionChange, routedLibraryEntrySlug]);
 
   useEffect(() => {
     if (normalizedSettingsSection === activeSettingsSection) return;
@@ -176,7 +187,13 @@ export function SharedToolsModal({
             <SharedToolsCombatTab />
           )}
           {activeTab === 'library' && (
-            <SharedToolsLibraryTab libraryView={libraryView} targetCharacterId={targetCharacterId} />
+            <SharedToolsLibraryTab
+              libraryView={libraryView}
+              onRuleSelectionChange={onLibraryRuleChange}
+              selectedRuleSlug={routedLibraryEntrySlug}
+              targetCharacterId={targetCharacterId}
+              targetRule={targetedRule}
+            />
           )}
           {activeTab === 'notes' && role === 'gm' && (
             <SharedToolsNotesTabHost />

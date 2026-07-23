@@ -56,7 +56,7 @@ export function LibraryDetailPanel({
         <div className="player-library-detail__sections">
           {entry.sections.map((section) => (
             <section key={section.title}>
-              <h4>{section.title}</h4>
+              {section.title && <h4>{section.title}</h4>}
               <RichText text={section.body} />
             </section>
           ))}

@@ -2,6 +2,7 @@
 import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ContentLibraryView } from '../../../../services/ContentService';
+import type { LibraryRuleEntry } from '../../../../domain/content/types';
 import { contentService } from '../../../../services/serviceRegistry';
 import { Button } from '../../../components/common/Button';
 import { SelectControl } from '../../../components/common/Field';
@@ -12,7 +13,19 @@ import { SharedToolsCustomCompendiumEditor } from '../sharedTools/SharedToolsCus
 import type { LibraryEntry } from './libraryDetailTypes';
 import { LibraryResults } from './LibraryResults';
 
-export function SharedToolsLibraryTab({ libraryView, targetCharacterId }: { libraryView: ContentLibraryView; targetCharacterId?: string | null }) {
+export function SharedToolsLibraryTab({
+  libraryView,
+  onRuleSelectionChange,
+  selectedRuleSlug,
+  targetCharacterId,
+  targetRule
+}: {
+  libraryView: ContentLibraryView;
+  onRuleSelectionChange?: (slug: string | null) => void;
+  selectedRuleSlug?: string | null;
+  targetCharacterId?: string | null;
+  targetRule?: LibraryRuleEntry | null;
+}) {
   const editableKind = editableKindForCollection(libraryView.selectedCollection);
   const [editorState, setEditorState] = useState<NonNullable<LibraryEntry['custom']> | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -93,6 +106,9 @@ export function SharedToolsLibraryTab({ libraryView, targetCharacterId }: { libr
           targetCharacterId={targetCharacterId}
           onEditCustom={openCustomEditor}
           onDetailOpenChange={setDetailOpen}
+          onRuleSelectionChange={onRuleSelectionChange}
+          selectedRuleSlug={selectedRuleSlug}
+          targetRule={targetRule}
         />
       )}
     </section>

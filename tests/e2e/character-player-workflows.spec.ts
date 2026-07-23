@@ -396,6 +396,18 @@ test.describe('filled-game player character workflows', () => {
       await expect(companion).not.toContainText('Опыт компаньона');
       await expect(companion).not.toContainText('Успех с Надеждой');
       await expect(companion.getByRole('button', { name: 'Когти' })).toBeVisible();
+      const companionRuleTerm = companion.getByRole('button', { name: 'Компаньон', exact: true });
+      await companionRuleTerm.hover();
+      await expect(player.getByRole('tooltip').filter({ hasText: 'Сделайте Бросок Заклинания' })).toContainText('Преимущество');
+      await expect(companion.locator('.player-companion-panel__stress')).toContainText('0/3');
+      const identityBox = await companion.locator('.player-companion-panel__identity').boundingBox();
+      const stressBox = await companion.locator('.player-companion-panel__stress').boundingBox();
+      const attackBox = await companion.getByRole('button', { name: 'Когти' }).boundingBox();
+      expect(identityBox).not.toBeNull();
+      expect(stressBox).not.toBeNull();
+      expect(attackBox).not.toBeNull();
+      expect(Math.abs(stressBox!.y - identityBox!.y)).toBeLessThan(identityBox!.height);
+      expect(attackBox!.y).toBeGreaterThan(identityBox!.y + identityBox!.height - 2);
 
       await companion.getByRole('button', { name: 'Когти' }).click();
       const roll = player.getByLabel('Подтверждение броска');
@@ -422,6 +434,78 @@ test.describe('filled-game player character workflows', () => {
       await expect(gm.getByLabel('Игровая сцена').getByRole('button', { name: 'Искра Лесная' })).toBeVisible();
       await expect(player.getByLabel('Игровая сцена').getByRole('button', { name: 'Искра Лесная' })).toBeVisible({ timeout: 15_000 });
       await expect(gmCompanion.getByRole('button', { name: 'Убрать Искра Лесная со сцены' })).toBeVisible();
+
+      await companionRuleTerm.click();
+      await expect(player).toHaveURL(/\/library\/compendium\/rules\/ranger-companion$/);
+      const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
+      const detail = workspace.getByLabel('Полная запись компендиума');
+      await expect(detail.getByRole('heading', { name: 'Компаньон Следопыта', exact: true })).toBeVisible();
+      await expect(detail.getByRole('heading', { name: 'Работа с компаньоном', exact: true })).toBeVisible();
+      await expect(detail).not.toContainText('#####');
+      await expect(detail).not.toContainText('{#');
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('opens contextual rule help from an undecorated interface term', async ({ browser }) => {
+    const { relay, player } = await openJoinedFilledTable(browser, 'help', { width: 1440, height: 900 }, (character) => {
+      character.conditions.push({
+        id: 'e2e-vulnerable',
+        name: 'vulnerable',
+        notes: ''
+      });
+    });
+    try {
+      const sheet = player.getByLabel('Персонаж игрока');
+      const conditionsHeading = sheet.getByRole('button', { name: 'Состояния', exact: true });
+      await conditionsHeading.hover();
+      const conditionsTooltipId = await conditionsHeading.getAttribute('aria-describedby');
+      await expect(player.locator(`[id="${conditionsTooltipId}"]`)).toContainText('преимущества или недостатки');
+
+      const vulnerableTerm = sheet.getByRole('button', { name: 'Уязвим', exact: true });
+      await vulnerableTerm.hover();
+      const vulnerableTooltipId = await vulnerableTerm.getAttribute('aria-describedby');
+      await expect(player.locator(`[id="${vulnerableTooltipId}"]`)).toContainText('Уязвим');
+
+      await player.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Характеристики' }).click();
+      const heading = sheet.locator('#player-sheet-traits h3');
+      await expect(heading).toContainText('Характеристики');
+      await expect(heading).toContainText('опыт');
+      const headingParts = await Promise.all([
+        heading.getByRole('button', { name: 'Характеристики', exact: true }).boundingBox(),
+        heading.locator('.player-sheet-heading-terms > span').boundingBox(),
+        heading.getByRole('button', { name: 'опыт', exact: true }).boundingBox()
+      ]);
+      expect(headingParts.every(Boolean)).toBe(true);
+      expect(headingParts[1]!.x - (headingParts[0]!.x + headingParts[0]!.width)).toBeGreaterThan(1);
+      expect(headingParts[2]!.x - (headingParts[1]!.x + headingParts[1]!.width)).toBeGreaterThan(1);
+
+      const agilityCard = sheet.locator('.player-trait-grid').getByRole('button', { name: /Проворность/ });
+      const cardRuleTerm = agilityCard.locator('[aria-describedby]');
+      await cardRuleTerm.hover();
+      const cardTooltipId = await cardRuleTerm.getAttribute('aria-describedby');
+      const cardTooltip = player.locator(`[id="${cardTooltipId}"]`);
+      await expect(cardTooltip).toContainText('быстры');
+      await expect(cardTooltip).not.toContainText('Нажмите, чтобы открыть статью');
+      await agilityCard.click();
+
+      const roll = player.getByLabel('Подтверждение броска');
+      const agilityTerm = roll.getByRole('button', { name: 'Проворность', exact: true });
+      await expect(agilityTerm).toBeVisible();
+      await expect(agilityTerm).toHaveCSS('text-decoration-line', 'none');
+      await agilityTerm.hover();
+      const tooltipId = await agilityTerm.getAttribute('aria-describedby');
+      const tooltip = player.locator(`[id="${tooltipId}"]`);
+      await expect(tooltip).toContainText('Проворность');
+      await expect(tooltip).toContainText('быстры');
+
+      await agilityTerm.click();
+      await expect(player).toHaveURL(/\/library\/compendium\/rules\/agility$/);
+      const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
+      await expect(workspace).toBeVisible();
+      await expect(workspace.getByRole('heading', { name: 'Проворность', exact: true })).toBeVisible();
+      await expect(workspace).toContainText('быстры');
     } finally {
       await relay.close();
     }

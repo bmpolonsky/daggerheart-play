@@ -394,3 +394,30 @@ test('content service uses cache-first collection reads unless live refresh is r
     globalThis.fetch = originalFetch;
   }
 });
+
+test('content service retains hidden rule articles for contextual help without listing them', async () => {
+  const service = new ContentService();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: RequestInfo | URL) => {
+    const data = String(url).includes('rules.json')
+      ? [
+        { slug: 'visible-rule', name: 'Обычное правило', description: 'Видно в справочнике.', hidden: false },
+        { slug: 'agility', name: 'Проворность', description: 'Подсказка характеристики.', hidden: true }
+      ]
+      : [];
+    return new Response(JSON.stringify({ result: 'ok', data }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }) as typeof fetch;
+
+  try {
+    await service.reload();
+    service.setSelectedCollection('rules');
+    const state = service.content$.get();
+    const view = service.buildLibraryView(state);
+
+    assert.equal(state.rules.some((rule) => rule.slug === 'agility'), true);
+    assert.deepEqual(view.rules.map((rule) => rule.slug), ['visible-rule']);
+    assert.equal(view.collectionCounts.rules, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

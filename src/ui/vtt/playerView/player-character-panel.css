@@ -1206,7 +1206,7 @@
 .player-companion-panel__identity {
   min-width: 0;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
 }
@@ -1228,30 +1228,60 @@
   object-fit: cover;
 }
 
-.player-companion-panel__identity > div {
+.player-companion-panel__copy {
   min-width: 0;
   display: grid;
   gap: 2px;
 }
 
-.player-companion-panel__identity strong,
-.player-companion-panel__identity span {
+.player-companion-panel__copy strong,
+.player-companion-panel__copy span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.player-companion-panel__identity strong {
+.player-companion-panel__copy strong {
   color: #fff7e7;
   font-size: 13px;
 }
 
-.player-companion-panel__identity span {
+.player-companion-panel__copy span {
   color: rgba(243, 234, 216, 0.6);
   font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.player-companion-panel__stress {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(243, 234, 216, 0.68);
+}
+
+.player-companion-panel__stress > span {
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.player-companion-panel__stress > strong {
+  color: #fff7e7;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.player-companion-panel__stress .player-track-dots {
+  gap: 4px;
+}
+
+.player-companion-panel__stress .player-track-dots .dh-resource-pip {
+  width: 18px;
+  height: 24px;
 }
 
 .player-companion-panel__header-actions {
@@ -1321,6 +1351,10 @@
   .player-companion-editor__grid {
     grid-template-columns: 1fr;
   }
+
+  .player-companion-panel__stress > span {
+    display: none;
+  }
 }
 
 .player-sheet-section {
@@ -1364,6 +1398,13 @@
 .player-sheet-section h3::after {
   right: -8px;
   transform: rotate(180deg);
+}
+
+.player-sheet-heading-terms {
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28em;
 }
 
 .player-sheet-section > p {

@@ -9,7 +9,9 @@ export function RichText({ text }: { text: string }) {
 }
 
 function richBlocks(text: string): VNode[] {
-  const normalized = normalizeDetailText(cleanMarkdownText(text, { emphasizeLinks: true }));
+  const normalized = normalizeDetailText(cleanMarkdownText(text, { emphasizeLinks: true }))
+    .replace(/<\/?div\b[^>]*>/gi, '')
+    .replace(/\s*\{#[^}]+\}\s*$/gm, '');
   const blocks: VNode[] = [];
   let listItems: string[] = [];
 
@@ -35,10 +37,18 @@ function richBlocks(text: string): VNode[] {
     }
 
     lines.forEach((line) => {
-      const heading = line.match(/^#{1,4}\s+(.+)$/);
+      const heading = line.match(/^(#{1,6})\s+(.+)$/);
       if (heading) {
         flushList();
-        blocks.push(<h5 className="player-library-richtext__heading" key={`heading-${blocks.length}`}>{inlineRichText(heading[1])}</h5>);
+        const level = Math.min(6, Math.max(4, heading[1].length));
+        blocks.push(
+          <h5
+            className={`player-library-richtext__heading player-library-richtext__heading--level-${level}`}
+            key={`heading-${blocks.length}`}
+          >
+            {inlineRichText(heading[2])}
+          </h5>
+        );
         return;
       }
 

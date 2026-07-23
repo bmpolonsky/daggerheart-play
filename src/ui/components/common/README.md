@@ -647,6 +647,28 @@ Guidance:
 - Interactive roll or resource macros may remain nested inside this marker.
 - Do not use it as a button or as confirmation that an assisted effect was applied.
 
+### RuleTerm
+
+Use for a small number of ambiguous game terms that have a complete source
+article in the compendium.
+
+```tsx
+<RuleTerm title={article.name} summary={article.summary} onOpen={openArticle}>
+  Проворность
+</RuleTerm>
+```
+
+Guidance:
+
+- Keep normal text styling; the help cursor and tooltip provide discovery.
+- Supply tooltip copy from the source article instead of duplicating rules in UI code.
+- Activation must open the complete matching article.
+- Omit `onOpen` only when the term is nested inside another primary action, such
+  as a roll card; that variant provides hover help without replacing the
+  surrounding action.
+- Use selectively for stats, resources, and roll concepts; do not wrap every heading or action.
+- Do not use it for the automatic/assisted parsing annotation handled by `RuleEffectText`.
+
 ### ImageFilePicker and FilePicker
 
 Use for image/music upload controls.
@@ -745,6 +767,7 @@ Guidance:
 | `Checkbox` | Boolean options | Multi-choice tabs |
 | `ListDetailLayout` | List/detail workspaces | Generic page columns |
 | `ResourcePips` | Pip resources | Generic progress bars |
+| `RuleTerm` | Contextual rule references | Every label or parsed-effect annotations |
 | `ImageFilePicker` / `FilePicker` | File uploads | URL text fields |
 | `NavButton` | Sidebar/navigation rows | Form submit/actions |
 | `StepRailButton` | Compact step rails | Normal tabs |

@@ -195,7 +195,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     setSelectedPlayerSeatId(seatId);
     if (sessionRoomId) writeStoredPlayerSeatId(sessionRoomId, seatId);
   }, [sessionRoomId]);
-  const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab; libraryCollection?: typeof content.selectedCollection | null; settingsSection?: string | null }) => {
+  const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab; libraryCollection?: typeof content.selectedCollection | null; libraryEntrySlug?: string | null; settingsSection?: string | null }) => {
     if (typeof window === 'undefined') return;
     const navigation = buildRoutedPlayerViewLocation({
       hash: window.location.hash
@@ -206,6 +206,21 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     }
     setRoutedUi(parseRoutedPlayerViewState(navigation.pathname, role));
   }, [role]);
+  useEffect(() => {
+    const openRuleArticle = (event: Event) => {
+      const ruleSlug = (event as CustomEvent<{ ruleSlug?: string }>).detail?.ruleSlug?.trim();
+      if (!ruleSlug) return;
+      contentService.setSelectedCollection('rules');
+      commitRoutedUi({
+        toolsOpen: true,
+        toolsTab: 'library',
+        libraryCollection: 'rules',
+        libraryEntrySlug: ruleSlug
+      });
+    };
+    window.addEventListener('daggerheart-play:open-rule-article', openRuleArticle);
+    return () => window.removeEventListener('daggerheart-play:open-rule-article', openRuleArticle);
+  }, [commitRoutedUi]);
   const openTools = useCallback(() => {
     commitRoutedUi({ toolsOpen: true, toolsTab: routedUi.toolsTab || defaultSharedToolsTab(role) });
   }, [commitRoutedUi, role, routedUi.toolsTab]);
@@ -217,12 +232,21 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       toolsOpen: true,
       toolsTab: tab,
       libraryCollection: tab === 'library' ? content.selectedCollection : null,
+      libraryEntrySlug: tab === 'library' ? routedUi.libraryEntrySlug : null,
       settingsSection: tab === 'settings' ? routedUi.settingsSection : null
     });
-  }, [commitRoutedUi, content.selectedCollection, routedUi.settingsSection]);
+  }, [commitRoutedUi, content.selectedCollection, routedUi.libraryEntrySlug, routedUi.settingsSection]);
   const changeLibraryCollection = useCallback((collection: typeof content.selectedCollection) => {
     contentService.setSelectedCollection(collection);
-    commitRoutedUi({ toolsOpen: true, toolsTab: 'library', libraryCollection: collection });
+    commitRoutedUi({ toolsOpen: true, toolsTab: 'library', libraryCollection: collection, libraryEntrySlug: null });
+  }, [commitRoutedUi]);
+  const changeLibraryRule = useCallback((ruleSlug: string | null) => {
+    commitRoutedUi({
+      toolsOpen: true,
+      toolsTab: 'library',
+      libraryCollection: 'rules',
+      libraryEntrySlug: ruleSlug
+    });
   }, [commitRoutedUi]);
   const changeSettingsSection = useCallback((section: string) => {
     commitRoutedUi({ toolsOpen: true, toolsTab: 'settings', settingsSection: section });
@@ -444,8 +468,10 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           targetCharacterId={role === 'player' ? model.character?.id ?? null : viewedCharacterId ?? model.character?.id ?? null}
           onClose={closeTools}
           onLibraryCollectionChange={changeLibraryCollection}
+          onLibraryRuleChange={changeLibraryRule}
           onSettingsSectionChange={changeSettingsSection}
           onTabChange={changeToolsTab}
+          routedLibraryEntrySlug={routedUi.libraryEntrySlug}
           routedSettingsSection={routedUi.settingsSection}
         />
       )}

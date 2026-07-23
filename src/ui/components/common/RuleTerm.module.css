@@ -1,0 +1,67 @@
+.root {
+  display: inline;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+  cursor: help;
+}
+
+.root:hover {
+  color: var(--dh-paper-100);
+}
+
+.root:focus-visible {
+  outline: none;
+  box-shadow: var(--dh-focus);
+}
+
+.tooltip {
+  position: fixed;
+  z-index: calc(var(--dh-z-dialog) + 20);
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  padding: 8px 10px;
+  border: 1px solid var(--dh-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-glass-strong);
+  box-shadow: var(--dh-shadow-soft);
+  color: var(--dh-paper-100);
+  font-family: "DH Overpass", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.tooltip strong {
+  color: var(--dh-gold-400);
+}
+
+.tooltip small {
+  color: var(--dh-paper-faint);
+  font-size: 0.62rem;
+  font-weight: 750;
+}
+
+.srOnly {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

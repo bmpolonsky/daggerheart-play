@@ -51,6 +51,15 @@ test('app routing treats library paths as player view state', () => {
     toolsOpen: true,
     toolsTab: 'library',
     libraryCollection: 'domainCards',
+    libraryEntrySlug: null,
+    settingsSection: null
+  });
+
+  assert.deepEqual(parseRoutedPlayerViewState('/library/compendium/rules/agility', 'player'), {
+    toolsOpen: true,
+    toolsTab: 'library',
+    libraryCollection: 'rules',
+    libraryEntrySlug: 'agility',
     settingsSection: null
   });
 
@@ -58,6 +67,7 @@ test('app routing treats library paths as player view state', () => {
     toolsOpen: true,
     toolsTab: 'settings',
     libraryCollection: null,
+    libraryEntrySlug: null,
     settingsSection: 'diagnostics'
   });
 });
@@ -68,6 +78,7 @@ test('player shared tools expose the owned-character area without GM-only tabs',
     toolsOpen: true,
     toolsTab: 'characters',
     libraryCollection: null,
+    libraryEntrySlug: null,
     settingsSection: null
   });
   assert.equal(sharedToolsTabsForRole('player').includes('scenes'), false);
@@ -85,6 +96,17 @@ test('app routing builds path-based library URLs without query params', () => {
     pathname: '/library/compendium/domain-cards',
     search: '',
     url: '/library/compendium/domain-cards#sheet'
+  });
+
+  assert.deepEqual(buildRoutedPlayerViewLocation(
+    { hash: '' },
+    'player',
+    { toolsOpen: true, toolsTab: 'library', libraryCollection: 'rules', libraryEntrySlug: 'action-roll' }
+  ), {
+    hash: '',
+    pathname: '/library/compendium/rules/action-roll',
+    search: '',
+    url: '/library/compendium/rules/action-roll'
   });
 
   assert.deepEqual(buildRoutedPlayerViewLocation(

@@ -4,6 +4,7 @@ import { Plus, X } from "lucide-react";
 import { CORE_STATUS_TAGS, normalizeStatusTag, statusLabel } from "../../../domain/rules/statuses";
 import { Button } from "../../components/common/Button";
 import { IconButton } from "../../components/common/IconButton";
+import { CompendiumRuleTerm } from "./CompendiumRuleTerm";
 
 export interface SheetStatus {
   id: string;
@@ -33,8 +34,12 @@ export function StatusChips({
     <section className="player-status-chips" aria-label="Состояния">
       <div className="player-status-chips__list">
         {visibleConditions.map((condition) => (
-          <span className="player-status-chip" key={condition.id} title={condition.notes || condition.name}>
-            <span>{statusLabel(condition.name)}</span>
+          <span className="player-status-chip" key={condition.id} title={condition.notes || undefined}>
+            <span>
+              <CompendiumRuleTerm ruleSlug={statusRuleSlug(condition.name)}>
+                {statusLabel(condition.name)}
+              </CompendiumRuleTerm>
+            </span>
             <IconButton variant="ghost" size="xs" type="button" aria-label={`Снять состояние ${statusLabel(condition.name)}`} onClick={() => onRemove(condition.id)}>
               <X size={13} aria-hidden="true" />
             </IconButton>
@@ -68,7 +73,9 @@ export function StatusChips({
                     setIsMenuOpen(false);
                   }}
                 >
-                  {statusLabel(status)}
+                  <CompendiumRuleTerm ruleSlug={statusRuleSlug(status)} tooltipOnly>
+                    {statusLabel(status)}
+                  </CompendiumRuleTerm>
                 </Button>
               )) : (
                 <span>Все основные состояния уже добавлены</span>
@@ -83,4 +90,12 @@ export function StatusChips({
 
 function isVisibleStatus(value: string): boolean {
   return Boolean(normalizeStatusTag(value));
+}
+
+function statusRuleSlug(value: string): string {
+  const normalized = normalizeStatusTag(value);
+  if (normalized === 'vulnerable') return 'vulnerable';
+  if (normalized === 'hidden') return 'hidden';
+  if (normalized === 'restrained') return 'restrained';
+  return 'condition';
 }

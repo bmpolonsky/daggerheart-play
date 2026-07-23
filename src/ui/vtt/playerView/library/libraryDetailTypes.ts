@@ -11,6 +11,7 @@ export type LibraryDetailSection = {
 
 export type LibraryEntry = {
   id: string;
+  routeSlug?: string;
   title: string;
   kicker: string;
   preview: string;

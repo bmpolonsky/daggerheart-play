@@ -14,10 +14,19 @@ import type { ContentLibraryView } from '../../../../services/ContentService';
 import { characterService, contentService, feedService, sceneTableService } from '../../../../services/serviceRegistry';
 import type { LibraryDetailAction, LibraryDetailSection, LibraryEntry } from './libraryDetailTypes';
 
-export function buildLibraryEntries(libraryView: ContentLibraryView, targetCharacterId?: string | null): LibraryEntry[] {
+export function buildLibraryEntries(
+  libraryView: ContentLibraryView,
+  targetCharacterId?: string | null,
+  targetRule?: LibraryRuleEntry | null
+): LibraryEntry[] {
   if (libraryView.selectedCollection === 'adversaries') return libraryView.adversaries.map(adversaryEntry);
   if (libraryView.selectedCollection === 'classes') return libraryView.classes.map(classEntry);
-  if (libraryView.selectedCollection === 'rules') return libraryView.rules.map(ruleEntry);
+  if (libraryView.selectedCollection === 'rules') {
+    const rules = targetRule && !libraryView.rules.some((item) => item.id === targetRule.id)
+      ? [targetRule, ...libraryView.rules]
+      : libraryView.rules;
+    return rules.map(ruleEntry);
+  }
   if (libraryView.selectedCollection === 'environments') return libraryView.environments.map(environmentEntry);
   if (libraryView.selectedCollection === 'equipment') return libraryView.equipment.map((item) => equipmentEntry(item, targetCharacterId));
   if (libraryView.selectedCollection === 'beastforms') return libraryView.beastforms.map(beastformEntry);
@@ -98,10 +107,11 @@ function classEntry(item: LibraryClassItem): LibraryEntry {
 
 function ruleEntry(item: LibraryRuleEntry): LibraryEntry {
   const sections = compactSections([
-    ['Правило', item.body || item.summary]
+    ['', item.body || item.summary]
   ]);
   return {
     id: item.id,
+    routeSlug: item.slug,
     title: item.name,
     kicker: item.frameName || 'Правило',
     preview: item.summary || item.body,

@@ -200,9 +200,9 @@ test('player view model exposes only public live scene state', () => {
   assert.deepEqual(assignedModel.character?.features.map((feature) => feature.subtitle), ['Ancestry', 'Основа', 'Специализация', 'Мастерство']);
   assert.deepEqual(assignedModel.character?.features.map((feature) => feature.sourceLabel), [
     'Родословная',
-    'Подкласс · Основа',
-    'Подкласс · Специализация',
-    'Подкласс · Мастерство'
+    'Подкласс — Основа',
+    'Подкласс — Специализация',
+    'Подкласс — Мастерство'
   ]);
   assert.deepEqual(assignedModel.character?.inventory.map((item) => item.name), ['Lantern', 'Rope']);
   assert.deepEqual(assignedModel.character?.conditions.map((condition) => condition.name), [ActorStatus.Hidden]);

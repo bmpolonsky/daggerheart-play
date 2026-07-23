@@ -9,6 +9,7 @@ import { RollConfirmCloseButton, RollPrivateToggle, rollConfirmDefaultPosition }
 import { usePrivateRollPreference } from './rollPrivacyPreference';
 import type { PlayerRollDraft, PlayerRollType } from './types';
 import { Button, Checkbox, DraggableSurface, SelectControl, SegmentedControl } from '../../components/common';
+import { CompendiumRuleTerm } from './CompendiumRuleTerm';
 
 export function PlayerRollConfirm({
   character,
@@ -43,6 +44,7 @@ export function PlayerRollConfirm({
   const [experienceIds, setExperienceIds] = useState<string[]>([]);
   const [spendHopeForExperiences, setSpendHopeForExperiences] = useState(true);
   const availableExperiences = experiences ?? character.experiences;
+  const selectedTrait = character.traits.find((trait) => trait.id === draft.trait);
   const experienceModifier = availableExperiences
     .filter((experience) => experienceIds.includes(experience.id))
     .reduce((sum, experience) => sum + experience.modifier, 0);
@@ -85,14 +87,16 @@ export function PlayerRollConfirm({
           { value: 'reaction', label: 'Реакция' },
         ]}
       />
-      <label className="player-roll-confirm__field">
-        <span>Характеристика</span>
-        <SelectControl value={draft.trait} onChange={(event) => onTraitChange(event.currentTarget.value as TraitId)}>
+      <div className="player-roll-confirm__field">
+        <span>
+          Характеристика: <CompendiumRuleTerm ruleSlug={draft.trait}>{selectedTrait?.label ?? draft.trait}</CompendiumRuleTerm>
+        </span>
+        <SelectControl aria-label="Характеристика броска" value={draft.trait} onChange={(event) => onTraitChange(event.currentTarget.value as TraitId)}>
           {character.traits.map((trait) => (
             <option key={trait.id} value={trait.id}>{trait.label} {signed(trait.value)}</option>
           ))}
         </SelectControl>
-      </label>
+      </div>
       <div className="player-roll-confirm__advantage" aria-label="Преимущество и помеха">
         <Button className="player-roll-confirm__advantage-option" variant={advantageCount > 0 ? 'primary' : 'ghost'} size="sm" type="button" onClick={() => addAdvantage('advantage')}>
           Преим.{advantageCount > 0 ? ` ${advantageCount}` : ''}
@@ -107,7 +111,7 @@ export function PlayerRollConfirm({
       <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
       {availableExperiences.length > 0 && (
         <div className="player-roll-confirm__checks">
-          <span>Опыт {experienceModifier ? signed(experienceModifier) : ''}</span>
+          <span><CompendiumRuleTerm ruleSlug="experience" sectionAnchor="using-experiences">Опыт</CompendiumRuleTerm> {experienceModifier ? signed(experienceModifier) : ''}</span>
           {availableExperiences.map((experience) => (
             <Checkbox
               key={experience.id}

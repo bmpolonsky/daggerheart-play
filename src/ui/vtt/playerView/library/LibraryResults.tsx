@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import type { LibraryRuleEntry } from '../../../../domain/content/types';
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import { ListDetailLayout } from '../../../components/common';
 import { LibraryDetailPanel } from './LibraryDetailPanel';
@@ -11,22 +12,36 @@ export function LibraryResults({
   libraryView,
   onEditCustom,
   onDetailOpenChange,
+  onRuleSelectionChange,
+  selectedRuleSlug,
+  targetRule,
   targetCharacterId
 }: {
   libraryView: ContentLibraryView;
   onEditCustom?: (custom: NonNullable<LibraryEntry['custom']>) => void;
   onDetailOpenChange?: (open: boolean) => void;
+  onRuleSelectionChange?: (slug: string | null) => void;
+  selectedRuleSlug?: string | null;
+  targetRule?: LibraryRuleEntry | null;
   targetCharacterId?: string | null;
 }) {
-  const entries = useMemo(() => buildLibraryEntries(libraryView, targetCharacterId), [libraryView, targetCharacterId]);
+  const entries = useMemo(
+    () => buildLibraryEntries(libraryView, targetCharacterId, targetRule),
+    [libraryView, targetCharacterId, targetRule]
+  );
   const [selectedId, setSelectedId] = useState('');
   const [actionMessage, setActionMessage] = useState('');
   const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? null;
 
   useEffect(() => {
-    setSelectedId((current) => entries.some((entry) => entry.id === current) ? current : '');
+    setSelectedId((current) => {
+      if (selectedRuleSlug) {
+        return entries.find((entry) => entry.routeSlug === selectedRuleSlug)?.id ?? '';
+      }
+      return entries.some((entry) => entry.id === current) ? current : '';
+    });
     setActionMessage('');
-  }, [entries]);
+  }, [entries, selectedRuleSlug]);
 
   useEffect(() => {
     onDetailOpenChange?.(Boolean(selectedEntry));
@@ -52,7 +67,10 @@ export function LibraryResults({
               kicker={entry.kicker}
               stats={entry.stats}
               title={entry.title}
-              onSelect={() => setSelectedId(entry.id)}
+              onSelect={() => {
+                setSelectedId(entry.id);
+                if (entry.routeSlug) onRuleSelectionChange?.(entry.routeSlug);
+              }}
             />
           ))}
         </>
@@ -66,6 +84,7 @@ export function LibraryResults({
           onClose={() => {
             setSelectedId('');
             setActionMessage('');
+            if (selectedEntry.routeSlug) onRuleSelectionChange?.(null);
           }}
         />
       )}
