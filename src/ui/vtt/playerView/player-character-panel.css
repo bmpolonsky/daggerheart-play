@@ -294,6 +294,19 @@
   overflow: hidden;
 }
 
+.player-roster__item--companion {
+  background: rgba(243, 234, 216, 0.035);
+}
+
+.player-roster__item--companion .player-roster__row {
+  min-height: 42px;
+  padding-block: 4px;
+}
+
+.player-roster__item--companion .dh-avatar {
+  --dh-avatar-size: 28px;
+}
+
 .player-roster__row {
   min-height: 48px;
   padding: 6px 7px;
@@ -429,6 +442,41 @@
 
 .player-roster__tracks {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.player-roster__companion-stress {
+  width: 76px;
+}
+
+.player-roster__companion-stress .resource-pips {
+  gap: 4px;
+}
+
+.player-roster__companion-stress .resource-title {
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.player-roster__companion-stress .resource-title span {
+  color: var(--dh-paper-faint);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.player-roster__companion-stress .resource-title strong {
+  color: var(--dh-paper-100);
+  font-size: 0.66rem;
+}
+
+.player-roster__companion-stress .pips {
+  gap: 3px;
+}
+
+.player-roster__companion-stress .pip {
+  width: 9px;
+  height: 9px;
 }
 
 .player-roster__tracks .resource-title span {

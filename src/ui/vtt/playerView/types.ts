@@ -9,12 +9,14 @@ export type SharedToolsTab = 'scenes' | 'characters' | 'combat' | 'cards' | 'lib
 export type PlayerRosterActor = {
   tokenId: string;
   actorId: string;
-  kind: 'character' | 'adversary' | 'environment';
+  kind: 'character' | 'companion' | 'adversary' | 'environment';
   name: string;
   subtitle: string;
   imageUrl: string;
   isOnScene: boolean;
   hidden?: boolean;
+  ownerName?: string;
+  evasion?: number;
   hope?: { value: number; max: number };
   hp?: { marked: number; max: number };
   stress?: { marked: number; max: number };

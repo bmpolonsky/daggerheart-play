@@ -15,9 +15,7 @@ import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
 export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: CharactersState | null = null, adversaries: Record<string, Adversary> | null = null, environments: Record<string, EncounterEnvironment> | null = null): PlayerRosterActor[] {
   const seen = new Set<string>();
   const placed = new Set(tokens.map((token) => `${token.kind}:${token.actorId}`));
-  const actors = tokens.filter((token): token is PlayerViewToken & { kind: PlayerRosterActor['kind'] } => (
-    token.kind !== 'companion'
-  )).filter((token) => {
+  const actors: PlayerRosterActor[] = tokens.filter((token) => {
     const key = `${token.kind}:${token.actorId}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -35,20 +33,38 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
   if (characters) {
     characters.order.forEach((id) => {
       const key = `character:${id}`;
-      if (seen.has(key)) return;
       const character = characters.entities[id];
       if (!character) return;
-      seen.add(key);
-      actors.push({
-        tokenId: key,
-        actorId: id,
-        kind: 'character',
-        name: character.name,
-        subtitle: `${classLabel(character.className)} ${character.level}`,
-        imageUrl: defaultCharacterPortraitUrl(character),
-        isOnScene: placed.has(key),
-        hidden: false
-      });
+      if (!seen.has(key)) {
+        seen.add(key);
+        actors.push({
+          tokenId: key,
+          actorId: id,
+          kind: 'character',
+          name: character.name,
+          subtitle: `${classLabel(character.className)} ${character.level}`,
+          imageUrl: defaultCharacterPortraitUrl(character),
+          isOnScene: placed.has(key),
+          hidden: false
+        });
+      }
+      const companionKey = `companion:${id}`;
+      if (character.companion && !seen.has(companionKey)) {
+        seen.add(companionKey);
+        actors.push({
+          tokenId: companionKey,
+          actorId: id,
+          kind: 'companion',
+          name: character.companion.name,
+          subtitle: `Уклонение ${character.companion.evasion}`,
+          imageUrl: character.companion.imageUrl ?? '',
+          isOnScene: placed.has(companionKey),
+          hidden: false,
+          ownerName: character.name,
+          evasion: character.companion.evasion,
+          stress: { ...character.companion.stress }
+        });
+      }
     });
   }
   if (adversaries) {
@@ -86,13 +102,27 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
     });
   }
   if (!characters && !environments) return actors;
-  return actors.map((actor) => {
+  const enriched = actors.map((actor) => {
     if (actor.kind === 'environment') {
       const environment = environments?.[actor.actorId];
       if (!environment) return actor;
       return {
         ...actor,
         subtitle: environment.difficulty ? `Сложность ${environment.difficulty}` : 'Окружение'
+      };
+    }
+    if (actor.kind === 'companion') {
+      const character = characters?.entities[actor.actorId];
+      const companion = character?.companion;
+      if (!character || !companion) return actor;
+      return {
+        ...actor,
+        name: companion.name,
+        subtitle: `Уклонение ${companion.evasion}${companion.unavailableUntilLongRest ? ' — недоступен до отдыха' : ''}`,
+        imageUrl: companion.imageUrl ?? '',
+        ownerName: character.name,
+        evasion: companion.evasion,
+        stress: { ...companion.stress }
       };
     }
     if (actor.kind !== 'character') return actor;
@@ -106,6 +136,7 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
       stress: { ...effective.stress }
     };
   });
+  return placeCompanionsAfterOwners(enriched);
 }
 
 export function buildSessionRosterActors(input: {
@@ -148,12 +179,25 @@ function withActivationRequest(actor: PlayerRosterActor, queue: PlayerActivation
 
 function sortRosterByActivation(actors: PlayerRosterActor[], queue: PlayerActivationQueueItem[]): PlayerRosterActor[] {
   const orderByActor = new Map(queue.map((request, index) => [request.actorId, index]));
-  return [...actors].sort((left, right) => {
+  const companions = actors.filter((actor) => actor.kind === 'companion');
+  const sorted = actors.filter((actor) => actor.kind !== 'companion').sort((left, right) => {
     const leftOrder = left.activationRequest ? orderByActor.get(left.actorId) ?? 0 : Number.POSITIVE_INFINITY;
     const rightOrder = right.activationRequest ? orderByActor.get(right.actorId) ?? 0 : Number.POSITIVE_INFINITY;
     if (!Number.isFinite(leftOrder) && !Number.isFinite(rightOrder)) return 0;
     return leftOrder - rightOrder;
   });
+  return placeCompanionsAfterOwners([...sorted, ...companions]);
+}
+
+function placeCompanionsAfterOwners(actors: PlayerRosterActor[]): PlayerRosterActor[] {
+  const companionByOwner = new Map(
+    actors.filter((actor) => actor.kind === 'companion').map((actor) => [actor.actorId, actor])
+  );
+  return actors.filter((actor) => actor.kind !== 'companion').flatMap((actor) => (
+    actor.kind === 'character' && companionByOwner.has(actor.actorId)
+      ? [actor, companionByOwner.get(actor.actorId)!]
+      : [actor]
+  ));
 }
 
 export function shouldIgnoreTokenDeleteShortcut(target: EventTarget | null): boolean {

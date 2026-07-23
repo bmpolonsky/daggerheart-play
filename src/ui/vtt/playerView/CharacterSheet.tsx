@@ -280,15 +280,15 @@ export function CharacterSheet({
         </section>
         <section className="player-threshold-row" aria-label="Пороги урона">
           <div>
-            <span>Легкий</span>
+            <span><CompendiumRuleTerm ruleSlug="minor-damage">Легкий</CompendiumRuleTerm></span>
             <strong>&lt; {character.thresholds.major}</strong>
           </div>
           <div>
-            <span>Ощутимый</span>
+            <span><CompendiumRuleTerm ruleSlug="major-damage">Ощутимый</CompendiumRuleTerm></span>
             <strong>{character.thresholds.major}+</strong>
           </div>
           <div>
-            <span>Тяжелый</span>
+            <span><CompendiumRuleTerm ruleSlug="severe-damage">Тяжелый</CompendiumRuleTerm></span>
             <strong>{character.thresholds.severe}+</strong>
           </div>
         </section>
@@ -300,7 +300,7 @@ export function CharacterSheet({
           </div>
           <div className="player-defense-row__armor">
             <Swords size={16} />
-            <span><CompendiumRuleTerm ruleSlug="armor">Броня</CompendiumRuleTerm></span>
+            <span><CompendiumRuleTerm ruleSlug="armor" sectionAnchor="reducing-damage">Броня</CompendiumRuleTerm></span>
             <div className="player-defense-row__armor-value">
               <TrackDots
                 value={character.armor.marked}

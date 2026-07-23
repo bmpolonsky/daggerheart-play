@@ -84,7 +84,7 @@
 .change {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(92px, 0.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
   gap: 8px;
   color: var(--dh-paper-muted);
   font-size: 0.72rem;

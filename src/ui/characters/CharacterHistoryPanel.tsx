@@ -1,7 +1,8 @@
-import type { Character, CharacterChangeRecord, CharacterChangeValue } from '../../domain/rules/types';
+import type { Character, CharacterChangeRecord } from '../../domain/rules/types';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { SectionHeader } from '../components/common/SectionHeader';
+import { characterHistoryFieldLabel, formatCharacterFieldChange } from './characterHistoryPresentation';
 import styles from './CharacterHistoryPanel.module.css';
 
 export function CharacterHistoryPanel({
@@ -38,8 +39,8 @@ export function CharacterHistoryPanel({
                     <ul className={styles.changes}>
                       {entry.changes.map((change, index) => (
                         <li key={`${change.path.join('.')}-${index}`} className={styles.change}>
-                          <strong>{fieldLabel(change.path)}</strong>
-                          <span>{formatValue(change.beforeExists ? change.before : undefined)} → {formatValue(change.afterExists ? change.after : undefined)}</span>
+                          <strong>{characterHistoryFieldLabel(change.path)}</strong>
+                          <span>{formatCharacterFieldChange(change)}</span>
                         </li>
                       ))}
                     </ul>
@@ -75,46 +76,4 @@ function formatDate(value: string): string {
     hour: '2-digit',
     minute: '2-digit'
   }).format(date);
-}
-
-function fieldLabel(path: string[]): string {
-  const labels: Record<string, string> = {
-    name: 'Имя',
-    className: 'Класс',
-    subclassName: 'Подкласс',
-    ancestry: 'Родословная',
-    community: 'Сообщество',
-    level: 'Уровень',
-    proficiency: 'Мастерство',
-    traits: 'Характеристики',
-    evasion: 'Уклонение',
-    thresholds: 'Пороги',
-    hp: 'Раны',
-    stress: 'Стресс',
-    hope: 'Надежда',
-    armor: 'Броня',
-    experiences: 'Опыты',
-    domainCards: 'Карты доменов',
-    usageTrackers: 'Трекеры',
-    inventory: 'Инвентарь',
-    notes: 'Заметки'
-  };
-  if (path.length === 0) return 'Персонаж';
-  return [labels[path[0]] ?? path[0], ...path.slice(1)].join(' — ');
-}
-
-function formatValue(value: CharacterChangeValue | undefined): string {
-  if (value === undefined) return '—';
-  if (value === null) return 'нет';
-  if (typeof value === 'boolean') return value ? 'да' : 'нет';
-  if (typeof value === 'string' || typeof value === 'number') return truncate(String(value));
-  try {
-    return truncate(JSON.stringify(value));
-  } catch {
-    return 'изменено';
-  }
-}
-
-function truncate(value: string): string {
-  return value.length > 140 ? `${value.slice(0, 137)}…` : value;
 }

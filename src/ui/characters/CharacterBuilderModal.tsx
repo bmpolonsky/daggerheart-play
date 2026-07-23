@@ -52,6 +52,7 @@ export function CharacterBuilderModal({
   const selectedPrimaryWeapon = options.primaryWeapons.find((item) => item.id === fields.primaryWeaponId || item.slug === fields.primaryWeaponId) ?? options.primaryWeapons[0];
   const selectedSecondaryWeapon = options.secondaryWeapons.find((item) => item.id === fields.secondaryWeaponId || item.slug === fields.secondaryWeaponId) ?? options.secondaryWeapons[0] ?? null;
   const selectedConsumable = options.consumables.find((item) => item.id === fields.consumableId || item.slug === fields.consumableId) ?? options.consumables[0] ?? null;
+  const stagePortraitUrl = builderResult.draft.portraitUrl || selectedClassOption?.imageUrl || '';
   const choicePreview = buildCharacterBuilderChoicePreview({
     step,
     selectedClass: selectedClassOption,
@@ -108,7 +109,7 @@ export function CharacterBuilderModal({
         <div className="cinematic-builder-panel dh-scroll" role="region" aria-label="Шаг создания героя">
           <header className="cinematic-builder-stage" aria-label="Сводка героя">
             <div className="cinematic-builder-stage-art">
-              {selectedClassOption?.imageUrl ? <img src={selectedClassOption.imageUrl} alt="" /> : <span>{initials(CLASS_LABELS[fields.className])}</span>}
+              {stagePortraitUrl ? <AssetImage src={stagePortraitUrl} alt="" /> : <span>{initials(CLASS_LABELS[fields.className])}</span>}
             </div>
             <div className="cinematic-builder-stage-copy">
               <span className="cinematic-card-meta">{steps[currentStepIndex]?.label ?? 'Создание'} — {progress}%</span>

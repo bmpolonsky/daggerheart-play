@@ -70,15 +70,20 @@ test.describe('character builder composition', () => {
     await page.setViewportSize({ width: 1024, height: 1200 });
     await openBuilder(page);
 
-    await page.getByLabel('Родословная').click();
     const builder = page.getByRole('dialog', { name: 'Новый герой' });
+    const stageImage = builder.getByLabel('Сводка героя').locator('.cinematic-builder-stage-art img');
+    const initialStageImageUrl = await stageImage.getAttribute('src');
+    await page.getByLabel('Родословная').click();
     const choiceDetail = builder.getByLabel('Описание выбора');
     const ancestryStep = builder.getByRole('group', { name: 'Шаг: Родословная' });
-    const firstCard = ancestryStep.getByRole('button').first();
+    const firstCard = ancestryStep.getByRole('button').filter({ has: page.locator('img') }).first();
     const firstCardBody = firstCard.locator('span').last();
+    const ancestryImageUrl = await firstCard.locator('img').getAttribute('src');
 
     await expectInsideViewport(page, builder);
     await firstCard.click();
+    await expect(stageImage).toHaveAttribute('src', ancestryImageUrl ?? '');
+    expect(ancestryImageUrl).not.toBe(initialStageImageUrl);
     await expect(choiceDetail).toBeVisible();
     await expectLeftOf(ancestryStep, choiceDetail, 4);
     await expect(firstCard).toBeVisible();

@@ -427,6 +427,55 @@ test('player session roster exposes only the assigned character', () => {
   assert.deepEqual(ownGmActor?.stress, own.stress);
 });
 
+test('GM roster nests a lightweight companion under its owner with scene controls and stress', () => {
+  resetAllStores();
+  const owner = firstCharacter();
+  characterService.ensureRangerCompanion(owner.id, {
+    name: 'Дружок',
+    imageUrl: '/companion.png',
+    evasion: 12,
+    stress: { marked: 1, max: 3 }
+  });
+  const characters = charactersStore.get();
+  const scene = createTableScene({
+    tokens: [
+      createTokenState({ kind: 'character', id: owner.id }, { id: 'owner-token' }),
+      createTokenState({ kind: 'companion', id: owner.id }, { id: 'companion-token' })
+    ]
+  });
+  const model = buildPlayerViewModel({
+    game: createGameState(),
+    characters,
+    encounter: encounterService.encounter$.get(),
+    liveScene: scene,
+    assets: {},
+    assetUrls: {},
+    rollLog: [],
+    role: 'gm'
+  });
+  const roster = buildSessionRosterActors({
+    tokens: model.tokens,
+    characters,
+    adversaries: encounterService.encounter$.get().adversaries,
+    role: 'gm',
+    activationQueue: [],
+    presence: {}
+  });
+  const ownerIndex = roster.findIndex((actor) => actor.kind === 'character' && actor.actorId === owner.id);
+  const companion = roster[ownerIndex + 1];
+
+  assert.equal(companion?.kind, 'companion');
+  assert.equal(companion?.name, 'Дружок');
+  assert.equal(companion?.subtitle, 'Уклонение 12');
+  assert.equal(companion?.ownerName, owner.name);
+  assert.equal(companion?.tokenId, 'companion-token');
+  assert.equal(companion?.isOnScene, true);
+  assert.deepEqual(companion?.stress, { marked: 1, max: 3 });
+  assert.equal(companion?.hope, undefined);
+  assert.equal(companion?.hp, undefined);
+  assert.equal(companion?.presence, undefined);
+});
+
 test('player view model exposes adversary details only to GM role', () => {
   resetAllStores();
   const adversary = encounterService.createAdversary({

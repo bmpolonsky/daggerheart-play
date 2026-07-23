@@ -79,7 +79,7 @@ export function GmRightPanel({
     return <CharacterSheet character={character} beastforms={beastforms} role="gm" showBackButton onBack={onClearActor} onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} onWealthEdit={onWealthEdit} onEdit={onEditCharacter} />;
   }
 
-  const playerActors = actors.filter((actor) => actor.kind === 'character');
+  const playerActors = actors.filter((actor) => actor.kind === 'character' || actor.kind === 'companion');
   const environmentActors = actors.filter((actor) => actor.kind === 'environment');
   const adversaryCount = encounter.order.filter((id) => Boolean(encounter.adversaries[id])).length;
   const rosterIsEmpty = playerActors.length === 0 && environmentActors.length === 0 && adversaryCount === 0;
@@ -108,6 +108,11 @@ export function GmRightPanel({
                     onClearActivationRequest={onClearActivationRequest}
                     onForceMutePlayer={onForceMutePlayer}
                     onSetResource={(actor, resource, next) => {
+                      if (actor.kind === 'companion') {
+                        const current = actor.stress?.marked ?? 0;
+                        characterService.markCompanionStress(actor.actorId, next - current);
+                        return;
+                      }
                       if (resource === 'hope') {
                         characterService.setHope(actor.actorId, next);
                         return;

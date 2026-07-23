@@ -26,7 +26,7 @@ export function PlayerRoster({
   activeCharacterId: string | null;
   role: TableViewRole;
   sceneId: string;
-  onAddActorToScene: (actor: PlayerViewedActor, sceneId: string) => void;
+  onAddActorToScene: (actor: PlayerRosterActor, sceneId: string) => void;
   onRemoveActorFromScene?: (actor: PlayerRosterActor, sceneId: string) => void;
   onSetActorHidden?: (actor: PlayerRosterActor, hidden: boolean, sceneId: string) => void;
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor['activationRequest']>) => void;
@@ -38,23 +38,30 @@ export function PlayerRoster({
   return (
     <section className="player-roster" aria-label="Участники сцены">
       {actors.map((actor) => {
-        const opensSheet = actor.kind === 'character' || role === 'gm';
+        const opensSheet = actor.kind === 'character' || actor.kind === 'companion' || role === 'gm';
         const locked = !opensSheet;
-        const active = actor.kind === 'character'
+        const active = actor.kind === 'character' || actor.kind === 'companion'
           ? actor.actorId === activeCharacterId
           : actor.actorId === activeAdversaryId;
         const activationRequest = actor.activationRequest;
         const voiceLive = Boolean(actor.presence?.voiceLive && !actor.presence.voiceMuted);
         const voiceConnected = Boolean(actor.presence?.connected);
-        const subtitle = actor.kind === 'character' ? actor.subtitle : actor.kind === 'environment' ? actor.subtitle || 'Окружение' : 'НПС';
+        const subtitle = actor.kind === 'character' || actor.kind === 'companion'
+          ? actor.subtitle
+          : actor.kind === 'environment'
+            ? actor.subtitle || 'Окружение'
+            : 'НПС';
         const hasResources = actor.kind === 'character' && Boolean(actor.hope && actor.hp && actor.stress);
+        const viewedActor: PlayerViewedActor = actor.kind === 'companion'
+          ? { kind: 'character', actorId: actor.actorId }
+          : { kind: actor.kind, actorId: actor.actorId };
         return (
           <div
-            className={`player-roster__item ${active || Boolean(activationRequest) ? 'dh-is-selected' : ''}`}
+            className={`player-roster__item ${actor.kind === 'companion' ? 'player-roster__item--companion' : ''} ${active || Boolean(activationRequest) ? 'dh-is-selected' : ''}`}
             key={`${actor.kind}:${actor.actorId}`}
             onClick={(event) => {
               if (!opensSheet || (event.target as HTMLElement).closest('button, .player-roster__tracks')) return;
-              onOpenActor({ kind: actor.kind, actorId: actor.actorId });
+              onOpenActor(viewedActor);
             }}
           >
             <ListItem
@@ -75,9 +82,20 @@ export function PlayerRoster({
               )}
               disabled={locked}
               tooltip={opensSheet ? actor.name : 'Детали скрыты от игроков'}
-              onClick={opensSheet ? () => onOpenActor({ kind: actor.kind, actorId: actor.actorId }) : undefined}
+              onClick={opensSheet ? () => onOpenActor(viewedActor) : undefined}
               rightAccessory={role === 'gm' ? (
                 <>
+                  {actor.kind === 'companion' && actor.stress && (
+                    <div className="player-roster__companion-stress" onClick={(event) => event.stopPropagation()}>
+                      <ResourcePips
+                        label="Стресс"
+                        current={actor.stress.marked}
+                        max={actor.stress.max}
+                        tone="stress"
+                        onChange={(next) => onSetResource?.(actor, 'stress', next)}
+                      />
+                    </div>
+                  )}
                   {actor.kind === 'character' && (
                     <IconButton
                       aria-label={`Микрофон ${actor.name}`}
@@ -154,7 +172,7 @@ export function PlayerRoster({
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
-                        onAddActorToScene({ kind: actor.kind, actorId: actor.actorId }, sceneId);
+                        onAddActorToScene(actor, sceneId);
                       }}
                     >
                       <MapPlus size={13} aria-hidden="true" />

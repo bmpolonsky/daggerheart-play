@@ -387,6 +387,26 @@ test.describe('filled-game player character workflows', () => {
       };
     });
     try {
+      const gmRoster = gm.getByLabel('Участники сцены');
+      const gmRosterCompanion = gmRoster.locator('.player-roster__item--companion');
+      await expect(gmRosterCompanion).toContainText('Искра');
+      await expect(gmRosterCompanion).toContainText('Уклонение 10');
+      await expect(gmRosterCompanion).toContainText('0/3');
+      await expect(gmRosterCompanion.getByRole('button', { name: 'Добавить Искра на сцену' })).toBeVisible();
+      const gmRosterOwnerBox = await gmRoster.locator('.player-roster__item:not(.player-roster__item--companion)').filter({ hasText: filledCharacterName }).boundingBox();
+      const gmRosterCompanionBox = await gmRosterCompanion.boundingBox();
+      expect(gmRosterOwnerBox).not.toBeNull();
+      expect(gmRosterCompanionBox).not.toBeNull();
+      expect(Math.abs(gmRosterCompanionBox!.x - gmRosterOwnerBox!.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(gmRosterCompanionBox!.width - gmRosterOwnerBox!.width)).toBeLessThanOrEqual(1);
+      expect(gmRosterCompanionBox!.y).toBeGreaterThan(gmRosterOwnerBox!.y);
+      const gmRosterCompanionIdentityBox = await gmRosterCompanion.locator('.dh-list-item__content').boundingBox();
+      const gmRosterCompanionStressBox = await gmRosterCompanion.locator('.player-roster__companion-stress').boundingBox();
+      expect(gmRosterCompanionIdentityBox).not.toBeNull();
+      expect(gmRosterCompanionStressBox).not.toBeNull();
+      expect(Math.abs(gmRosterCompanionStressBox!.y - gmRosterCompanionIdentityBox!.y)).toBeLessThan(gmRosterCompanionIdentityBox!.height);
+      expect(gmRosterCompanionBox!.height).toBeLessThanOrEqual(64);
+
       const playerSheet = player.getByLabel('Персонаж игрока');
       const companion = playerSheet.getByLabel('Компаньон следопыта');
       await expect(companion).toBeVisible();
@@ -458,6 +478,22 @@ test.describe('filled-game player character workflows', () => {
     });
     try {
       const sheet = player.getByLabel('Персонаж игрока');
+      const armorTerm = sheet.getByRole('button', { name: 'Броня', exact: true });
+      await armorTerm.hover();
+      const armorTooltipId = await armorTerm.getAttribute('aria-describedby');
+      await expect(player.locator(`[id="${armorTooltipId}"]`)).toContainText('снизив тяжесть урона на один порог');
+
+      for (const [label, expected] of [
+        ['Легкий', '1 Рану'],
+        ['Ощутимый', '2 Раны'],
+        ['Тяжелый', '3 Раны']
+      ] as const) {
+        const thresholdTerm = sheet.getByRole('button', { name: label, exact: true });
+        await thresholdTerm.hover();
+        const thresholdTooltipId = await thresholdTerm.getAttribute('aria-describedby');
+        await expect(player.locator(`[id="${thresholdTooltipId}"]`)).toContainText(expected);
+      }
+
       const conditionsHeading = sheet.getByRole('button', { name: 'Состояния', exact: true });
       await conditionsHeading.hover();
       const conditionsTooltipId = await conditionsHeading.getAttribute('aria-describedby');
@@ -555,6 +591,16 @@ test.describe('filled-game player character workflows', () => {
       await expect(latestChange).toContainText('Опыты');
       await expect(latestChange).toContainText('Победитель алой сли');
       await expect(latestChange).toContainText('Карты доменов');
+      await expect(latestChange).toContainText('Добавлено:');
+      await expect(latestChange).not.toContainText('[{"id"');
+      await expect(latestChange).not.toContainText('"text"');
+      const domainCardChange = latestChange.locator('ul').first().locator(':scope > li').filter({ hasText: 'Карты доменов' });
+      await expect(domainCardChange).toHaveCount(1);
+      const domainCardLabelBox = await domainCardChange.locator('strong').boundingBox();
+      const domainCardValueBox = await domainCardChange.locator('span').boundingBox();
+      expect(domainCardLabelBox).not.toBeNull();
+      expect(domainCardValueBox).not.toBeNull();
+      expect(domainCardValueBox!.x - domainCardLabelBox!.x).toBeLessThanOrEqual(200);
 
       await latestChange.getByRole('button', { name: 'Отменить изменение' }).click();
       await expect(playerEditor.getByText(/уровень 1/i)).toBeVisible({ timeout: 15_000 });
