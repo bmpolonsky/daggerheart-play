@@ -17,7 +17,7 @@ import { SectionHeader } from '../components/common/SectionHeader';
 import { TabButton, Tabs } from '../components/common/Tabs';
 import { Toolbar } from '../components/common/Toolbar';
 import { WizardStepButton } from '../components/common/WizardStepButton';
-import { CLASS_DOMAINS, CLASS_LABELS, DAGGERHEART_CLASSES, DOMAIN_LABELS, TRAIT_LABELS } from '../../domain/rules/constants';
+import { CLASS_DOMAINS, CLASS_LABELS, DAGGERHEART_CLASSES, DOMAIN_LABELS, PLAYTEST_CLASSES, TRAIT_LABELS } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
 import {
   cleanRulesText,
@@ -40,7 +40,8 @@ import {
 } from '../../domain/rules/characterRuleModifiers';
 import { advancementChoiceLabel, buildCharacterLevelUpPlan, CHARACTER_ADVANCEMENT_CHOICES, remainingAdvancementChoiceUses, type CharacterAdvancementChoiceId, type CharacterAdvancementSelection, type CharacterLevelUpApplicationInput, type CharacterLevelUpIssueCode } from '../../domain/rules/levelUp';
 import type { Character, CharacterChangeActor, CharacterSheetCard, DaggerheartClass, DomainName, TraitId } from '../../domain/rules/types';
-import { characterService } from '../../services/serviceRegistry';
+import { characterService, gameService } from '../../services/serviceRegistry';
+import { useStream } from '../../core/hooks/useStream';
 import { readFileAsDataUrl } from '../vtt/playerView/sharedTools/readFileAsDataUrl';
 import { TraitGrid } from './TraitGrid';
 import { ResourcePanel } from './ResourcePanel';
@@ -74,9 +75,11 @@ export function CharacterEditor({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [section, setSection] = useState<CharacterEditorSection>('resources');
+  const game = useStream(gameService.game$);
+  const includePlaytest = game.includeVoidContent;
   const armorOptions = content?.equipment.filter((item) => item.type === 'armor') ?? [];
   const selectedArmorId = equipmentIdByName(armorOptions, character.armor.name);
-  const domains = content ? classDomainsFor(content.classes, character.className) : character.domains;
+  const domains = content ? classDomainsFor(content.classes, character.className, includePlaytest) : character.domains;
   const effectiveStats = useMemo(() => buildEffectiveCharacterStats(character), [character]);
 
   useEffect(() => () => characterService.endHistoryGroup(character.id), [character.id]);
@@ -148,7 +151,7 @@ export function CharacterEditor({
         />
       )}
 
-      {levelUpOpen && <LevelUpPanel character={character} content={content} domains={domains} role={role} actor={actor} onClose={() => setLevelUpOpen(false)} />}
+      {levelUpOpen && <LevelUpPanel character={character} content={content} domains={domains} includePlaytest={includePlaytest} role={role} actor={actor} onClose={() => setLevelUpOpen(false)} />}
 
       {editMode && role === 'player' && (
         <Notice tone="warning">
@@ -514,6 +517,7 @@ function LevelUpPanel({
   character,
   content,
   domains,
+  includePlaytest,
   role,
   actor,
   onClose
@@ -521,6 +525,7 @@ function LevelUpPanel({
   character: Character;
   content?: ContentState;
   domains: DomainName[];
+  includePlaytest: boolean;
   role: 'gm' | 'player';
   actor?: CharacterChangeActor;
   onClose: () => void;
@@ -549,14 +554,15 @@ function LevelUpPanel({
   const [notes, setNotes] = useState('');
   const [applyIssues, setApplyIssues] = useState<string[]>([]);
   const choices = selections.map((selection) => selection.choice);
+  const allowedContent = content ? filterBuilderContent(content.generic, includePlaytest) : null;
   const ruleModifiers = character.ruleModifiers;
   const isMulticlass = choices.includes('multiclass');
   const isSubclassUpgrade = choices.includes('subclass');
   const multiclassSubclassOptions = multiclassClass && content
-    ? filterBuilderContent(content.generic).subclasses.filter((item) => isSubclassForClass(item, multiclassClass))
+    ? (allowedContent?.subclasses ?? []).filter((item) => isSubclassForClass(item, multiclassClass))
     : [];
   const selectedMulticlassSubclass = multiclassSubclassOptions.find((item) => item.id === multiclassSubclassId) ?? null;
-  const selectedSubclass = content?.generic.subclasses.find((item) => (
+  const selectedSubclass = allowedContent?.subclasses.find((item) => (
     item.slug === character.subclassSlug || item.name.trim().toLowerCase() === character.subclassName.trim().toLowerCase()
   ));
   const currentSubclassTiers = new Set(character.sheetCards.filter((card) => card.kind === 'subclassFeature').map((card) => card.subclassTier));
@@ -592,7 +598,7 @@ function LevelUpPanel({
     : [2] as Array<2 | 3 | 4>;
   const effectiveMulticlassDomain = multiclassDomain || character.advancement?.multiclass?.domain || '';
   const domainCardOptions = useMemo(() => {
-    const cards = content?.generic.domainCards ?? [];
+    const cards = allowedContent?.domainCards ?? [];
     return cards
       .filter((item) => {
         const card = domainCardFromLibrary(item, true);
@@ -602,15 +608,15 @@ function LevelUpPanel({
       })
       .filter((item) => !character.domainCards.some((card) => String(card.sourceId ?? card.id) === String(item.sourceId ?? item.id)))
       .slice(0, 120);
-  }, [character.domainCards, content?.generic.domainCards, domains, effectiveMulticlassDomain, plan.domainCardMaxLevel, plan.multiclassDomainCardMaxLevel]);
+  }, [allowedContent?.domainCards, character.domainCards, domains, effectiveMulticlassDomain, plan.domainCardMaxLevel, plan.multiclassDomainCardMaxLevel]);
   const selectedDomainCards = selectedDomainCardIds
     .map((id) => domainCardOptions.find((item) => item.id === id))
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .map((item) => domainCardFromLibrary(item, true));
   const exchangeOutCard = character.domainCards.find((card) => card.id === exchangeOutCardId) ?? null;
-  const exchangeInLibraryCard = (content?.generic.domainCards ?? []).find((card) => card.id === exchangeInCardId) ?? null;
+  const exchangeInLibraryCard = (allowedContent?.domainCards ?? []).find((card) => card.id === exchangeInCardId) ?? null;
   const exchangeInCard = exchangeInLibraryCard ? domainCardFromLibrary(exchangeInLibraryCard, true) : null;
-  const exchangeCardOptions = (content?.generic.domainCards ?? []).filter((item) => {
+  const exchangeCardOptions = (allowedContent?.domainCards ?? []).filter((item) => {
     if (!exchangeOutCard) return false;
     const mapped = domainCardFromLibrary(item, true);
     const allowedDomain = domains.includes(mapped.domain) || mapped.domain === effectiveMulticlassDomain;
@@ -619,10 +625,14 @@ function LevelUpPanel({
     return allowedDomain && mapped.level <= exchangeOutCard.level && mapped.level <= domainLevelLimit && !alreadyOwned && !selectedDomainCardIds.includes(item.id);
   });
   const multiclassClassOptions: RichChoicePickerItem[] = DAGGERHEART_CLASSES
-    .filter((className) => className !== 'Custom' && className !== character.className)
+    .filter((className) => (
+      className !== 'Custom' &&
+      className !== character.className &&
+      (includePlaytest || !PLAYTEST_CLASSES.includes(className))
+    ))
     .map((className) => {
-      const definition = classDefinitionFor(content?.classes, className);
-      const classDomains = classDomainsFor(content?.classes, className);
+      const definition = classDefinitionFor(content?.classes, className, includePlaytest);
+      const classDomains = classDomainsFor(content?.classes, className, includePlaytest);
       return {
         id: className,
         title: CLASS_LABELS[className],
@@ -632,7 +642,7 @@ function LevelUpPanel({
       };
     });
   const multiclassClassCards = isMulticlass && multiclassClass
-    ? classFeatureSheetCards(classDefinitionFor(content?.classes, multiclassClass))
+    ? classFeatureSheetCards(classDefinitionFor(content?.classes, multiclassClass, includePlaytest))
     : [];
   const traitBonuses = Object.fromEntries(selectedTraits.map((trait) => [trait, 1])) as Partial<Record<TraitId, number>>;
   const resolvedActor: CharacterChangeActor = actor ?? {

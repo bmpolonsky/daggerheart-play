@@ -480,6 +480,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           content={content.generic}
           classes={content.classes}
           equipment={content.equipment}
+          includePlaytest={game.includeVoidContent}
           onCancel={() => setPlayerCharacterBuilderOpen(false)}
           onCreate={createPlayerCharacterFromBuilder}
         />

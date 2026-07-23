@@ -8,6 +8,7 @@ export type ChoiceCardLayout = 'default' | 'class' | 'media' | 'domain';
 export interface ChoiceCardProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   selected?: boolean;
   layout?: ChoiceCardLayout;
+  mediaFallback?: UiNode;
   children: UiNode;
 }
 
@@ -18,9 +19,17 @@ const layoutClass: Record<NonNullable<ChoiceCardProps['layout']>, string> = {
   domain: styles.domain
 };
 
-export function ChoiceCard({ selected = false, layout = 'default', children, className = '', ...props }: ChoiceCardProps) {
+export function ChoiceCard({
+  selected = false,
+  layout = 'default',
+  mediaFallback,
+  children,
+  className = '',
+  ...props
+}: ChoiceCardProps) {
   return (
     <button className={`dh-choice-card ${styles.root} ${layoutClass[layout]} ${selected ? `${styles.selected} dh-is-selected` : ''} ${className}`.trim()} type="button" {...props}>
+      {mediaFallback ? <span className={styles.mediaFallback} aria-hidden="true">{mediaFallback}</span> : null}
       {children}
     </button>
   );

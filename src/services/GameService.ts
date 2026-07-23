@@ -60,7 +60,7 @@ export class GameService {
     gameStore.update((state) => ({ ...state, presentedHandoutId: null, updatedAt: nowIso() }));
   }
 
-  updateSettings(patch: Partial<Pick<GameState, 'autoApplyRollConsequences' | 'showLegacyActionTokens' | 'showCoins'>>): void {
+  updateSettings(patch: Partial<Pick<GameState, 'autoApplyRollConsequences' | 'showLegacyActionTokens' | 'showCoins' | 'includeVoidContent'>>): void {
     gameStore.update((state) => ({ ...state, ...patch, updatedAt: nowIso() }));
   }
 

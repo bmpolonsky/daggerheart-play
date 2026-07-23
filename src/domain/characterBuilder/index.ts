@@ -89,6 +89,8 @@ const DOMAIN_ALIASES: Record<string, DomainName> = {
   кость: 'Bone',
   codex: 'Codex',
   кодекс: 'Codex',
+  dread: 'Dread',
+  ужас: 'Dread',
   grace: 'Grace',
   грация: 'Grace',
   midnight: 'Midnight',
@@ -104,12 +106,12 @@ const DOMAIN_ALIASES: Record<string, DomainName> = {
 };
 
 export function coerceDomainName(input: unknown): DomainName | null {
-  const value = String(input ?? '').trim().toLowerCase();
+  const value = String(input ?? '').trim().toLowerCase().replace(/^playtest-/, '');
   return DOMAIN_ALIASES[value] ?? null;
 }
 
 export function isSubclassForClass(item: GenericLibraryItem, className: DaggerheartClass): boolean {
-  const classSlug = String(item.raw.class_slug ?? item.raw.class_name ?? '').trim().toLowerCase();
+  const classSlug = String(item.raw.class_slug ?? item.raw.class_name ?? '').trim().toLowerCase().replace(/^playtest-/, '');
   const classLabel = CLASS_LABELS[className].toLowerCase();
   return classSlug === className.toLowerCase() || classSlug === classLabel;
 }

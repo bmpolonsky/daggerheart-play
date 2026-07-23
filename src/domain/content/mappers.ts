@@ -133,14 +133,18 @@ const TRAIT_BY_SLUG: Record<string, TraitId> = {
 };
 
 const CLASS_BY_SLUG: Record<string, DaggerheartClass> = {
+  assassin: 'Assassin',
   bard: 'Bard',
   druid: 'Druid',
+  fighter: 'Fighter',
   guardian: 'Guardian',
   ranger: 'Ranger',
   rogue: 'Rogue',
   seraph: 'Seraph',
   sorcerer: 'Sorcerer',
+  warlock: 'Warlock',
   warrior: 'Warrior',
+  witch: 'Witch',
   wizard: 'Wizard'
 };
 
@@ -149,6 +153,7 @@ const DOMAIN_BY_SLUG: Record<string, DomainName> = {
   blade: 'Blade',
   bone: 'Bone',
   codex: 'Codex',
+  dread: 'Dread',
   grace: 'Grace',
   midnight: 'Midnight',
   sage: 'Sage',

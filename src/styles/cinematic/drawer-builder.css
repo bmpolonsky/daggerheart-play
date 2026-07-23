@@ -198,6 +198,10 @@
   box-shadow: none;
 }
 
+.cinematic-builder-choice-detail.dh-no-choice-image {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .cinematic-builder-choice-detail-close {
   position: absolute;
   top: 8px;
@@ -227,6 +231,7 @@
   font-size: 1.06rem;
   line-height: 1.08;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .cinematic-builder-choice-detail-copy em {
@@ -234,6 +239,7 @@
   font-style: normal;
   font-size: 0.76rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .cinematic-builder-choice-detail-copy p {
@@ -242,6 +248,7 @@
   font-size: 0.78rem;
   line-height: 1.48;
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .cinematic-builder-choice-detail-facts {
@@ -258,6 +265,7 @@
   color: var(--dh-gold);
   font-size: 0.65rem;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .cinematic-builder .cinematic-builder-step {

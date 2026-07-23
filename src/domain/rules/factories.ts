@@ -54,6 +54,7 @@ export function createGameState(): GameState {
     autoApplyRollConsequences: true,
     showLegacyActionTokens: false,
     showCoins: false,
+    includeVoidContent: false,
     safetyNotes: '',
     tableNotes: '',
     presentedHandoutId: null,

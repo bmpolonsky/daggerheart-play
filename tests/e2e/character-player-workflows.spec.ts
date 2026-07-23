@@ -501,9 +501,10 @@ test.describe('filled-game player character workflows', () => {
       await expect(tooltip).toContainText('быстры');
 
       await agilityTerm.click();
-      await expect(player).toHaveURL(/\/library\/compendium\/rules\/agility$/);
+      await expect(player).toHaveURL(/\/library\/compendium\/rules\/character-traits$/);
       const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
       await expect(workspace).toBeVisible();
+      await expect(workspace.getByRole('heading', { name: 'Характеристики персонажа', exact: true })).toBeVisible();
       await expect(workspace.getByRole('heading', { name: 'Проворность', exact: true })).toBeVisible();
       await expect(workspace).toContainText('быстры');
     } finally {

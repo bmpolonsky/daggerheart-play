@@ -50,6 +50,12 @@ export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
           label={<SettingChoiceLabel title="Использовать монеты" body="Показывать кошелёк и учитывать монеты в листах героев." />}
           onChange={(event) => gameService.updateSettings({ showCoins: event.currentTarget.checked })}
         />
+        <Checkbox
+          layout="row"
+          checked={game.includeVoidContent}
+          label={<SettingChoiceLabel title="Использовать материалы The Void" body="Добавить классы, подклассы, родословные, сообщества и карты из бета-теста во все сценарии выбора." />}
+          onChange={(event) => gameService.updateSettings({ includeVoidContent: event.currentTarget.checked })}
+        />
       </div>
       <SelectField
         label="Передача музыки сцены"

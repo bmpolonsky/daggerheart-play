@@ -14,6 +14,7 @@ export function SharedToolsCharactersTab({
   actor,
   characterOptions,
   content,
+  includePlaytest,
   onCharacterBuilderClose,
   onCharacterBuilderCreate,
   onCharacterBuilderOpen,
@@ -24,6 +25,7 @@ export function SharedToolsCharactersTab({
   actor: CharacterChangeActor;
   characterOptions: Character[];
   content: ContentState;
+  includePlaytest: boolean;
   onCharacterBuilderClose: () => void;
   onCharacterBuilderCreate: (input: Partial<Character> & { className?: DaggerheartClass }) => void;
   onCharacterBuilderOpen: () => void;
@@ -138,6 +140,7 @@ export function SharedToolsCharactersTab({
           content={content.generic}
           classes={content.classes}
           equipment={content.equipment}
+          includePlaytest={includePlaytest}
           onCancel={onCharacterBuilderClose}
           onCreate={onCharacterBuilderCreate}
         />

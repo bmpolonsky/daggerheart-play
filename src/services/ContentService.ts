@@ -73,6 +73,7 @@ export class ContentService {
   private contentLanguage = normalizeContentLanguage(import.meta.env?.VITE_CONTENT_LANG);
   private fetchTimeoutMs = Number(import.meta.env?.VITE_CONTENT_TIMEOUT_MS ?? 4500);
   private unsubscribeCustomContentChanges: (() => void) | null = null;
+  private gameSourceDefaultsKey = '';
 
   ensureLoaded(): void {
     if (!this.unsubscribeCustomContentChanges && typeof window !== 'undefined') {
@@ -165,7 +166,7 @@ export class ContentService {
   }
 
   setSelectedCollection(selectedCollection: ContentCollectionKey): void {
-    contentStore.update((state) => ({ ...state, selectedCollection, searchTerm: '', sourceFilter: 'all', tierFilter: 'all', levelFilter: 'all' }));
+    contentStore.update((state) => ({ ...state, selectedCollection, searchTerm: '', tierFilter: 'all', levelFilter: 'all' }));
   }
 
   setSearchTerm(searchTerm: string): void {
@@ -182,6 +183,13 @@ export class ContentService {
 
   setSourceFilter(sourceFilter: ContentSourceFilter): void {
     contentStore.update((state) => ({ ...state, sourceFilter, tierFilter: 'all', levelFilter: 'all' }));
+  }
+
+  applyGameSourceDefaults(gameId: string, includeVoidContent: boolean): void {
+    const key = `${gameId}:${includeVoidContent ? 'void' : 'core'}`;
+    if (this.gameSourceDefaultsKey === key) return;
+    this.gameSourceDefaultsKey = key;
+    this.setSourceFilter(includeVoidContent ? 'all' : 'core');
   }
 
   addAdversaryToEncounter(libraryAdversaryId: string): boolean {

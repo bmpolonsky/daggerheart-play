@@ -50,6 +50,7 @@ interface CharacterBuilderModelInput {
   content: ContentState['generic'];
   classes: LibraryClassItem[];
   equipment: LibraryEquipmentItem[];
+  includePlaytest?: boolean;
   draft: CharacterBuilderDraftState;
 }
 
@@ -57,7 +58,7 @@ export class CharacterBuilderService {
   private draftStore = new Store<CharacterBuilderDraftState>(createDefaultCharacterBuilderDraft());
   readonly draft$ = this.draftStore.toStream();
 
-  buildModel({ content, classes, equipment, draft }: CharacterBuilderModelInput) {
+  buildModel({ content, classes, equipment, includePlaytest = false, draft }: CharacterBuilderModelInput) {
     const {
       step,
       name,
@@ -82,7 +83,7 @@ export class CharacterBuilderService {
       classItem,
       consumableId
     } = draft;
-    const catalog = buildCharacterBuilderCatalog({ content, classes, equipment, className });
+    const catalog = buildCharacterBuilderCatalog({ content, classes, equipment, className, includePlaytest });
     const { builderContent, classDefinition, classDomains, classItems, equipmentCatalog } = catalog;
     const backgroundQuestions = backgroundQuestionsFor(classDefinition);
     const connectionQuestions = connectionQuestionsFor(classDefinition);
@@ -119,7 +120,8 @@ export class CharacterBuilderService {
       primaryWeaponId: effectivePrimaryWeaponId,
       secondaryWeaponId: effectiveSecondaryWeaponId,
       classItem: effectiveClassItem,
-      consumableId: effectiveConsumableId
+      consumableId: effectiveConsumableId,
+      includePlaytest
     });
     const readiness = validateCharacterBuilderReadiness({
       content,
@@ -136,7 +138,8 @@ export class CharacterBuilderService {
       primaryWeaponId: effectivePrimaryWeaponId,
       secondaryWeaponId: effectiveSecondaryWeaponId,
       classItem: effectiveClassItem,
-      consumableId: effectiveConsumableId
+      consumableId: effectiveConsumableId,
+      includePlaytest
     });
 
     return {
@@ -209,7 +212,7 @@ export class CharacterBuilderService {
         setExperienceOne: (next: string) => this.updateDraft({ experienceOne: next }),
         setExperienceTwo: (next: string) => this.updateDraft({ experienceTwo: next }),
         setTrait: (trait: TraitId, value: number | null) => this.setTrait(trait, value),
-        quickStart: () => this.quickStart(catalog, content, classes, equipment),
+        quickStart: () => this.quickStart(catalog, content, classes, equipment, includePlaytest),
         selectArmor: (next: string) => this.updateDraft({ armorId: next }),
         selectPrimaryWeapon: (next: string) => this.updateDraft({ primaryWeaponId: next }),
         selectSecondaryWeapon: (next: string) => this.updateDraft({ secondaryWeaponId: next }),
@@ -270,11 +273,12 @@ export class CharacterBuilderService {
     catalog: ReturnType<typeof buildCharacterBuilderCatalog>,
     content: ContentState['generic'],
     classes: LibraryClassItem[],
-    equipment: LibraryEquipmentItem[]
+    equipment: LibraryEquipmentItem[],
+    includePlaytest: boolean
   ): void {
     this.draftStore.update((current) => {
       const className = catalog.classOptions[Math.floor(Math.random() * catalog.classOptions.length)]?.className ?? current.className;
-      const randomCatalog = buildCharacterBuilderCatalog({ content, classes, equipment, className });
+      const randomCatalog = buildCharacterBuilderCatalog({ content, classes, equipment, className, includePlaytest });
       const quick = buildCharacterBuilderQuickStart(randomCatalog, Math.random);
       return {
         ...current,

@@ -4,6 +4,7 @@ import { emptyCustomContent } from "../../src/domain/game/gameDocument";
 import { createEncounterState, createGameState, createSceneTableState, createUiState } from "../../src/domain/rules/factories";
 import { isProjectDocument, type ProjectDocument, type ProjectGameState } from "../../src/core/persistence/gameDocumentStore";
 import { prepareProjectDocument } from "../../src/core/persistence/migrations/gameDocumentStore";
+import { migratePersistedState } from "../../src/domain/migrations/persistedState";
 
 const now = '2026-06-08T00:00:00.000Z';
 
@@ -69,6 +70,21 @@ test('game document store accepts valid v2 project documents', () => {
   const project = validProjectDocument();
 
   assert.equal(isProjectDocument(project), true);
+});
+
+test('current persisted games default The Void materials to disabled when the setting is absent', () => {
+  const state = minimalProjectGameState();
+  const legacyGame = { ...state.game } as Partial<typeof state.game>;
+  delete legacyGame.includeVoidContent;
+
+  const migrated = migratePersistedState({
+    schemaVersion: 5,
+    ...state,
+    game: legacyGame,
+    characters: { entities: {}, order: [], selectedId: null, updatedAt: now }
+  });
+
+  assert.equal(migrated.game.includeVoidContent, false);
 });
 
 test('game document store rejects unusable project game records', () => {

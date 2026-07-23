@@ -6,6 +6,8 @@ import { contentService } from '../../../services/serviceRegistry';
 import { RuleTerm } from '../../components/common';
 import { navigateToRuleArticle } from './routedUiState';
 
+const CHARACTER_TRAIT_RULE_SLUGS = new Set(['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge']);
+
 export function CompendiumRuleTerm({
   children,
   ruleSlug,
@@ -20,15 +22,20 @@ export function CompendiumRuleTerm({
   const content = useStream(contentService.content$);
   const article = content.rules.find((rule) => rule.slug === ruleSlug);
   if (!article) return <>{children}</>;
-  const summary = sectionAnchor
-    ? ruleSectionSummary(article.body, sectionAnchor) || plainRuleSummary(article.summary || article.body)
+  const isCharacterTrait = CHARACTER_TRAIT_RULE_SLUGS.has(article.slug);
+  const sourceArticle = isCharacterTrait
+    ? content.rules.find((rule) => rule.slug === 'character-traits') ?? article
+    : article;
+  const sourceSection = isCharacterTrait ? article.slug : sectionAnchor;
+  const summary = sourceSection
+    ? ruleSectionSummary(sourceArticle.body, sourceSection) || plainRuleSummary(article.summary || article.body)
     : plainRuleSummary(article.summary || article.body);
 
   return (
     <RuleTerm
       title={article.name}
       summary={summary}
-      onOpen={tooltipOnly ? undefined : () => navigateToRuleArticle(article.slug)}
+      onOpen={tooltipOnly ? undefined : () => navigateToRuleArticle(sourceArticle.slug)}
     >
       {children}
     </RuleTerm>
@@ -56,7 +63,6 @@ export function ruleSectionSummary(body: string, sectionAnchor: string): string 
     const nextHeadingLevel = line.match(/^(#{1,6})\s/)?.[1].length;
     if (nextHeadingLevel && nextHeadingLevel <= headingLevel) break;
     if (/^\s*<\/?div\b/i.test(line)) continue;
-    if (!line.trim() && sectionLines.some((entry) => entry.trim())) break;
     sectionLines.push(line);
   }
   return plainRuleSummary(sectionLines.join(' '));

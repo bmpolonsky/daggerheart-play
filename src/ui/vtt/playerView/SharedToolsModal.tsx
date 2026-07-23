@@ -60,6 +60,7 @@ export function SharedToolsModal({
   const tabs: SharedToolsTab[] = sharedToolsTabsForRole(role);
   const specialTabs: Array<Extract<SharedToolsTab, 'combat' | 'cards'>> = role === 'gm' ? ['combat', 'cards'] : [];
   const content = useStream(contentService.content$);
+  const game = useStream(gameService.game$);
   const libraryView = contentService.buildLibraryView(content);
   const compendiumCollections = role === 'player' ? PLAYER_COMPENDIUM_COLLECTIONS : COMPENDIUM_COLLECTIONS;
   const activeTab = tabs.includes(tab) ? tab : tabs[0];
@@ -76,6 +77,10 @@ export function SharedToolsModal({
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
   }, [activeTab]);
+
+  useEffect(() => {
+    contentService.applyGameSourceDefaults(game.id, game.includeVoidContent);
+  }, [game.id, game.includeVoidContent]);
 
   useEffect(() => {
     if (activeTab !== 'library') return;
@@ -267,6 +272,7 @@ function SharedToolsCharactersTabHost() {
       characterBuilderOpen={characterBuilderOpen}
       characterOptions={characterOptions}
       content={content}
+      includePlaytest={game.includeVoidContent}
       onCharacterBuilderClose={() => setCharacterBuilderOpen(false)}
       onCharacterBuilderCreate={createCharacterFromBuilder}
       onCharacterBuilderOpen={() => setCharacterBuilderOpen(true)}

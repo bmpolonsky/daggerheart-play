@@ -144,6 +144,23 @@ test('content library source filter separates corebook void and homebrew', () =>
   assert.deepEqual(service.buildLibraryView(state).genericItems.map((item) => item.id), ['domain-card:homebrew']);
 });
 
+test('game source defaults follow The Void setting without resetting manual filters on collection changes', () => {
+  const service = new ContentService();
+
+  service.applyGameSourceDefaults('game-source-defaults', false);
+  assert.equal(service.content$.get().sourceFilter, 'core');
+
+  service.setSourceFilter('void');
+  service.setSelectedCollection('rules');
+  assert.equal(service.content$.get().sourceFilter, 'void');
+
+  service.applyGameSourceDefaults('game-source-defaults', false);
+  assert.equal(service.content$.get().sourceFilter, 'void');
+
+  service.applyGameSourceDefaults('game-source-defaults', true);
+  assert.equal(service.content$.get().sourceFilter, 'all');
+});
+
 test('equipment mapper preserves consumable uses', () => {
   const item = mapRawEquipmentItem({
     id: 'minor-potion',
@@ -411,6 +428,7 @@ test('content service retains hidden rule articles for contextual help without l
   try {
     await service.reload();
     service.setSelectedCollection('rules');
+    service.setSourceFilter('all');
     const state = service.content$.get();
     const view = service.buildLibraryView(state);
 

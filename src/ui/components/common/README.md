@@ -269,11 +269,14 @@ Props:
 
 - `selected`
 - `layout`: `default | class | media | domain`
+- `mediaFallback`: compact visual placeholder used when a media layout has no image.
 
 Guidance:
 
 - Selected state may use accent treatment.
 - Unselected choices should stay quiet, usually without a visible border.
+- For `class`, `media`, and `domain` layouts, always provide an image or `mediaFallback`
+  so text remains in the content column.
 
 ### Field Controls
 

@@ -64,7 +64,8 @@
 
 .classChoice > img,
 .media > img,
-.domain > img {
+.domain > img,
+.mediaFallback {
   width: 100%;
   height: 76px;
   grid-row: 1 / -1;
@@ -73,10 +74,27 @@
   border-radius: var(--dh-radius);
 }
 
+.mediaFallback {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 42% 28%, rgba(90, 174, 224, 0.2), transparent 58%),
+    rgba(7, 9, 12, 0.42);
+  color: rgba(255, 247, 231, 0.72);
+  font-family: "DH Eveleth", Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1;
+  text-align: center;
+}
+
 .domain > img {
   height: 112px;
   object-fit: contain;
   background: rgba(7, 9, 12, 0.32);
+}
+
+.domain > .mediaFallback {
+  height: 112px;
 }
 
 .classChoice > *,
@@ -104,11 +122,14 @@
   }
 
   .classChoice > img,
-  .media > img {
+  .media > img,
+  .classChoice > .mediaFallback,
+  .media > .mediaFallback {
     height: 68px;
   }
 
-  .domain > img {
+  .domain > img,
+  .domain > .mediaFallback {
     height: 96px;
   }
 }

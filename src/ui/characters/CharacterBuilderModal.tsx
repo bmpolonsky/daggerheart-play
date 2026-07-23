@@ -30,16 +30,18 @@ export function CharacterBuilderModal({
   content,
   classes,
   equipment,
+  includePlaytest = false,
   onCancel,
   onCreate
 }: {
   content: ContentState['generic'];
   classes: ContentState['classes'];
   equipment: LibraryEquipmentItem[];
+  includePlaytest?: boolean;
   onCancel: () => void;
   onCreate: (input: Partial<Character> & { className?: DaggerheartClass }) => void;
 }) {
-  const builder = useCharacterBuilder({ content, classes, equipment });
+  const builder = useCharacterBuilder({ content, classes, equipment, includePlaytest });
   const { step, steps, fields, options, result: builderResult, selections, handlers } = builder;
   const selectedAncestry = selections.ancestry;
   const selectedCommunity = selections.community;
@@ -133,7 +135,14 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid cinematic-builder-choice-area dh-scroll">
                   {options.classOptions.map((item) => (
-                    <ChoiceCard layout="class" selected={fields.className === item.className} key={item.className} type="button" onClick={() => handlers.selectClass(item.className)}>
+                    <ChoiceCard
+                      layout="class"
+                      mediaFallback={item.imageUrl ? undefined : initials(item.name)}
+                      selected={fields.className === item.className}
+                      key={item.className}
+                      type="button"
+                      onClick={() => handlers.selectClass(item.className)}
+                    >
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-meta">{item.domains.map(domainLabel).join(' + ')}</span>
@@ -151,7 +160,14 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.builderContent.ancestries.slice(0, 36).map((item) => (
-                    <ChoiceCard layout="media" selected={selectedAncestry?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectAncestry(item.id)}>
+                    <ChoiceCard
+                      layout="media"
+                      mediaFallback={item.imageUrl ? undefined : initials(item.name)}
+                      selected={selectedAncestry?.id === item.id}
+                      key={item.id}
+                      type="button"
+                      onClick={() => handlers.selectAncestry(item.id)}
+                    >
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-body">{featureListText(item) || cleanRulesText(item.body)}</span>
@@ -168,7 +184,14 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.builderContent.communities.map((item) => (
-                    <ChoiceCard layout="media" selected={selectedCommunity?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectCommunity(item.id)}>
+                    <ChoiceCard
+                      layout="media"
+                      mediaFallback={item.imageUrl ? undefined : initials(item.name)}
+                      selected={selectedCommunity?.id === item.id}
+                      key={item.id}
+                      type="button"
+                      onClick={() => handlers.selectCommunity(item.id)}
+                    >
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-body">{featureListText(item) || cleanRulesText(item.body)}</span>
@@ -185,7 +208,14 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.classSubclasses.map((item) => (
-                    <ChoiceCard layout="media" selected={selectedSubclass?.id === item.id} key={item.id} type="button" onClick={() => handlers.selectSubclass(item.id)}>
+                    <ChoiceCard
+                      layout="media"
+                      mediaFallback={item.imageUrl ? undefined : initials(item.name)}
+                      selected={selectedSubclass?.id === item.id}
+                      key={item.id}
+                      type="button"
+                      onClick={() => handlers.selectSubclass(item.id)}
+                    >
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-meta">{item.subtitle}</span>
@@ -348,7 +378,14 @@ export function CharacterBuilderModal({
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--cards cinematic-builder-choice-area dh-scroll">
                   {options.availableDomainCards.map((item) => (
-                    <ChoiceCard layout="domain" selected={fields.selectedCardIds.includes(item.id)} key={item.id} type="button" onClick={() => handlers.toggleCard(item.id)}>
+                    <ChoiceCard
+                      layout="domain"
+                      mediaFallback={item.imageUrl ? undefined : initials(item.name)}
+                      selected={fields.selectedCardIds.includes(item.id)}
+                      key={item.id}
+                      type="button"
+                      onClick={() => handlers.toggleCard(item.id)}
+                    >
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <span className="cinematic-card-meta">{item.subtitle}</span>
                       <strong className="cinematic-card-title">{item.name}</strong>

@@ -16,6 +16,7 @@ import {
 import type { ContentState } from "../../src/domain/content/types";
 import { classFixture, classItem, equipmentFixture, equipmentItem, firstCharacter, genericItem } from "./helpers";
 import { buildEffectiveCharacterStats } from "../../src/domain/rules/effects";
+import { buildCharacterBuilderCatalog, buildCharacterBuilderQuickStart } from "../../src/domain/characterBuilder/catalog";
 
 test('character builder applies starting equipment to draft outside UI', () => {
   const content: ContentState['generic'] = {
@@ -400,4 +401,60 @@ test('character builder filters playtest content by default', () => {
   assert.deepEqual(filterBuilderContent(content).domainCards.map((item) => item.id), ['core-card']);
   assert.deepEqual(filterBuilderContent(content, true).domainCards.map((item) => item.id), ['core-card', 'void-card']);
   assert.deepEqual(buildCharacterDraft({ content, className: 'Bard', selectedCardIds: ['void-card', 'core-card'] }).draft.domainCards?.map((card) => card.id), ['core-card']);
+});
+
+test('The Void setting adds playtest classes and random builder choices', () => {
+  const coreClass = classItem({
+    slug: 'bard',
+    name: 'Бард',
+    source_slugs: ['core', 'srd'],
+    domain_slugs: ['codex', 'grace']
+  });
+  const voidClass = classItem({
+    slug: 'playtest-assassin',
+    name: 'Ассасин',
+    source_slugs: ['playtest-the-void'],
+    domain_slugs: ['blade', 'midnight']
+  });
+  const content: ContentState['generic'] = {
+    ancestries: [
+      genericItem({ id: 'core-ancestry', raw: { source_slugs: ['core'] } }),
+      genericItem({ id: 'void-ancestry', raw: { source_slugs: ['playtest-the-void'] } })
+    ],
+    communities: [
+      genericItem({ id: 'core-community', raw: { source_slugs: ['core'] } }),
+      genericItem({ id: 'void-community', raw: { source_slugs: ['playtest-the-void'] } })
+    ],
+    subclasses: [
+      genericItem({ id: 'void-assassin-subclass', raw: { source_slugs: ['playtest-the-void'], class_slug: 'playtest-assassin' } })
+    ],
+    domainCards: [
+      genericItem({ id: 'void-blade-card', raw: { source_slugs: ['playtest-the-void'], domain_slug: 'blade', level: 1 } }),
+      genericItem({ id: 'void-midnight-card', raw: { source_slugs: ['playtest-the-void'], domain_slug: 'midnight', level: 1 } })
+    ]
+  };
+
+  const coreCatalog = buildCharacterBuilderCatalog({
+    content,
+    classes: [coreClass, voidClass],
+    equipment: equipmentFixture(),
+    className: 'Bard'
+  });
+  assert.deepEqual(coreCatalog.classOptions.map((item) => item.className), ['Bard']);
+
+  const voidCatalog = buildCharacterBuilderCatalog({
+    content,
+    classes: [coreClass, voidClass],
+    equipment: equipmentFixture(),
+    className: 'Assassin',
+    includePlaytest: true
+  });
+  const quick = buildCharacterBuilderQuickStart(voidCatalog, () => 0.999);
+
+  assert.deepEqual(voidCatalog.classOptions.map((item) => item.className), ['Bard', 'Assassin']);
+  assert.deepEqual(voidCatalog.classDomains, ['Blade', 'Midnight']);
+  assert.equal(quick.ancestryId, 'void-ancestry');
+  assert.equal(quick.communityId, 'void-community');
+  assert.equal(quick.subclassId, 'void-assassin-subclass');
+  assert.deepEqual(new Set(quick.selectedCardIds), new Set(['void-blade-card', 'void-midnight-card']));
 });

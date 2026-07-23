@@ -32,53 +32,71 @@ export function adversaryTypeLabel(type: AdversaryType): string {
 }
 
 export const DAGGERHEART_CLASSES: DaggerheartClass[] = [
+  'Assassin',
   'Bard',
   'Druid',
+  'Fighter',
   'Guardian',
   'Ranger',
   'Rogue',
   'Seraph',
   'Sorcerer',
+  'Warlock',
   'Warrior',
+  'Witch',
   'Wizard',
   'Custom'
 ];
 
+export const PLAYTEST_CLASSES: DaggerheartClass[] = ['Assassin', 'Fighter', 'Warlock', 'Witch'];
+
 export const CLASS_LABELS: Record<DaggerheartClass, string> = {
+  Assassin: 'Ассасин',
   Bard: 'Бард',
   Druid: 'Друид',
+  Fighter: 'Боец',
   Guardian: 'Страж',
   Ranger: 'Следопыт',
   Rogue: 'Плут',
   Seraph: 'Серафим',
   Sorcerer: 'Чародей',
+  Warlock: 'Колдун',
   Warrior: 'Воин',
+  Witch: 'Ведьма',
   Wizard: 'Волшебник',
   Custom: 'Свой класс'
 };
 
 export const CLASS_DOMAINS: Record<DaggerheartClass, DomainName[]> = {
+  Assassin: ['Blade', 'Midnight'],
   Bard: ['Codex', 'Grace'],
   Druid: ['Arcana', 'Sage'],
+  Fighter: ['Valor', 'Bone'],
   Guardian: ['Blade', 'Valor'],
   Ranger: ['Bone', 'Sage'],
   Rogue: ['Grace', 'Midnight'],
   Seraph: ['Splendor', 'Valor'],
   Sorcerer: ['Arcana', 'Midnight'],
+  Warlock: ['Dread', 'Grace'],
   Warrior: ['Blade', 'Bone'],
+  Witch: ['Dread', 'Sage'],
   Wizard: ['Codex', 'Splendor'],
   Custom: ['Custom']
 };
 
 export const CLASS_STARTING_STATS: Record<DaggerheartClass, { evasion: number; hp: number }> = {
+  Assassin: { evasion: 12, hp: 5 },
   Bard: { evasion: 10, hp: 5 },
   Druid: { evasion: 10, hp: 6 },
+  Fighter: { evasion: 10, hp: 6 },
   Guardian: { evasion: 9, hp: 7 },
   Ranger: { evasion: 12, hp: 6 },
   Rogue: { evasion: 12, hp: 6 },
   Seraph: { evasion: 9, hp: 7 },
   Sorcerer: { evasion: 10, hp: 6 },
+  Warlock: { evasion: 11, hp: 5 },
   Warrior: { evasion: 11, hp: 6 },
+  Witch: { evasion: 10, hp: 6 },
   Wizard: { evasion: 11, hp: 5 },
   Custom: { evasion: 10, hp: 6 }
 };
@@ -88,6 +106,7 @@ export const DOMAIN_NAMES: DomainName[] = [
   'Blade',
   'Bone',
   'Codex',
+  'Dread',
   'Grace',
   'Midnight',
   'Sage',
@@ -101,6 +120,7 @@ export const DOMAIN_LABELS: Record<DomainName, string> = {
   Blade: 'Клинок',
   Bone: 'Кость',
   Codex: 'Кодекс',
+  Dread: 'Ужас',
   Grace: 'Грация',
   Midnight: 'Полночь',
   Sage: 'Мудрость',
@@ -131,14 +151,18 @@ export const DEFAULT_TRAITS: Record<TraitId, number> = {
 };
 
 export const CLASS_RECOMMENDED_TRAITS: Record<DaggerheartClass, Record<TraitId, number>> = {
+  Assassin: DEFAULT_TRAITS,
   Bard: { agility: 0, strength: -1, finesse: 1, instinct: 0, presence: 2, knowledge: 1 },
   Druid: { agility: 1, strength: 0, finesse: 1, instinct: 2, presence: -1, knowledge: 0 },
+  Fighter: DEFAULT_TRAITS,
   Guardian: { agility: 1, strength: 2, finesse: -1, instinct: 0, presence: 1, knowledge: 0 },
   Ranger: { agility: 2, strength: 0, finesse: 1, instinct: 1, presence: -1, knowledge: 0 },
   Rogue: { agility: 1, strength: -1, finesse: 2, instinct: 0, presence: 1, knowledge: 0 },
   Seraph: { agility: 0, strength: 2, finesse: 0, instinct: 1, presence: 1, knowledge: -1 },
   Sorcerer: { agility: 0, strength: -1, finesse: 1, instinct: 2, presence: 1, knowledge: 0 },
+  Warlock: DEFAULT_TRAITS,
   Warrior: { agility: 2, strength: 1, finesse: 0, instinct: 1, presence: -1, knowledge: 0 },
+  Witch: DEFAULT_TRAITS,
   Wizard: { agility: -1, strength: 0, finesse: 0, instinct: 1, presence: 1, knowledge: 2 },
   Custom: DEFAULT_TRAITS
 };

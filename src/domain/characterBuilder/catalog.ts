@@ -1,5 +1,5 @@
 import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../content/types';
-import { CLASS_LABELS, DAGGERHEART_CLASSES } from '../rules/constants';
+import { CLASS_LABELS, DAGGERHEART_CLASSES, PLAYTEST_CLASSES } from '../rules/constants';
 import type { DaggerheartClass } from '../rules/types';
 import { buildStartingEquipmentCatalog, CLASS_STARTING_ITEMS } from '../rules/equipment';
 import { characterBuilderRuleModifiersForSubclass, startingDomainCardCount } from '../rules/characterRuleModifiers';
@@ -56,7 +56,7 @@ export function buildCharacterBuilderCatalog(input: CharacterBuilderCatalogInput
     classDefinition,
     classDomains,
     classItems,
-    classOptions: buildClassOptions(input.classes),
+    classOptions: buildClassOptions(input.classes, input.includePlaytest),
     classSubclasses,
     subclassRuleModifiers,
     availableDomainCards,
@@ -112,10 +112,13 @@ function randomIndex(length: number, random: () => number): number {
   return Math.min(length - 1, Math.max(0, Math.floor(random() * length)));
 }
 
-function buildClassOptions(classes: LibraryClassItem[]): Array<{ className: DaggerheartClass; name: string; domains: string[]; imageUrl: string | null; body: string }> {
-  const coreClasses = classes.filter((item) => item.className !== 'Custom' && isSrdClassItem(item));
-  if (coreClasses.length > 0) {
-    return coreClasses.map((item) => ({
+function buildClassOptions(classes: LibraryClassItem[], includePlaytest = false): Array<{ className: DaggerheartClass; name: string; domains: string[]; imageUrl: string | null; body: string }> {
+  const availableClasses = classes.filter((item) => (
+    item.className !== 'Custom' &&
+    (includePlaytest || isSrdClassItem(item))
+  ));
+  if (availableClasses.length > 0) {
+    return availableClasses.map((item) => ({
       className: item.className,
       name: item.name,
       domains: item.domains,
@@ -125,7 +128,7 @@ function buildClassOptions(classes: LibraryClassItem[]): Array<{ className: Dagg
     }));
   }
   return DAGGERHEART_CLASSES
-    .filter((item) => item !== 'Custom')
+    .filter((item) => item !== 'Custom' && (includePlaytest || !PLAYTEST_CLASSES.includes(item)))
     .map((item) => ({
       className: item,
       name: CLASS_LABELS[item],

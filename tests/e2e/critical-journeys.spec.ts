@@ -213,6 +213,44 @@ test.describe('critical persisted journeys', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
 
+  test('persists The Void setting and keeps no-image class choices readable', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openGmGame(page);
+    let workspace = await openWorkspace(page);
+    await selectSettingsSection(workspace, 'Игра');
+
+    const voidSetting = workspace.getByRole('checkbox', { name: 'Использовать материалы The Void' });
+    await expect(voidSetting).not.toBeChecked();
+    await voidSetting.check();
+    await waitForStoredMarker(page, '"includeVoidContent":true');
+
+    await reloadGamePage(page);
+    await expect(workspace).toBeVisible();
+    await selectSettingsSection(workspace, 'Игра');
+    await expect(voidSetting).toBeChecked();
+
+    await selectWorkspaceTab(workspace, 'Персонажи');
+    await workspace.getByRole('button', { name: 'Создать героя' }).click();
+    const builder = page.getByRole('dialog', { name: 'Новый герой' });
+    const classStep = builder.getByRole('group', { name: 'Шаг: Класс' });
+    const assassin = classStep.getByRole('button', { name: /^Ассасин / });
+    await expect(assassin).toBeVisible();
+    await expect(classStep.getByRole('button', { name: /^Боец / })).toBeVisible();
+    await expect(classStep.getByRole('button', { name: /^Ведьма / })).toBeVisible();
+    await expect(classStep.getByRole('button', { name: /^Колдун / })).toBeVisible();
+
+    await assassin.click();
+    const classBody = assassin.locator('.cinematic-card-body');
+    const detail = builder.getByLabel('Описание выбора');
+    const detailCopy = detail.locator('.cinematic-builder-choice-detail-copy');
+    await expect(assassin).toContainText('Клинок + Полночь');
+    await expect(assassin.getByText('А', { exact: true })).toBeVisible();
+    await expect(detail).toHaveClass(/dh-no-choice-image/);
+    expect((await classBody.boundingBox())?.width ?? 0).toBeGreaterThan(120);
+    expect(await detailCopy.evaluate((node) => node.clientHeight)).toBeGreaterThan(300);
+    await expect(detail).toContainText('Метка Смерти');
+  });
+
   test('exports a campaign and imports the archive back as a real round trip', async ({ page }) => {
     await openGmGame(page);
     let workspace = await openWorkspace(page);
@@ -310,6 +348,7 @@ test.describe('critical persisted journeys', () => {
     await expect(workspace).toBeVisible();
     await selectWorkspaceTab(workspace, 'Справочник');
     await collections.getByRole('button', { name: 'Противники' }).click();
+    await workspace.getByLabel('Источник материалов').getByRole('button', { name: 'Свои' }).click();
     await workspace.getByLabel('Поиск по справочнику').fill('Стеклянный паломник');
     const result = workspace.locator('.player-library-card').filter({ hasText: 'Стеклянный паломник' });
     await expect(result).toHaveCount(1);
@@ -329,6 +368,7 @@ test.describe('critical persisted journeys', () => {
     await expect(workspace).toBeVisible();
     await selectWorkspaceTab(workspace, 'Справочник');
     await collections.getByRole('button', { name: 'Противники' }).click();
+    await workspace.getByLabel('Источник материалов').getByRole('button', { name: 'Свои' }).click();
     await workspace.getByLabel('Поиск по справочнику').fill('Стеклянный паломник');
     await expect(workspace.locator('.player-library-card').filter({ hasText: 'Стеклянный паломник' })).toHaveCount(0);
   });

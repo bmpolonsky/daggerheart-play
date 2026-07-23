@@ -6,14 +6,18 @@ import type { CharacterRuleModifier } from './characterRuleModifiers';
 export type TraitId = 'agility' | 'strength' | 'finesse' | 'instinct' | 'presence' | 'knowledge';
 
 export type DaggerheartClass =
+  | 'Assassin'
   | 'Bard'
   | 'Druid'
+  | 'Fighter'
   | 'Guardian'
   | 'Ranger'
   | 'Rogue'
   | 'Seraph'
   | 'Sorcerer'
+  | 'Warlock'
   | 'Warrior'
+  | 'Witch'
   | 'Wizard'
   | 'Custom';
 
@@ -22,6 +26,7 @@ export type DomainName =
   | 'Blade'
   | 'Bone'
   | 'Codex'
+  | 'Dread'
   | 'Grace'
   | 'Midnight'
   | 'Sage'
@@ -433,6 +438,7 @@ export interface GameState {
   autoApplyRollConsequences: boolean;
   showLegacyActionTokens: boolean;
   showCoins: boolean;
+  includeVoidContent: boolean;
   safetyNotes: string;
   tableNotes: string;
   handouts: GameHandout[];
