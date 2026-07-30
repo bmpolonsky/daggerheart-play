@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useMemo, useState } from 'preact/hooks';
-import { Expand, Hand, Mic, MicOff, Minus, Phone, Video, VideoOff } from 'lucide-react';
+import { Expand, Hand, Mic, MicOff, Minus, Phone, Video, VideoOff, Volume2 } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { mediaCallService, p2pSessionService } from '../../services/serviceRegistry';
 import type { CallParticipant } from '../../services/MediaCallService';
@@ -65,6 +65,11 @@ export function FloatingCallWidget() {
             }} local fallbackName="Вы" />
           </div>
           <Toolbar className="floating-call__controls">
+            {call.audioPlaybackBlocked && (
+              <IconButton type="button" size="sm" tone="gold" title="Включить входящий звук" aria-label="Включить входящий звук" onClick={() => void mediaCallService.unlockRemoteAudio()}>
+                <Volume2 size={15} aria-hidden="true" />
+              </IconButton>
+            )}
             <IconButton type="button" size="sm" tone={call.micMuted ? 'neutral' : 'green'} title={call.micMuted ? 'Включить микрофон' : 'Выключить микрофон'} aria-label={call.micMuted ? 'Включить микрофон' : 'Выключить микрофон'} onClick={() => void mediaCallService.toggleMicrophone()}>
               {call.micMuted ? <MicOff size={15} aria-hidden="true" /> : <Mic size={15} aria-hidden="true" />}
             </IconButton>
@@ -111,7 +116,7 @@ function FloatingVideo({ fallbackName, local = false, participant }: { fallbackN
   return (
     <article className={`floating-call__video ${local ? 'dh-is-local' : ''}`.trim()}>
       {participant?.stream && !participant.cameraOff ? (
-        <MediaStreamVideo key={mediaStreamRenderKey(participant.stream)} muted={local} stream={participant.stream} />
+        <MediaStreamVideo key={mediaStreamRenderKey(participant.stream)} muted stream={participant.stream} />
       ) : (
         <span>{initials(name)}</span>
       )}

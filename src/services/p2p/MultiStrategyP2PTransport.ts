@@ -6,6 +6,7 @@ import type {
   P2PBinaryProgressHandler,
   P2PTargetPeer,
   P2PTransportAdapter,
+  P2PMediaConnectionDiagnostic,
   P2PTransportMessageContext,
   P2PTransportMode,
   P2PTransportPeerDiagnostic,
@@ -206,6 +207,8 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     this.logicalPeerByPhysicalPeer.clear();
     this.seenEnvelopeIds.clear();
     this.seenEnvelopeOrder = [];
+    this.seenMediaKeys.clear();
+    this.seenMediaOrder = [];
     this.rememberedControlEnvelopes = [];
     this.publishedMediaStreams.clear();
   }
@@ -339,6 +342,18 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     });
   }
 
+  async getMediaDiagnostics(): Promise<P2PMediaConnectionDiagnostic[]> {
+    const routeDiagnostics = await Promise.all(Array.from(this.routes.values(), async (route) => {
+      const diagnostics = await route.transport.getMediaDiagnostics?.() ?? [];
+      return diagnostics.map((diagnostic) => ({
+        ...diagnostic,
+        peerId: this.logicalForPhysical(route.strategy, diagnostic.physicalPeerId),
+        strategy: route.strategy
+      }));
+    }));
+    return routeDiagnostics.flat();
+  }
+
   private bindRoute(route: RouteState): void {
     route.unsubscriptions.splice(0).forEach((unsubscribe) => unsubscribe());
     route.unsubscriptions.push(
@@ -367,6 +382,10 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
       }) ?? (() => undefined),
       route.transport.subscribeMediaStreams?.((stream, physicalPeerId, metadata) => {
         const logicalPeerId = this.logicalForPhysical(route.strategy, physicalPeerId);
+        const activeStrategy = this.activeRouteByPeer.get(logicalPeerId);
+        if (activeStrategy && activeStrategy !== route.strategy) {
+          return;
+        }
         if (this.wasMediaSeen(logicalPeerId, stream, metadata)) {
           return;
         }
@@ -421,6 +440,9 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     const next = options.force ? strategy : this.preferredAvailableStrategy(logicalPeerId) ?? strategy;
     if (current === next) {
       return;
+    }
+    if (current) {
+      this.clearSeenMediaForPeer(logicalPeerId);
     }
     this.activeRouteByPeer.set(logicalPeerId, next);
     void this.publishMediaStreamsForPeer(logicalPeerId);
@@ -602,6 +624,7 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     }
     this.physicalPeerByLogicalPeer.delete(logicalPeerId);
     this.activeRouteByPeer.delete(logicalPeerId);
+    this.clearSeenMediaForPeer(logicalPeerId);
     this.peerLeaveListeners.forEach((listener) => listener(logicalPeerId));
   }
 
@@ -666,6 +689,17 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
       if (removed) this.seenMediaKeys.delete(removed);
     }
     return false;
+  }
+
+  private clearSeenMediaForPeer(peerId: string): void {
+    const prefix = `${peerId}:`;
+    this.seenMediaOrder = this.seenMediaOrder.filter((key) => {
+      if (!key.startsWith(prefix)) {
+        return true;
+      }
+      this.seenMediaKeys.delete(key);
+      return false;
+    });
   }
 
   private async republishMediaStreams(route: RouteState): Promise<void> {

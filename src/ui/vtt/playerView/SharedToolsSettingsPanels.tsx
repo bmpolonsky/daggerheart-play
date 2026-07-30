@@ -1,15 +1,16 @@
 /** @jsxImportSource preact */
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
 import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$ } from '../../../domain/p2p/networkSettings';
-import type { P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
+import type { P2PMediaConnectionDiagnostic, P2PMediaRtpDiagnostic, P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
 import type { P2PSessionState } from '../../../services/P2PSessionService';
 import type { Character, GameState } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
 import {
   gameService,
+  mediaCallService,
   p2pSessionService,
   sceneTableService
 } from '../../../services/serviceRegistry';
@@ -251,6 +252,7 @@ export function SharedToolsConnectionSettingsPanel({
 
 export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: { compact?: boolean; role: TableViewRole }) {
   const liveSession = useStream(p2pSessionService.session$);
+  const call = useStream(mediaCallService.call$);
   const session = e2eP2PDiagnosticsFixture() ?? liveSession;
   const {
     connected: p2pConnected,
@@ -271,6 +273,25 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     ? p2pPeers.map((peerId) => p2pRoutePeers.find((peer) => peer.peerId === peerId) ?? createEmptyPeerDiagnostic(peerId))
     : p2pRoutePeers.filter((peer) => peer.activeStrategy);
   const peerNames = participantPeerNames(sceneTable.participants);
+  const [mediaDiagnostics, setMediaDiagnostics] = useState<DisplayMediaConnectionDiagnostic[]>([]);
+  const previousMediaSamples = useRef(new Map<string, MediaCounterSample>());
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      const next = await p2pSessionService.mediaDiagnostics().catch(() => []);
+      if (!active) return;
+      setMediaDiagnostics(sampleMediaDiagnostics(next, previousMediaSamples.current, Date.now()));
+    };
+    void refresh();
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 1000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   return (
     <section className={`player-tools-settings-panel player-tools-diagnostics ${compact ? 'player-tools-diagnostics--compact' : ''}`}>
@@ -309,8 +330,176 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           </Card>
         )}
       </div>
+      <div className="player-tools-media-diagnostics" aria-label="Диагностика медиапотоков">
+        <strong className="player-tools-media-diagnostics__title">Медиапотоки</strong>
+        <Card
+          className="player-tools-media-card"
+          title="Аудиовыход"
+          subtitle={call.audioPlaybackBlocked
+            ? 'Браузер заблокировал воспроизведение'
+            : call.audioPlaybackActive
+              ? 'Входящий звук проигрывается'
+              : 'Входящий аудиопоток не получен'}
+          actions={<Badge tone={call.audioPlaybackBlocked ? 'danger' : call.audioPlaybackActive ? 'success' : 'neutral'}>
+            {call.audioPlaybackBlocked ? 'заблокирован' : call.audioPlaybackActive ? 'работает' : 'нет потока'}
+          </Badge>}
+        >
+          <small>Отдельный аудиоканал работает независимо от состояния камеры.</small>
+        </Card>
+        {mediaDiagnostics.map((connection) => (
+          <Card
+            className="player-tools-media-card"
+            key={`${connection.strategy}:${connection.physicalPeerId}`}
+            title={peerNames.get(connection.peerId) ?? fallbackPeerName(connection.peerId, role)}
+            subtitle={`${P2P_ROUTE_LABELS[connection.strategy]} · ${formatIceRoute(connection)}`}
+            actions={<Badge tone={connection.connectionState === 'connected' ? 'success' : connection.connectionState === 'failed' ? 'danger' : 'gold'}>
+              {formatConnectionState(connection.connectionState)}
+            </Badge>}
+          >
+            <div className="player-tools-media-flows">
+              <MediaFlowStatus label="Микрофон →" stat={findMediaStat(connection, 'outbound', 'audio')} />
+              <MediaFlowStatus label="← Входящий звук" stat={findMediaStat(connection, 'inbound', 'audio')} />
+              <MediaFlowStatus label="Камера →" stat={findMediaStat(connection, 'outbound', 'video')} />
+              <MediaFlowStatus label="← Входящее видео" stat={findMediaStat(connection, 'inbound', 'video')} />
+            </div>
+          </Card>
+        ))}
+        {mediaDiagnostics.length === 0 && (
+          <Card
+            className="player-tools-media-card player-tools-media-card--empty"
+            title="Нет WebRTC-медиа"
+            subtitle="Сначала должно появиться физическое подключение к участнику"
+          >
+            <small>После подключения здесь появятся входящие и исходящие RTP-счётчики.</small>
+          </Card>
+        )}
+      </div>
     </section>
   );
+}
+
+type DisplayMediaRtpDiagnostic = P2PMediaRtpDiagnostic & {
+  bitrateKbps: number | null;
+  packetsPerSecond: number | null;
+};
+
+type DisplayMediaConnectionDiagnostic = Omit<P2PMediaConnectionDiagnostic, 'rtp'> & {
+  rtp: DisplayMediaRtpDiagnostic[];
+};
+
+type MediaCounterSample = {
+  at: number;
+  bytes: number;
+  packets: number;
+};
+
+function sampleMediaDiagnostics(
+  diagnostics: P2PMediaConnectionDiagnostic[],
+  previous: Map<string, MediaCounterSample>,
+  now: number
+): DisplayMediaConnectionDiagnostic[] {
+  const activeKeys = new Set<string>();
+  const sampled = diagnostics.map((connection) => ({
+    ...connection,
+    rtp: connection.rtp.map((stat) => {
+      const key = `${connection.strategy}:${connection.physicalPeerId}:${stat.direction}:${stat.kind}`;
+      const prior = previous.get(key);
+      const elapsedSeconds = prior ? Math.max(0.001, (now - prior.at) / 1000) : 0;
+      const bytesDelta = prior ? Math.max(0, stat.bytes - prior.bytes) : 0;
+      const packetsDelta = prior ? Math.max(0, stat.packets - prior.packets) : 0;
+      previous.set(key, { at: now, bytes: stat.bytes, packets: stat.packets });
+      activeKeys.add(key);
+      return {
+        ...stat,
+        bitrateKbps: prior ? bytesDelta * 8 / elapsedSeconds / 1000 : null,
+        packetsPerSecond: prior ? packetsDelta / elapsedSeconds : null
+      };
+    })
+  }));
+  Array.from(previous.keys()).forEach((key) => {
+    if (!activeKeys.has(key)) previous.delete(key);
+  });
+  return sampled;
+}
+
+function findMediaStat(
+  connection: DisplayMediaConnectionDiagnostic,
+  direction: P2PMediaRtpDiagnostic['direction'],
+  kind: P2PMediaRtpDiagnostic['kind']
+): DisplayMediaRtpDiagnostic | undefined {
+  return connection.rtp.find((stat) => stat.direction === direction && stat.kind === kind);
+}
+
+function MediaFlowStatus({ label, stat }: { label: string; stat?: DisplayMediaRtpDiagnostic }) {
+  const tone = mediaFlowTone(stat);
+  return (
+    <div className="player-tools-media-flow">
+      <span>{label}</span>
+      <Badge tone={tone}>{formatMediaFlowStatus(stat)}</Badge>
+      <small>{formatMediaFlowDetail(stat)}</small>
+    </div>
+  );
+}
+
+function mediaFlowTone(stat?: DisplayMediaRtpDiagnostic): BadgeTone {
+  if (!stat) return 'neutral';
+  if (stat.trackState === 'ended') return 'danger';
+  if (stat.trackEnabled === false) return 'neutral';
+  if ((stat.bitrateKbps ?? 0) > 0) return 'success';
+  if (stat.bytes > 0) return 'gold';
+  return 'neutral';
+}
+
+function formatMediaFlowStatus(stat?: DisplayMediaRtpDiagnostic): string {
+  if (!stat) return 'нет RTP';
+  if (stat.trackState === 'ended') return 'трек завершён';
+  if (stat.trackEnabled === false) return 'выключен';
+  if ((stat.bitrateKbps ?? 0) > 0) {
+    if (stat.kind === 'audio' && stat.audioLevel !== null && stat.audioLevel <= 0.001) {
+      return 'идёт тишина';
+    }
+    return 'передаётся';
+  }
+  return stat.bytes > 0 ? 'ожидает данные' : 'нет данных';
+}
+
+function formatMediaFlowDetail(stat?: DisplayMediaRtpDiagnostic): string {
+  if (!stat) return 'Счётчик потока отсутствует';
+  const parts = [
+    stat.bitrateKbps === null ? null : `${stat.bitrateKbps.toFixed(1)} кбит/с`,
+    `${formatByteCount(stat.bytes)}`,
+    `${stat.packets} пак.`,
+    stat.packetsLost > 0 ? `потеряно ${stat.packetsLost}` : null,
+    stat.jitterMs === null ? null : `jitter ${stat.jitterMs.toFixed(1)} мс`,
+    stat.kind === 'audio' && stat.audioLevel !== null ? `уровень ${Math.round(stat.audioLevel * 100)}%` : null
+  ].filter((part): part is string => Boolean(part));
+  return parts.join(' · ');
+}
+
+function formatByteCount(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} КБ`;
+  return `${(bytes / 1024 ** 2).toFixed(1)} МБ`;
+}
+
+function formatIceRoute(connection: P2PMediaConnectionDiagnostic): string {
+  const candidates = [connection.localCandidateType, connection.remoteCandidateType]
+    .filter((candidate): candidate is RTCIceCandidateType => Boolean(candidate))
+    .join(' → ');
+  return [
+    candidates || 'ICE-кандидат неизвестен',
+    connection.protocol?.toUpperCase(),
+    `ICE ${connection.iceConnectionState}`
+  ].filter(Boolean).join(' · ');
+}
+
+function formatConnectionState(state: RTCPeerConnectionState): string {
+  if (state === 'connected') return 'подключено';
+  if (state === 'connecting') return 'подключается';
+  if (state === 'disconnected') return 'прервано';
+  if (state === 'failed') return 'ошибка';
+  if (state === 'closed') return 'закрыто';
+  return 'новое';
 }
 
 function e2eP2PDiagnosticsFixture(): P2PSessionState | null {

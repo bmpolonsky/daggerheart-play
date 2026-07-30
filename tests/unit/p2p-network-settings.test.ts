@@ -140,12 +140,47 @@ test('auto P2P exposes verified physical source separately from claimed logical 
   assert.deepEqual(transport.getPeerDiagnostics().map((peer) => peer.peerId), ['logical-owner']);
 });
 
+test('auto P2P accepts replacement media after an active route switch and ignores the stale route', async () => {
+  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const nostr = new TestP2PTransport('nostr', 'ready');
+  const transport = new MultiStrategyP2PTransport({
+    mode: 'auto',
+    candidates: ['mqtt', 'nostr'],
+    createTransport: (options) => options.strategy === 'nostr' ? nostr : mqtt
+  });
+  const received: MediaStream[] = [];
+  transport.subscribeMediaStreams((stream) => received.push(stream));
+  const envelope = (id: string): P2PWireEnvelope => ({
+    version: 2,
+    id,
+    channel: 'data',
+    sender: {
+      peerId: 'logical-owner',
+      role: 'player'
+    },
+    sentAt: '2026-05-26T00:00:00.000Z',
+    payload: { type: 'media-route-probe', id }
+  });
+  const firstStream = { id: 'stable-stream-id' } as MediaStream;
+  const replacementStream = { id: 'stable-stream-id' } as MediaStream;
+
+  await transport.connect('media-route-room');
+  mqtt.emit(envelope('mqtt-active'), 'physical-mqtt');
+  mqtt.emitMediaStream(firstStream, 'physical-mqtt', { kind: 'call' });
+  nostr.emit(envelope('nostr-active'), 'physical-nostr');
+  nostr.emitMediaStream(replacementStream, 'physical-nostr', { kind: 'call' });
+  mqtt.emitMediaStream(firstStream, 'physical-mqtt', { kind: 'call' });
+
+  assert.deepEqual(received, [firstStream, replacementStream]);
+});
+
 class TestP2PTransport implements P2PTransportAdapter {
   readonly id = 'test-p2p';
   readonly label = 'Test P2P';
   peerId = '';
   disconnects = 0;
   private readonly listeners = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
+  private readonly mediaListeners = new Set<(stream: MediaStream, peerId: string, metadata?: unknown) => void>();
 
   constructor(
     private readonly strategy: P2PTransportStrategy,
@@ -188,7 +223,16 @@ class TestP2PTransport implements P2PTransportAdapter {
     return () => undefined;
   }
 
+  subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {
+    this.mediaListeners.add(listener);
+    return () => this.mediaListeners.delete(listener);
+  }
+
   emit(envelope: P2PWireEnvelope, sourcePeerId: string): void {
     this.listeners.forEach((listener) => listener(envelope, { sourcePeerId }));
+  }
+
+  emitMediaStream(stream: MediaStream, peerId: string, metadata?: unknown): void {
+    this.mediaListeners.forEach((listener) => listener(stream, peerId, metadata));
   }
 }

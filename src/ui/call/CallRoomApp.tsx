@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Hand, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, X } from 'lucide-react';
+import { Hand, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, Volume2, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, writeStoredCallName } from '../../domain/p2p/sessionLinks';
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
@@ -53,13 +53,13 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     : 'none';
   const playerSeats = useMemo(() => Object.values(sceneTable.participants).filter((participant) => participant.role === 'player'), [sceneTable.participants]);
   const feedMessages = feed.filter((entry) => entry.type === 'message').slice(-8);
-  const participantsList = useMemo(() => buildCallParticipants({
+  const participantsList = buildCallParticipants({
     call,
     connectedToRoom,
     feedEntries: feedMessages,
     sessionPeerId: session.peerId,
     tableParticipants: sceneTable.participants
-  }), [call, connectedToRoom, feedMessages, sceneTable.participants, session.peerId]);
+  });
   const focusedParticipant = layoutMode === 'focus'
     ? pickFocusedParticipant(participantsList, focusedParticipantId, call.localParticipantId)
     : null;
@@ -251,6 +251,18 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
         )}
 
         <Toolbar className="call-room__controls" aria-label="Управление звонком">
+          {call.audioPlaybackBlocked && (
+            <Button
+              minWidth="sm"
+              size="sm"
+              type="button"
+              iconBefore={<Volume2 size={15} aria-hidden="true" />}
+              variant="primary"
+              onClick={() => void mediaCallService.unlockRemoteAudio()}
+            >
+              Включить звук
+            </Button>
+          )}
           <Button
             minWidth="sm"
             size="sm"
@@ -377,7 +389,7 @@ function CallVideoTile({ focused = false, local = false, onSelect, participant }
       }}
     >
       {participant.stream && !participant.cameraOff ? (
-        <MediaStreamVideo key={mediaStreamRenderKey(participant.stream)} muted={local} stream={participant.stream} />
+        <MediaStreamVideo key={mediaStreamRenderKey(participant.stream)} muted stream={participant.stream} />
       ) : (
         <div className="call-video-tile__avatar" aria-hidden="true">{initials(participant.displayName)}</div>
       )}

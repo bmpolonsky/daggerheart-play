@@ -36,6 +36,8 @@ export interface MediaCallState {
   micMuted: boolean;
   cameraOff: boolean;
   handRaised: boolean;
+  audioPlaybackBlocked: boolean;
+  audioPlaybackActive: boolean;
   localStream: MediaStream | null;
   remoteParticipants: Record<string, CallParticipant>;
 }
@@ -63,6 +65,8 @@ const initialState: MediaCallState = {
   micMuted: true,
   cameraOff: true,
   handRaised: false,
+  audioPlaybackBlocked: false,
+  audioPlaybackActive: false,
   localStream: null,
   remoteParticipants: {}
 };
@@ -72,6 +76,9 @@ export class MediaCallService {
   readonly call$ = this.callStore.toStream();
   private mediaTransport: CallMediaTransport | null = null;
   private unsubscribeStreams: (() => void) | null = null;
+  private remoteAudioElements = new Map<string, HTMLAudioElement>();
+  private blockedRemoteAudioIds = new Set<string>();
+  private playingRemoteAudioIds = new Set<string>();
 
   constructor(private syncService: SyncService) {}
 
@@ -115,6 +122,7 @@ export class MediaCallService {
     }
     this.mediaTransport = nextTransport;
     if (!transport) {
+      this.clearRemoteAudio();
       this.stopLocalMedia();
       this.callStore.update((state) => ({
         ...state,
@@ -144,6 +152,10 @@ export class MediaCallService {
   }
 
   removeRemotePeer(peerId: string): void {
+    const participantIds = Object.entries(this.call$.get().remoteParticipants)
+      .filter(([, participant]) => participant.peerId === peerId)
+      .map(([participantId]) => participantId);
+    participantIds.forEach((participantId) => this.detachRemoteAudio(participantId));
     this.callStore.update((state) => {
       const next = { ...state.remoteParticipants };
       for (const [participantId, participant] of Object.entries(next)) {
@@ -183,6 +195,7 @@ export class MediaCallService {
   }
 
   async toggleMicrophone(): Promise<void> {
+    await this.unlockRemoteAudio();
     const state = this.call$.get();
     if (!state.active) {
       this.activateCall();
@@ -202,6 +215,7 @@ export class MediaCallService {
   }
 
   async toggleCamera(): Promise<void> {
+    await this.unlockRemoteAudio();
     const state = this.call$.get();
     if (!state.active) {
       this.activateCall();
@@ -227,6 +241,12 @@ export class MediaCallService {
       handRaised: !state.handRaised
     }));
     await this.publishPresence();
+  }
+
+  async unlockRemoteAudio(): Promise<void> {
+    await Promise.all(Array.from(this.remoteAudioElements.entries(), ([participantId, element]) =>
+      this.playRemoteAudio(participantId, element)
+    ));
   }
 
   async publishPresence(): Promise<boolean> {
@@ -350,6 +370,7 @@ export class MediaCallService {
 
   private attachRemoteStream(peerId: string, stream: MediaStream, metadata: CallMediaMetadata): void {
     if (metadata.participantId === this.call$.get().localParticipantId) return;
+    this.attachRemoteAudio(metadata.participantId, stream);
     this.callStore.update((state) => {
       const existing = state.remoteParticipants[metadata.participantId];
       return {
@@ -372,6 +393,66 @@ export class MediaCallService {
         }
       };
     });
+  }
+
+  private attachRemoteAudio(participantId: string, stream: MediaStream): void {
+    if (stream.getAudioTracks().length === 0 || typeof Audio === 'undefined') {
+      this.detachRemoteAudio(participantId);
+      return;
+    }
+    const element = this.remoteAudioElements.get(participantId) ?? new Audio();
+    element.autoplay = true;
+    element.muted = false;
+    element.setAttribute('playsinline', 'true');
+    element.srcObject = stream;
+    this.remoteAudioElements.set(participantId, element);
+    void this.playRemoteAudio(participantId, element);
+  }
+
+  private async playRemoteAudio(participantId: string, element: HTMLAudioElement): Promise<void> {
+    try {
+      await element.play();
+      this.blockedRemoteAudioIds.delete(participantId);
+      this.playingRemoteAudioIds.add(participantId);
+    } catch {
+      this.blockedRemoteAudioIds.add(participantId);
+      this.playingRemoteAudioIds.delete(participantId);
+    }
+    this.patchAudioPlaybackState();
+  }
+
+  private detachRemoteAudio(participantId: string): void {
+    const element = this.remoteAudioElements.get(participantId);
+    if (element) {
+      element.pause();
+      element.srcObject = null;
+      this.remoteAudioElements.delete(participantId);
+    }
+    this.blockedRemoteAudioIds.delete(participantId);
+    this.playingRemoteAudioIds.delete(participantId);
+    this.patchAudioPlaybackState();
+  }
+
+  private clearRemoteAudio(): void {
+    this.remoteAudioElements.forEach((element) => {
+      element.pause();
+      element.srcObject = null;
+    });
+    this.remoteAudioElements.clear();
+    this.blockedRemoteAudioIds.clear();
+    this.playingRemoteAudioIds.clear();
+    this.patchAudioPlaybackState();
+  }
+
+  private patchAudioPlaybackState(): void {
+    const audioPlaybackBlocked = this.blockedRemoteAudioIds.size > 0;
+    const audioPlaybackActive = this.playingRemoteAudioIds.size > 0;
+    const current = this.call$.get();
+    if (
+      current.audioPlaybackBlocked === audioPlaybackBlocked
+      && current.audioPlaybackActive === audioPlaybackActive
+    ) return;
+    this.callStore.update((state) => ({ ...state, audioPlaybackBlocked, audioPlaybackActive }));
   }
 
   private createLocalPresence(connected: boolean): CallPresenceMessage {

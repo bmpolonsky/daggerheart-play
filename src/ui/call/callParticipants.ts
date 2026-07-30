@@ -12,6 +12,7 @@ export function buildCallParticipants(input: {
   const tableParticipants = Object.values(input.tableParticipants)
     .filter((participant) => participant.role === 'gm' || participant.role === 'player')
     .filter((participant) => participant.connected || participant.id === input.call.localParticipantId || participant.peerId === input.sessionPeerId)
+    .filter((participant) => !isUnresolvedDefaultGm(participant, input.call))
     .sort((first, second) => callParticipantSortRank(first) - callParticipantSortRank(second) || first.name.localeCompare(second.name, 'ru'));
 
   if (tableParticipants.length === 0) {
@@ -31,6 +32,19 @@ export function buildCallParticipants(input: {
       ? localParticipantFromCall(input.call, participant, input.connectedToRoom)
       : callParticipantFromTableParticipant(participant, remote);
   });
+
+  const hasLocalParticipant = participants.some((participant) =>
+    participant.participantId === input.call.localParticipantId
+    || Boolean(input.sessionPeerId && participant.peerId === input.sessionPeerId)
+  );
+  if (!hasLocalParticipant) {
+    const localParticipant = localParticipantFromCall(input.call, undefined, input.connectedToRoom);
+    if (input.call.role === 'gm') {
+      participants.unshift(localParticipant);
+    } else {
+      participants.push(localParticipant);
+    }
+  }
 
   Object.values(input.call.remoteParticipants).forEach((participant) => {
     if (!participant.connected || usedRemoteIds.has(participant.participantId)) return;
@@ -80,6 +94,14 @@ function localParticipantFromCall(call: MediaCallState, participant?: TableParti
 
 function callParticipantSortRank(participant: TableParticipant): number {
   return participant.role === 'gm' ? 0 : 1;
+}
+
+function isUnresolvedDefaultGm(participant: TableParticipant, call: MediaCallState): boolean {
+  return call.role !== 'gm'
+    && participant.id === 'local-gm'
+    && participant.name === 'Мастер'
+    && !participant.peerId
+    && !call.remoteParticipants[participant.id];
 }
 
 function addMessageParticipants(participants: CallParticipant[], feedEntries: FeedEntry[]): void {

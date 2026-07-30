@@ -1,7 +1,7 @@
 import { createId } from '../../core/utils/id';
 import { nowIso } from '../../core/utils/date';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableParticipant } from '../../domain/tabletop/types';
-import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent, P2PWireEnvelope, P2PWireRole } from './P2PTransportAdapter';
+import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PMediaConnectionDiagnostic, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent, P2PWireEnvelope, P2PWireRole } from './P2PTransportAdapter';
 
 export type P2PRoomConnectionStatus = 'connected' | 'degraded';
 
@@ -76,6 +76,10 @@ export class P2PRoomConnection implements SyncTransport {
 
   peerDiagnostics(): P2PTransportPeerDiagnostic[] {
     return this.adapter.getPeerDiagnostics?.() ?? [];
+  }
+
+  async mediaDiagnostics(): Promise<P2PMediaConnectionDiagnostic[]> {
+    return await this.adapter.getMediaDiagnostics?.() ?? [];
   }
 
   subscribeRoomEvents(listener: (event: P2PRoomConnectionEvent) => void): () => void {

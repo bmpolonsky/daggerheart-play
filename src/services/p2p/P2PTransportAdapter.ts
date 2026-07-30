@@ -32,6 +32,32 @@ export interface P2PTransportPeerDiagnostic {
   routes: P2PTransportPeerRouteDiagnostic[];
 }
 
+export interface P2PMediaRtpDiagnostic {
+  direction: 'inbound' | 'outbound';
+  kind: 'audio' | 'video';
+  bytes: number;
+  packets: number;
+  packetsLost: number;
+  jitterMs: number | null;
+  audioLevel: number | null;
+  totalAudioEnergy: number | null;
+  trackEnabled: boolean | null;
+  trackMuted: boolean | null;
+  trackState: MediaStreamTrackState | null;
+}
+
+export interface P2PMediaConnectionDiagnostic {
+  peerId: string;
+  physicalPeerId: string;
+  strategy: P2PTransportStrategy;
+  connectionState: RTCPeerConnectionState;
+  iceConnectionState: RTCIceConnectionState;
+  localCandidateType: RTCIceCandidateType | null;
+  remoteCandidateType: RTCIceCandidateType | null;
+  protocol: string | null;
+  rtp: P2PMediaRtpDiagnostic[];
+}
+
 export interface P2PTransportRouteSwitchEvent {
   peerId: string;
   from: P2PTransportStrategy;
@@ -76,6 +102,7 @@ export interface P2PTransportAdapter {
   subscribeMediaStreams?(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void;
   getRouteDiagnostics?(): P2PTransportRouteDiagnostic[];
   getPeerDiagnostics?(): P2PTransportPeerDiagnostic[];
+  getMediaDiagnostics?(): Promise<P2PMediaConnectionDiagnostic[]>;
 }
 
 export function isP2PWireEnvelope(value: unknown): value is P2PWireEnvelope {

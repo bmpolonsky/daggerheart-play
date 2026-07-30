@@ -52,7 +52,7 @@ import {
   readActiveSession
 } from './p2p/P2PSessionPersistence';
 import { P2PRoomConnection, type P2PRoomConnectionConfig, type P2PRoomConnectionEvent } from './p2p/P2PRoomConnection';
-import type { P2PTransportAdapter, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent } from './p2p/P2PTransportAdapter';
+import type { P2PMediaConnectionDiagnostic, P2PTransportAdapter, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent } from './p2p/P2PTransportAdapter';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { P2PAssetTransferService } from './P2PAssetTransferService';
 
@@ -242,6 +242,10 @@ export class P2PSessionService {
   hasConnectedPlayers(): boolean {
     const session = this.sessionStore.get();
     return session.role === 'gm' && session.peers.length > 0;
+  }
+
+  async mediaDiagnostics(): Promise<P2PMediaConnectionDiagnostic[]> {
+    return await this.activeRoomConnection?.mediaDiagnostics() ?? [];
   }
 
   canPublishSnapshotToPlayers(): boolean {

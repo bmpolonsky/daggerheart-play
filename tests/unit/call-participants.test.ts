@@ -59,6 +59,75 @@ test('call roster ignores message authors without participant identity', () => {
   assert.deepEqual(participants.map((participant) => participant.displayName), ['Леся']);
 });
 
+test('local call participant reflects the latest camera stream and state', () => {
+  const localStream = {
+    id: 'local-camera-stream',
+    getTracks: () => [],
+    getAudioTracks: () => [],
+    getVideoTracks: () => [{ id: 'local-camera-track', enabled: true }]
+  } as unknown as MediaStream;
+  const call = {
+    ...createCallState(),
+    cameraOff: false,
+    localStream
+  };
+
+  const participants = buildCallParticipants({
+    call,
+    connectedToRoom: true,
+    sessionPeerId: 'peer-gm',
+    tableParticipants: {
+      'local-gm': createTableParticipant({ id: 'local-gm', name: 'Леся', peerId: 'peer-gm', role: 'gm' })
+    }
+  });
+
+  assert.equal(participants[0]?.cameraOff, false);
+  assert.equal(participants[0]?.stream, localStream);
+});
+
+test('call roster keeps the local player while the table snapshot only contains the gm', () => {
+  const call = {
+    ...createCallState(),
+    localParticipantId: 'local-player',
+    displayName: 'kjk',
+    role: 'player' as const
+  };
+
+  const participants = buildCallParticipants({
+    call,
+    connectedToRoom: true,
+    sessionPeerId: 'peer-player',
+    tableParticipants: {
+      'local-gm': createTableParticipant({ id: 'local-gm', name: 'Леся', peerId: 'peer-gm', role: 'gm' })
+    }
+  });
+
+  assert.deepEqual(participants.map((participant) => [participant.participantId, participant.displayName]), [
+    ['local-gm', 'Леся'],
+    ['local-player', 'kjk']
+  ]);
+});
+
+test('player call roster hides the unresolved default gm placeholder', () => {
+  const call = {
+    ...createCallState(),
+    localParticipantId: 'local-player',
+    displayName: 'kjk',
+    role: 'player' as const
+  };
+
+  const participants = buildCallParticipants({
+    call,
+    connectedToRoom: true,
+    sessionPeerId: 'peer-player',
+    tableParticipants: {
+      'local-gm': createTableParticipant({ id: 'local-gm', name: 'Мастер', role: 'gm', peerId: undefined })
+    }
+  });
+
+  assert.deepEqual(participants.map((participant) => participant.displayName), ['kjk']);
+});
+
 function createCallState(): MediaCallState {
   return {
     roomId: '4XZCSU',
@@ -71,6 +140,8 @@ function createCallState(): MediaCallState {
     micMuted: true,
     cameraOff: true,
     handRaised: false,
+    audioPlaybackBlocked: false,
+    audioPlaybackActive: false,
     localStream: null,
     remoteParticipants: {}
   };
