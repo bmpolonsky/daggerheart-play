@@ -13,6 +13,8 @@ import { ActorStatus, normalizeStatusTag, statusLabel } from '../../../domain/ru
 
 export function PlayerScene({
   latestRoll,
+  animateInitialDiceRoll,
+  diceAnimationContext,
   diceAnimationReady,
   model,
   role,
@@ -20,6 +22,8 @@ export function PlayerScene({
   onRollComplete
 }: {
   latestRoll: RollLogEntry | undefined;
+  animateInitialDiceRoll?: boolean;
+  diceAnimationContext: string;
   diceAnimationReady?: boolean;
   model: PlayerViewModel;
   role: TableViewRole;
@@ -64,7 +68,14 @@ export function PlayerScene({
         }}
       >
         <PlayerMeasureLayer origin={selectedOrigin} />
-        <PlayerDiceOverlay latestRoll={latestRoll} animationReady={diceAnimationReady} onRollComplete={onRollComplete} />
+        <PlayerDiceOverlay
+          key={diceAnimationContext}
+          latestRoll={latestRoll}
+          animateInitialRoll={animateInitialDiceRoll}
+          animationReady={diceAnimationReady}
+          contextKey={diceAnimationContext}
+          onRollComplete={onRollComplete}
+        />
         {model.tokens.map((token) => {
           const canControlToken = role === 'gm' || playerTokenIds.includes(token.id);
           const defeatedLabel = statusLabel(ActorStatus.Defeated);

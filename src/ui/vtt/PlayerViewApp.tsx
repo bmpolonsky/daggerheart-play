@@ -10,6 +10,7 @@ import {
 import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
+import { diceAnimationContextKey, shouldAnimateInitialDiceRoll } from '../../domain/tabletop/diceAnimation';
 import { nowIso } from '../../core/utils/date';
 import { normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../domain/tabletop/sceneBackground';
 import { gameService, characterService, contentService, encounterService, feedService, p2pSessionService, rollLogService, sceneTableService } from '../../services/serviceRegistry';
@@ -146,6 +147,16 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     [playerCharacterId, role, rollLog]
   );
   const diceAnimationReady = role !== 'player' || !sessionRoomId || !p2pSession.lastSnapshotAt || p2pSession.latestRollAnimationId === latestVisibleRoll?.id;
+  const animateInitialDiceRoll = shouldAnimateInitialDiceRoll({
+    role,
+    latestRollId: latestVisibleRoll?.id,
+    latestRollAnimationId: p2pSession.latestRollAnimationId
+  });
+  const diceAnimationContext = diceAnimationContextKey({
+    gameId: game.id,
+    role,
+    actorId: playerCharacterId
+  });
   const selectedPlayerName = selectedPlayerSeat?.name.trim() || undefined;
   const fallbackActorName = role === 'gm' ? 'Мастер' : 'Без персонажа';
   const displayedActor = displayedCharacter
@@ -402,6 +413,8 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       />
       <PlayerScene
         latestRoll={latestVisibleRoll}
+        animateInitialDiceRoll={animateInitialDiceRoll}
+        diceAnimationContext={diceAnimationContext}
         diceAnimationReady={diceAnimationReady}
         model={model}
         role={role}

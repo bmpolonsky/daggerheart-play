@@ -2,27 +2,32 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { hasRolledDiceTerms } from '../../../domain/rules/diceFormula';
 import type { RollLogEntry } from '../../../domain/rules/types';
+import { DiceAnimationPolicy } from '../../../domain/tabletop/diceAnimation';
 import { PolyhedralDiceStage } from '../../dice/PolyhedralDiceStage';
 import { manualDiceRollToPolyhedral, polyhedralDiceRollFromTerms, type PolyhedralDiceRoll } from '../../dice/types';
 import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS, PLAYER_DICE_ROLL_FADE_OUT_MS, PLAYER_DICE_ROLL_HOLD_AFTER_SETTLE_MS } from './constants';
 
 export function PlayerDiceOverlay({
   latestRoll,
+  animateInitialRoll = false,
   animationReady = true,
+  contextKey,
   onRollComplete
 }: {
   latestRoll: RollLogEntry | undefined;
+  animateInitialRoll?: boolean;
   animationReady?: boolean;
+  contextKey: string;
   onRollComplete: (rollId: string) => void;
 }) {
   const [visibleDiceRollId, setVisibleDiceRollId] = useState<string | null>(null);
   const [fadingDiceRollId, setFadingDiceRollId] = useState<string | null>(null);
-  const lastSeenRollId = useRef<string | null>(null);
   const visibleDiceRollIdRef = useRef<string | null>(null);
   const holdTimeoutRef = useRef<number | null>(null);
   const fadeTimeoutRef = useRef<number | null>(null);
   const animationTimeoutRef = useRef<number | null>(null);
   const completedRollIdsRef = useRef<Set<string>>(new Set());
+  const animationPolicyRef = useRef(new DiceAnimationPolicy());
   const polyhedralDiceRoll = polyhedralRollForDice(latestRoll);
   const clearHoldTimeout = useCallback(() => {
     if (holdTimeoutRef.current === null) return;
@@ -72,15 +77,15 @@ export function PlayerDiceOverlay({
 
   useEffect(() => {
     const visualRoll = polyhedralDiceRoll;
-    if (!visualRoll) return;
-    if (!animationReady) {
-      lastSeenRollId.current = visualRoll.id;
-      rememberDiceRollSeen(visualRoll.id);
-      return;
-    }
-    if (lastSeenRollId.current === visualRoll.id) return;
-    if (wasDiceRollSeen(visualRoll.id)) {
-      lastSeenRollId.current = visualRoll.id;
+    const decision = animationPolicyRef.current.observe({
+      contextKey,
+      rollId: visualRoll?.id ?? null,
+      animationReady,
+      animateInitialRoll,
+      alreadySeen: visualRoll ? wasDiceRollSeen(visualRoll.id) : false
+    });
+    if (!visualRoll || decision === 'none' || decision === 'wait') return;
+    if (decision === 'complete') {
       rememberDiceRollSeen(visualRoll.id);
       if (!completedRollIdsRef.current.has(visualRoll.id)) {
         completedRollIdsRef.current.add(visualRoll.id);
@@ -94,7 +99,6 @@ export function PlayerDiceOverlay({
       rememberDiceRollSeen(activeDiceRollId);
       onRollComplete(activeDiceRollId);
     }
-    lastSeenRollId.current = visualRoll.id;
     clearHoldTimeout();
     clearFadeTimeout();
     clearAnimationTimeout();
@@ -106,7 +110,7 @@ export function PlayerDiceOverlay({
       revealRollAndHoldDice(visualRoll.id);
     }, PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS);
     return () => clearAnimationTimeout();
-  }, [animationReady, clearAnimationTimeout, clearFadeTimeout, clearHoldTimeout, onRollComplete, polyhedralDiceRoll?.id, revealRollAndHoldDice]);
+  }, [animateInitialRoll, animationReady, clearAnimationTimeout, clearFadeTimeout, clearHoldTimeout, contextKey, onRollComplete, polyhedralDiceRoll?.id, revealRollAndHoldDice]);
 
   useEffect(() => () => {
     clearHoldTimeout();
