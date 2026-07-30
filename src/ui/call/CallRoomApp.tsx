@@ -1,9 +1,10 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Hand, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, Volume2, X } from 'lucide-react';
+import { Check, Copy, Hand, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, Volume2, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, writeStoredCallName } from '../../domain/p2p/sessionLinks';
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
+import type { TableParticipant } from '../../domain/tabletop/types';
 import { feedService, mediaCallService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
 import { toastService } from '../../services/ToastService';
 import type { CallParticipant } from '../../services/MediaCallService';
@@ -41,6 +42,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const [sideOpen, setSideOpen] = useState(defaultCallSideOpen);
   const [layoutMode, setLayoutMode] = useState<CallLayoutMode>(defaultCallLayoutMode);
   const [focusedParticipantId, setFocusedParticipantId] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const autoJoinKey = useRef<string | null>(null);
   const storedSession = useMemo(() => roomId ? p2pSessionService.storedSessionForRoom(roomId) : null, [roomId]);
   const healthRole = session.role ?? storedSession?.role ?? 'player';
@@ -116,7 +118,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     setFocusedParticipantId(null);
   }, [focusedParticipantId, participantsList]);
 
-  const joinCall = async (displayName = nameDraft): Promise<void> => {
+  const joinCall = async (displayName = nameDraft, selectedSeat?: TableParticipant): Promise<void> => {
     const name = displayName.trim();
     if (!roomId || !name) {
       toastService.show('Введите имя для звонка.', 'warning');
@@ -124,30 +126,42 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     }
     writeStoredCallName(roomId, name);
     mediaCallService.setDisplayName(name);
+    const participantId = selectedSeat?.id ?? storedSession?.participantId;
+    const actorIds = selectedSeat?.actorIds ?? storedSession?.actorIds;
     if (connectedToRoom) {
-      mediaCallService.setRoom({ roomId, displayName: name, role: session.role === 'gm' ? 'gm' : 'player', active: true });
+      mediaCallService.setRoom({
+        roomId,
+        participantId,
+        displayName: name,
+        role: session.role === 'gm' ? 'gm' : 'player',
+        active: true
+      });
       p2pSessionService.renameLocalParticipant(name);
       return;
     }
-    const role = storedSession?.role ?? 'player';
+    const role = selectedSeat ? 'player' : storedSession?.role ?? 'player';
     if (role === 'gm') {
       await p2pSessionService.startGmRoom({
         roomId,
-        participantName: name
+        participantName: name,
+        participantId,
+        actorIds
       });
     } else {
       await p2pSessionService.startPlayerRoom({
         roomId,
-        participantName: name
+        participantName: name,
+        participantId,
+        actorIds
       });
     }
-    mediaCallService.setRoom({ roomId, displayName: name, role, active: true });
+    mediaCallService.setRoom({ roomId, participantId, displayName: name, role, active: true });
     p2pSessionService.renameLocalParticipant(name);
   };
 
-  const selectSeatName = (name: string) => {
-    setNameDraft(name);
-    void joinCall(name);
+  const selectSeatName = (seat: TableParticipant) => {
+    setNameDraft(seat.name);
+    void joinCall(seat.name, seat);
   };
 
   const sendChat = () => {
@@ -156,6 +170,23 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     if (!body) return;
     setChatDraft('');
     void p2pSessionService.sendChatMessage(authorName, body);
+  };
+
+  const copyCallInvite = async () => {
+    const inviteUrl = buildCallInviteUrl({
+      origin: window.location.origin,
+      basePath,
+      roomId
+    });
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteCopied(true);
+      window.setTimeout(() => setInviteCopied(false), 1600);
+      toastService.show('Ссылка на созвон скопирована.', 'success');
+    } catch {
+      toastService.show('Скопируйте ссылку из адресной строки.', 'warning');
+    }
   };
 
   if (!roomId) {
@@ -174,7 +205,20 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
         <header className="call-room__topbar">
           <div>
             <span>Видеозвонок</span>
-            <h1>Комната {roomId}</h1>
+            <div className="call-room__room-title">
+              <h1>Комната {roomId}</h1>
+              <IconButton
+                className={inviteCopied ? 'dh-is-copied' : ''}
+                variant="ghost"
+                size="xs"
+                type="button"
+                title={inviteCopied ? 'Ссылка скопирована' : 'Копировать ссылку на созвон'}
+                aria-label={inviteCopied ? 'Ссылка скопирована' : 'Копировать ссылку на созвон'}
+                onClick={() => void copyCallInvite()}
+              >
+                {inviteCopied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+              </IconButton>
+            </div>
           </div>
           {!sideOpen && (
             <div className="call-room__top-actions">
@@ -197,7 +241,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
             {playerSeats.length > 0 && (
               <div className="call-room__seat-picks">
                 {playerSeats.map((seat) => (
-                  <ChoiceCard key={seat.id} onClick={() => selectSeatName(seat.name)}>
+                  <ChoiceCard key={seat.id} onClick={() => selectSeatName(seat)}>
                     <strong>{seat.name}</strong>
                   </ChoiceCard>
                 ))}

@@ -387,6 +387,11 @@
   min-width: 160px;
 }
 
+.role-entry__inline-actions .role-entry__call-link {
+  min-width: 0;
+  color: var(--dh-paper-faint);
+}
+
 .role-entry__game-list {
   max-height: min(240px, 30vh);
   overflow: auto;

@@ -182,28 +182,33 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
 
   async getMediaDiagnostics(): Promise<P2PMediaConnectionDiagnostic[]> {
     const peers = this.room?.getPeers() ?? {};
-    return await Promise.all(Object.entries(peers).map(async ([physicalPeerId, connection]) => {
-      const report = await connection.getStats();
-      const stats = Array.from(report.values(), (item) => item as RTCStats & Record<string, unknown>);
-      const selectedPair = selectedCandidatePair(stats);
-      const localCandidate = selectedPair
-        ? stats.find((item) => item.id === selectedPair.localCandidateId)
-        : undefined;
-      const remoteCandidate = selectedPair
-        ? stats.find((item) => item.id === selectedPair.remoteCandidateId)
-        : undefined;
-      return {
-        peerId: physicalPeerId,
-        physicalPeerId,
-        strategy: this.connectedStrategy,
-        connectionState: connection.connectionState,
-        iceConnectionState: connection.iceConnectionState,
-        localCandidateType: candidateType(localCandidate),
-        remoteCandidateType: candidateType(remoteCandidate),
-        protocol: stringValue(selectedPair?.protocol) ?? stringValue(localCandidate?.protocol),
-        rtp: extractRtpDiagnostics(connection, stats)
-      };
+    const diagnostics = await Promise.all(Object.entries(peers).map(async ([physicalPeerId, connection]) => {
+      try {
+        const report = await connection.getStats();
+        const stats = Array.from(report.values(), (item) => item as RTCStats & Record<string, unknown>);
+        const selectedPair = selectedCandidatePair(stats);
+        const localCandidate = selectedPair
+          ? stats.find((item) => item.id === selectedPair.localCandidateId)
+          : undefined;
+        const remoteCandidate = selectedPair
+          ? stats.find((item) => item.id === selectedPair.remoteCandidateId)
+          : undefined;
+        return {
+          peerId: physicalPeerId,
+          physicalPeerId,
+          strategy: this.connectedStrategy,
+          connectionState: connection.connectionState,
+          iceConnectionState: connection.iceConnectionState,
+          localCandidateType: candidateType(localCandidate),
+          remoteCandidateType: candidateType(remoteCandidate),
+          protocol: stringValue(selectedPair?.protocol) ?? stringValue(localCandidate?.protocol),
+          rtp: extractRtpDiagnostics(connection, stats)
+        } satisfies P2PMediaConnectionDiagnostic;
+      } catch {
+        return null;
+      }
     }));
+    return diagnostics.filter((diagnostic): diagnostic is P2PMediaConnectionDiagnostic => diagnostic !== null);
   }
 
   private emitError(message: string): void {

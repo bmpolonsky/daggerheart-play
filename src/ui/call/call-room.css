@@ -85,6 +85,12 @@
   letter-spacing: 0;
 }
 
+.call-room__room-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .call-room__join {
   position: absolute;
   z-index: 4;

@@ -7,7 +7,7 @@ import {
   writeP2PNetworkSettings
 } from '../../src/domain/p2p/networkSettings';
 import { MultiStrategyP2PTransport, resolveTrysteroCandidates } from '../../src/services/p2p/MultiStrategyP2PTransport';
-import type { P2PTransportAdapter, P2PTransportMessageContext, P2PTransportStrategy, P2PWireEnvelope } from '../../src/services/p2p/P2PTransportAdapter';
+import type { P2PMediaConnectionDiagnostic, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportStrategy, P2PWireEnvelope } from '../../src/services/p2p/P2PTransportAdapter';
 
 test('P2P network settings always use auto strategy', () => {
   writeP2PNetworkSettings({ strategy: 'auto' });
@@ -174,6 +174,71 @@ test('auto P2P accepts replacement media after an active route switch and ignore
   assert.deepEqual(received, [firstStream, replacementStream]);
 });
 
+test('auto P2P accepts replacement media after the active physical route leaves', async () => {
+  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const nostr = new TestP2PTransport('nostr', 'ready');
+  const transport = new MultiStrategyP2PTransport({
+    mode: 'auto',
+    candidates: ['mqtt', 'nostr'],
+    createTransport: (options) => options.strategy === 'nostr' ? nostr : mqtt
+  });
+  const received: MediaStream[] = [];
+  transport.subscribeMediaStreams((stream) => received.push(stream));
+  const envelope = (id: string): P2PWireEnvelope => ({
+    version: 2,
+    id,
+    channel: 'data',
+    sender: {
+      peerId: 'logical-owner',
+      role: 'player'
+    },
+    sentAt: '2026-05-26T00:00:00.000Z',
+    payload: { type: 'media-route-probe', id }
+  });
+  const mqttStream = { id: 'stable-stream-id' } as MediaStream;
+  const nostrStream = { id: 'stable-stream-id' } as MediaStream;
+  const mqttReplacement = { id: 'stable-stream-id' } as MediaStream;
+
+  await transport.connect('media-route-leave-room');
+  mqtt.emit(envelope('mqtt-active'), 'physical-mqtt');
+  mqtt.emitMediaStream(mqttStream, 'physical-mqtt', { kind: 'call' });
+  nostr.emit(envelope('nostr-active'), 'physical-nostr');
+  nostr.emitMediaStream(nostrStream, 'physical-nostr', { kind: 'call' });
+  nostr.emitPeerLeave('physical-nostr');
+  mqtt.emitMediaStream(mqttReplacement, 'physical-mqtt', { kind: 'call' });
+
+  assert.deepEqual(received, [mqttStream, nostrStream, mqttReplacement]);
+});
+
+test('auto P2P media diagnostics keep healthy routes when another route fails', async () => {
+  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const nostr = new TestP2PTransport('nostr', 'ready');
+  const healthyDiagnostic: P2PMediaConnectionDiagnostic = {
+    peerId: 'physical-mqtt',
+    physicalPeerId: 'physical-mqtt',
+    strategy: 'mqtt',
+    connectionState: 'connected',
+    iceConnectionState: 'connected',
+    localCandidateType: 'host',
+    remoteCandidateType: 'srflx',
+    protocol: 'udp',
+    rtp: []
+  };
+  mqtt.getMediaDiagnostics = async () => [healthyDiagnostic];
+  nostr.getMediaDiagnostics = async () => {
+    throw new Error('closed peer connection');
+  };
+  const transport = new MultiStrategyP2PTransport({
+    mode: 'auto',
+    candidates: ['mqtt', 'nostr'],
+    createTransport: (options) => options.strategy === 'nostr' ? nostr : mqtt
+  });
+
+  await transport.connect('media-diagnostics-room');
+
+  assert.deepEqual(await transport.getMediaDiagnostics(), [healthyDiagnostic]);
+});
+
 class TestP2PTransport implements P2PTransportAdapter {
   readonly id = 'test-p2p';
   readonly label = 'Test P2P';
@@ -181,6 +246,7 @@ class TestP2PTransport implements P2PTransportAdapter {
   disconnects = 0;
   private readonly listeners = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
   private readonly mediaListeners = new Set<(stream: MediaStream, peerId: string, metadata?: unknown) => void>();
+  private readonly peerLeaveListeners = new Set<(peerId: string) => void>();
 
   constructor(
     private readonly strategy: P2PTransportStrategy,
@@ -215,8 +281,9 @@ class TestP2PTransport implements P2PTransportAdapter {
     return () => undefined;
   }
 
-  onPeerLeave(): () => void {
-    return () => undefined;
+  onPeerLeave(listener: (peerId: string) => void): () => void {
+    this.peerLeaveListeners.add(listener);
+    return () => this.peerLeaveListeners.delete(listener);
   }
 
   onError(): () => void {
@@ -228,11 +295,19 @@ class TestP2PTransport implements P2PTransportAdapter {
     return () => this.mediaListeners.delete(listener);
   }
 
+  async getMediaDiagnostics(): Promise<P2PMediaConnectionDiagnostic[]> {
+    return [];
+  }
+
   emit(envelope: P2PWireEnvelope, sourcePeerId: string): void {
     this.listeners.forEach((listener) => listener(envelope, { sourcePeerId }));
   }
 
   emitMediaStream(stream: MediaStream, peerId: string, metadata?: unknown): void {
     this.mediaListeners.forEach((listener) => listener(stream, peerId, metadata));
+  }
+
+  emitPeerLeave(peerId: string): void {
+    this.peerLeaveListeners.forEach((listener) => listener(peerId));
   }
 }

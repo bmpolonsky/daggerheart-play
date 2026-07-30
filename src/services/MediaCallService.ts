@@ -77,6 +77,7 @@ export class MediaCallService {
   private mediaTransport: CallMediaTransport | null = null;
   private unsubscribeStreams: (() => void) | null = null;
   private remoteAudioElements = new Map<string, HTMLAudioElement>();
+  private remoteAudioGenerations = new Map<string, number>();
   private blockedRemoteAudioIds = new Set<string>();
   private playingRemoteAudioIds = new Set<string>();
 
@@ -245,7 +246,7 @@ export class MediaCallService {
 
   async unlockRemoteAudio(): Promise<void> {
     await Promise.all(Array.from(this.remoteAudioElements.entries(), ([participantId, element]) =>
-      this.playRemoteAudio(participantId, element)
+      this.playRemoteAudio(participantId, element, this.remoteAudioGenerations.get(participantId) ?? 0)
     ));
   }
 
@@ -406,15 +407,29 @@ export class MediaCallService {
     element.setAttribute('playsinline', 'true');
     element.srcObject = stream;
     this.remoteAudioElements.set(participantId, element);
-    void this.playRemoteAudio(participantId, element);
+    const generation = (this.remoteAudioGenerations.get(participantId) ?? 0) + 1;
+    this.remoteAudioGenerations.set(participantId, generation);
+    void this.playRemoteAudio(participantId, element, generation);
   }
 
-  private async playRemoteAudio(participantId: string, element: HTMLAudioElement): Promise<void> {
+  private async playRemoteAudio(participantId: string, element: HTMLAudioElement, generation: number): Promise<void> {
+    let playback: 'playing' | 'blocked';
     try {
       await element.play();
+      playback = 'playing';
+    } catch {
+      playback = 'blocked';
+    }
+    if (
+      this.remoteAudioElements.get(participantId) !== element
+      || this.remoteAudioGenerations.get(participantId) !== generation
+    ) {
+      return;
+    }
+    if (playback === 'playing') {
       this.blockedRemoteAudioIds.delete(participantId);
       this.playingRemoteAudioIds.add(participantId);
-    } catch {
+    } else {
       this.blockedRemoteAudioIds.add(participantId);
       this.playingRemoteAudioIds.delete(participantId);
     }
@@ -428,6 +443,7 @@ export class MediaCallService {
       element.srcObject = null;
       this.remoteAudioElements.delete(participantId);
     }
+    this.remoteAudioGenerations.delete(participantId);
     this.blockedRemoteAudioIds.delete(participantId);
     this.playingRemoteAudioIds.delete(participantId);
     this.patchAudioPlaybackState();
@@ -439,6 +455,7 @@ export class MediaCallService {
       element.srcObject = null;
     });
     this.remoteAudioElements.clear();
+    this.remoteAudioGenerations.clear();
     this.blockedRemoteAudioIds.clear();
     this.playingRemoteAudioIds.clear();
     this.patchAudioPlaybackState();

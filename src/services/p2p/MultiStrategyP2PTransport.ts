@@ -344,7 +344,7 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
 
   async getMediaDiagnostics(): Promise<P2PMediaConnectionDiagnostic[]> {
     const routeDiagnostics = await Promise.all(Array.from(this.routes.values(), async (route) => {
-      const diagnostics = await route.transport.getMediaDiagnostics?.() ?? [];
+      const diagnostics = await route.transport.getMediaDiagnostics?.().catch(() => []) ?? [];
       return diagnostics.map((diagnostic) => ({
         ...diagnostic,
         peerId: this.logicalForPhysical(route.strategy, diagnostic.physicalPeerId),
@@ -617,9 +617,7 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     this.updatePeerRouteStats(logicalPeerId, route.strategy, { status: 'lost' });
     if (physicalPeers && physicalPeers.size > 0) {
       const nextStrategy = this.preferredAvailableStrategy(logicalPeerId) ?? Array.from(physicalPeers.keys())[0];
-      this.activeRouteByPeer.set(logicalPeerId, nextStrategy);
-      void this.publishMediaStreamsForPeer(logicalPeerId);
-      this.emitDiagnosticsChange();
+      this.activateRoute(logicalPeerId, nextStrategy, { force: true });
       return;
     }
     this.physicalPeerByLogicalPeer.delete(logicalPeerId);

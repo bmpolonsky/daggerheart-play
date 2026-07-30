@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Copy, Crown, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, Crown, RefreshCw, Trash2, Video } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { p2pNetworkSettings$ } from '../../domain/p2p/networkSettings';
 import { characterService, gameService, gmLobbyService, sceneTableService } from '../../services/serviceRegistry';
@@ -10,9 +10,10 @@ import type { LobbyInviteContext } from './SessionLobby';
 interface GmLobbyCardProps {
   inviteContext: LobbyInviteContext;
   onEnterGm: () => void;
+  onOpenCall: (roomId: string) => void;
 }
 
-export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
+export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCardProps) {
   const { gmName } = useStream(gameService.game$);
   const { entities: characterEntities, order: characterOrder } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
@@ -34,11 +35,11 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
     void gmLobbyService.restoreSession(gmName);
   }, [gmName]);
 
-  const createSession = async (): Promise<boolean> => {
-    return Boolean(await gmLobbyService.createSession({
+  const createSession = async () => {
+    return await gmLobbyService.createSession({
       participantName: gmName,
       ...inviteContext
-    }));
+    });
   };
 
   const copyInvite = async () => {
@@ -59,6 +60,12 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
   const enterGm = () => {
     void createSession().then((created) => {
       if (created) onEnterGm();
+    });
+  };
+
+  const enterCall = () => {
+    void createSession().then((created) => {
+      if (created) onOpenCall(created.roomId);
     });
   };
 
@@ -129,6 +136,17 @@ export function GmLobbyCard({ inviteContext, onEnterGm }: GmLobbyCardProps) {
       <Toolbar className="role-entry__inline-actions">
         <Button variant="primary" type="button" onClick={enterGm}>
           Открыть игру
+        </Button>
+        <Button
+          className="role-entry__call-link"
+          variant="ghost"
+          size="xs"
+          type="button"
+          iconBefore={<Video size={13} aria-hidden="true" />}
+          title="Открыть экспериментальный созвон"
+          onClick={enterCall}
+        >
+          Созвон
         </Button>
       </Toolbar>
       {roomRefreshOpen && (
