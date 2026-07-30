@@ -76,7 +76,7 @@
 .player-connection-overlay {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--dh-z-dialog);
   display: grid;
   place-items: center;
   align-content: center;

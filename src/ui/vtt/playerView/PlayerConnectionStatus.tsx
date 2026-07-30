@@ -1,26 +1,37 @@
 /** @jsxImportSource preact */
 import { useEffect, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
+import {
+  tableConnectionPresentation,
+  type SessionIdentity,
+  type TableSessionContext
+} from '../../../domain/p2p/sessionPresentation';
 import { p2pSessionService } from '../../../services/serviceRegistry';
-import type { TableViewRole } from './types';
 
 const INITIAL_SNAPSHOT_OVERLAY_TIMEOUT_MS = 5000;
 
 export function PlayerConnectionStatus({
+  context,
   hasCharacter,
-  hasSelectedPlayerSeat,
-  hasSessionRoom,
-  role
+  selectedParticipantId,
+  storedSession
 }: {
+  context: TableSessionContext;
   hasCharacter: boolean;
-  hasSelectedPlayerSeat: boolean;
-  hasSessionRoom: boolean;
-  role: TableViewRole;
+  selectedParticipantId: string | null;
+  storedSession: SessionIdentity | null;
 }) {
   const p2pSession = useStream(p2pSessionService.session$);
-  const hasMasterPeer = p2pSession.role === 'player' && p2pSession.peers.length > 0;
-  const waitingForInitialSnapshot = role === 'player' && hasSessionRoom && hasSelectedPlayerSeat && hasMasterPeer && !p2pSession.lastSnapshotAt;
   const [initialSnapshotWaitExpired, setInitialSnapshotWaitExpired] = useState(false);
+  const presentation = tableConnectionPresentation({
+    context,
+    liveSession: p2pSession,
+    storedSession,
+    selectedParticipantId,
+    hasCharacter,
+    initialWaitDelayed: initialSnapshotWaitExpired
+  });
+  const waitingForInitialSnapshot = presentation.phase === 'restoring';
 
   useEffect(() => {
     setInitialSnapshotWaitExpired(false);
@@ -29,31 +40,13 @@ export function PlayerConnectionStatus({
     return () => window.clearTimeout(timeoutId);
   }, [waitingForInitialSnapshot]);
 
-  const showConnectionOverlay = role === 'player' && hasSessionRoom && (
-    (waitingForInitialSnapshot && !initialSnapshotWaitExpired) ||
-    hasCharacter && (
-    !p2pSession.connected ||
-    p2pSession.status === 'connecting' ||
-    p2pSession.status === 'degraded' ||
-    p2pSession.status === 'error'
-    )
-  );
-  const title = p2pSession.status === 'error'
-    ? 'Связь с сервером мастера потеряна'
-    : waitingForInitialSnapshot
-      ? 'Ждем данные от мастера'
-      : 'Подключаемся к серверу мастера';
-  const message = waitingForInitialSnapshot
-    ? 'Сцена и персонаж появятся после синхронизации.'
-    : p2pSession.message;
-
   return (
     <>
-      {showConnectionOverlay && (
+      {presentation.phase !== 'hidden' && (
         <section className="player-connection-overlay" role="status" aria-live="polite">
           <div className="player-connection-overlay__spinner" aria-hidden="true" />
-          <strong>{title}</strong>
-          <span>{message}</span>
+          <strong>{presentation.title}</strong>
+          <span>{presentation.message}</span>
         </section>
       )}
     </>

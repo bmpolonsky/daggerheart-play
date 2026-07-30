@@ -10,6 +10,7 @@ import {
 import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
+import { resolveTableSessionContext } from '../../domain/p2p/sessionPresentation';
 import { diceAnimationContextKey, shouldAnimateInitialDiceRoll } from '../../domain/tabletop/diceAnimation';
 import { nowIso } from '../../core/utils/date';
 import { normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../domain/tabletop/sceneBackground';
@@ -52,8 +53,13 @@ import './playerView/player-view.css';
 export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const p2pSession = useStream(p2pSessionService.session$);
   const storedSession = p2pSessionService.storedSession();
-  const role = roleProp ?? p2pSession.role ?? storedSession?.role ?? 'gm';
-  const sessionRoomId = role === 'player' ? p2pSession.roomId || storedSession?.roomId || '' : '';
+  const sessionContext = resolveTableSessionContext({
+    explicitRole: roleProp,
+    liveSession: p2pSession,
+    storedSession
+  });
+  const role = sessionContext.role;
+  const sessionRoomId = sessionContext.playerRoomId;
   const game = useStream(gameService.game$);
   const characters = useStream(characterService.characters$);
   const encounter = useStream(encounterService.encounter$);
@@ -370,10 +376,10 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       />
       <div className="player-view__scene-dim" aria-hidden="true" />
       <PlayerConnectionStatus
+        context={sessionContext}
         hasCharacter={Boolean(model.character)}
-        hasSelectedPlayerSeat={Boolean(selectedPlayerSeatId)}
-        hasSessionRoom={Boolean(sessionRoomId)}
-        role={role}
+        selectedParticipantId={selectedPlayerSeatId}
+        storedSession={storedSession}
       />
       <SessionFocusControls
         activityOpen={activityOpen}
