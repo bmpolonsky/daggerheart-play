@@ -1,10 +1,13 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import sharp from 'sharp';
+import { compareContentPayloads, renderContentRefreshReport } from './lib/content-refresh-diff.mjs';
 
 const BASE_URL = (process.env.CONTENT_SOURCE ?? 'https://daggerheart.su').replace(/\/+$/, '');
 const LANGUAGE = process.env.CONTENT_LANG ?? 'ru';
-const SHOULD_REFRESH = process.env.CONTENT_REFRESH === '1';
+const SHOULD_REFRESH = process.env.CONTENT_REFRESH === '1' || process.argv.includes('--refresh');
+const REVIEW_ONLY = process.env.CONTENT_REVIEW_ONLY === '1' || process.argv.includes('--review');
+const REVIEW_REPORT_PATH = process.env.CONTENT_REFRESH_REPORT?.trim() || '';
 const SHOULD_REFRESH_ASSETS = process.env.CONTENT_REFRESH_ASSETS === '1';
 const CACHE_TTL_HOURS = Number(process.env.CONTENT_CACHE_TTL_HOURS ?? '24');
 const WEBP_QUALITY = clampNumber(Number(process.env.CONTENT_WEBP_QUALITY ?? '85'), 1, 100);
@@ -13,6 +16,7 @@ const ASSET_CONCURRENCY = clampNumber(Number(process.env.CONTENT_ASSET_CONCURREN
 const PUBLIC_DIR = resolve('public');
 const DATA_DIR = resolve(PUBLIC_DIR, 'data');
 const CSS_FILES = [];
+const refreshComparisons = [];
 
 const COLLECTIONS = [
   { key: 'adversaries', endpoint: 'adversary', file: 'adversaries.json', required: true, assets: true },
@@ -289,14 +293,21 @@ async function loadCollection(collection) {
         generatedAt: new Date().toISOString()
       }
     });
-    await ensureDir(dirname(targetPath));
-    await writeFile(targetPath, JSON.stringify(normalizedPayload, null, 2));
-    console.log(`Cached ${collection.key}: ${Array.isArray(payload?.data) ? payload.data.length : 0} items`);
+    const comparison = compareContentPayloads(collection.key, cached, normalizedPayload);
+    refreshComparisons.push(comparison);
+    await persistRefreshReport();
+    console.log(renderContentRefreshReport([comparison]));
+    if (!REVIEW_ONLY) {
+      await ensureDir(dirname(targetPath));
+      await writeFile(targetPath, JSON.stringify(normalizedPayload, null, 2));
+      console.log(`Cached ${collection.key}: ${Array.isArray(payload?.data) ? payload.data.length : 0} items`);
+    }
     return {
       payload: normalizedPayload,
       assetUrls: sourceAssetUrls
     };
   } catch (error) {
+    if (REVIEW_ONLY) throw error;
     if (isUsablePayload(cached)) {
       const normalizedCached = rewritePayloadAssetReferences(cached);
       if (JSON.stringify(normalizedCached) !== JSON.stringify(cached)) {
@@ -315,8 +326,11 @@ async function loadCollection(collection) {
 }
 
 async function main() {
-  await ensureDir(DATA_DIR);
-  await cacheCssFiles();
+  if (REVIEW_ONLY && !SHOULD_REFRESH) {
+    throw new Error('Content review requires a refresh. Use --refresh --review.');
+  }
+  if (!REVIEW_ONLY) await ensureDir(DATA_DIR);
+  if (!REVIEW_ONLY) await cacheCssFiles();
 
   const manifestPath = resolve(DATA_DIR, 'manifest.json');
   const manifest = {
@@ -337,30 +351,34 @@ async function main() {
       sourceUrl: buildEndpointUrl(collection.endpoint)
     });
 
-    if (!collection.assets) continue;
+    if (REVIEW_ONLY || !collection.assets) continue;
 
     await downloadAssets(assetUrls);
   }
 
-  await downloadAssets([
-    '/font/roboto.woff2',
-    '/font/eveleth-cyrillic.woff2',
-    '/font/overpass.woff2',
-    '/image/wip.avif',
-    '/image/domain/stress-cost.avif',
-    '/image/ancestry/divider.avif',
-    '/image/community/divider.webp',
-    '/image/domain/emblems/arcana.svg',
-    '/image/domain/emblems/splendor.svg',
-    '/image/domain/emblems/grace.svg',
-    '/image/domain/emblems/valor.svg',
-    '/image/domain/emblems/blade.svg',
-    '/image/domain/emblems/codex.svg',
-    '/image/domain/emblems/bone.svg',
-    '/image/domain/emblems/sage.svg',
-    '/image/domain/emblems/midnight.svg',
-    '/image/domain/emblems/dread.svg'
-  ]);
+  if (!REVIEW_ONLY) {
+    await downloadAssets([
+      '/font/roboto.woff2',
+      '/font/eveleth-cyrillic.woff2',
+      '/font/overpass.woff2',
+      '/image/wip.avif',
+      '/image/domain/stress-cost.avif',
+      '/image/ancestry/divider.avif',
+      '/image/community/divider.webp',
+      '/image/domain/emblems/arcana.svg',
+      '/image/domain/emblems/splendor.svg',
+      '/image/domain/emblems/grace.svg',
+      '/image/domain/emblems/valor.svg',
+      '/image/domain/emblems/blade.svg',
+      '/image/domain/emblems/codex.svg',
+      '/image/domain/emblems/bone.svg',
+      '/image/domain/emblems/sage.svg',
+      '/image/domain/emblems/midnight.svg',
+      '/image/domain/emblems/dread.svg'
+    ]);
+  }
+
+  if (REVIEW_ONLY) return;
 
   const existingManifest = await readJson(manifestPath);
   if (!SHOULD_REFRESH && isEquivalentManifest(existingManifest, manifest)) {
@@ -369,6 +387,12 @@ async function main() {
   }
 
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+}
+
+async function persistRefreshReport() {
+  if (!REVIEW_REPORT_PATH) return;
+  await ensureDir(dirname(resolve(REVIEW_REPORT_PATH)));
+  await writeFile(REVIEW_REPORT_PATH, renderContentRefreshReport(refreshComparisons));
 }
 
 function isEquivalentManifest(left, right) {

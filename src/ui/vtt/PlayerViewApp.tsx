@@ -52,11 +52,11 @@ import './playerView/player-view.css';
 
 export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const p2pSession = useStream(p2pSessionService.session$);
-  const storedSession = p2pSessionService.storedSession();
+  const [storedSessionAtEntry] = useState(() => p2pSessionService.storedSession());
   const sessionContext = resolveTableSessionContext({
     explicitRole: roleProp,
     liveSession: p2pSession,
-    storedSession
+    storedSession: storedSessionAtEntry
   });
   const role = sessionContext.role;
   const sessionRoomId = sessionContext.playerRoomId;
@@ -89,9 +89,9 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     ? { id: 'local-gm', name: game.gmName || 'Мастер', role: 'gm' as const }
     : {
       id: selectedPlayerSeat?.id || 'local-player',
-      name: selectedPlayerSeat?.name || storedSession?.participantName || 'Игрок',
+      name: selectedPlayerSeat?.name || storedSessionAtEntry?.participantName || 'Игрок',
       role: 'player' as const
-    }, [game.gmName, role, selectedPlayerSeat?.id, selectedPlayerSeat?.name, storedSession?.participantName]);
+    }, [game.gmName, role, selectedPlayerSeat?.id, selectedPlayerSeat?.name, storedSessionAtEntry?.participantName]);
 
   useEffect(() => {
     characterService.setMutationActorProvider(() => mutationActor);
@@ -379,7 +379,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         context={sessionContext}
         hasCharacter={Boolean(model.character)}
         selectedParticipantId={selectedPlayerSeatId}
-        storedSession={storedSession}
+        storedSession={storedSessionAtEntry}
       />
       <SessionFocusControls
         activityOpen={activityOpen}

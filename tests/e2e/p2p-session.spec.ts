@@ -141,8 +141,14 @@ test.describe('P2P session workflow', () => {
     expect(await dialog.evaluate((element) => element.parentElement === document.body)).toBe(true);
 
     const panelBox = await rect(panel);
-    expect(panelBox.height).toBeLessThan(620);
     await expectInsideViewport(page, panel);
+    const diagnosticScroll = panel.locator('.player-tools-settings-panel');
+    await expect(diagnosticScroll).toHaveCSS('overflow-y', 'auto');
+    const diagnosticScrollSize = await diagnosticScroll.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight
+    }));
+    expect(diagnosticScrollSize.scrollHeight).toBeGreaterThan(diagnosticScrollSize.clientHeight);
     const tabsBox = await rect(layerTabs);
     const chronicleBox = await rect(chronicle);
     await expectTopLayerAtPoint(page, dialog, panelBox.x + panelBox.width / 2, panelBox.y + panelBox.height / 2);

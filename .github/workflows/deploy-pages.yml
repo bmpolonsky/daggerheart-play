@@ -84,17 +84,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Refresh cached Daggerheart content
+      - name: Prepare cached Daggerheart content
         run: node scripts/cache-daggerheart-data.mjs
         env:
           CONTENT_SOURCE: https://daggerheart.su
           CONTENT_LANG: ru
           CONTENT_CACHE_TTL_HOURS: "0"
-          # Always fetch rule text before the corpus contract. The cache script
-          # falls back to the last good payload if the source is unavailable.
-          CONTENT_REFRESH: "1"
+          # Code pushes build against the last reviewed cache. External content
+          # is refreshed only in dedicated scheduled or manual review runs.
+          CONTENT_REFRESH: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '1' || '0' }}
           CONTENT_REFRESH_ASSETS: ${{ github.event_name == 'workflow_dispatch' && inputs['refresh-assets'] && '1' || '0' }}
           CONTENT_ASSET_CONCURRENCY: "8"
+          CONTENT_REFRESH_REPORT: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'content-refresh-report.md' || '' }}
+
+      - name: Publish content refresh review
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: |
+          if [ -f content-refresh-report.md ]; then
+            cat content-refresh-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Content refresh did not produce a review report." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload content refresh review
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-refresh-review
+          path: content-refresh-report.md
+          if-no-files-found: ignore
 
       - name: Verify refreshed rules corpus
         run: npx vitest run tests/content/feature-effects-corpus.test.ts
@@ -114,7 +132,7 @@ jobs:
           CONTENT_ASSET_CONCURRENCY: "8"
 
       - name: Save Daggerheart content cache
-        if: github.event_name == 'schedule' || steps.daggerheart-content-cache.outputs.cache-matched-key == ''
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.daggerheart-content-cache.outputs.cache-matched-key == ''
         uses: actions/cache/save@v4
         with:
           path: |

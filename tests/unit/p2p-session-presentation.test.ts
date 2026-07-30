@@ -136,6 +136,31 @@ test('player without a saved identity is not mistaken for a restore attempt', ()
   }).phase, 'hidden');
 });
 
+test('a room draft without a saved participant is not promoted into a restore attempt', () => {
+  const storedDraft: SessionIdentity = {
+    role: 'player',
+    roomId: 'ROOM-1'
+  };
+  const context = resolveTableSessionContext({
+    liveSession: disconnectedSession,
+    storedSession: storedDraft
+  });
+
+  assert.equal(tableConnectionPresentation({
+    context,
+    liveSession: {
+      ...disconnectedSession,
+      status: 'connecting',
+      role: 'player',
+      roomId: 'ROOM-1'
+    },
+    storedSession: storedDraft,
+    selectedParticipantId: null,
+    hasCharacter: false,
+    initialWaitDelayed: false
+  }).phase, 'hidden');
+});
+
 test('delayed restore remains covered instead of revealing local stores', () => {
   const context = resolveTableSessionContext({
     liveSession: disconnectedSession,
