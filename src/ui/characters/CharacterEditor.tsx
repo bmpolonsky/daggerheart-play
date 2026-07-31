@@ -40,7 +40,7 @@ import {
 } from '../../domain/rules/characterRuleModifiers';
 import { advancementChoiceLabel, buildCharacterLevelUpPlan, CHARACTER_ADVANCEMENT_CHOICES, remainingAdvancementChoiceUses, type CharacterAdvancementChoiceId, type CharacterAdvancementSelection, type CharacterLevelUpApplicationInput, type CharacterLevelUpIssueCode } from '../../domain/rules/levelUp';
 import type { Character, CharacterChangeActor, CharacterSheetCard, DaggerheartClass, DomainName, TraitId } from '../../domain/rules/types';
-import { characterService, gameService } from '../../services/serviceRegistry';
+import { characterService, gameService, tabletopService } from '../../services/serviceRegistry';
 import { useStream } from '../../core/hooks/useStream';
 import { readFileAsDataUrl } from '../vtt/playerView/sharedTools/readFileAsDataUrl';
 import { TraitGrid } from './TraitGrid';
@@ -146,7 +146,7 @@ export function CharacterEditor({
           onCancel={() => setDeleteOpen(false)}
           onConfirm={() => {
             setDeleteOpen(false);
-            characterService.deleteCharacter(character.id);
+            tabletopService.deleteCharacter(character.id);
           }}
         />
       )}

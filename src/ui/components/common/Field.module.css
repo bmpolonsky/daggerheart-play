@@ -11,9 +11,12 @@
   text-transform: uppercase;
 }
 
-.hint {
+.label > .hint {
   color: var(--dh-paper-faint);
   font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-transform: none;
 }
 
 .control {

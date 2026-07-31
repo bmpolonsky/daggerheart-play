@@ -10,7 +10,8 @@ import {
   moveTokenWithinWorld,
   patchTokenFlags
 } from '../domain/tabletop/logic';
-import type { Character, SceneTableState } from '../domain/rules/types';
+import { buildPlayerTokens } from '../domain/tabletop/playerView';
+import type { Character, CharactersState, EncounterState, SceneTableState } from '../domain/rules/types';
 import type { ActorRef, TableParticipant, TableScene, TokenState } from '../domain/tabletop/types';
 import type { TokenFlagPatch } from '../domain/tabletop/logic';
 import { charactersStore, sceneTableStore } from '../stores/gameStores';
@@ -361,6 +362,24 @@ export class SceneTableService {
         selectedTokenId: state.activeSceneId === sceneId && state.selectedTokenId === tokenId ? null : state.selectedTokenId,
         updatedAt: nowIso()
       });
+    });
+    return removed;
+  }
+
+  pruneOrphanTokens(characters: CharactersState, encounter: EncounterState): number {
+    let removed = 0;
+    sceneTableStore.update((state) => {
+      const updatedAt = nowIso();
+      let changed = false;
+      const scenes = Object.fromEntries(Object.entries(state.scenes).map(([sceneId, scene]) => {
+        const validTokenIds = new Set(buildPlayerTokens(scene.tokens, characters.entities, encounter, 'gm').map((token) => token.id));
+        const tokens = scene.tokens.filter((token) => validTokenIds.has(token.id));
+        removed += scene.tokens.length - tokens.length;
+        if (tokens.length === scene.tokens.length) return [sceneId, scene];
+        changed = true;
+        return [sceneId, { ...scene, tokens, updatedAt }];
+      }));
+      return changed ? cleanTokenFocus({ ...state, scenes, updatedAt }) : state;
     });
     return removed;
   }

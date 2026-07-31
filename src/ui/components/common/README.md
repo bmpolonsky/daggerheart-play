@@ -66,6 +66,7 @@ Do not introduce new global color systems for screens. If a tool needs local ali
 - Use `ListItem` for compact repeated rows with a title, optional subtitle, value, or action.
 - Use `ListDetailLayout` for responsive list/detail workspaces.
 - Use `ResourcePips` for hope, hp, stress, armor, and similar pip tracks.
+- `ImageFilePicker` accepts `previewContent` when a domain-specific preview must show more than the raw image while preserving the shared upload and clear controls.
 - Use `Dialog` for dialog windows: backdrop, glass surface, title/actions, and click-outside close.
 - Use `ConfirmDialog` before destructive actions that remove meaningful user content.
 
@@ -310,6 +311,8 @@ Use for a compact bounded numeric adjustment such as zoom, volume, or opacity.
 ```tsx
 <RangeField label="Масштаб" min={1} max={2.5} step={0.05} value={zoom} valueLabel={`${Math.round(zoom * 100)}%`} />
 ```
+
+Use `size="compact"` for small groups of related sliders that share one section.
 
 Props:
 

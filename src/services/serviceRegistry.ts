@@ -91,5 +91,6 @@ export const uiService = new UiService();
 export async function bootServices(): Promise<void> {
   persistenceService.start();
   await persistenceService.whenReady();
+  sceneTableService.pruneOrphanTokens(characterService.characters$.get(), encounterService.encounter$.get());
   contentService.ensureLoaded();
 }

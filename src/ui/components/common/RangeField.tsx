@@ -4,11 +4,12 @@ import styles from './RangeField.module.css';
 export interface RangeFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size'> {
   label: string;
   valueLabel?: string;
+  size?: 'default' | 'compact';
 }
 
-export function RangeField({ label, valueLabel, className = '', ...props }: RangeFieldProps) {
+export function RangeField({ label, valueLabel, size = 'default', className = '', ...props }: RangeFieldProps) {
   return (
-    <label className={`dh-range-field ${styles.root} ${className}`.trim()}>
+    <label className={`dh-range-field ${styles.root} ${size === 'compact' ? styles.compact : ''} ${className}`.trim()}>
       <span className={styles.header}>
         <span>{label}</span>
         {valueLabel && <output>{valueLabel}</output>}

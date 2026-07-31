@@ -197,14 +197,34 @@ export class TabletopService {
     return sceneId ? this.dependencies.sceneTableService.removeTokenFromSceneInScene(sceneId, tokenId) : this.dependencies.sceneTableService.removeTokenFromScene(tokenId);
   }
 
+  deleteCharacter(characterId: string): void {
+    this.dependencies.characterService.deleteCharacter(characterId);
+    this.pruneOrphanTokens();
+  }
+
+  deleteAdversary(adversaryId: string): void {
+    this.dependencies.encounterService.deleteAdversary(adversaryId);
+    this.pruneOrphanTokens();
+  }
+
   deleteToken(token: TokenState): void {
     if (token.actor.kind === 'character') {
-      this.dependencies.characterService.deleteCharacter(token.actor.id);
-    } else if (token.actor.kind === 'adversary') {
-      this.dependencies.encounterService.deleteAdversary(token.actor.id);
+      this.deleteCharacter(token.actor.id);
+      return;
+    }
+    if (token.actor.kind === 'adversary') {
+      this.deleteAdversary(token.actor.id);
+      return;
     }
     this.dependencies.sceneTableService.updateSceneTokens((tokens) => tokens.filter((item) => item.id !== token.id));
     this.dependencies.sceneTableService.selectToken(null);
+  }
+
+  private pruneOrphanTokens(): void {
+    this.dependencies.sceneTableService.pruneOrphanTokens(
+      this.dependencies.characterService.characters$.get(),
+      this.dependencies.encounterService.encounter$.get()
+    );
   }
 
   rollAction(actor: Character | null, trait: TraitId, difficulty: number, options: Partial<ActionRollRequest> = {}): void {

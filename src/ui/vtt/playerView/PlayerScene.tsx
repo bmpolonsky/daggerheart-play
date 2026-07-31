@@ -10,6 +10,7 @@ import { PlayerDiceOverlay } from './PlayerDiceOverlay';
 import type { PlayerViewedActor, TableViewRole } from './types';
 import type { RollLogEntry } from '../../../domain/rules/types';
 import { ActorStatus, normalizeStatusTag, statusLabel } from '../../../domain/rules/statuses';
+import { normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../../domain/tabletop/sceneBackground';
 
 export function PlayerScene({
   latestRoll,
@@ -38,6 +39,7 @@ export function PlayerScene({
     ? selectedTokenId
     : selectedTokenId && playerTokenIds.includes(selectedTokenId) ? selectedTokenId : null;
   const selectedOrigin = selectedPlayerTokenId ? model.tokens.find((token) => token.id === selectedPlayerTokenId) ?? null : null;
+  const tacticalBackgroundFraming = normalizeSceneBackgroundFraming(model.scene.backgroundFraming);
 
   useEffect(() => {
     if (role === 'gm') return;
@@ -67,6 +69,17 @@ export function PlayerScene({
           if (event.target === event.currentTarget) setSelectedTokenId(null);
         }}
       >
+        {model.scene.mode === 'tactical' && model.scene.imageUrl && (
+          <div
+            className="player-scene-stage__background"
+            aria-hidden="true"
+            style={{
+              backgroundImage: `url("${cssImageUrl(model.scene.imageUrl)}")`,
+              backgroundSize: tacticalBackgroundFraming.fit === 'fit' ? 'contain' : 'cover',
+              transform: sceneBackgroundTransform(tacticalBackgroundFraming)
+            }}
+          />
+        )}
         <PlayerMeasureLayer origin={selectedOrigin} />
         <PlayerDiceOverlay
           key={diceAnimationContext}

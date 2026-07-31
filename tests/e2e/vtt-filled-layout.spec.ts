@@ -22,7 +22,7 @@ test.describe('filled VTT layout regressions', () => {
     expect((await rect(board)).width).toBeGreaterThan(600);
     await expectNoOverlap(board, panel);
     await expect(page.locator('.player-token')).toHaveCount(6);
-    await expect.poll(() => page.locator('.player-view__scene-image').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+    await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCount(1);
   });
 
   test('keeps the dice dock centered and the complete character sheet scrollable on desktop and mobile', async ({ page }) => {
@@ -41,7 +41,7 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.getByLabel('Хроника игры')).toBeVisible();
     await expect(page.getByLabel('Инструменты сцены')).toBeVisible();
     await expect(page.locator('.player-token')).toHaveCount(6);
-    await expect.poll(() => page.locator('.player-view__scene-image').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+    await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCount(1);
 
     const desktopRosterItem = page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledCharacterName }).first();
     await desktopRosterItem.click({ position: { x: 18, y: 28 } });
@@ -370,68 +370,62 @@ test.describe('filled VTT layout regressions', () => {
     await expectStableGeometry([workspace, body, editor]);
   });
 
-  test('keeps simple scene fitting visible and advanced framing collapsed, saved, and rendered', async ({ page }) => {
+  test('keeps compact scene framing composable, saved, and rendered', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openFilledGmGame(page);
     await page.getByRole('button', { name: 'Инструменты' }).click();
 
     const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
     await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
-    const framingMode = workspace.getByRole('group', { name: 'Размещение фона' });
-    const advanced = workspace.locator('.player-tools-scene-framing__advanced');
+    const placement = workspace.getByLabel('Размещение');
+    const fitting = workspace.getByLabel('Базовый размер');
     const zoom = workspace.getByLabel('Масштаб фона');
     const horizontal = workspace.getByLabel('Положение фона по горизонтали');
     const vertical = workspace.getByLabel('Положение фона по вертикали');
-    const preview = workspace.locator('.player-tools-scene-preview img');
+    const preview = workspace.locator('.player-tools-scene-display-preview__image');
 
-    await expect(framingMode.getByRole('button', { name: 'Заполнить сцену' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(advanced).not.toHaveAttribute('open', '');
-    await expect(zoom).toBeHidden();
-    await framingMode.getByRole('button', { name: 'Показать целиком' }).click();
-    await expect(preview).toHaveCSS('object-fit', 'contain');
-
-    await advanced.locator('summary').click();
+    await expect(placement).toHaveValue('tactical');
     await expect(zoom).toBeVisible();
-    await zoom.fill('1.5');
+    await expect(workspace.locator('.player-tools-scene-framing__sliders .dh-range-field')).toHaveCount(3);
+    await fitting.selectOption('fit');
+    await expect(preview).toHaveCSS('background-size', 'contain');
     await horizontal.fill('0.5');
+    await expect.poll(() => preview.evaluate((element) => getComputedStyle(element).transform)).not.toBe('matrix(1, 0, 0, 1, 0, 0)');
+    await zoom.fill('1.5');
     await vertical.fill('-0.25');
-    await expect(advanced.getByText('Свой кадр')).toBeVisible();
     await expect(preview).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
 
-    await framingMode.getByRole('button', { name: 'Заполнить сцену' }).click();
-    await expect(preview).toHaveCSS('object-fit', 'cover');
+    await fitting.selectOption('fill');
+    await expect(preview).toHaveCSS('background-size', 'cover');
+    await expect(zoom).toHaveValue('1.5');
+    await expect(horizontal).toHaveValue('0.5');
+    await expect(vertical).toHaveValue('-0.25');
+    await workspace.getByRole('button', { name: 'Сбросить' }).click();
+    await expect(fitting).toHaveValue('fill');
     await expect(zoom).toHaveValue('1');
     await expect(horizontal).toHaveValue('0');
     await expect(vertical).toHaveValue('0');
-    await expect(advanced.getByText('Свой кадр')).toHaveCount(0);
+    await expect(workspace.getByRole('button', { name: 'Сбросить' })).toHaveCount(0);
 
-    await zoom.fill('1.4');
-    await horizontal.fill('-0.4');
-    await workspace.getByRole('button', { name: 'Сбросить кадр' }).click();
-    await expect(framingMode.getByRole('button', { name: 'Заполнить сцену' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(zoom).toHaveValue('1');
-    await expect(horizontal).toHaveValue('0');
-
-    await framingMode.getByRole('button', { name: 'Показать целиком' }).click();
+    await fitting.selectOption('fit');
     await zoom.fill('1.5');
     await horizontal.fill('0.5');
     await vertical.fill('-0.25');
     await workspace.getByRole('button', { name: 'Закрыть' }).click();
 
-    const renderedBackground = page.locator('.player-view__scene-image');
+    const renderedBackground = page.locator('.player-scene-stage__board > .player-scene-stage__background');
     await expect(renderedBackground).toHaveCSS('background-size', 'contain');
     await expect(renderedBackground).toHaveCSS('background-repeat', 'no-repeat');
     await expect(renderedBackground).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
 
     await page.reload();
     await expect(page.locator('[data-vtt-root]')).toBeVisible();
-    await expect(page.locator('.player-view__scene-image')).toHaveCSS('background-size', 'contain');
-    await expect(page.locator('.player-view__scene-image')).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
+    await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCSS('background-size', 'contain');
+    await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
     await page.getByRole('button', { name: 'Инструменты' }).click();
     const reopenedWorkspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
     await reopenedWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
-    await expect(reopenedWorkspace.getByRole('group', { name: 'Размещение фона' }).getByRole('button', { name: 'Показать целиком' })).toHaveAttribute('aria-pressed', 'true');
-    await reopenedWorkspace.locator('.player-tools-scene-framing__advanced summary').click();
+    await expect(reopenedWorkspace.getByLabel('Базовый размер')).toHaveValue('fit');
     await expect(reopenedWorkspace.getByLabel('Масштаб фона')).toHaveValue('1.5');
     await expect(reopenedWorkspace.getByLabel('Положение фона по горизонтали')).toHaveValue('0.5');
     await expect(reopenedWorkspace.getByLabel('Положение фона по вертикали')).toHaveValue('-0.25');

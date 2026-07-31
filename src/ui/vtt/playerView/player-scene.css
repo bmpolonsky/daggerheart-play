@@ -22,9 +22,22 @@
   width: var(--player-board-size);
   aspect-ratio: 1;
   overflow: visible;
+  isolation: isolate;
   border-radius: 16px;
   pointer-events: auto;
   transform: translate(-50%, -50%);
+}
+
+.player-scene-stage__background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: saturate(1.08) contrast(1.03);
+  transform-origin: center;
+  pointer-events: none;
 }
 
 .player-scene-stage__board .player-dice-overlay {
