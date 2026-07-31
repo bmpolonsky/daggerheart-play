@@ -30,8 +30,14 @@ test('scene framing normalizes imported and out-of-range values', () => {
   });
 });
 
-test('scene framing converts normalized pan into a bounded background transform', () => {
-  assert.equal(sceneBackgroundTransform({ fit: 'fit', zoom: 1.5, offsetX: 0.5, offsetY: -0.25 }), 'translate(12.5%, -6.25%) scale(1.5)');
+test('scene framing keeps pan independent from zoom', () => {
+  assert.equal(sceneBackgroundTransform({ fit: 'fit', zoom: 1, offsetX: 0.5, offsetY: -0.25 }), 'translate(25%, -12.5%) scale(1)');
+  assert.equal(sceneBackgroundTransform({ fit: 'fit', zoom: 0.5, offsetX: 1, offsetY: -1 }), 'translate(50%, -50%) scale(0.5)');
+});
+
+test('scene framing allows maps to be reduced below their base size', () => {
+  assert.equal(normalizeSceneBackgroundFraming({ zoom: 0 }).zoom, 0.25);
+  assert.equal(normalizeSceneBackgroundFraming({ zoom: 0.5 }).zoom, 0.5);
 });
 
 test('player view exposes the live scene framing without changing token coordinates', () => {

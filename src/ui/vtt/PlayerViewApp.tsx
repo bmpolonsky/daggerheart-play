@@ -363,17 +363,19 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         selectedPlayerSeatId={selectedPlayerSeatId}
         sessionRoomId={sessionRoomId}
       />
-      <div
-        key={`${model.scene.id}:${model.scene.imageUrl}`}
-        className="player-view__scene-image"
-        aria-hidden="true"
-        style={{
-          backgroundImage: sceneBackgroundImage,
-          backgroundSize: sceneBackgroundFraming.fit === 'fit' ? 'contain' : 'cover',
-          backgroundPosition: 'center',
-          transform: sceneBackgroundTransform(sceneBackgroundFraming)
-        }}
-      />
+      {model.scene.mode === 'scene' && (
+        <div
+          key={`${model.scene.id}:${model.scene.imageUrl}`}
+          className="player-view__scene-image"
+          aria-hidden="true"
+          style={{
+            backgroundImage: sceneBackgroundImage,
+            backgroundSize: sceneBackgroundFraming.fit === 'fit' ? 'contain' : 'cover',
+            backgroundPosition: 'center',
+            transform: sceneBackgroundTransform(sceneBackgroundFraming)
+          }}
+        />
+      )}
       <div className="player-view__scene-dim" aria-hidden="true" />
       <PlayerConnectionStatus
         context={sessionContext}

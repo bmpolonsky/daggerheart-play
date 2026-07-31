@@ -4,6 +4,7 @@ import { IconButton } from './IconButton';
 import styles from './ImageFilePicker.module.css';
 
 export type FilePickerPreviewStyle = Pick<CSSProperties, 'objectFit' | 'objectPosition' | 'transform' | 'transformOrigin'>;
+type UiNode = any;
 
 export interface FilePickerProps {
   accept: string;
@@ -14,6 +15,7 @@ export interface FilePickerProps {
   className?: string;
   aspectRatio?: string;
   previewStyle?: FilePickerPreviewStyle;
+  previewContent?: UiNode;
   size?: 'default' | 'compact';
   hideLabel?: boolean;
   icon?: 'image' | 'music';
@@ -30,6 +32,7 @@ export function FilePicker({
   className = '',
   aspectRatio = '1 / 1',
   previewStyle,
+  previewContent,
   size = 'default',
   hideLabel = false,
   icon = 'image',
@@ -38,7 +41,7 @@ export function FilePicker({
 }: FilePickerProps) {
   const resolvedPreviewUrl = previewUrl?.trim() ?? '';
   const resolvedValueLabel = valueLabel?.trim() ?? '';
-  const hasFile = Boolean(resolvedPreviewUrl || resolvedValueLabel);
+  const hasFile = Boolean(previewContent || resolvedPreviewUrl || resolvedValueLabel);
   const style = { '--image-file-picker-aspect': aspectRatio } as CSSProperties;
 
   const handleChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -62,14 +65,14 @@ export function FilePicker({
       <span className={`image-file-picker__label ${styles.label} ${hideLabel ? styles.visuallyHidden : ''}`}>{label}</span>
       <div className={`image-file-picker__frame ${styles.frame}`}>
         <label className={`image-file-picker__upload-target ${styles.uploadTarget}`}>
-          {resolvedPreviewUrl ? (
+          {previewContent ?? (resolvedPreviewUrl ? (
             <img src={resolvedPreviewUrl} alt="" style={previewStyle} />
           ) : (
             <span className={hasFile ? `image-file-picker__file ${styles.file}` : `image-file-picker__empty ${styles.empty}`}>
               {renderedIcon}
               {hasFile ? resolvedValueLabel : emptyLabel}
             </span>
-          )}
+          ))}
           <input type="file" accept={accept} onChange={handleChange} aria-label={label} />
         </label>
         {hasFile && onClear && (

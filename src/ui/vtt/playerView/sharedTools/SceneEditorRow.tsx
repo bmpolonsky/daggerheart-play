@@ -1,19 +1,29 @@
 /** @jsxImportSource preact */
 import { useEffect, useState } from 'preact/hooks';
-import { Copy, Eye, LocateFixed, Trash2 } from 'lucide-react';
+import { Copy, Eye, LocateFixed, RotateCcw, Trash2 } from 'lucide-react';
 import type { SceneTableState } from '../../../../domain/rules/types';
-import { DEFAULT_SCENE_BACKGROUND_FRAMING, normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../../../domain/tabletop/sceneBackground';
+import { DEFAULT_SCENE_HEIGHT, DEFAULT_SCENE_WIDTH } from '../../../../domain/tabletop/logic';
+import {
+  DEFAULT_SCENE_BACKGROUND_FRAMING,
+  MAX_SCENE_BACKGROUND_ZOOM,
+  MIN_SCENE_BACKGROUND_ZOOM,
+  normalizeSceneBackgroundFraming,
+  sceneBackgroundTransform
+} from '../../../../domain/tabletop/sceneBackground';
 import { assetService, gameService, sceneTableService } from '../../../../services/serviceRegistry';
-import { Badge } from '../../../components/common/Badge';
-import { Button } from '../../../components/common/Button';
-import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
-import { IconButton } from '../../../components/common/IconButton';
-import { FilePicker, ImageFilePicker } from '../../../components/common/ImageFilePicker';
-import { RangeField } from '../../../components/common/RangeField';
-import { TextField } from '../../../components/common/Field';
-import { SegmentedControl } from '../../../components/common/SegmentedControl';
-import { SectionHeader } from '../../../components/common/SectionHeader';
-import { Toolbar } from '../../../components/common/Toolbar';
+import {
+  Button,
+  ConfirmDialog,
+  FilePicker,
+  IconButton,
+  ImageFilePicker,
+  RangeField,
+  SectionHeader,
+  SelectField,
+  TextField,
+  Toolbar
+} from '../../../components/common';
+import { cssImageUrl } from '../helpers';
 
 export function SceneEditorRow({
   scene,
@@ -78,7 +88,8 @@ export function SceneEditorRow({
       backgroundFraming: normalizeSceneBackgroundFraming({ ...backgroundFraming, ...patch })
     });
   };
-  const framingIsCustom = backgroundFraming.zoom !== DEFAULT_SCENE_BACKGROUND_FRAMING.zoom
+  const framingIsCustom = backgroundFraming.fit !== DEFAULT_SCENE_BACKGROUND_FRAMING.fit
+    || backgroundFraming.zoom !== DEFAULT_SCENE_BACKGROUND_FRAMING.zoom
     || backgroundFraming.offsetX !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX
     || backgroundFraming.offsetY !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY;
 
@@ -112,102 +123,115 @@ export function SceneEditorRow({
         <div className="player-tools-scene-visual">
           <ImageFilePicker
             className="player-tools-scene-preview"
-            label="Фон сцены"
+            label={scene.mode === 'tactical' ? 'Карта поля' : 'Фон сцены'}
             imageUrl={previewUrl}
             aspectRatio="16 / 9"
-            previewStyle={{
-              objectFit: backgroundFraming.fit === 'fill' ? 'cover' : 'contain',
-              objectPosition: 'center',
-              transform: sceneBackgroundTransform(backgroundFraming),
-              transformOrigin: 'center'
-            }}
+            previewContent={previewUrl ? <SceneDisplayPreview imageUrl={previewUrl} scene={scene} /> : undefined}
             onFileSelect={selectBackgroundImage}
             onClear={clearBackgroundImage}
           />
-          {previewUrl && (
-            <div className="player-tools-scene-framing">
-              <SegmentedControl
-                label="Размещение фона"
-                value={backgroundFraming.fit}
-                options={[
-                  { value: 'fit', label: 'Показать целиком' },
-                  { value: 'fill', label: 'Заполнить сцену' }
-                ]}
-                onChange={(fit) => updateBackgroundFraming({
-                  fit,
-                  zoom: DEFAULT_SCENE_BACKGROUND_FRAMING.zoom,
-                  offsetX: DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX,
-                  offsetY: DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY
-                })}
-              />
-              <details className="player-tools-scene-framing__advanced" key={scene.id}>
-                <summary>
-                  Настроить кадр
-                  {framingIsCustom && <Badge tone="gold" size="sm">Свой кадр</Badge>}
-                </summary>
-                <div className="player-tools-scene-framing__controls">
-                  <RangeField
-                    label="Масштаб"
-                    aria-label="Масштаб фона"
-                    min={1}
-                    max={2.5}
-                    step={0.05}
-                    value={backgroundFraming.zoom}
-                    valueLabel={`${Math.round(backgroundFraming.zoom * 100)}%`}
-                    onInput={(event) => updateBackgroundFraming({ zoom: event.currentTarget.valueAsNumber })}
-                  />
-                  <RangeField
-                    label="По горизонтали"
-                    aria-label="Положение фона по горизонтали"
-                    min={-1}
-                    max={1}
-                    step={0.05}
-                    value={backgroundFraming.offsetX}
-                    valueLabel={framingOffsetLabel(backgroundFraming.offsetX)}
-                    onInput={(event) => updateBackgroundFraming({ offsetX: event.currentTarget.valueAsNumber })}
-                  />
-                  <RangeField
-                    label="По вертикали"
-                    aria-label="Положение фона по вертикали"
-                    min={-1}
-                    max={1}
-                    step={0.05}
-                    value={backgroundFraming.offsetY}
-                    valueLabel={framingOffsetLabel(backgroundFraming.offsetY)}
-                    onInput={(event) => updateBackgroundFraming({ offsetY: event.currentTarget.valueAsNumber })}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    type="button"
-                    disabled={!framingIsCustom}
-                    onClick={() => updateBackgroundFraming({
-                      zoom: DEFAULT_SCENE_BACKGROUND_FRAMING.zoom,
-                      offsetX: DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX,
-                      offsetY: DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY
-                    })}
-                  >
-                    Сбросить кадр
-                  </Button>
-                </div>
-              </details>
-            </div>
-          )}
         </div>
         <div className="player-tools-scene-editor__fields">
-          <TextField label="Название" value={scene.name} onInput={(event) => sceneTableService.updateScene(scene.id, { name: event.currentTarget.value })} />
-          <TextField label="Подзаголовок" value={scene.subtitle} placeholder="Короткая строка для игроков" onInput={(event) => sceneTableService.updateScene(scene.id, { subtitle: event.currentTarget.value })} />
-          <FilePicker
-            className="player-tools-scene-music-picker"
-            label="Музыка сцены"
-            accept="audio/*"
-            valueLabel={scene.music.assetId || scene.music.sourceUrl || scene.music.title ? musicTitle : ''}
-            emptyLabel="Выбрать трек"
-            aspectRatio="1 / 1"
-            icon="music"
-            onFileSelect={selectMusicFile}
-            onClear={clearMusicFile}
-          />
+          <section className="player-tools-scene-editor__section" aria-label="Основное">
+            <SectionHeader title="Основное" />
+            <TextField label="Название" value={scene.name} onInput={(event) => sceneTableService.updateScene(scene.id, { name: event.currentTarget.value })} />
+            <TextField label="Подзаголовок" value={scene.subtitle} placeholder="Короткая строка для игроков" onInput={(event) => sceneTableService.updateScene(scene.id, { subtitle: event.currentTarget.value })} />
+          </section>
+          <section className="player-tools-scene-editor__section" aria-label="Изображение">
+            <SectionHeader title="Изображение" />
+            <div className="player-tools-scene-framing">
+              <SelectField
+                label="Размещение"
+                hint={scene.mode === 'tactical'
+                  ? 'Привязано к полю и токенам.'
+                  : 'Заполняет экран за интерфейсом.'}
+                value={scene.mode}
+                onChange={(event) => sceneTableService.updateScene(scene.id, {
+                  mode: event.currentTarget.value === 'tactical' ? 'tactical' : 'scene'
+                })}
+              >
+                <option value="scene">Фон экрана</option>
+                <option value="tactical">Поле с токенами</option>
+              </SelectField>
+              {previewUrl && (
+                <div className="player-tools-scene-framing__frame">
+                  <SelectField
+                    label="Базовый размер"
+                    hint="От него считаются масштаб и положение."
+                    value={backgroundFraming.fit}
+                    onChange={(event) => updateBackgroundFraming({
+                      fit: event.currentTarget.value === 'fit' ? 'fit' : 'fill'
+                    })}
+                  >
+                    <option value="fit">Показать целиком</option>
+                    <option value="fill">Заполнить область</option>
+                  </SelectField>
+                  <div className="player-tools-scene-framing__sliders">
+                    <RangeField
+                      label="Масштаб"
+                      aria-label="Масштаб фона"
+                      min={MIN_SCENE_BACKGROUND_ZOOM}
+                      max={MAX_SCENE_BACKGROUND_ZOOM}
+                      step={0.05}
+                      value={backgroundFraming.zoom}
+                      valueLabel={`${Math.round(backgroundFraming.zoom * 100)}%`}
+                      size="compact"
+                      onInput={(event) => updateBackgroundFraming({ zoom: event.currentTarget.valueAsNumber })}
+                    />
+                    <RangeField
+                      label="Горизонталь"
+                      aria-label="Положение фона по горизонтали"
+                      min={-1}
+                      max={1}
+                      step={0.05}
+                      value={backgroundFraming.offsetX}
+                      valueLabel={framingOffsetLabel(backgroundFraming.offsetX, '←', '→')}
+                      size="compact"
+                      onInput={(event) => updateBackgroundFraming({ offsetX: event.currentTarget.valueAsNumber })}
+                    />
+                    <RangeField
+                      label="Вертикаль"
+                      aria-label="Положение фона по вертикали"
+                      min={-1}
+                      max={1}
+                      step={0.05}
+                      value={backgroundFraming.offsetY}
+                      valueLabel={framingOffsetLabel(backgroundFraming.offsetY, '↑', '↓')}
+                      size="compact"
+                      onInput={(event) => updateBackgroundFraming({ offsetY: event.currentTarget.valueAsNumber })}
+                    />
+                  </div>
+                  {framingIsCustom && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      type="button"
+                      iconBefore={<RotateCcw size={13} aria-hidden="true" />}
+                      onClick={() => updateBackgroundFraming({
+                        ...DEFAULT_SCENE_BACKGROUND_FRAMING
+                      })}
+                    >
+                      Сбросить
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+          <section className="player-tools-scene-editor__section" aria-label="Музыка">
+            <SectionHeader title="Музыка" />
+            <FilePicker
+              className="player-tools-scene-music-picker"
+              label="Трек"
+              accept="audio/*"
+              valueLabel={scene.music.assetId || scene.music.sourceUrl || scene.music.title ? musicTitle : ''}
+              emptyLabel="Выбрать трек"
+              aspectRatio="1 / 1"
+              icon="music"
+              onFileSelect={selectMusicFile}
+              onClear={clearMusicFile}
+            />
+          </section>
         </div>
       </div>
       {deleteOpen && (
@@ -225,7 +249,46 @@ export function SceneEditorRow({
   );
 }
 
-function framingOffsetLabel(value: number): string {
-  if (Math.abs(value) < 0.001) return 'По центру';
-  return `${value > 0 ? '+' : ''}${Math.round(value * 100)}%`;
+function framingOffsetLabel(value: number, negative: string, positive: string): string {
+  if (Math.abs(value) < 0.001) return '0%';
+  return `${value < 0 ? negative : positive} ${Math.round(Math.abs(value) * 100)}%`;
+}
+
+function SceneDisplayPreview({
+  imageUrl,
+  scene
+}: {
+  imageUrl: string;
+  scene: SceneTableState['scenes'][string];
+}) {
+  const framing = normalizeSceneBackgroundFraming(scene.backgroundFraming);
+  const imageStyle = {
+    backgroundImage: `url("${cssImageUrl(imageUrl)}")`,
+    backgroundSize: framing.fit === 'fit' ? 'contain' : 'cover',
+    transform: sceneBackgroundTransform(framing)
+  };
+
+  return (
+    <div className={`player-tools-scene-display-preview player-tools-scene-display-preview--${scene.mode}`} aria-hidden="true">
+      {scene.mode === 'scene' && <div className="player-tools-scene-display-preview__image" style={imageStyle} />}
+      <div className="player-tools-scene-display-preview__board">
+        {scene.mode === 'tactical' && <div className="player-tools-scene-display-preview__image" style={imageStyle} />}
+        {scene.tokens.map((token) => (
+          <i
+            className={`player-tools-scene-display-preview__token player-tools-scene-display-preview__token--${token.actor.kind}`}
+            key={token.id}
+            style={{
+              left: `${(token.x / DEFAULT_SCENE_WIDTH) * 100}%`,
+              top: `${(token.y / DEFAULT_SCENE_HEIGHT) * 100}%`,
+              width: `${Math.max(4, (token.width / DEFAULT_SCENE_WIDTH) * 100)}%`
+            }}
+          />
+        ))}
+      </div>
+      <i className="player-tools-scene-display-preview__topbar" />
+      <i className="player-tools-scene-display-preview__rail player-tools-scene-display-preview__rail--left" />
+      <i className="player-tools-scene-display-preview__rail player-tools-scene-display-preview__rail--right" />
+      <i className="player-tools-scene-display-preview__controls" />
+    </div>
+  );
 }

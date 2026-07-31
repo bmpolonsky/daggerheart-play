@@ -14,10 +14,13 @@ export const DEFAULT_SCENE_BACKGROUND_FRAMING: Readonly<SceneBackgroundFraming> 
   offsetY: 0
 });
 
+export const MIN_SCENE_BACKGROUND_ZOOM = 0.25;
+export const MAX_SCENE_BACKGROUND_ZOOM = 2.5;
+
 export function normalizeSceneBackgroundFraming(value: Partial<SceneBackgroundFraming> | null | undefined): SceneBackgroundFraming {
   return {
     fit: value?.fit === 'fit' ? 'fit' : 'fill',
-    zoom: clampFinite(value?.zoom, 1, 2.5, DEFAULT_SCENE_BACKGROUND_FRAMING.zoom),
+    zoom: clampFinite(value?.zoom, MIN_SCENE_BACKGROUND_ZOOM, MAX_SCENE_BACKGROUND_ZOOM, DEFAULT_SCENE_BACKGROUND_FRAMING.zoom),
     offsetX: clampFinite(value?.offsetX, -1, 1, DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX),
     offsetY: clampFinite(value?.offsetY, -1, 1, DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY)
   };
@@ -25,9 +28,8 @@ export function normalizeSceneBackgroundFraming(value: Partial<SceneBackgroundFr
 
 export function sceneBackgroundTransform(value: Partial<SceneBackgroundFraming> | null | undefined): string {
   const framing = normalizeSceneBackgroundFraming(value);
-  const maximumShift = (framing.zoom - 1) * 50;
-  const x = roundCssNumber(framing.offsetX * maximumShift);
-  const y = roundCssNumber(framing.offsetY * maximumShift);
+  const x = roundCssNumber(framing.offsetX * 50);
+  const y = roundCssNumber(framing.offsetY * 50);
   return `translate(${x}%, ${y}%) scale(${roundCssNumber(framing.zoom)})`;
 }
 

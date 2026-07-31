@@ -42,3 +42,21 @@
   cursor: default;
   opacity: 0.45;
 }
+
+.compact {
+  gap: 4px;
+}
+
+.compact .header {
+  gap: 6px;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.compact .header output {
+  font-size: 0.66rem;
+}
+
+.compact .input {
+  height: 16px;
+}
