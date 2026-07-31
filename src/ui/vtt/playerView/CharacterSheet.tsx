@@ -568,7 +568,7 @@ export function CharacterSheet({
         </SheetSection>
       )}
       {showRuleEffects && (
-        <SheetSection title="Эффекты правил" emptyLabel="В свойствах персонажа не распознано автоматических или отслеживаемых эффектов">
+        <SheetSection title="Эффекты правил" emptyLabel="Распознанных эффектов нет">
           {featureRuleEffects.map(({ feature, effect }) => (
             <ListItem
               key={`${feature.id}:${effect.id}`}

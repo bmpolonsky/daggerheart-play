@@ -338,7 +338,6 @@ function CharacterRuleEffectsSummary({ character, editable }: { character: Chara
     <section className="character-editor-section" aria-label="Свойства персонажа">
       <SectionHeader
         title="Свойства"
-        subtitle="Распознанные правила отмечены прямо в исходном тексте"
         actions={editable ? (
           <Button size="sm" variant="secondary" iconBefore={<Plus size={14} aria-hidden="true" />} onClick={() => setEditingCard('new')}>
             Добавить свойство
@@ -376,8 +375,8 @@ function CharacterRuleEffectsSummary({ character, editable }: { character: Chara
           ))}
         </div>
       )}
-      <SectionHeader title="Эффекты правил" subtitle="Что приложение учитывает автоматически или помогает отслеживать" />
-      {items.length === 0 && <p className="muted-text">В свойствах персонажа нет распознанных эффектов.</p>}
+      <SectionHeader title="Эффекты правил" />
+      {items.length === 0 && <p className="muted-text">Распознанных эффектов нет.</p>}
       {items.map(({ card, effect }) => (
         <ListItem
           key={`${card.id}:${ruleEffectApplicationLabel(effect)}:${effect.summary}`}
@@ -993,7 +992,6 @@ function LevelUpPanel({
               <section className="cinematic-builder-step" role="group" aria-label="Шаг: Проверка">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Проверка</h3>
-                  <p className="cinematic-builder-copy">Проверьте, что изменится в листе.</p>
                 </header>
                 <div className="stat-strip">
                   <InlineStat label="Уровень" value={`${character.level} -> ${targetLevel}`} />

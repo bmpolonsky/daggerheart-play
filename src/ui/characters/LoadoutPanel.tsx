@@ -184,7 +184,6 @@ export function LoadoutPanel({ character, content }: { character: Character; con
                 min={0}
                 max={9}
                 value={character.wealth.coins}
-                hint="Опциональная деноминация."
                 onChange={(event) => characterService.updateWealth(character.id, { coins: Number(event.currentTarget.value) })}
               />
             )}

@@ -37,7 +37,6 @@ export function CompanionEditorDialog({
     <Dialog className="player-companion-editor" aria-label={companion ? `Редактирование компаньона ${companion.name}` : 'Новый компаньон'} onClose={onClose}>
       <SectionHeader
         title={companion ? 'Редактировать компаньона' : 'Создать компаньона'}
-        subtitle="Имя, изображение и параметры листа компаньона"
         actions={(
           <IconButton size="sm" variant="ghost" title="Закрыть" aria-label="Закрыть редактор компаньона" onClick={onClose}>
             <X size={16} aria-hidden="true" />

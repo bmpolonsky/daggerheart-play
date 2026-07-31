@@ -1822,37 +1822,6 @@
   white-space: nowrap;
 }
 
-.player-tools-auto-network {
-  display: grid;
-  grid-template-columns: minmax(86px, auto) minmax(56px, auto) minmax(150px, 1fr);
-  gap: 8px;
-  align-items: center;
-  padding: 9px 10px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.player-tools-auto-network span,
-.player-tools-auto-network small {
-  min-width: 0;
-  overflow: hidden;
-  color: rgba(243, 234, 216, 0.58);
-  font-size: 0.66rem;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.player-tools-auto-network strong {
-  color: #fff4d6;
-  font-size: 0.9rem;
-}
-
-.player-tools-auto-network small {
-  text-transform: none;
-}
-
 .player-tools-sync__meta div {
   min-width: 0;
   display: grid;
