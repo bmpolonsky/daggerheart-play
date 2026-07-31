@@ -247,6 +247,23 @@ test('player view exposes a ranger companion as its own scene token', () => {
   }]);
 });
 
+test('player view omits orphaned scene tokens whose actors no longer exist', () => {
+  const scene = createTableScene({
+    tokens: [createTokenState({ kind: 'character', id: 'deleted-character' }, { x: 240, y: 320 })]
+  });
+  const model = buildPlayerViewModel({
+    game: createGameState(),
+    characters: { entities: {}, order: [], selectedId: null, updatedAt: '2026-08-01T00:00:00.000Z' },
+    encounter: encounterService.encounter$.get(),
+    liveScene: scene,
+    assets: {},
+    assetUrls: {},
+    rollLog: []
+  });
+
+  assert.deepEqual(model.tokens, []);
+});
+
 test('mini dice launcher mode follows role and selected actor', () => {
   assert.equal(resolveMiniDiceLauncherMode({ role: 'player', selectedActorKind: null }), 'duality');
   assert.equal(resolveMiniDiceLauncherMode({ role: 'gm', selectedActorKind: 'character' }), 'duality');

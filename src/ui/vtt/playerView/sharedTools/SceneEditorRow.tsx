@@ -1,8 +1,10 @@
 /** @jsxImportSource preact */
 import { useEffect, useState } from 'preact/hooks';
 import { Copy, Eye, LocateFixed, RotateCcw, Trash2 } from 'lucide-react';
+import { useStream } from '../../../../core/hooks/useStream';
 import type { SceneTableState } from '../../../../domain/rules/types';
 import { DEFAULT_SCENE_HEIGHT, DEFAULT_SCENE_WIDTH } from '../../../../domain/tabletop/logic';
+import { buildPlayerTokens, type PlayerViewToken } from '../../../../domain/tabletop/playerView';
 import {
   DEFAULT_SCENE_BACKGROUND_FRAMING,
   MAX_SCENE_BACKGROUND_ZOOM,
@@ -10,7 +12,7 @@ import {
   normalizeSceneBackgroundFraming,
   sceneBackgroundTransform
 } from '../../../../domain/tabletop/sceneBackground';
-import { assetService, gameService, sceneTableService } from '../../../../services/serviceRegistry';
+import { assetService, characterService, encounterService, gameService, sceneTableService } from '../../../../services/serviceRegistry';
 import {
   Button,
   ConfirmDialog,
@@ -38,6 +40,8 @@ export function SceneEditorRow({
 }) {
   const [backgroundObjectUrl, setBackgroundObjectUrl] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const characters = useStream(characterService.characters$);
+  const encounter = useStream(encounterService.encounter$);
 
   useEffect(() => {
     if (!scene.backgroundAssetId) {
@@ -78,6 +82,7 @@ export function SceneEditorRow({
     sceneTableService.setSceneMusicTrack(scene.id, { sourceUrl: '', title: '' });
   };
   const previewUrl = backgroundObjectUrl || scene.backgroundUrl;
+  const previewTokens = buildPlayerTokens(scene.tokens, characters.entities, encounter, 'gm');
   const backgroundFraming = normalizeSceneBackgroundFraming(scene.backgroundFraming);
   const musicTitle = scene.music.title || 'Не выбрана';
   const publishScene = () => {
@@ -126,7 +131,7 @@ export function SceneEditorRow({
             label={scene.mode === 'tactical' ? 'Карта поля' : 'Фон сцены'}
             imageUrl={previewUrl}
             aspectRatio="16 / 9"
-            previewContent={previewUrl ? <SceneDisplayPreview imageUrl={previewUrl} scene={scene} /> : undefined}
+            previewContent={previewUrl ? <SceneDisplayPreview imageUrl={previewUrl} scene={scene} tokens={previewTokens} /> : undefined}
             onFileSelect={selectBackgroundImage}
             onClear={clearBackgroundImage}
           />
@@ -256,10 +261,12 @@ function framingOffsetLabel(value: number, negative: string, positive: string): 
 
 function SceneDisplayPreview({
   imageUrl,
-  scene
+  scene,
+  tokens
 }: {
   imageUrl: string;
   scene: SceneTableState['scenes'][string];
+  tokens: PlayerViewToken[];
 }) {
   const framing = normalizeSceneBackgroundFraming(scene.backgroundFraming);
   const imageStyle = {
@@ -273,9 +280,9 @@ function SceneDisplayPreview({
       {scene.mode === 'scene' && <div className="player-tools-scene-display-preview__image" style={imageStyle} />}
       <div className="player-tools-scene-display-preview__board">
         {scene.mode === 'tactical' && <div className="player-tools-scene-display-preview__image" style={imageStyle} />}
-        {scene.tokens.map((token) => (
+        {tokens.map((token) => (
           <i
-            className={`player-tools-scene-display-preview__token player-tools-scene-display-preview__token--${token.actor.kind}`}
+            className={`player-tools-scene-display-preview__token player-tools-scene-display-preview__token--${token.kind}`}
             key={token.id}
             style={{
               left: `${(token.x / DEFAULT_SCENE_WIDTH) * 100}%`,

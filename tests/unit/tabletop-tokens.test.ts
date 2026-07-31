@@ -222,6 +222,64 @@ test('removing a token from scene does not delete actor state', () => {
   assert.equal(characterService.getCharacter(character.id)?.id, character.id);
 });
 
+test('orphan tokens are pruned from every scene while live and hidden tokens remain', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  const adversary = encounterService.createAdversary({ name: 'Живой противник' });
+  const firstScene = createTableScene({
+    tokens: [
+      createTokenState({ kind: 'character', id: character.id }, { id: 'live-character', hidden: true }),
+      createTokenState({ kind: 'character', id: 'deleted-character' }, { id: 'orphan-character' })
+    ]
+  });
+  const secondScene = createTableScene({
+    tokens: [
+      createTokenState({ kind: 'adversary', id: adversary.id }, { id: 'live-adversary' }),
+      createTokenState({ kind: 'adversary', id: 'deleted-adversary' }, { id: 'orphan-adversary' })
+    ]
+  });
+  sceneTableStore.update((state) => ({
+    ...state,
+    activeSceneId: firstScene.id,
+    liveSceneId: firstScene.id,
+    scenes: { [firstScene.id]: firstScene, [secondScene.id]: secondScene },
+    sceneOrder: [firstScene.id, secondScene.id],
+    selectedTokenId: 'orphan-character'
+  }));
+
+  const removed = sceneTableService.pruneOrphanTokens(charactersStore.get(), encounterService.encounter$.get());
+
+  assert.equal(removed, 2);
+  assert.deepEqual(sceneTableStore.get().scenes[firstScene.id].tokens.map((token) => token.id), ['live-character']);
+  assert.deepEqual(sceneTableStore.get().scenes[secondScene.id].tokens.map((token) => token.id), ['live-adversary']);
+  assert.equal(sceneTableStore.get().selectedTokenId, null);
+});
+
+test('deleting a character removes its character and companion tokens from every scene', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  characterService.ensureRangerCompanion(character.id, { name: 'Компаньон' });
+  const firstScene = createTableScene({
+    tokens: [createTokenState({ kind: 'character', id: character.id }, { id: 'character-token' })]
+  });
+  const secondScene = createTableScene({
+    tokens: [createTokenState({ kind: 'companion', id: character.id }, { id: 'companion-token' })]
+  });
+  sceneTableStore.update((state) => ({
+    ...state,
+    activeSceneId: firstScene.id,
+    liveSceneId: firstScene.id,
+    scenes: { [firstScene.id]: firstScene, [secondScene.id]: secondScene },
+    sceneOrder: [firstScene.id, secondScene.id]
+  }));
+
+  tabletopService.deleteCharacter(character.id);
+
+  assert.equal(characterService.getCharacter(character.id), null);
+  assert.deepEqual(sceneTableStore.get().scenes[firstScene.id].tokens, []);
+  assert.deepEqual(sceneTableStore.get().scenes[secondScene.id].tokens, []);
+});
+
 test('placing actors on a scene is idempotent and supports adversaries', () => {
   resetAllStores();
   const adversary = encounterService.createAdversary({ name: 'Теневой нож' });
