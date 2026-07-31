@@ -52,7 +52,6 @@ interface CallMediaTransport {
   publishMediaStream(stream: MediaStream, metadata?: CallMediaMetadata): Promise<void>;
   removeMediaStream(stream: MediaStream): void;
   addMediaTrack?(track: MediaStreamTrack, stream: MediaStream, metadata?: CallMediaMetadata): Promise<void>;
-  removeMediaTrack?(track: MediaStreamTrack): void;
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void;
 }
 

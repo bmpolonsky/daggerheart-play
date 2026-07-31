@@ -6,7 +6,6 @@ import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../.
 import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$ } from '../../../domain/p2p/networkSettings';
 import type { P2PMediaConnectionDiagnostic, P2PMediaRtpDiagnostic, P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
 import type { P2PSessionState } from '../../../services/P2PSessionService';
-import { buildP2PDiagnosticsReport } from '../../../services/p2p/P2PDiagnosticsReport';
 import type { Character, GameState } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
 import {
@@ -275,21 +274,19 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     : p2pRoutePeers.filter((peer) => peer.activeStrategy);
   const peerNames = participantPeerNames(sceneTable.participants);
   const [mediaDiagnostics, setMediaDiagnostics] = useState<DisplayMediaConnectionDiagnostic[]>([]);
-  const [reportCopied, setReportCopied] = useState(false);
   const previousMediaSamples = useRef(new Map<string, MediaCounterSample>());
-  const technicalReport = buildP2PDiagnosticsReport({
+  const technicalReport = JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    page: window.location.href,
+    browser: navigator.userAgent,
     session,
-    media: mediaDiagnostics,
-    userAgent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
-    url: typeof window === 'undefined' ? '' : window.location.href
-  });
+    media: mediaDiagnostics
+  }, null, 2);
 
   const copyTechnicalReport = async () => {
     try {
-      if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
       await navigator.clipboard.writeText(technicalReport);
-      setReportCopied(true);
-      window.setTimeout(() => setReportCopied(false), 1800);
+      toastService.show('Технический отчёт скопирован.', 'success');
     } catch {
       toastService.show('Не удалось скопировать технический отчёт.', 'warning');
     }
@@ -346,17 +343,17 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           </Card>
         )}
       </div>
-      <details className="player-tools-technical-report">
+      <details className="player-tools-scene-framing__advanced">
         <summary>Технические данные</summary>
-        <div className="player-tools-technical-report__content">
+        <div className="player-tools-scene-framing__controls player-tools-technical-report__content">
           <dl className="player-tools-sync__meta">
             <div><dt>Режим</dt><dd aria-label="Режим">{P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
             <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
             <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
           </dl>
-          <pre>{technicalReport}</pre>
+          <pre className="player-tools-technical-report">{technicalReport}</pre>
           <Button size="sm" type="button" onClick={() => void copyTechnicalReport()}>
-            {reportCopied ? 'Отчёт скопирован' : 'Скопировать отчёт'}
+            Скопировать отчёт
           </Button>
         </div>
       </details>

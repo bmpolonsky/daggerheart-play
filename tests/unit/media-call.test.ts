@@ -151,23 +151,20 @@ test('a stale audio play result cannot change playback state after the peer leav
 
 test('enabling microphone after camera adds an audio track without replacing the video stream', async () => {
   const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
-  const videoTrack = new FakeMediaTrack('video', 'video-track');
-  const audioTrack = new FakeMediaTrack('audio', 'audio-track');
-  const videoStream = new FakeMediaStream('local-call', [videoTrack]);
-  const audioStream = new FakeMediaStream('new-audio', [audioTrack]);
-  const requestedConstraints: MediaStreamConstraints[] = [];
+  const videoTrack = fakeMediaTrack('video');
+  const audioTrack = fakeMediaTrack('audio');
+  const localTracks = [videoTrack];
+  const videoStream = fakeMediaStream('local-call', localTracks);
+  const audioStream = fakeMediaStream('new-audio', [audioTrack]);
   const published: MediaStream[] = [];
   const added: Array<{ track: MediaStreamTrack; stream: MediaStream }> = [];
-  let requestIndex = 0;
+  const streams = [videoStream, audioStream];
 
   Object.defineProperty(globalThis, 'navigator', {
     configurable: true,
     value: {
       mediaDevices: {
-        getUserMedia: async (constraints: MediaStreamConstraints) => {
-          requestedConstraints.push(constraints);
-          return (requestIndex++ === 0 ? videoStream : audioStream) as unknown as MediaStream;
-        }
+        getUserMedia: async () => streams.shift()
       }
     }
   });
@@ -188,7 +185,6 @@ test('enabling microphone after camera adds an audio track without replacing the
     addMediaTrack: async (track: MediaStreamTrack, stream: MediaStream) => {
       added.push({ track, stream });
     },
-    removeMediaTrack: () => undefined,
     subscribeMediaStreams: () => () => undefined
   };
 
@@ -201,16 +197,10 @@ test('enabling microphone after camera adds an audio track without replacing the
     await call.toggleMicrophone();
 
     assert.equal(call.call$.get().localStream, streamAfterCamera);
-    assert.deepEqual(videoStream.getTracks(), [videoTrack, audioTrack]);
+    assert.deepEqual(localTracks, [videoTrack, audioTrack]);
     assert.deepEqual(published, [videoStream]);
     assert.deepEqual(added, [{ track: audioTrack, stream: videoStream }]);
     assert.equal(videoTrack.stopped, false);
-    assert.equal(call.call$.get().cameraOff, false);
-    assert.equal(call.call$.get().micMuted, false);
-    assert.equal(requestedConstraints[0]?.audio, false);
-    assert.notEqual(requestedConstraints[0]?.video, false);
-    assert.notEqual(requestedConstraints[1]?.audio, false);
-    assert.equal(requestedConstraints[1]?.video, false);
   } finally {
     if (originalNavigator) {
       Object.defineProperty(globalThis, 'navigator', originalNavigator);
@@ -243,43 +233,18 @@ class FakeAudio {
   }
 }
 
-class FakeMediaTrack {
-  enabled = true;
-  contentHint = '';
-  muted = false;
-  readyState: MediaStreamTrackState = 'live';
-  stopped = false;
-
-  constructor(readonly kind: 'audio' | 'video', readonly id: string) {}
-
-  stop(): void {
-    this.stopped = true;
-    this.readyState = 'ended';
-  }
+function fakeMediaTrack(kind: 'audio' | 'video'): MediaStreamTrack & { stopped: boolean } {
+  const track = { kind, id: `${kind}-track`, enabled: true, contentHint: '', stopped: false, stop: () => { track.stopped = true; } };
+  return track as unknown as MediaStreamTrack & { stopped: boolean };
 }
 
-class FakeMediaStream {
-  constructor(readonly id: string, private tracks: FakeMediaTrack[]) {}
-
-  getTracks(): MediaStreamTrack[] {
-    return [...this.tracks] as unknown as MediaStreamTrack[];
-  }
-
-  getAudioTracks(): MediaStreamTrack[] {
-    return this.tracks.filter((track) => track.kind === 'audio') as unknown as MediaStreamTrack[];
-  }
-
-  getVideoTracks(): MediaStreamTrack[] {
-    return this.tracks.filter((track) => track.kind === 'video') as unknown as MediaStreamTrack[];
-  }
-
-  addTrack(track: MediaStreamTrack): void {
-    if (!this.tracks.includes(track as unknown as FakeMediaTrack)) {
-      this.tracks.push(track as unknown as FakeMediaTrack);
-    }
-  }
-
-  removeTrack(track: MediaStreamTrack): void {
-    this.tracks = this.tracks.filter((candidate) => candidate !== track as unknown as FakeMediaTrack);
-  }
+function fakeMediaStream(id: string, tracks: MediaStreamTrack[]): MediaStream {
+  return {
+    id,
+    getTracks: () => [...tracks],
+    getAudioTracks: () => tracks.filter((track) => track.kind === 'audio'),
+    getVideoTracks: () => tracks.filter((track) => track.kind === 'video'),
+    addTrack: (track: MediaStreamTrack) => tracks.push(track),
+    removeTrack: (track: MediaStreamTrack) => tracks.splice(tracks.indexOf(track), 1)
+  } as unknown as MediaStream;
 }

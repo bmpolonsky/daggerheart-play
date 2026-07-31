@@ -297,23 +297,8 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
 
   async addMediaTrack(track: MediaStreamTrack, stream: MediaStream, metadata?: unknown): Promise<void> {
     this.publishedMediaStreams.set(stream, metadata);
-    const routes = Array.from(new Set(this.activeRoutesForBroadcast().map(({ route }) => route)));
-    const results = await Promise.allSettled(routes.map(async (route) => {
-      if (route.transport.addMediaTrack) {
-        await route.transport.addMediaTrack(track, stream, metadata);
-        return;
-      }
-      route.transport.removeMediaStream?.(stream);
-      await route.transport.publishMediaStream?.(stream, metadata);
-    }));
-    if (!results.some((result) => result.status === 'fulfilled')) {
-      const rejected = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
-      throw rejected?.reason instanceof Error ? rejected.reason : new Error('Unable to add media track.');
-    }
-  }
-
-  removeMediaTrack(track: MediaStreamTrack): void {
-    this.routes.forEach((route) => route.transport.removeMediaTrack?.(track));
+    const transports = new Set(this.activeRoutesForBroadcast().map(({ route }) => route.transport));
+    await Promise.any(Array.from(transports, (transport) => transport.addMediaTrack?.(track, stream, metadata) ?? Promise.reject()));
   }
 
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {

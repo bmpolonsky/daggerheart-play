@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { Copy, Crown, RefreshCw, Trash2, Video } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { p2pNetworkSettings$ } from '../../domain/p2p/networkSettings';
@@ -19,7 +19,6 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
   const { participants } = useStream(sceneTableService.sceneTable$);
   const lobby = useStream(gmLobbyService.lobby$);
   useStream(p2pNetworkSettings$);
-  const restoreAttempted = useRef(false);
   const [restoringSession, setRestoringSession] = useState(true);
   const [roomRefreshOpen, setRoomRefreshOpen] = useState(false);
   const characterOptions = characterOrder.map((id) => characterEntities[id]).filter(Boolean);
@@ -31,8 +30,6 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
   const roomCodeRefreshTitle = isRoomCodeRefreshCoolingDown ? `Обновить код можно через ${roomCodeRefresh.remainingSeconds} с` : 'Обновить код комнаты';
 
   useEffect(() => {
-    if (restoreAttempted.current) return;
-    restoreAttempted.current = true;
     let active = true;
     void gmLobbyService.restoreSession(gmName).finally(() => {
       if (active) setRestoringSession(false);
@@ -40,7 +37,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
     return () => {
       active = false;
     };
-  }, [gmName]);
+  }, []);
 
   const createSession = async () => {
     return await gmLobbyService.createSession({

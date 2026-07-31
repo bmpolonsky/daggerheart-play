@@ -172,10 +172,6 @@ export class P2PRoomConnection implements SyncTransport {
     await this.adapter.addMediaTrack(track, stream, metadata);
   }
 
-  removeMediaTrack(track: MediaStreamTrack): void {
-    this.adapter.removeMediaTrack?.(track);
-  }
-
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {
     this.mediaStreamListeners.add(listener);
     return () => this.mediaStreamListeners.delete(listener);

@@ -186,10 +186,6 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     await Promise.all(this.room.addTrack(track, stream, undefined, metadata as JsonValue | undefined));
   }
 
-  removeMediaTrack(track: MediaStreamTrack): void {
-    this.room?.removeTrack(track);
-  }
-
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {
     this.mediaStreamListeners.add(listener);
     return () => this.mediaStreamListeners.delete(listener);

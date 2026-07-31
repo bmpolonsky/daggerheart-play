@@ -1795,25 +1795,6 @@
 }
 
 .player-tools-technical-report {
-  min-width: 0;
-  padding: 2px 0;
-}
-
-.player-tools-technical-report > summary {
-  color: var(--dh-paper-muted);
-  font-size: 0.72rem;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.player-tools-technical-report__content {
-  min-width: 0;
-  display: grid;
-  gap: 10px;
-  padding-top: 10px;
-}
-
-.player-tools-technical-report pre {
   max-height: 260px;
   margin: 0;
   padding: 10px;
@@ -1826,7 +1807,7 @@
   overflow-wrap: anywhere;
 }
 
-.player-tools-technical-report .dh-button {
+.player-tools-technical-report__content .dh-button {
   justify-self: start;
 }
 
