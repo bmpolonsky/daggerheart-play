@@ -11,6 +11,11 @@ import { ImportExportService } from './ImportExportService';
 import { MediaCallService } from './MediaCallService';
 import { P2PSessionService } from './P2PSessionService';
 import type { P2PTransportAdapter } from './p2p/P2PTransportAdapter';
+import type { P2PTransportFactoryContext } from './p2p/P2PTransportAdapter';
+import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
+import { ServerRelayTransport } from './ServerRelayTransport';
+import { serverSessionEnabled } from '../domain/p2p/serverSession';
+import type { TrysteroP2PTransportOptions } from './TrysteroSyncTransport';
 import { PersistenceService } from './PersistenceService';
 import { PlayerActionRequestService } from './PlayerActionRequestService';
 import { PlayerActivationQueueService } from './PlayerActivationQueueService';
@@ -41,7 +46,18 @@ export const mediaCallService = new MediaCallService(syncService);
 const e2eP2PTransportFactory = typeof window !== 'undefined' && navigator.webdriver
   ? (window as typeof window & { __DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__?: () => P2PTransportAdapter }).__DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__
   : undefined;
-export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, e2eP2PTransportFactory, undefined, mediaCallService, characterService);
+const sessionTransportFactory = (
+  options: TrysteroP2PTransportOptions,
+  context?: P2PTransportFactoryContext
+): P2PTransportAdapter => {
+  if (e2eP2PTransportFactory) return e2eP2PTransportFactory();
+  if (serverSessionEnabled() && context) return new ServerRelayTransport(context);
+  return createConfiguredP2PTransport(options);
+};
+const hybridMediaTransportFactory = serverSessionEnabled()
+  ? (options: TrysteroP2PTransportOptions) => createConfiguredP2PTransport(options)
+  : undefined;
+export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, sessionTransportFactory, undefined, mediaCallService, characterService, hybridMediaTransportFactory);
 export const gmLobbyService = new GmLobbyService(p2pSessionService);
 characterService.setDeathMoveRequestHandler((character, transition) => {
   if (p2pSessionService.isConnectedPlayerSession()) return;

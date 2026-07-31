@@ -78,6 +78,14 @@ export interface P2PWireEnvelope {
   payload: unknown;
 }
 
+export interface P2PTransportFactoryContext {
+  role: P2PWireRole;
+  participantId: string;
+  displayName: string;
+  worldId: string;
+  initialSnapshot?: unknown;
+}
+
 export type P2PBinaryPayload = Blob | ArrayBuffer | ArrayBufferView;
 export type P2PBinaryProgressHandler = (percent: number, peerId: string, metadata?: unknown) => void;
 

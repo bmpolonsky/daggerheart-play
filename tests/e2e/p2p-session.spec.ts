@@ -422,37 +422,17 @@ test.describe('P2P session workflow', () => {
       await player.getByRole('button', { name: 'Инструменты' }).click();
       const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
       await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
-      const ownSheet = workspace.getByLabel('Персонаж игрока');
-      await expect(ownSheet).toContainText(filledCharacterName);
-      await expect(ownSheet).toContainText('Домашняя выучка');
-      await expect(ownSheet).toContainText('Уклонение: +1');
+      const ownEditor = workspace.getByLabel('Мой персонаж');
+      await expect(ownEditor).toContainText(filledCharacterName);
+      await expect(ownEditor.getByRole('button', { name: 'Свободное редактирование' })).toBeVisible();
+      await ownEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Свойства' }).click();
+      await expect(ownEditor).toContainText('Домашняя выучка');
+      await expect(ownEditor).toContainText('Уклонение: +1');
       await expect(workspace.getByText('Ран', { exact: true })).toHaveCount(0);
       await expect(workspace.getByText('Ири', { exact: true })).toHaveCount(0);
       await expect(workspace.getByRole('button', { name: 'Создать героя' })).toHaveCount(0);
-      await expect(workspace.getByRole('button', { name: 'Редактировать' })).toHaveCount(0);
-      const limitedFeature = ownSheet.locator('.player-sheet-feature-block').filter({ hasText: 'Высвобождение хаоса' });
-      const limitedMarker = limitedFeature.locator('[aria-describedby]').first();
-      await limitedMarker.dispatchEvent('pointerup', { pointerType: 'touch' });
-      const tooltipId = await limitedMarker.getAttribute('aria-describedby');
-      expect(tooltipId).toBeTruthy();
-      const tooltip = player.locator(`[id="${tooltipId}"]`);
-      await expect(tooltip).toBeVisible();
-      await expect(tooltip).toContainText('Распознано: Использований: 1 до продолжительного отдыха');
-      await limitedFeature.getByRole('button', { name: 'Настроить трекер Высвобождение хаоса' }).click();
-      const trackerDialog = player.getByRole('dialog', { name: 'Трекер: Высвобождение хаоса' });
-      await expect(trackerDialog.getByLabel('Количество использований')).toHaveValue('1');
-      await expect(trackerDialog.getByLabel('Сброс')).toHaveValue('long');
-      await trackerDialog.getByRole('button', { name: 'Сохранить' }).click();
-      await expect(limitedFeature.getByLabel('До продолжительного отдыха: 0 из 1')).toBeVisible();
-      const passiveFeature = ownSheet.locator('.player-sheet-feature-block').filter({ hasText: 'Каменная кожа' });
-      await expect(passiveFeature.getByRole('button', { name: 'Настроить трекер Каменная кожа' })).toHaveCount(0);
-      await expect(ownSheet.getByText('Эффекты правил', { exact: true })).toBeVisible();
-      await expect(ownSheet.getByText('Оба порога: +1', { exact: true })).toHaveCount(1);
-      const sheetSize = await ownSheet.evaluate((element) => ({
-        clientHeight: element.clientHeight,
-        scrollHeight: element.scrollHeight
-      }));
-      expect(sheetSize.scrollHeight).toBeGreaterThan(sheetSize.clientHeight);
+      await expect(ownEditor.getByText('Эффекты правил', { exact: true })).toBeVisible();
+      await expect(ownEditor.getByText('Оба порога: +1', { exact: true })).toHaveCount(1);
       await expect(player.locator('body')).toHaveJSProperty('scrollWidth', 390);
       await workspace.getByRole('button', { name: 'Закрыть' }).click();
       await player.setViewportSize({ width: 1440, height: 900 });

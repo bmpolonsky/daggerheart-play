@@ -26,6 +26,7 @@ const DEFAULT_GM_TIMEOUT_MS = 15_000;
 export class P2PRoomConnection implements SyncTransport {
   readonly id: string;
   readonly label: string;
+  readonly supportsMedia: boolean;
 
   private roomId = '';
   private role: P2PWireRole | null = null;
@@ -51,6 +52,7 @@ export class P2PRoomConnection implements SyncTransport {
   ) {
     this.id = adapter.id;
     this.label = adapter.label;
+    this.supportsMedia = Boolean(adapter.publishMediaStream && adapter.removeMediaStream && adapter.subscribeMediaStreams);
   }
 
   get peerId(): string {

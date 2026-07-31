@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
 import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$ } from '../../../domain/p2p/networkSettings';
+import { serverSessionEnabled } from '../../../domain/p2p/serverSession';
 import type { P2PMediaConnectionDiagnostic, P2PMediaRtpDiagnostic, P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
 import type { P2PSessionState } from '../../../services/P2PSessionService';
 import type { Character, GameState } from '../../../domain/rules/types';
@@ -123,6 +124,8 @@ export function SharedToolsConnectionSettingsPanel({
   game: GameState;
   role: TableViewRole;
 }) {
+  const usesServer = serverSessionEnabled();
+  const mediaTransport = useStream(p2pSessionService.mediaTransport$);
   const {
     connected: p2pConnected,
     lastSnapshotAt: p2pLastSnapshotAt,
@@ -201,11 +204,34 @@ export function SharedToolsConnectionSettingsPanel({
           />
         </div>
       )}
-      <div className="player-tools-auto-network">
-        <span>Сигналинг</span>
-        <strong>Auto</strong>
-        <small>Supabase / Nostr / MQTT / BT tracker</small>
-      </div>
+      {usesServer ? (
+        <div className="player-tools-media-diagnostics" aria-label="Каналы подключения">
+          <Card
+            className="player-tools-media-card"
+            title="Игровая связь"
+            subtitle="HTTPS · облачное состояние мира"
+            actions={<Badge tone={p2pConnected ? 'success' : 'neutral'}>{p2pConnected ? 'подключено' : 'ожидание'}</Badge>}
+          >
+            <small>События и состояние игры передаются через сервер.</small>
+          </Card>
+          <Card
+            className="player-tools-media-card"
+            title="Голос и видео"
+            subtitle="WebRTC · прямое соединение"
+            actions={<Badge tone={mediaTransport.peers.length > 0 ? 'success' : mediaTransport.connected ? 'gold' : 'neutral'}>
+              {mediaTransport.peers.length > 0 ? 'подключено' : mediaTransport.connected ? 'готово' : 'ожидание'}
+            </Badge>}
+          >
+            <small>{mediaTransport.message}</small>
+          </Card>
+        </div>
+      ) : (
+        <div className="player-tools-auto-network">
+          <span>Сигналинг</span>
+          <strong>Auto</strong>
+          <small>Supabase / Nostr / MQTT / BT tracker</small>
+        </div>
+      )}
       <div className="player-tools-sync__summary">
         <div>
           <span>Статус</span>
@@ -251,7 +277,9 @@ export function SharedToolsConnectionSettingsPanel({
 }
 
 export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: { compact?: boolean; role: TableViewRole }) {
+  const usesServer = serverSessionEnabled();
   const liveSession = useStream(p2pSessionService.session$);
+  const mediaTransport = useStream(p2pSessionService.mediaTransport$);
   const call = useStream(mediaCallService.call$);
   const session = e2eP2PDiagnosticsFixture() ?? liveSession;
   const {
@@ -269,10 +297,18 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   const sceneTable = useStream(sceneTableService.sceneTable$);
   const hasConnectedPlayers = role !== 'gm' || p2pSessionService.hasConnectedPlayers();
   const displayedP2PStatus = role === 'gm' && p2pConnected && !hasConnectedPlayers ? 'Ожидает игроков' : p2pStatusLabel(p2pStatus);
-  const visibleRoutePeers = p2pPeers.length > 0
-    ? p2pPeers.map((peerId) => p2pRoutePeers.find((peer) => peer.peerId === peerId) ?? createEmptyPeerDiagnostic(peerId))
-    : p2pRoutePeers.filter((peer) => peer.activeStrategy);
+  const displayedMediaPeers = usesServer ? mediaTransport.peers : p2pPeers;
+  const displayedRoutes = usesServer ? mediaTransport.routes : p2pRoutes;
+  const displayedRoutePeers = usesServer ? mediaTransport.routePeers : p2pRoutePeers;
+  const visibleRoutePeers = displayedMediaPeers.length > 0
+    ? displayedMediaPeers.map((peerId) => displayedRoutePeers.find((peer) => peer.peerId === peerId) ?? createEmptyPeerDiagnostic(peerId))
+    : displayedRoutePeers.filter((peer) => peer.activeStrategy);
   const peerNames = participantPeerNames(sceneTable.participants);
+  Object.values(call.remoteParticipants).forEach((participant) => {
+    if (participant.peerId && participant.displayName.trim()) {
+      peerNames.set(participant.peerId, participant.displayName.trim());
+    }
+  });
   const [mediaDiagnostics, setMediaDiagnostics] = useState<DisplayMediaConnectionDiagnostic[]>([]);
   const previousMediaSamples = useRef(new Map<string, MediaCounterSample>());
   const technicalReport = JSON.stringify({
@@ -280,6 +316,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     page: window.location.href,
     browser: navigator.userAgent,
     session,
+    hybridMediaTransport: usesServer ? mediaTransport : undefined,
     media: mediaDiagnostics
   }, null, 2);
 
@@ -317,7 +354,17 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         <div><dt>Логических подключений</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
         <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
       </dl>
-      <div className="player-tools-peer-list" aria-label="Маршруты соединений">
+      <div className="player-tools-peer-list" aria-label={usesServer ? 'Серверное и медиа-соединение' : 'Маршруты соединений'}>
+        {usesServer && (
+          <Card
+            className="player-tools-peer-card"
+            title="Серверный канал"
+            subtitle="Состояние игры передаётся через HTTPS и хранится в D1"
+            actions={<Badge tone={p2pConnected ? 'success' : 'neutral'}>{p2pConnected ? 'подключено' : 'ожидание'}</Badge>}
+          >
+            <small>Комната доступна игрокам, пока мастер держит игру открытой.</small>
+          </Card>
+        )}
         {visibleRoutePeers.map((peer) => (
           <Card
             className="player-tools-peer-card"
@@ -334,10 +381,14 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           </Card>
         ))}
         {visibleRoutePeers.length === 0 && (
-          <Card className="player-tools-peer-card player-tools-peer-card--empty" title="Нет подключений" subtitle="Каналы сигналинга инициализированы, но другой участник ещё не найден">
+          <Card
+            className="player-tools-peer-card player-tools-peer-card--empty"
+            title={usesServer ? 'Голос и видео ожидают собеседника' : 'Нет подключений'}
+            subtitle={usesServer ? 'Медиасигналинг готов, но другой участник ещё не найден' : 'Каналы сигналинга инициализированы, но другой участник ещё не найден'}
+          >
             <div className="player-tools-peer-routes">
               {P2P_ROUTE_COLUMNS.map((strategy) => (
-                <TransportRouteStatus key={strategy} route={p2pRoutes.find((item) => item.strategy === strategy)} strategy={strategy} />
+                <TransportRouteStatus key={strategy} route={displayedRoutes.find((item) => item.strategy === strategy)} strategy={strategy} />
               ))}
             </div>
           </Card>
@@ -347,7 +398,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         <summary>Технические данные</summary>
         <div className="player-tools-scene-framing__controls player-tools-technical-report__content">
           <dl className="player-tools-sync__meta">
-            <div><dt>Режим</dt><dd aria-label="Режим">{P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
+            <div><dt>Режим</dt><dd aria-label="Режим">{usesServer ? 'Hybrid · Server + P2P media' : P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
             <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
             <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
           </dl>

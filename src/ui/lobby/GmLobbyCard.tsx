@@ -3,8 +3,9 @@ import { useEffect, useState } from 'preact/hooks';
 import { Copy, Crown, RefreshCw, Trash2, Video } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { p2pNetworkSettings$ } from '../../domain/p2p/networkSettings';
+import { serverSessionEnabled } from '../../domain/p2p/serverSession';
 import { characterService, gameService, gmLobbyService, sceneTableService } from '../../services/serviceRegistry';
-import { Button, ConfirmDialog, EmptyState, IconButton, SectionHeader, SelectControl, Surface, TextControl, Toolbar } from '../components/common';
+import { Button, ConfirmDialog, EmptyState, IconButton, Notice, SectionHeader, SelectControl, Surface, TextControl, Toolbar } from '../components/common';
 import type { LobbyInviteContext } from './SessionLobby';
 
 interface GmLobbyCardProps {
@@ -14,6 +15,7 @@ interface GmLobbyCardProps {
 }
 
 export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCardProps) {
+  const usesServer = serverSessionEnabled();
   const { gmName } = useStream(gameService.game$);
   const { entities: characterEntities, order: characterOrder } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
@@ -21,6 +23,10 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
   useStream(p2pNetworkSettings$);
   const [restoringSession, setRestoringSession] = useState(true);
   const [roomRefreshOpen, setRoomRefreshOpen] = useState(false);
+  const [masterAccount, setMasterAccount] = useState<{
+    status: 'loading' | 'anonymous' | 'authenticated' | 'error' | 'not-required';
+    email: string;
+  }>(() => ({ status: usesServer ? 'loading' : 'not-required', email: '' }));
   const characterOptions = characterOrder.map((id) => characterEntities[id]).filter(Boolean);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');
   const displayedInviteUrl = restoringSession ? '' : gmLobbyService.previewInviteUrl(inviteContext, lobby);
@@ -30,6 +36,33 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
   const roomCodeRefreshTitle = isRoomCodeRefreshCoolingDown ? `Обновить код можно через ${roomCodeRefresh.remainingSeconds} с` : 'Обновить код комнаты';
 
   useEffect(() => {
+    if (!usesServer) return;
+    let active = true;
+    void fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then((response) => {
+        if (!response.ok) throw new Error('auth_unavailable');
+        return response.json();
+      })
+      .then((result: { authenticated?: unknown; user?: { email?: unknown } }) => {
+        if (!active) return;
+        setMasterAccount(result.authenticated === true
+          ? { status: 'authenticated', email: typeof result.user?.email === 'string' ? result.user.email : '' }
+          : { status: 'anonymous', email: '' });
+      })
+      .catch(() => {
+        if (active) setMasterAccount({ status: 'error', email: '' });
+      });
+    return () => {
+      active = false;
+    };
+  }, [usesServer]);
+
+  useEffect(() => {
+    if (masterAccount.status === 'loading') return;
+    if (masterAccount.status === 'anonymous' || masterAccount.status === 'error') {
+      setRestoringSession(false);
+      return;
+    }
     let active = true;
     void gmLobbyService.restoreSession(gmName).finally(() => {
       if (active) setRestoringSession(false);
@@ -37,7 +70,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
     return () => {
       active = false;
     };
-  }, []);
+  }, [masterAccount.status]);
 
   const createSession = async () => {
     return await gmLobbyService.createSession({
@@ -73,9 +106,30 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
     });
   };
 
+  const signIn = () => {
+    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.assign(`/signin-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`);
+  };
+
+  const masterSignedIn = masterAccount.status === 'authenticated' || masterAccount.status === 'not-required';
+
   return (
     <Surface className="role-entry__card role-entry__gm-card" aria-label="Создать сессию мастера">
       <SectionHeader title="Мастер" actions={<Crown size={20} aria-hidden="true" />} />
+      {usesServer && masterAccount.status === 'authenticated' && (
+        <Notice tone="success">Миры сохраняются в аккаунте {masterAccount.email || 'мастера'}.</Notice>
+      )}
+      {usesServer && masterAccount.status === 'anonymous' && (
+        <>
+          <Notice>Войдите как мастер, чтобы хранить свои миры и открывать комнаты для игроков.</Notice>
+          <Toolbar>
+            <Button variant="primary" type="button" onClick={signIn}>Войти через ChatGPT</Button>
+          </Toolbar>
+        </>
+      )}
+      {usesServer && masterAccount.status === 'error' && (
+        <Notice tone="error">Не удалось проверить аккаунт мастера. Серверная игра пока недоступна.</Notice>
+      )}
       <div className="role-entry__invite-grid">
         <label>
           <span>Код комнаты</span>
@@ -87,7 +141,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
               type="button"
               title={roomCodeRefreshTitle}
               aria-label="Обновить код комнаты"
-              disabled={restoringSession || isRoomCodeRefreshCoolingDown}
+              disabled={!masterSignedIn || restoringSession || isRoomCodeRefreshCoolingDown}
               onClick={requestRoomCodeRefresh}
             >
               <RefreshCw size={15} aria-hidden="true" />
@@ -98,7 +152,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
           <span>Ссылка для игроков</span>
           <div className="role-entry__inline-control">
             <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteUrl} placeholder={restoringSession ? 'Восстанавливаем комнату...' : 'Появится после ввода кода комнаты'} />
-            <IconButton type="button" size="sm" title="Копировать ссылку игрока" aria-label="Копировать ссылку игрока" disabled={restoringSession || !displayedInviteUrl} onClick={() => void copyInvite()}>
+            <IconButton type="button" size="sm" title="Копировать ссылку игрока" aria-label="Копировать ссылку игрока" disabled={!masterSignedIn || restoringSession || !displayedInviteUrl} onClick={() => void copyInvite()}>
               <Copy size={15} aria-hidden="true" />
             </IconButton>
           </div>
@@ -138,7 +192,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
         {playerSeats.length === 0 && <EmptyState size="sm" title="Добавьте игроков" />}
       </div>
       <Toolbar className="role-entry__inline-actions">
-        <Button variant="primary" type="button" disabled={restoringSession} onClick={enterGm}>
+        <Button variant="primary" type="button" disabled={!masterSignedIn || restoringSession} onClick={enterGm}>
           {restoringSession ? 'Восстанавливаем...' : 'Открыть игру'}
         </Button>
         <Button
@@ -148,7 +202,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
           type="button"
           iconBefore={<Video size={13} aria-hidden="true" />}
           title="Открыть экспериментальный созвон"
-          disabled={restoringSession}
+          disabled={!masterSignedIn || restoringSession}
           onClick={enterCall}
         >
           Созвон

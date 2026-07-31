@@ -45,6 +45,7 @@ interface ScriptedP2PTransportOptions {
 
 export class ScriptedP2PNetwork {
   connects = 0;
+  connectedRoomIds: string[] = [];
   transportStrategies: Array<P2PTransportMode | undefined> = [];
   deliveredSnapshots = 0;
   droppedSnapshots = 0;
@@ -106,6 +107,7 @@ export class ScriptedP2PNetwork {
       throw new Error(`${transport.strategy} disabled`);
     }
     this.connects += 1;
+    this.connectedRoomIds.push(roomId);
     transport.roomId = roomId;
     transport.peerId = `peer-${this.nextPeerNumber++}`;
     const roomKey = this.roomKey(transport.strategy, roomId);
@@ -350,7 +352,7 @@ async function binaryPayloadToArrayBuffer(data: P2PBinaryPayload): Promise<Array
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 }
 
-export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService } = {}): P2PSessionService {
+export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService; mediaNetwork?: ScriptedP2PNetwork } = {}): P2PSessionService {
   return new P2PSessionService(
     options.syncService ?? new SyncService(),
     new PlayerActionRequestService(),
@@ -365,7 +367,8 @@ export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dic
     (options) => network.createTransport(options),
     { heartbeatMs: 100, gmTimeoutMs: 400 },
     options.mediaCallService,
-    options.characterService
+    options.characterService,
+    options.mediaNetwork ? (transportOptions) => options.mediaNetwork!.createTransport(transportOptions) : undefined
   );
 }
 

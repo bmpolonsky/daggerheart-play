@@ -524,6 +524,7 @@ export class MediaCallService {
 function isCallMediaTransport(transport: SyncTransport | null): transport is SyncTransport & CallMediaTransport {
   return Boolean(
     transport &&
+    (!('supportsMedia' in transport) || transport.supportsMedia !== false) &&
     'publishMediaStream' in transport &&
     'removeMediaStream' in transport &&
     'subscribeMediaStreams' in transport

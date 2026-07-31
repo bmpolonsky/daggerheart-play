@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ExternalLink, X } from 'lucide-react';
 import { useStream } from '../../../core/hooks/useStream';
-import { buildCharacterSummary } from '../../../domain/tabletop/playerView';
 import type { Character, DaggerheartClass } from '../../../domain/rules/types';
 import { characterService, contentService, gameService, sceneTableService, tabletopService } from '../../../services/serviceRegistry';
 import { Dialog } from '../../components/common/Dialog';
@@ -26,7 +25,7 @@ import {
   SharedToolsScenesTab
 } from './SharedToolsTabs';
 import { SharedToolsCombatTab } from './sharedTools/SharedToolsCombatTab';
-import { CharacterSheet } from './CharacterSheet';
+import { CharacterEditor } from '../../characters/CharacterEditor';
 import { EmptyState } from '../../components/common/EmptyState';
 import type { SharedToolsTab, TableViewRole } from './types';
 import type { ContentCollectionKey } from '../../../domain/content/types';
@@ -222,7 +221,7 @@ function SharedToolsPlayerCharacterTabHost({ characterId }: { characterId: strin
 
   if (!character) {
     return (
-      <section className="player-tools-section player-tools-player-character-section">
+      <section className="player-tools-section player-tools-character-editor">
         <EmptyState
           tone="transparent"
           title="Персонаж не выбран"
@@ -233,13 +232,8 @@ function SharedToolsPlayerCharacterTabHost({ characterId }: { characterId: strin
   }
 
   return (
-    <section className="player-tools-section player-tools-player-character-section" aria-label="Мой персонаж">
-      <CharacterSheet
-        character={buildCharacterSummary(character)}
-        beastforms={content.beastforms}
-        role="player"
-        showRuleEffects
-      />
+    <section className="player-tools-section player-tools-character-editor" aria-label="Мой персонаж">
+      <CharacterEditor character={character} content={content} role="player" />
     </section>
   );
 }

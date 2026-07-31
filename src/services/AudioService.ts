@@ -330,6 +330,7 @@ export class AudioService {
 function isVoiceMediaTransport(transport: SyncTransport | null): transport is SyncTransport & VoiceMediaTransport {
   return Boolean(
     transport &&
+    (!('supportsMedia' in transport) || transport.supportsMedia !== false) &&
     'publishMediaStream' in transport &&
     'removeMediaStream' in transport &&
     'subscribeMediaStreams' in transport

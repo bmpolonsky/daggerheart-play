@@ -1,21 +1,42 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Download, Trash2, Upload } from 'lucide-react';
+import { Cloud, Download, Trash2, Upload } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
+import { serverSessionEnabled } from '../../domain/p2p/serverSession';
 import { importExportService, persistenceService } from '../../services/serviceRegistry';
-import { Button, ConfirmDialog, EmptyState, IconButton, ListItem, SectionHeader, Surface, Toolbar } from '../components/common';
+import { Button, ConfirmDialog, EmptyState, IconButton, ListItem, Notice, SectionHeader, Surface, Toolbar } from '../components/common';
 import type { StoredGameSummary } from '../../core/persistence/gameDocumentStore';
 
+interface CloudWorldSummary {
+  id: string;
+  name: string;
+  updatedAt: number;
+}
+
 export function StoredGamesCard() {
+  const usesServer = serverSessionEnabled();
   const storedGames = useStream(persistenceService.storedGames$);
   const importFileRef = useRef<HTMLInputElement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<StoredGameSummary | null>(null);
+  const [pendingCloudWorld, setPendingCloudWorld] = useState<CloudWorldSummary | null>(null);
+  const [cloudWorlds, setCloudWorlds] = useState<CloudWorldSummary[] | null>(null);
+  const [cloudError, setCloudError] = useState('');
   const activeStoredGame = storedGames.find((game) => game.active) ?? null;
 
   useEffect(() => {
     void persistenceService.refreshStoredGames();
-  }, []);
+    if (!usesServer) return;
+    void fetch('/api/worlds', { credentials: 'same-origin' })
+      .then(async (response) => {
+        if (response.status === 401) return null;
+        if (!response.ok) throw new Error('cloud_worlds_unavailable');
+        const result = await response.json() as { worlds?: CloudWorldSummary[] };
+        return Array.isArray(result.worlds) ? result.worlds : [];
+      })
+      .then((worlds) => setCloudWorlds(worlds))
+      .catch(() => setCloudError('Не удалось загрузить облачные миры. Локальные сохранения доступны как обычно.'));
+  }, [usesServer]);
 
   const importGameFile = async (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -48,6 +69,26 @@ export function StoredGamesCard() {
     const ok = await persistenceService.removeStoredGame(game.id);
     if (!ok) return;
     await persistenceService.refreshStoredGames();
+  };
+
+  const restoreCloudWorld = async (world: CloudWorldSummary) => {
+    setCloudError('');
+    try {
+      const response = await fetch(`/api/worlds/${encodeURIComponent(world.id)}`, { credentials: 'same-origin' });
+      if (!response.ok) throw new Error('cloud_world_unavailable');
+      const result = await response.json() as { snapshot?: unknown };
+      const imported = await importExportService.importJson(JSON.stringify(result.snapshot));
+      if (!imported.ok) throw new Error(imported.message);
+      await persistenceService.refreshStoredGames();
+    } catch {
+      setCloudError('Не удалось восстановить облачный мир. Текущее локальное сохранение не изменено.');
+    }
+  };
+
+  const downloadCloudWorld = (world: CloudWorldSummary) => {
+    const anchor = document.createElement('a');
+    anchor.href = `/api/worlds/${encodeURIComponent(world.id)}/export`;
+    anchor.click();
   };
 
   return (
@@ -102,6 +143,34 @@ export function StoredGamesCard() {
           accept="application/json,application/zip,.json,.zip,.dhgame"
           onChange={importGameFile}
         />
+        {usesServer && cloudError && <Notice tone="error">{cloudError}</Notice>}
+        {cloudWorlds && (
+          <>
+            <SectionHeader title="Облачные миры" actions={<Cloud size={18} aria-hidden="true" />} />
+            <Notice>Состояние мира сохраняется во время открытой серверной игры. Картинки и аудиофайлы пока остаются на исходном устройстве.</Notice>
+            <div className="role-entry__game-list">
+              {cloudWorlds.map((world) => (
+                <ListItem
+                  key={world.id}
+                  title={world.name || 'Без названия'}
+                  subtitle={world.updatedAt ? formatDateTime(new Date(world.updatedAt).toISOString()) : 'Без сохранения'}
+                  leftAccessory={<Cloud size={17} aria-hidden="true" />}
+                  rightAccessory={
+                    <Toolbar className="role-entry__game-actions">
+                      <Button size="sm" type="button" onClick={() => setPendingCloudWorld(world)}>
+                        Восстановить
+                      </Button>
+                      <IconButton variant="ghost" size="sm" type="button" title="Скачать мир" aria-label={`Скачать мир ${world.name || 'Без названия'}`} onClick={() => downloadCloudWorld(world)}>
+                        <Download size={14} aria-hidden="true" />
+                      </IconButton>
+                    </Toolbar>
+                  }
+                />
+              ))}
+              {cloudWorlds.length === 0 && <EmptyState size="sm" title="Облачных миров пока нет" body="Мир появится здесь после первого запуска серверной игры." />}
+            </div>
+          </>
+        )}
       </Surface>
       {pendingDelete && (
         <ConfirmDialog
@@ -112,6 +181,20 @@ export function StoredGamesCard() {
             const storedGame = pendingDelete;
             setPendingDelete(null);
             void removeStoredGame(storedGame);
+          }}
+        />
+      )}
+      {pendingCloudWorld && (
+        <ConfirmDialog
+          title={`Восстановить мир «${pendingCloudWorld.name || 'Без названия'}»?`}
+          body="Облачная версия станет текущей игрой на этом устройстве. Текущее локальное сохранение останется в списке сохранений."
+          confirmLabel="Восстановить"
+          destructive={false}
+          onCancel={() => setPendingCloudWorld(null)}
+          onConfirm={() => {
+            const world = pendingCloudWorld;
+            setPendingCloudWorld(null);
+            void restoreCloudWorld(world);
           }}
         />
       )}

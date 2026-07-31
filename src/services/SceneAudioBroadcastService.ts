@@ -470,6 +470,7 @@ export class SceneAudioBroadcastService {
 function isSceneAudioMediaTransport(transport: SyncTransport | null): transport is SyncTransport & SceneAudioMediaTransport {
   return Boolean(
     transport &&
+    (!('supportsMedia' in transport) || transport.supportsMedia !== false) &&
     'publishMediaStream' in transport &&
     'removeMediaStream' in transport &&
     'subscribeMediaStreams' in transport
