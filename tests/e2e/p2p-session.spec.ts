@@ -255,7 +255,7 @@ test.describe('P2P session workflow', () => {
     expect(secondRouteBox.y).toBeGreaterThanOrEqual(firstRouteBox.y + firstRouteBox.height - 1);
     await expect(dialog.locator('.player-tools-diagnostics')).toHaveCSS('overflow-y', 'auto');
     const firstRoute = routes.first();
-    await expect(firstRoute.locator('summary')).toHaveAttribute('aria-label', 'Supabase: готов');
+    await expect(firstRoute.locator('summary')).toHaveAttribute('aria-label', 'Supabase: инициализирован');
     await firstRoute.locator('summary').click();
     await expect(firstRoute.locator('.player-tools-peer-route__details')).toBeVisible();
     await expect(firstRoute.locator('.player-tools-peer-route__details')).toContainText('Статус:');

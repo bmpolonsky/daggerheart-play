@@ -99,6 +99,8 @@ export interface P2PTransportAdapter {
   onRouteSwitch?(listener: (event: P2PTransportRouteSwitchEvent) => void): () => void;
   publishMediaStream?(stream: MediaStream, metadata?: unknown): Promise<void>;
   removeMediaStream?(stream: MediaStream): void;
+  addMediaTrack?(track: MediaStreamTrack, stream: MediaStream, metadata?: unknown): Promise<void>;
+  removeMediaTrack?(track: MediaStreamTrack): void;
   subscribeMediaStreams?(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void;
   getRouteDiagnostics?(): P2PTransportRouteDiagnostic[];
   getPeerDiagnostics?(): P2PTransportPeerDiagnostic[];

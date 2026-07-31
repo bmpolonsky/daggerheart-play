@@ -1794,6 +1794,42 @@
   gap: 10px;
 }
 
+.player-tools-technical-report {
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.player-tools-technical-report > summary {
+  color: var(--dh-paper-muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.player-tools-technical-report__content {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.player-tools-technical-report pre {
+  max-height: 260px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-control);
+  color: var(--dh-paper-muted);
+  font: 0.66rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.player-tools-technical-report .dh-button {
+  justify-self: start;
+}
+
 .player-tools-peer-card.dh-card {
   gap: 10px;
   padding: 11px 12px;

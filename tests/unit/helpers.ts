@@ -297,6 +297,13 @@ class ScriptedP2PTransport implements P2PTransportAdapter {
     this.publishedMediaStreams.delete(stream);
   }
 
+  async addMediaTrack(_track: MediaStreamTrack, stream: MediaStream, metadata?: unknown): Promise<void> {
+    this.publishedMediaStreams.set(stream, metadata);
+    this.network.publishMediaStream(this, stream, metadata);
+  }
+
+  removeMediaTrack(_track: MediaStreamTrack): void {}
+
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {
     this.mediaStreamListeners.add(listener);
     return () => this.mediaStreamListeners.delete(listener);

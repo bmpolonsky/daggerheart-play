@@ -210,6 +210,39 @@ test('auto P2P accepts replacement media after the active physical route leaves'
   assert.deepEqual(received, [mqttStream, nostrStream, mqttReplacement]);
 });
 
+test('auto P2P emits an existing remote stream again when a new media track appears', async () => {
+  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const transport = new MultiStrategyP2PTransport({
+    mode: 'auto',
+    candidates: ['mqtt'],
+    createTransport: () => mqtt
+  });
+  const received: MediaStream[] = [];
+  const tracks = [{ kind: 'video', id: 'video-1' }];
+  const stream = {
+    id: 'stable-stream-id',
+    getTracks: () => tracks
+  } as unknown as MediaStream;
+
+  transport.subscribeMediaStreams((nextStream) => received.push(nextStream));
+  await transport.connect('media-track-room');
+  mqtt.emit({
+    version: 2,
+    id: 'mqtt-active',
+    channel: 'data',
+    sender: { peerId: 'logical-owner', role: 'player' },
+    sentAt: '2026-05-26T00:00:00.000Z',
+    payload: { type: 'media-route-probe' }
+  }, 'physical-mqtt');
+
+  mqtt.emitMediaStream(stream, 'physical-mqtt', { kind: 'call' });
+  tracks.push({ kind: 'audio', id: 'audio-1' });
+  mqtt.emitMediaStream(stream, 'physical-mqtt', { kind: 'call' });
+  mqtt.emitMediaStream(stream, 'physical-mqtt', { kind: 'call' });
+
+  assert.deepEqual(received, [stream, stream]);
+});
+
 test('auto P2P media diagnostics keep healthy routes when another route fails', async () => {
   const mqtt = new TestP2PTransport('mqtt', 'ready');
   const nostr = new TestP2PTransport('nostr', 'ready');

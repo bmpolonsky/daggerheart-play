@@ -295,6 +295,27 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     this.routes.forEach((route) => route.transport.removeMediaStream?.(stream));
   }
 
+  async addMediaTrack(track: MediaStreamTrack, stream: MediaStream, metadata?: unknown): Promise<void> {
+    this.publishedMediaStreams.set(stream, metadata);
+    const routes = Array.from(new Set(this.activeRoutesForBroadcast().map(({ route }) => route)));
+    const results = await Promise.allSettled(routes.map(async (route) => {
+      if (route.transport.addMediaTrack) {
+        await route.transport.addMediaTrack(track, stream, metadata);
+        return;
+      }
+      route.transport.removeMediaStream?.(stream);
+      await route.transport.publishMediaStream?.(stream, metadata);
+    }));
+    if (!results.some((result) => result.status === 'fulfilled')) {
+      const rejected = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+      throw rejected?.reason instanceof Error ? rejected.reason : new Error('Unable to add media track.');
+    }
+  }
+
+  removeMediaTrack(track: MediaStreamTrack): void {
+    this.routes.forEach((route) => route.transport.removeMediaTrack?.(track));
+  }
+
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {
     this.mediaStreamListeners.add(listener);
     return () => this.mediaStreamListeners.delete(listener);
@@ -676,7 +697,10 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
   }
 
   private wasMediaSeen(peerId: string, stream: MediaStream, metadata: unknown): boolean {
-    const key = `${peerId}:${stream.id}:${safeMetadataKey(metadata)}`;
+    const trackKey = typeof stream.getTracks === 'function'
+      ? stream.getTracks().map((track) => `${track.kind}:${track.id}`).sort().join(',')
+      : '';
+    const key = `${peerId}:${stream.id}:${trackKey}:${safeMetadataKey(metadata)}`;
     if (this.seenMediaKeys.has(key)) {
       return true;
     }

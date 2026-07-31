@@ -51,6 +51,8 @@ interface CallMediaMetadata {
 interface CallMediaTransport {
   publishMediaStream(stream: MediaStream, metadata?: CallMediaMetadata): Promise<void>;
   removeMediaStream(stream: MediaStream): void;
+  addMediaTrack?(track: MediaStreamTrack, stream: MediaStream, metadata?: CallMediaMetadata): Promise<void>;
+  removeMediaTrack?(track: MediaStreamTrack): void;
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void;
 }
 
@@ -311,30 +313,55 @@ export class MediaCallService {
       message: 'Запрашиваем доступ к устройствам...'
     }));
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: constraints.audio
+      const missingAudio = constraints.audio && !hasAudio;
+      const missingVideo = constraints.video && !hasVideo;
+      const acquiredStream = await navigator.mediaDevices.getUserMedia({
+        audio: missingAudio
           ? {
               echoCancellation: true,
               noiseSuppression: true,
               autoGainControl: true
             }
           : false,
-        video: constraints.video
+        video: missingVideo
           ? callVideoConstraints()
           : false
       });
-      applyCallContentHints(stream);
-      if (current.localStream) {
-        this.mediaTransport.removeMediaStream(current.localStream);
-        current.localStream.getTracks().forEach((track) => track.stop());
+      applyCallContentHints(acquiredStream);
+      if (!current.localStream) {
+        this.callStore.update((state) => ({
+          ...state,
+          localStream: acquiredStream,
+          status: 'connected',
+          message: 'Устройства подключены.'
+        }));
+        await this.publishLocalStream(acquiredStream);
+        return true;
       }
+
+      const localStream = current.localStream;
+      const addedTracks = acquiredStream.getTracks();
+      addedTracks.forEach((track) => localStream.addTrack(track));
       this.callStore.update((state) => ({
         ...state,
-        localStream: stream,
+        localStream,
         status: 'connected',
         message: 'Устройства подключены.'
       }));
-      await this.publishLocalStream(stream);
+      try {
+        if (this.mediaTransport.addMediaTrack) {
+          await Promise.all(addedTracks.map((track) => this.mediaTransport?.addMediaTrack?.(track, localStream, this.localMediaMetadata())));
+        } else {
+          this.mediaTransport.removeMediaStream(localStream);
+          await this.publishLocalStream(localStream);
+        }
+      } catch (error) {
+        addedTracks.forEach((track) => {
+          localStream.removeTrack(track);
+          track.stop();
+        });
+        throw error;
+      }
       return true;
     } catch (error) {
       const denied = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
@@ -360,13 +387,20 @@ export class MediaCallService {
   }
 
   private async publishLocalStream(stream: MediaStream): Promise<void> {
+    if (!this.mediaTransport) return;
+    const metadata = this.localMediaMetadata();
+    if (!metadata) return;
+    await this.mediaTransport.publishMediaStream(stream, metadata);
+  }
+
+  private localMediaMetadata(): CallMediaMetadata | undefined {
     const state = this.call$.get();
-    if (!this.mediaTransport || !state.displayName.trim()) return;
-    await this.mediaTransport.publishMediaStream(stream, {
+    if (!state.displayName.trim()) return undefined;
+    return {
       kind: 'call',
       participantId: state.localParticipantId,
       displayName: state.displayName.trim()
-    });
+    };
   }
 
   private attachRemoteStream(peerId: string, stream: MediaStream, metadata: CallMediaMetadata): void {

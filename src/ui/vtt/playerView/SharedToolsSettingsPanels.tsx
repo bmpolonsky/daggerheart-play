@@ -6,6 +6,7 @@ import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../.
 import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$ } from '../../../domain/p2p/networkSettings';
 import type { P2PMediaConnectionDiagnostic, P2PMediaRtpDiagnostic, P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
 import type { P2PSessionState } from '../../../services/P2PSessionService';
+import { buildP2PDiagnosticsReport } from '../../../services/p2p/P2PDiagnosticsReport';
 import type { Character, GameState } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
 import {
@@ -274,7 +275,25 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     : p2pRoutePeers.filter((peer) => peer.activeStrategy);
   const peerNames = participantPeerNames(sceneTable.participants);
   const [mediaDiagnostics, setMediaDiagnostics] = useState<DisplayMediaConnectionDiagnostic[]>([]);
+  const [reportCopied, setReportCopied] = useState(false);
   const previousMediaSamples = useRef(new Map<string, MediaCounterSample>());
+  const technicalReport = buildP2PDiagnosticsReport({
+    session,
+    media: mediaDiagnostics,
+    userAgent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
+    url: typeof window === 'undefined' ? '' : window.location.href
+  });
+
+  const copyTechnicalReport = async () => {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(technicalReport);
+      setReportCopied(true);
+      window.setTimeout(() => setReportCopied(false), 1800);
+    } catch {
+      toastService.show('Не удалось скопировать технический отчёт.', 'warning');
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -296,11 +315,8 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   return (
     <section className={`player-tools-settings-panel player-tools-diagnostics ${compact ? 'player-tools-diagnostics--compact' : ''}`}>
       <dl className="player-tools-sync__meta">
-        {role === 'gm' && <div><dt>Активная комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>}
+        <div><dt>Комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>
         <div><dt>Статус</dt><dd aria-label="Статус">{displayedP2PStatus}</dd></div>
-        <div><dt>Режим</dt><dd aria-label="Режим">{P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
-        <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
-        <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
         <div><dt>Логических подключений</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
         <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
       </dl>
@@ -321,7 +337,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           </Card>
         ))}
         {visibleRoutePeers.length === 0 && (
-          <Card className="player-tools-peer-card player-tools-peer-card--empty" title="Нет подключений" subtitle="Каналы связи готовы к новому подключению">
+          <Card className="player-tools-peer-card player-tools-peer-card--empty" title="Нет подключений" subtitle="Каналы сигналинга инициализированы, но другой участник ещё не найден">
             <div className="player-tools-peer-routes">
               {P2P_ROUTE_COLUMNS.map((strategy) => (
                 <TransportRouteStatus key={strategy} route={p2pRoutes.find((item) => item.strategy === strategy)} strategy={strategy} />
@@ -330,6 +346,20 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           </Card>
         )}
       </div>
+      <details className="player-tools-technical-report">
+        <summary>Технические данные</summary>
+        <div className="player-tools-technical-report__content">
+          <dl className="player-tools-sync__meta">
+            <div><dt>Режим</dt><dd aria-label="Режим">{P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
+            <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
+            <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
+          </dl>
+          <pre>{technicalReport}</pre>
+          <Button size="sm" type="button" onClick={() => void copyTechnicalReport()}>
+            {reportCopied ? 'Отчёт скопирован' : 'Скопировать отчёт'}
+          </Button>
+        </div>
+      </details>
       <div className="player-tools-media-diagnostics" aria-label="Диагностика медиапотоков">
         <strong className="player-tools-media-diagnostics__title">Медиапотоки</strong>
         <Card
@@ -603,7 +633,7 @@ function peerRouteTone(route?: P2PTransportPeerRouteDiagnostic): BadgeTone {
 
 function transportRouteTone(route?: P2PTransportRouteDiagnostic): BadgeTone {
   if (!route) return 'neutral';
-  if (route.status === 'ready') return 'success';
+  if (route.status === 'ready') return 'neutral';
   if (route.status === 'probing') return 'blue';
   if (route.status === 'failed') return 'danger';
   return 'gold';
@@ -636,7 +666,7 @@ function formatPeerRouteTitle(route?: P2PTransportPeerRouteDiagnostic): string {
 function formatRouteStatus(status: P2PTransportRouteDiagnostic['status']): string {
   switch (status) {
     case 'ready':
-      return 'готов';
+      return 'инициализирован';
     case 'probing':
       return 'проверка';
     case 'failed':

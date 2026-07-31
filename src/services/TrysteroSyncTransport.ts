@@ -100,6 +100,9 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     this.room.onPeerStream((stream, peerId, metadata) => {
       this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
     });
+    this.room.onPeerTrack((_track, stream, peerId, metadata) => {
+      this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
+    });
   }
 
   async disconnect(): Promise<void> {
@@ -173,6 +176,18 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
   removeMediaStream(stream: MediaStream): void {
     this.publishedMediaStreams.delete(stream);
     this.room?.removeStream(stream);
+  }
+
+  async addMediaTrack(track: MediaStreamTrack, stream: MediaStream, metadata?: unknown): Promise<void> {
+    if (!this.room) {
+      throw new Error('Trystero transport is not connected.');
+    }
+    this.publishedMediaStreams.set(stream, metadata as JsonValue | undefined);
+    await Promise.all(this.room.addTrack(track, stream, undefined, metadata as JsonValue | undefined));
+  }
+
+  removeMediaTrack(track: MediaStreamTrack): void {
+    this.room?.removeTrack(track);
   }
 
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {

@@ -20,10 +20,11 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
   const lobby = useStream(gmLobbyService.lobby$);
   useStream(p2pNetworkSettings$);
   const restoreAttempted = useRef(false);
+  const [restoringSession, setRestoringSession] = useState(true);
   const [roomRefreshOpen, setRoomRefreshOpen] = useState(false);
   const characterOptions = characterOrder.map((id) => characterEntities[id]).filter(Boolean);
   const playerSeats = Object.values(participants).filter((participant) => participant.role === 'player');
-  const displayedInviteUrl = gmLobbyService.previewInviteUrl(inviteContext, lobby);
+  const displayedInviteUrl = restoringSession ? '' : gmLobbyService.previewInviteUrl(inviteContext, lobby);
   const displayedGmRoomId = gmLobbyService.getRoomId(lobby);
   const roomCodeRefresh = gmLobbyService.roomCodeRefreshView(lobby);
   const isRoomCodeRefreshCoolingDown = roomCodeRefresh.remainingSeconds > 0;
@@ -32,7 +33,13 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
   useEffect(() => {
     if (restoreAttempted.current) return;
     restoreAttempted.current = true;
-    void gmLobbyService.restoreSession(gmName);
+    let active = true;
+    void gmLobbyService.restoreSession(gmName).finally(() => {
+      if (active) setRestoringSession(false);
+    });
+    return () => {
+      active = false;
+    };
   }, [gmName]);
 
   const createSession = async () => {
@@ -83,7 +90,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
               type="button"
               title={roomCodeRefreshTitle}
               aria-label="Обновить код комнаты"
-              disabled={isRoomCodeRefreshCoolingDown}
+              disabled={restoringSession || isRoomCodeRefreshCoolingDown}
               onClick={requestRoomCodeRefresh}
             >
               <RefreshCw size={15} aria-hidden="true" />
@@ -93,8 +100,8 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
         <label>
           <span>Ссылка для игроков</span>
           <div className="role-entry__inline-control">
-            <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteUrl} placeholder="Появится после ввода кода комнаты" />
-            <IconButton type="button" size="sm" title="Копировать ссылку игрока" aria-label="Копировать ссылку игрока" disabled={!displayedInviteUrl} onClick={() => void copyInvite()}>
+            <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteUrl} placeholder={restoringSession ? 'Восстанавливаем комнату...' : 'Появится после ввода кода комнаты'} />
+            <IconButton type="button" size="sm" title="Копировать ссылку игрока" aria-label="Копировать ссылку игрока" disabled={restoringSession || !displayedInviteUrl} onClick={() => void copyInvite()}>
               <Copy size={15} aria-hidden="true" />
             </IconButton>
           </div>
@@ -134,8 +141,8 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
         {playerSeats.length === 0 && <EmptyState size="sm" title="Добавьте игроков" />}
       </div>
       <Toolbar className="role-entry__inline-actions">
-        <Button variant="primary" type="button" onClick={enterGm}>
-          Открыть игру
+        <Button variant="primary" type="button" disabled={restoringSession} onClick={enterGm}>
+          {restoringSession ? 'Восстанавливаем...' : 'Открыть игру'}
         </Button>
         <Button
           className="role-entry__call-link"
@@ -144,6 +151,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
           type="button"
           iconBefore={<Video size={13} aria-hidden="true" />}
           title="Открыть экспериментальный созвон"
+          disabled={restoringSession}
           onClick={enterCall}
         >
           Созвон

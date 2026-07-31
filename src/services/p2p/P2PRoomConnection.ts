@@ -165,6 +165,17 @@ export class P2PRoomConnection implements SyncTransport {
     this.adapter.removeMediaStream?.(stream);
   }
 
+  async addMediaTrack(track: MediaStreamTrack, stream: MediaStream, metadata?: unknown): Promise<void> {
+    if (!this.adapter.addMediaTrack) {
+      throw new Error('P2P transport does not support adding media tracks.');
+    }
+    await this.adapter.addMediaTrack(track, stream, metadata);
+  }
+
+  removeMediaTrack(track: MediaStreamTrack): void {
+    this.adapter.removeMediaTrack?.(track);
+  }
+
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {
     this.mediaStreamListeners.add(listener);
     return () => this.mediaStreamListeners.delete(listener);
