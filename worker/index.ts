@@ -6,6 +6,7 @@ import type { D1Database, ExecutionContext, WorkerEnv } from './cloudflare';
 const MASTER_LEASE_MS = 20_000;
 const PARTICIPANT_LEASE_MS = 30_000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
+const PAGES_ASSET_ORIGIN = 'https://bmpolonsky.github.io/daggerheart-play';
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 let schemaReady: Promise<void> | null = null;
 
@@ -50,6 +51,9 @@ const worker = {
     }
 
     const asset = await env.ASSETS.fetch(request);
+    if (asset.status === 404 && (request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/image/')) {
+      return Response.redirect(`${PAGES_ASSET_ORIGIN}${url.pathname}${url.search}`, 307);
+    }
     if (asset.status !== 404 || request.method !== 'GET' || !request.headers.get('accept')?.includes('text/html')) {
       return asset;
     }
