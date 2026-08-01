@@ -19,6 +19,10 @@ test('cloud backup uploads and restores the existing dhgame archive', async () =
       stored = init.body as Blob;
       return new Response(null, { status: 204 });
     }
+    if (init?.method === 'DELETE') {
+      stored = null;
+      return new Response(null, { status: 204 });
+    }
     return stored ? new Response(stored) : new Response(null, { status: 404 });
   };
   const backups = new CloudBackupService(importExportService, fetcher as typeof fetch);
@@ -27,4 +31,6 @@ test('cloud backup uploads and restores the existing dhgame archive', async () =
   assert.equal(await (stored as Blob | null)?.arrayBuffer().then((bytes) => bytes.byteLength), 4);
   assert.equal(await backups.restore('world-1'), true);
   assert.equal(await (imported as Blob | null)?.arrayBuffer().then((bytes) => bytes.byteLength), 4);
+  assert.equal(await backups.remove('world-1'), true);
+  assert.equal(stored, null);
 });

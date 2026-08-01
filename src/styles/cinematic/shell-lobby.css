@@ -331,7 +331,7 @@
 }
 
 .role-entry__lobby-shell {
-  grid-template-columns: minmax(0, 1.55fr) minmax(380px, 0.85fr);
+  grid-template-columns: minmax(0, 1.55fr) minmax(400px, 0.85fr);
   gap: 18px;
 }
 
@@ -380,6 +380,7 @@
 }
 
 .role-entry__game-actions {
+  gap: 4px;
   flex-wrap: nowrap;
 }
 

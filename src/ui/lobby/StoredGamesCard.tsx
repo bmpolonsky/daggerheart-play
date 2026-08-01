@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Cloud, Download, Trash2, Upload } from 'lucide-react';
+import { Cloud, Download, HardDrive, Trash2, Upload } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
 import { serverSessionEnabled } from '../../domain/p2p/serverSession';
@@ -19,7 +19,8 @@ export function StoredGamesCard() {
   const storedGames = useStream(persistenceService.storedGames$);
   const importFileRef = useRef<HTMLInputElement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<StoredGameSummary | null>(null);
-  const [pendingCloudWorld, setPendingCloudWorld] = useState<CloudWorldSummary | null>(null);
+  const [pendingCloudRestore, setPendingCloudRestore] = useState<CloudWorldSummary | null>(null);
+  const [pendingCloudDelete, setPendingCloudDelete] = useState<CloudWorldSummary | null>(null);
   const [cloudWorlds, setCloudWorlds] = useState<CloudWorldSummary[] | null>(null);
   const [cloudError, setCloudError] = useState('');
   const [cloudWarning, setCloudWarning] = useState('');
@@ -93,6 +94,16 @@ export function StoredGamesCard() {
     anchor.click();
   };
 
+  const removeCloudWorld = async (world: CloudWorldSummary) => {
+    setCloudError('');
+    try {
+      await cloudBackupService.remove(world.id);
+      setCloudWorlds((worlds) => worlds?.filter((candidate) => candidate.id !== world.id) ?? []);
+    } catch {
+      setCloudError('Не удалось удалить резервную копию. Локальное сохранение не изменено.');
+    }
+  };
+
   return (
     <>
       <Surface className="role-entry__card role-entry__games-card" aria-label="Управление сохранениями">
@@ -115,9 +126,9 @@ export function StoredGamesCard() {
             <ListItem
               key={game.id}
               title={game.name || 'Без названия'}
-              subtitle={game.updatedAt ? formatDateTime(game.updatedAt) : 'Без сохранения'}
+              subtitle={`${game.active ? 'Текущая · ' : ''}${game.updatedAt ? formatDateTime(game.updatedAt) : 'Без сохранения'}`}
               tone={game.active ? 'featured' : 'default'}
-              leftAccessory={<Download size={17} aria-hidden="true" />}
+              leftAccessory={<HardDrive size={17} aria-hidden="true" />}
               rightAccessory={
                 <Toolbar className="role-entry__game-actions">
                   {!game.active && (
@@ -125,9 +136,9 @@ export function StoredGamesCard() {
                       Открыть
                     </Button>
                   )}
-                <IconButton variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => setPendingDelete(game)}>
-                  <Trash2 size={14} aria-hidden="true" />
-                </IconButton>
+                  <IconButton variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => setPendingDelete(game)}>
+                    <Trash2 size={14} aria-hidden="true" />
+                  </IconButton>
                 </Toolbar>
               }
             />
@@ -160,11 +171,14 @@ export function StoredGamesCard() {
                   leftAccessory={<Cloud size={17} aria-hidden="true" />}
                   rightAccessory={
                     <Toolbar className="role-entry__game-actions">
-                      <Button noWrap size="xs" type="button" onClick={() => setPendingCloudWorld(world)}>
+                      <Button noWrap size="xs" type="button" onClick={() => setPendingCloudRestore(world)}>
                         Восстановить
                       </Button>
                       <IconButton variant="ghost" size="sm" type="button" title="Скачать мир" aria-label={`Скачать мир ${world.name || 'Без названия'}`} onClick={() => downloadCloudWorld(world)}>
                         <Download size={14} aria-hidden="true" />
+                      </IconButton>
+                      <IconButton variant="ghost" tone="danger" size="sm" type="button" title="Удалить облачную копию" aria-label={`Удалить облачную копию ${world.name || 'Без названия'}`} onClick={() => setPendingCloudDelete(world)}>
+                        <Trash2 size={14} aria-hidden="true" />
                       </IconButton>
                     </Toolbar>
                   }
@@ -187,17 +201,30 @@ export function StoredGamesCard() {
           }}
         />
       )}
-      {pendingCloudWorld && (
+      {pendingCloudRestore && (
         <ConfirmDialog
-          title={`Восстановить мир «${pendingCloudWorld.name || 'Без названия'}»?`}
+          title={`Восстановить мир «${pendingCloudRestore.name || 'Без названия'}»?`}
           body="Резервная копия станет текущей игрой на этом устройстве. Текущее локальное сохранение останется в списке сохранений."
           confirmLabel="Восстановить"
           destructive={false}
-          onCancel={() => setPendingCloudWorld(null)}
+          onCancel={() => setPendingCloudRestore(null)}
           onConfirm={() => {
-            const world = pendingCloudWorld;
-            setPendingCloudWorld(null);
+            const world = pendingCloudRestore;
+            setPendingCloudRestore(null);
             void restoreCloudWorld(world);
+          }}
+        />
+      )}
+      {pendingCloudDelete && (
+        <ConfirmDialog
+          title={`Удалить облачную копию «${pendingCloudDelete.name || 'Без названия'}»?`}
+          body="Серверная копия и связанная с ней комната будут удалены. Локальная игра на этом устройстве останется и при следующем запуске сможет создать новую резервную копию."
+          confirmLabel="Удалить копию"
+          onCancel={() => setPendingCloudDelete(null)}
+          onConfirm={() => {
+            const world = pendingCloudDelete;
+            setPendingCloudDelete(null);
+            void removeCloudWorld(world);
           }}
         />
       )}

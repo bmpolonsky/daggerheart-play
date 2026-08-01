@@ -41,6 +41,16 @@ export class CloudBackupService {
     if (!result.ok) throw new Error(result.message);
     return true;
   }
+
+  async remove(worldId: string): Promise<boolean> {
+    const response = await this.fetcher(`/api/worlds/${encodeURIComponent(worldId)}`, {
+      method: 'DELETE',
+      credentials: 'same-origin'
+    });
+    if (response.status === 404) return false;
+    if (!response.ok) throw new Error('Не удалось удалить резервную копию игры.');
+    return true;
+  }
 }
 
 function cloudBackupUrl(worldId: string): string {

@@ -73,6 +73,13 @@ test('Sites stores dhgame backups privately for their authenticated master', asy
     }
   }), env, {} as ExecutionContext);
   assert.equal(stranger.status, 404);
+
+  const remove = await worker.fetch(new Request('https://example.test/api/worlds/world-1', {
+    method: 'DELETE',
+    headers: authHeaders
+  }), env, {} as ExecutionContext);
+  assert.equal(remove.status, 204);
+  assert.equal(objects.size, 0);
 });
 
 function ownedWorldDatabase(ownerId: string, worldId: string): D1Database {
@@ -106,6 +113,9 @@ function memoryR2(objects: Map<string, { bytes: ArrayBuffer; contentType: string
     put: async (key, value, options) => {
       const bytes = await new Response(value).arrayBuffer();
       objects.set(key, { bytes, contentType: options?.httpMetadata?.contentType ?? 'application/octet-stream' });
+    },
+    delete: async (key) => {
+      objects.delete(key);
     }
   };
 }

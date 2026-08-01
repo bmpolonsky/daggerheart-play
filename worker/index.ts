@@ -86,6 +86,9 @@ async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Re
   }
 
   const worldMatch = url.pathname.match(/^\/api\/worlds\/([^/]+)(?:\/export)?$/);
+  if (worldMatch && request.method === 'DELETE' && !url.pathname.endsWith('/export')) {
+    return deleteWorld(request, db, env.FILES, decodeURIComponent(worldMatch[1]));
+  }
   if (worldMatch && request.method === 'GET') {
     const master = requireMaster(request);
     if (master instanceof Response) return master;
@@ -152,6 +155,30 @@ async function worldBackup(
     return new Response(null, { status: 204 });
   }
   return json({ error: 'method_not_allowed' }, 405);
+}
+
+async function deleteWorld(
+  request: Request,
+  db: D1Database,
+  files: R2Bucket,
+  worldId: string
+): Promise<Response> {
+  const master = requireMaster(request);
+  if (master instanceof Response) return master;
+  const world = await db.prepare('SELECT id FROM worlds WHERE owner_id = ? AND id = ?')
+    .bind(master.id, worldId).first<{ id: string }>();
+  if (!world) return json({ error: 'world_not_found' }, 404);
+
+  await files.delete(cloudBackupKey(master.id, worldId));
+  await db.batch([
+    db.prepare('DELETE FROM room_events WHERE room_id IN (SELECT id FROM rooms WHERE owner_id = ? AND world_id = ?)')
+      .bind(master.id, worldId),
+    db.prepare('DELETE FROM participants WHERE room_id IN (SELECT id FROM rooms WHERE owner_id = ? AND world_id = ?)')
+      .bind(master.id, worldId),
+    db.prepare('DELETE FROM rooms WHERE owner_id = ? AND world_id = ?').bind(master.id, worldId),
+    db.prepare('DELETE FROM worlds WHERE owner_id = ? AND id = ?').bind(master.id, worldId)
+  ]);
+  return new Response(null, { status: 204 });
 }
 
 async function openMasterRoom(request: Request, db: D1Database, roomId: string): Promise<Response> {
