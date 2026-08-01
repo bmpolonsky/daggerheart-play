@@ -35,7 +35,7 @@ export function StoredGamesCard() {
         return Array.isArray(result.worlds) ? result.worlds : [];
       })
       .then((worlds) => setCloudWorlds(worlds))
-      .catch(() => setCloudError('Не удалось загрузить облачные миры. Локальные сохранения доступны как обычно.'));
+      .catch(() => setCloudError('Не удалось загрузить резервные копии. Локальные сохранения доступны как обычно.'));
   }, [usesServer]);
 
   const importGameFile = async (event: Event) => {
@@ -81,7 +81,7 @@ export function StoredGamesCard() {
       if (!imported.ok) throw new Error(imported.message);
       await persistenceService.refreshStoredGames();
     } catch {
-      setCloudError('Не удалось восстановить облачный мир. Текущее локальное сохранение не изменено.');
+      setCloudError('Не удалось восстановить резервную копию. Текущее локальное сохранение не изменено.');
     }
   };
 
@@ -146,8 +146,8 @@ export function StoredGamesCard() {
         {usesServer && cloudError && <Notice tone="error">{cloudError}</Notice>}
         {cloudWorlds && (
           <>
-            <SectionHeader title="Облачные миры" actions={<Cloud size={18} aria-hidden="true" />} />
-            <Notice>Состояние мира сохраняется во время открытой серверной игры. Картинки и аудиофайлы пока остаются на исходном устройстве.</Notice>
+            <SectionHeader title="Облачные резервные копии" actions={<Cloud size={18} aria-hidden="true" />} />
+            <Notice>Резервная копия обновляется во время открытой серверной игры. Картинки и аудиофайлы пока остаются на исходном устройстве.</Notice>
             <div className="role-entry__game-list">
               {cloudWorlds.map((world) => (
                 <ListItem
@@ -167,7 +167,7 @@ export function StoredGamesCard() {
                   }
                 />
               ))}
-              {cloudWorlds.length === 0 && <EmptyState size="sm" title="Облачных миров пока нет" body="Мир появится здесь после первого запуска серверной игры." />}
+              {cloudWorlds.length === 0 && <EmptyState size="sm" title="Резервных копий пока нет" body="Резервная копия появится после первого успешного запуска серверной игры." />}
             </div>
           </>
         )}
@@ -187,7 +187,7 @@ export function StoredGamesCard() {
       {pendingCloudWorld && (
         <ConfirmDialog
           title={`Восстановить мир «${pendingCloudWorld.name || 'Без названия'}»?`}
-          body="Облачная версия станет текущей игрой на этом устройстве. Текущее локальное сохранение останется в списке сохранений."
+          body="Резервная копия станет текущей игрой на этом устройстве. Текущее локальное сохранение останется в списке сохранений."
           confirmLabel="Восстановить"
           destructive={false}
           onCancel={() => setPendingCloudWorld(null)}

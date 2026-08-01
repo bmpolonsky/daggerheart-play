@@ -17,6 +17,7 @@ export interface GmLobbyState {
 
 export class GmLobbyService {
   readonly lobby$: Stream<GmLobbyState>;
+  private restoreInFlight: Promise<void> | null = null;
 
   constructor(private p2pSessionService: P2PSessionService) {
     this.lobby$ = Stream.combine({
@@ -38,7 +39,14 @@ export class GmLobbyService {
   }
 
   async restoreSession(participantName: string): Promise<void> {
-    await this.p2pSessionService.restoreActiveSession('gm', participantName);
+    if (!this.restoreInFlight) {
+      const restore = this.p2pSessionService.restoreActiveSession('gm', participantName).then(() => undefined);
+      this.restoreInFlight = restore;
+      void restore.finally(() => {
+        if (this.restoreInFlight === restore) this.restoreInFlight = null;
+      }).catch(() => undefined);
+    }
+    await this.restoreInFlight;
   }
 
   getRoomId(state: Pick<GmLobbyState, 'roomId'>): string {
@@ -60,6 +68,7 @@ export class GmLobbyService {
 
   async createSession(input: P2PInviteContext & { participantName?: string }): Promise<P2PSessionInvite | null> {
     try {
+      await this.restoreInFlight?.catch(() => undefined);
       return await this.p2pSessionService.createGmInviteFromDraft(input);
     } catch {
       return null;

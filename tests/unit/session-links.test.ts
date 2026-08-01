@@ -29,15 +29,15 @@ test('server invite links keep room codes in the query so Sites does not redirec
     basePath: '/table',
     roomId: '7K2Q',
     transportMode: 'server'
-  }), 'https://example.test/table?join=7K2Q');
-  assert.deepEqual(parsePlayerSessionLocation('/table', '/table', '?join=7k2q'), { roomId: '7K2Q' });
+  }), 'https://example.test/?join=7K2Q');
+  assert.deepEqual(parsePlayerSessionLocation('/', '', '?join=7k2q'), { roomId: '7K2Q' });
   assert.equal(buildCallInviteUrl({
     origin: 'https://example.test',
     basePath: '/table',
     roomId: '7K2Q',
     transportMode: 'server'
-  }), 'https://example.test/table?call=7K2Q');
-  assert.deepEqual(parseCallSessionLocation('/table', '/table', '?call=7k2q'), { roomId: '7K2Q' });
+  }), 'https://example.test/?call=7K2Q');
+  assert.deepEqual(parseCallSessionLocation('/', '', '?call=7k2q'), { roomId: '7K2Q' });
 });
 
 test('P2P invite links keep room codes transport-agnostic for players', () => {

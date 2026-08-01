@@ -22,6 +22,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
   const lobby = useStream(gmLobbyService.lobby$);
   useStream(p2pNetworkSettings$);
   const [restoringSession, setRestoringSession] = useState(true);
+  const [opening, setOpening] = useState<'game' | 'call' | null>(null);
   const [roomRefreshOpen, setRoomRefreshOpen] = useState(false);
   const [masterAccount, setMasterAccount] = useState<{
     status: 'loading' | 'anonymous' | 'authenticated' | 'error' | 'not-required';
@@ -94,16 +95,26 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
     void gmLobbyService.refreshRoomCode();
   };
 
-  const enterGm = () => {
-    void createSession().then((created) => {
+  const enterGm = async () => {
+    if (opening) return;
+    setOpening('game');
+    try {
+      const created = await createSession();
       if (created) onEnterGm();
-    });
+    } finally {
+      setOpening(null);
+    }
   };
 
-  const enterCall = () => {
-    void createSession().then((created) => {
+  const enterCall = async () => {
+    if (opening) return;
+    setOpening('call');
+    try {
+      const created = await createSession();
       if (created) onOpenCall(created.roomId);
-    });
+    } finally {
+      setOpening(null);
+    }
   };
 
   const signIn = () => {
@@ -117,7 +128,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
     <Surface className="role-entry__card role-entry__gm-card" aria-label="Создать сессию мастера">
       <SectionHeader title="Мастер" actions={<Crown size={20} aria-hidden="true" />} />
       {usesServer && masterAccount.status === 'authenticated' && (
-        <Notice tone="success">Миры сохраняются в аккаунте {masterAccount.email || 'мастера'}.</Notice>
+        <Notice tone="success">Резервные копии миров сохраняются в аккаунте {masterAccount.email || 'мастера'}.</Notice>
       )}
       {usesServer && masterAccount.status === 'anonymous' && (
         <>
@@ -192,8 +203,8 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
         {playerSeats.length === 0 && <EmptyState size="sm" title="Добавьте игроков" />}
       </div>
       <Toolbar className="role-entry__inline-actions">
-        <Button variant="primary" type="button" disabled={!masterSignedIn || restoringSession} onClick={enterGm}>
-          {restoringSession ? 'Восстанавливаем...' : 'Открыть игру'}
+        <Button variant="primary" type="button" disabled={!masterSignedIn || Boolean(opening)} onClick={() => void enterGm()}>
+          {opening === 'game' ? 'Открываем...' : 'Открыть игру'}
         </Button>
         <Button
           className="role-entry__call-link"
@@ -202,8 +213,8 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
           type="button"
           iconBefore={<Video size={13} aria-hidden="true" />}
           title="Открыть экспериментальный созвон"
-          disabled={!masterSignedIn || restoringSession}
-          onClick={enterCall}
+          disabled={!masterSignedIn || Boolean(opening)}
+          onClick={() => void enterCall()}
         >
           Созвон
         </Button>

@@ -30,7 +30,7 @@ export function buildPlayerInviteUrl(input: PlayerInviteUrlInput): string {
   const roomId = buildPlayerInviteRoomCode(input.roomId, input.networkSettings);
   const serverRoute = (input.transportMode ?? sessionTransportMode()) === 'server';
   const invite = new URL(serverRoute
-    ? input.basePath || '/'
+    ? '/'
     : joinRoutePath(input.basePath, roomId), input.origin);
   if (serverRoute) invite.searchParams.set('join', roomId);
   return invite.toString();
@@ -49,7 +49,7 @@ export function buildCallInviteUrl(input: PlayerInviteUrlInput): string {
   const roomId = normalizeLogicalRoomId(input.roomId);
   const serverRoute = (input.transportMode ?? sessionTransportMode()) === 'server';
   const invite = new URL(serverRoute
-    ? input.basePath || '/'
+    ? '/'
     : callRoutePath(input.basePath, roomId), input.origin);
   if (serverRoute) invite.searchParams.set('call', roomId);
   return invite.toString();
