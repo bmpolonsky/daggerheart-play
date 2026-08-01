@@ -1,11 +1,13 @@
 import { localAppStorageStore, sessionAppStorageStore } from '../../core/persistence/appBrowserStorage';
 import type { P2PNetworkSettings } from './networkSettings';
+import { sessionTransportMode, type SessionTransportMode } from './serverSession';
 
 export interface PlayerInviteUrlInput {
   origin: string;
   basePath?: string;
   roomId: string;
   networkSettings?: P2PNetworkSettings;
+  transportMode?: SessionTransportMode;
 }
 
 export interface PlayerSessionParams {
@@ -25,7 +27,12 @@ export function normalizeSessionRoomId(roomId: string, fallback = createFallback
 }
 
 export function buildPlayerInviteUrl(input: PlayerInviteUrlInput): string {
-  const invite = new URL(joinRoutePath(input.basePath, buildPlayerInviteRoomCode(input.roomId, input.networkSettings)), input.origin);
+  const roomId = buildPlayerInviteRoomCode(input.roomId, input.networkSettings);
+  const serverRoute = (input.transportMode ?? sessionTransportMode()) === 'server';
+  const invite = new URL(serverRoute
+    ? input.basePath || '/'
+    : joinRoutePath(input.basePath, roomId), input.origin);
+  if (serverRoute) invite.searchParams.set('join', roomId);
   return invite.toString();
 }
 
@@ -39,11 +46,18 @@ export function rebasePlayerInviteRoomCode(roomId: string, networkSettings: P2PN
 }
 
 export function buildCallInviteUrl(input: PlayerInviteUrlInput): string {
-  const invite = new URL(callRoutePath(input.basePath, normalizeLogicalRoomId(input.roomId)), input.origin);
+  const roomId = normalizeLogicalRoomId(input.roomId);
+  const serverRoute = (input.transportMode ?? sessionTransportMode()) === 'server';
+  const invite = new URL(serverRoute
+    ? input.basePath || '/'
+    : callRoutePath(input.basePath, roomId), input.origin);
+  if (serverRoute) invite.searchParams.set('call', roomId);
   return invite.toString();
 }
 
-export function parsePlayerSessionLocation(pathname: string, basePath = ''): PlayerSessionParams | null {
+export function parsePlayerSessionLocation(pathname: string, basePath = '', search = ''): PlayerSessionParams | null {
+  const queryRoomId = new URLSearchParams(search).get('join');
+  if (queryRoomId) return parsePlayerInviteRoomCode(queryRoomId);
   const normalized = stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
   const match = normalized.match(/^\/join\/([^/]+)$/);
   return match?.[1] ? parsePlayerInviteRoomCode(decodeURIComponent(match[1])) : null;
@@ -55,7 +69,9 @@ export function parsePlayerInviteRoomCode(value: string): PlayerSessionParams | 
   return { roomId };
 }
 
-export function parseCallSessionLocation(pathname: string, basePath = ''): PlayerSessionParams | null {
+export function parseCallSessionLocation(pathname: string, basePath = '', search = ''): PlayerSessionParams | null {
+  const queryRoomId = normalizeLogicalRoomId(new URLSearchParams(search).get('call') ?? '', '');
+  if (queryRoomId) return { roomId: queryRoomId };
   const normalized = stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
   const match = normalized.match(/^\/calls\/([^/]+)$/);
   const roomId = match?.[1] ? normalizeLogicalRoomId(decodeURIComponent(match[1]), '') : '';

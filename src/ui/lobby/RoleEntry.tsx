@@ -14,7 +14,7 @@ interface RoleEntryProps {
 export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
   const sessionParams = typeof window === 'undefined'
     ? null
-    : parsePlayerSessionLocation(window.location.pathname, basePath);
+    : parsePlayerSessionLocation(window.location.pathname, basePath, window.location.search);
   const sceneImageUrl = publicAssetUrl(DEFAULT_LOBBY_SCENE_IMAGE, basePath);
 
   if (sessionParams) {

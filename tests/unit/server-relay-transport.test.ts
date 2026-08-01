@@ -5,6 +5,28 @@ import type { P2PWireEnvelope } from '../../src/services/p2p/P2PTransportAdapter
 import { waitFor } from './helpers';
 
 describe('ServerRelayTransport', () => {
+  it('keeps the browser fetch receiver when using the default fetcher', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (function (this: typeof globalThis) {
+      assert.equal(this, globalThis);
+      return Promise.resolve(response({ cursor: 0, peers: [] }));
+    }) as typeof fetch;
+    const transport = new ServerRelayTransport({
+      role: 'gm',
+      participantId: 'gm-peer',
+      displayName: 'Мастер',
+      worldId: 'world-1',
+      initialSnapshot: {}
+    });
+
+    try {
+      await transport.connect('ABC123');
+      await transport.disconnect();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('opens an authenticated master room and receives relayed events', async () => {
     const calls: Array<{ path: string; init?: RequestInit }> = [];
     let polled = false;

@@ -709,5 +709,5 @@ function shortPeerId(peerId: string): string {
 
 function initialPlayerRoomId(): string {
   if (typeof window === 'undefined') return '';
-  return parsePlayerSessionLocation(window.location.pathname, inferBasePathFromWorkspacePath(window.location.pathname))?.roomId ?? '';
+  return parsePlayerSessionLocation(window.location.pathname, inferBasePathFromWorkspacePath(window.location.pathname), window.location.search)?.roomId ?? '';
 }

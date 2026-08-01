@@ -26,6 +26,11 @@ export function appBasePath(): string {
 
 export function routeFromLocation(): RouteId {
   if (typeof window === 'undefined') return 'entry';
+  if (serverSessionEnabled()) {
+    const search = new URLSearchParams(window.location.search);
+    if (search.has('join')) return 'join';
+    if (search.has('call')) return 'call';
+  }
   return routeFromPath(stripBasePath(window.location.pathname));
 }
 
@@ -47,10 +52,16 @@ export function routeFromWorkspace(workspace: WorkspaceId): RouteId {
   return WORKSPACE_ROUTES[workspace];
 }
 
-export function routeNavigation(routeId: NavigableRouteId, hash = '', search = '', roomId?: string) {
+export function routeNavigation(routeId: NavigableRouteId, hash = '', search = '', roomId?: string, transportMode: SessionTransportMode = sessionTransportMode()) {
   const canonicalRouteId = canonicalRouteIdForNavigation(routeId, roomId);
-  const pathname = pathForRoute(canonicalRouteId, roomId);
-  const nextSearch = search ? (search.startsWith('?') ? search : `?${search}`) : '';
+  let pathname = pathForRoute(canonicalRouteId, roomId);
+  const searchParams = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  if (transportMode === 'server' && roomId && (canonicalRouteId === 'join' || canonicalRouteId === 'call')) {
+    pathname = pathWithBase('/');
+    searchParams.set(canonicalRouteId, roomId);
+  }
+  const serializedSearch = searchParams.toString();
+  const nextSearch = serializedSearch ? `?${serializedSearch}` : '';
   const url = `${pathname}${nextSearch}${hash}`;
   return {
     hash,
@@ -106,3 +117,4 @@ function pathForRoute(routeId: RouteId, roomId?: string): string {
   }
   return pathWithBase(ROUTE_PATHS[routeId]);
 }
+import { serverSessionEnabled, sessionTransportMode, type SessionTransportMode } from '../domain/p2p/serverSession';

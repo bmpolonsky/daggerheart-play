@@ -40,7 +40,7 @@ export class ServerRelayTransport implements P2PTransportAdapter {
 
   constructor(
     private context: P2PTransportFactoryContext,
-    private fetcher: typeof fetch = fetch
+    private fetcher: typeof fetch = globalThis.fetch.bind(globalThis)
   ) {
     this.peerId = context.participantId;
   }

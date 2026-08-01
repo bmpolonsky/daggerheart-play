@@ -54,9 +54,7 @@ const worker = {
     if (asset.status === 404 && (request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/image/')) {
       return Response.redirect(`${PAGES_ASSET_ORIGIN}${url.pathname}${url.search}`, 307);
     }
-    const redirectsToRoot = asset.status >= 300 && asset.status < 400
-      && new URL(asset.headers.get('location') ?? request.url, request.url).pathname === '/';
-    if ((asset.status !== 404 && !redirectsToRoot) || request.method !== 'GET' || !request.headers.get('accept')?.includes('text/html')) {
+    if (asset.status !== 404 || request.method !== 'GET' || !request.headers.get('accept')?.includes('text/html')) {
       return asset;
     }
     return env.ASSETS.fetch(new Request(new URL('/index.html', request.url), request));

@@ -23,6 +23,23 @@ test('P2P invite links use path routing and room codes without a prefix', () => 
   assert.equal(inferBasePathFromWorkspacePath('/table/calls/7K2Q'), '/table');
 });
 
+test('server invite links keep room codes in the query so Sites does not redirect them away', () => {
+  assert.equal(buildPlayerInviteUrl({
+    origin: 'https://example.test',
+    basePath: '/table',
+    roomId: '7K2Q',
+    transportMode: 'server'
+  }), 'https://example.test/table?join=7K2Q');
+  assert.deepEqual(parsePlayerSessionLocation('/table', '/table', '?join=7k2q'), { roomId: '7K2Q' });
+  assert.equal(buildCallInviteUrl({
+    origin: 'https://example.test',
+    basePath: '/table',
+    roomId: '7K2Q',
+    transportMode: 'server'
+  }), 'https://example.test/table?call=7K2Q');
+  assert.deepEqual(parseCallSessionLocation('/table', '/table', '?call=7k2q'), { roomId: '7K2Q' });
+});
+
 test('P2P invite links keep room codes transport-agnostic for players', () => {
   const nostrInvite = buildPlayerInviteUrl({
     origin: 'https://example.test',

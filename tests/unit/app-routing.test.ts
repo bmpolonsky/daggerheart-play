@@ -20,6 +20,23 @@ test('app route navigation canonicalizes legacy route events', () => {
   });
 });
 
+test('server navigation keeps invite routes on the Sites root', () => {
+  assert.deepEqual(routeNavigation('player', '', '', '7K2Q', 'server'), {
+    hash: '',
+    pathname: '/',
+    route: 'join',
+    search: '?join=7K2Q',
+    url: '/?join=7K2Q'
+  });
+  assert.deepEqual(routeNavigation('call', '', '', '7K2Q', 'server'), {
+    hash: '',
+    pathname: '/',
+    route: 'call',
+    search: '?call=7K2Q',
+    url: '/?call=7K2Q'
+  });
+});
+
 test('app routing redirects legacy URLs at the compatibility boundary', () => {
   const originalWindow = globalThis.window;
   let replacedUrl = '';
