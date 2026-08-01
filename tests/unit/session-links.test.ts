@@ -10,12 +10,12 @@ test('P2P invite links use reload-safe hash paths and room codes without a prefi
     roomId: ' 7K2Q '
   });
   assert.equal(invite, 'https://example.test/table/#/join/7K2Q');
-  assert.deepEqual(parsePlayerSessionLocation('/table/', '/table', '', '#/join/7K2Q'), { roomId: '7K2Q' });
+  assert.deepEqual(parsePlayerSessionLocation('/table/', '/table', '#/join/7K2Q'), { roomId: '7K2Q' });
   assert.deepEqual(parsePlayerSessionLocation('/table/join/7K2Q', '/table'), { roomId: '7K2Q' });
   assert.deepEqual(parsePlayerSessionLocation('/table/join/7k2q', '/table'), { roomId: '7K2Q' });
   assert.equal(parsePlayerSessionLocation('/table/player/7K2Q', '/table'), null);
   assert.equal(buildCallInviteUrl({ origin: 'https://example.test', basePath: '/table', roomId: ' 7K2Q ' }), 'https://example.test/table/#/calls/7K2Q');
-  assert.deepEqual(parseCallSessionLocation('/table/', '/table', '', '#/calls/7k2q'), { roomId: '7K2Q' });
+  assert.deepEqual(parseCallSessionLocation('/table/', '/table', '#/calls/7k2q'), { roomId: '7K2Q' });
   assert.deepEqual(parseCallSessionLocation('/table/calls/7k2q', '/table'), { roomId: '7K2Q' });
   assert.equal(parseCallSessionLocation('/table/call/7k2q', '/table'), null);
   assert.equal(parsePlayerSessionLocation('/table/player', '/table'), null);
@@ -23,21 +23,6 @@ test('P2P invite links use reload-safe hash paths and room codes without a prefi
   assert.equal(inferBasePathFromWorkspacePath('/table/game'), '/table');
   assert.equal(inferBasePathFromWorkspacePath('/table/join/7K2Q'), '/table');
   assert.equal(inferBasePathFromWorkspacePath('/table/calls/7K2Q'), '/table');
-});
-
-test('legacy query invites remain readable during the hash-route migration', () => {
-  assert.equal(buildPlayerInviteUrl({
-    origin: 'https://example.test',
-    basePath: '/table',
-    roomId: '7K2Q'
-  }), 'https://example.test/table/#/join/7K2Q');
-  assert.deepEqual(parsePlayerSessionLocation('/', '', '?join=7k2q'), { roomId: '7K2Q' });
-  assert.equal(buildCallInviteUrl({
-    origin: 'https://example.test',
-    basePath: '/table',
-    roomId: '7K2Q'
-  }), 'https://example.test/table/#/calls/7K2Q');
-  assert.deepEqual(parseCallSessionLocation('/', '', '?call=7k2q'), { roomId: '7K2Q' });
 });
 
 test('P2P invite links keep room codes transport-agnostic for players', () => {

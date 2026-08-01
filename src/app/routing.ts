@@ -41,12 +41,6 @@ export function routePathFromLocation(location: LocationLike, basePath = appBase
   const hashPath = routePathFromHash(location.hash);
   if (hashPath) return hashPath;
 
-  const search = new URLSearchParams(location.search);
-  const joinedRoom = search.get('join');
-  if (joinedRoom) return `/join/${encodeURIComponent(joinedRoom)}`;
-  const callRoom = search.get('call');
-  if (callRoom) return `/calls/${encodeURIComponent(callRoom)}`;
-
   const path = normalizeRoutePath(stripBasePath(location.pathname, basePath));
   return legacyRouteTarget(path) ?? path;
 }
@@ -63,10 +57,8 @@ export function routePathFromHash(hash: string): string | null {
 
 export function replaceLegacyRoute(): boolean {
   if (typeof window === 'undefined' || routePathFromHash(window.location.hash)) return false;
-  const search = new URLSearchParams(window.location.search);
   const originalPath = normalizeRoutePath(stripBasePath(window.location.pathname));
   let routePath = routePathFromLocation(window.location);
-  const hasLegacyQueryRoute = search.has('join') || search.has('call');
   const legacyTarget = legacyRouteTarget(originalPath);
   const hasLegacyCardHash = /^#(?:card|custom)\//.test(window.location.hash);
 
@@ -74,12 +66,9 @@ export function replaceLegacyRoute(): boolean {
     routePath = `/tools/cards/${window.location.hash.slice(1)}`;
   }
 
-  if (originalPath === '/' && !hasLegacyQueryRoute && !legacyTarget && !hasLegacyCardHash) return false;
+  if (originalPath === '/' && !legacyTarget && !hasLegacyCardHash) return false;
   if (!isKnownRoutePath(routePath) && !legacyTarget) return false;
-  if (search.has('join')) search.delete('join');
-  if (search.has('call')) search.delete('call');
-  const nextSearch = search.toString();
-  const navigation = hashRouteLocation(routePath, nextSearch ? `?${nextSearch}` : '');
+  const navigation = hashRouteLocation(routePath, window.location.search);
   window.history.replaceState({}, '', navigation.url);
   return true;
 }

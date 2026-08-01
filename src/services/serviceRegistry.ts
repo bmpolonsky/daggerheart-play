@@ -4,6 +4,7 @@ import { GameService } from './GameService';
 import { GmLobbyService } from './GmLobbyService';
 import { ContentService } from './ContentService';
 import { CharacterService } from './CharacterService';
+import { CloudBackupService } from './CloudBackupService';
 import { DiceService } from './DiceService';
 import { EncounterService } from './EncounterService';
 import { FeedService } from './FeedService';
@@ -28,6 +29,9 @@ import { TabletopService } from './TabletopService';
 import { UiService } from './UiService';
 
 export const assetService = new AssetService();
+export const persistenceService = new PersistenceService(undefined, assetService);
+export const importExportService = new ImportExportService(assetService, persistenceService);
+export const cloudBackupService = new CloudBackupService(importExportService);
 export const audioService = new AudioService();
 export const gameService = new GameService();
 export const characterService = new CharacterService();
@@ -57,7 +61,7 @@ const sessionTransportFactory = (
 const hybridMediaTransportFactory = serverSessionEnabled()
   ? (options: TrysteroP2PTransportOptions) => createConfiguredP2PTransport(options)
   : undefined;
-export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, sessionTransportFactory, undefined, mediaCallService, characterService, hybridMediaTransportFactory);
+export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, sessionTransportFactory, undefined, mediaCallService, characterService, hybridMediaTransportFactory, cloudBackupService);
 export const gmLobbyService = new GmLobbyService(p2pSessionService);
 characterService.setDeathMoveRequestHandler((character, transition) => {
   if (p2pSessionService.isConnectedPlayerSession()) return;
@@ -84,8 +88,6 @@ export const tabletopService = new TabletopService({
   rollLogService,
   sceneTableService
 });
-export const persistenceService = new PersistenceService(undefined, assetService);
-export const importExportService = new ImportExportService(assetService, persistenceService);
 export const uiService = new UiService();
 
 export async function bootServices(): Promise<void> {

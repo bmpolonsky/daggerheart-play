@@ -4,7 +4,7 @@ import { Cloud, Download, Trash2, Upload } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
 import { serverSessionEnabled } from '../../domain/p2p/serverSession';
-import { importExportService, persistenceService } from '../../services/serviceRegistry';
+import { cloudBackupService, importExportService, persistenceService } from '../../services/serviceRegistry';
 import { Button, ConfirmDialog, EmptyState, IconButton, ListItem, Notice, SectionHeader, Surface, Toolbar } from '../components/common';
 import type { StoredGameSummary } from '../../core/persistence/gameDocumentStore';
 
@@ -22,6 +22,7 @@ export function StoredGamesCard() {
   const [pendingCloudWorld, setPendingCloudWorld] = useState<CloudWorldSummary | null>(null);
   const [cloudWorlds, setCloudWorlds] = useState<CloudWorldSummary[] | null>(null);
   const [cloudError, setCloudError] = useState('');
+  const [cloudWarning, setCloudWarning] = useState('');
   const activeStoredGame = storedGames.find((game) => game.active) ?? null;
 
   useEffect(() => {
@@ -73,12 +74,17 @@ export function StoredGamesCard() {
 
   const restoreCloudWorld = async (world: CloudWorldSummary) => {
     setCloudError('');
+    setCloudWarning('');
     try {
-      const response = await fetch(`/api/worlds/${encodeURIComponent(world.id)}`, { credentials: 'same-origin' });
-      if (!response.ok) throw new Error('cloud_world_unavailable');
-      const result = await response.json() as { snapshot?: unknown };
-      const imported = await importExportService.importJson(JSON.stringify(result.snapshot));
-      if (!imported.ok) throw new Error(imported.message);
+      const restoredArchive = await cloudBackupService.restore(world.id);
+      if (!restoredArchive) {
+        const response = await fetch(`/api/worlds/${encodeURIComponent(world.id)}`, { credentials: 'same-origin' });
+        if (!response.ok) throw new Error('cloud_world_unavailable');
+        const result = await response.json() as { snapshot?: unknown };
+        const imported = await importExportService.importJson(JSON.stringify(result.snapshot));
+        if (!imported.ok) throw new Error(imported.message);
+        setCloudWarning('Это старая резервная копия без архива файлов. Откройте игру один раз на исходном устройстве, чтобы сохранить полный бэкап.');
+      }
       await persistenceService.refreshStoredGames();
     } catch {
       setCloudError('Не удалось восстановить резервную копию. Текущее локальное сохранение не изменено.');
@@ -87,7 +93,7 @@ export function StoredGamesCard() {
 
   const downloadCloudWorld = (world: CloudWorldSummary) => {
     const anchor = document.createElement('a');
-    anchor.href = `/api/worlds/${encodeURIComponent(world.id)}/export`;
+    anchor.href = `/api/worlds/${encodeURIComponent(world.id)}/backup`;
     anchor.click();
   };
 
@@ -144,10 +150,11 @@ export function StoredGamesCard() {
           onChange={importGameFile}
         />
         {usesServer && cloudError && <Notice tone="error">{cloudError}</Notice>}
+        {usesServer && cloudWarning && <Notice tone="warning">{cloudWarning}</Notice>}
         {cloudWorlds && (
           <>
             <SectionHeader title="Облачные резервные копии" actions={<Cloud size={18} aria-hidden="true" />} />
-            <Notice>Резервная копия обновляется во время открытой серверной игры. Картинки и аудиофайлы пока остаются на исходном устройстве.</Notice>
+            <Notice>Резервная копия обновляется во время открытой серверной игры и включает пользовательские картинки, аудиофайлы и материалы.</Notice>
             <div className="role-entry__game-list">
               {cloudWorlds.map((world) => (
                 <ListItem

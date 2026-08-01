@@ -371,7 +371,7 @@ function isRemotePlayerJoin(): boolean {
   if (typeof window === 'undefined') return false;
   const location = (window as Window & { location?: Location }).location;
   const pathname = location?.pathname ?? '';
-  if (parsePlayerSessionLocation(pathname, inferBasePathFromWorkspacePath(pathname), location?.search ?? '', location?.hash ?? '')) {
+  if (parsePlayerSessionLocation(pathname, inferBasePathFromWorkspacePath(pathname), location?.hash ?? '')) {
     return true;
   }
   const hashPath = location?.hash?.replace(/^#/, '') ?? '';

@@ -47,9 +47,7 @@ export function buildCallInviteUrl(input: PlayerInviteUrlInput): string {
   return invite.toString();
 }
 
-export function parsePlayerSessionLocation(pathname: string, basePath = '', search = '', hash = ''): PlayerSessionParams | null {
-  const queryRoomId = new URLSearchParams(search).get('join');
-  if (queryRoomId) return parsePlayerInviteRoomCode(queryRoomId);
+export function parsePlayerSessionLocation(pathname: string, basePath = '', hash = ''): PlayerSessionParams | null {
   const normalized = sessionRoutePath(pathname, basePath, hash);
   const match = normalized.match(/^\/join\/([^/]+)$/);
   return match?.[1] ? parsePlayerInviteRoomCode(decodeURIComponent(match[1])) : null;
@@ -61,9 +59,7 @@ export function parsePlayerInviteRoomCode(value: string): PlayerSessionParams | 
   return { roomId };
 }
 
-export function parseCallSessionLocation(pathname: string, basePath = '', search = '', hash = ''): PlayerSessionParams | null {
-  const queryRoomId = normalizeLogicalRoomId(new URLSearchParams(search).get('call') ?? '', '');
-  if (queryRoomId) return { roomId: queryRoomId };
+export function parseCallSessionLocation(pathname: string, basePath = '', hash = ''): PlayerSessionParams | null {
   const normalized = sessionRoutePath(pathname, basePath, hash);
   const match = normalized.match(/^\/calls\/([^/]+)$/);
   const roomId = match?.[1] ? normalizeLogicalRoomId(decodeURIComponent(match[1]), '') : '';

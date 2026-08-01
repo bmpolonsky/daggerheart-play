@@ -6,6 +6,7 @@ import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
 import { buildPlayerInviteRoomCode, buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
 import { readP2PNetworkSettings, trysteroOptionsForNetworkSettings } from '../domain/p2p/networkSettings';
+import { serverSessionEnabled } from '../domain/p2p/serverSession';
 import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
@@ -23,6 +24,7 @@ import type { AssetService } from './AssetService';
 import type { DiceService } from './DiceService';
 import type { FeedService } from './FeedService';
 import type { CharacterService } from './CharacterService';
+import type { CloudBackupService } from './CloudBackupService';
 import type {
   AssetRequestReason,
   PlayerCharacterResourcePatch,
@@ -164,6 +166,7 @@ export class P2PSessionService {
   readonly invite$ = this.inviteStore.toStream();
 
   private snapshotTimer: number | undefined;
+  private cloudBackupTimer: number | undefined;
   private productRecoveryTimer: number | undefined;
   private roomCodeRefreshTimer: number | undefined;
   private activeRoomConnection: P2PRoomConnection | null = null;
@@ -188,6 +191,7 @@ export class P2PSessionService {
   private playerActorContext: PlayerActorContext = {};
   private localParticipantId: string | null = null;
   private actorOwnerVerifiedPeers = new Map<string, string>();
+  private cloudBackupErrorShown = false;
 
   constructor(
     private syncService: SyncService,
@@ -204,7 +208,8 @@ export class P2PSessionService {
     private roomConnectionConfig: P2PRoomConnectionConfig = {},
     private mediaCallService?: MediaCallService,
     private characterService?: CharacterService,
-    private mediaTransportFactory?: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter
+    private mediaTransportFactory?: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter,
+    private cloudBackupService?: CloudBackupService
   ) {
     this.assetTransferService = new P2PAssetTransferService(
       syncService,
@@ -497,6 +502,7 @@ export class P2PSessionService {
         message: peers.length > 0 ? 'Игрок подключился.' : 'Комната мастера открыта.'
       };
     });
+    await this.saveCloudBackup();
     this.persistActiveSession('gm', roomId, input.participantName, participant.id, participant.actorIds);
   }
 
@@ -668,8 +674,15 @@ export class P2PSessionService {
     if (options.forgetSession !== false && stoppedSession.role === 'player' && stoppedSession.roomId && stoppedParticipantId) {
       await this.removePersistedPendingPlayerCharacterUpdate(stoppedSession.roomId, stoppedParticipantId);
     }
+    if (this.cloudBackupTimer && stoppedSession.role === 'gm' && serverSessionEnabled()) {
+      window.clearTimeout(this.cloudBackupTimer);
+      this.cloudBackupTimer = undefined;
+      await this.saveCloudBackup();
+    }
     window.clearTimeout(this.snapshotTimer);
     this.snapshotTimer = undefined;
+    window.clearTimeout(this.cloudBackupTimer);
+    this.cloudBackupTimer = undefined;
     this.stopPlayerProductRecoveryPolling();
     const mediaConnection = this.activeMediaRoomConnection;
     this.activeRoomConnection = null;
@@ -738,17 +751,46 @@ export class P2PSessionService {
 
   async publishSnapshot(options: { requirePeers?: boolean; targetPeer?: SyncTargetPeer } = {}): Promise<boolean> {
     const session = this.sessionStore.get();
-    if (session.role === 'gm' && session.peers.length === 0) {
+    const savesToServer = session.role === 'gm' && serverSessionEnabled() && Boolean(this.cloudBackupService);
+    if (session.role === 'gm' && session.peers.length === 0 && !savesToServer) {
       if (options.requirePeers) {
         this.patchSession({ message: 'Некому отправлять обновление: подключенных игроков нет.' });
       }
       return false;
     }
-    const ok = await this.syncService.publishSnapshot(snapshotPersistedState(), options.targetPeer);
-    if (ok) {
-      this.patchSession({ lastSnapshotAt: nowIso(), message: 'Данные игры отправлены игрокам.' });
+    const snapshot = snapshotPersistedState();
+    const ok = await this.syncService.publishSnapshot(snapshot, options.targetPeer);
+    if (savesToServer) this.scheduleCloudBackup();
+    if (ok || savesToServer) {
+      this.patchSession({
+        lastSnapshotAt: nowIso(),
+        message: session.peers.length > 0 ? 'Данные игры отправлены игрокам.' : 'Изменения отправлены на сервер.'
+      });
     }
-    return ok;
+    return ok || savesToServer;
+  }
+
+  private scheduleCloudBackup(): void {
+    window.clearTimeout(this.cloudBackupTimer);
+    this.cloudBackupTimer = window.setTimeout(() => {
+      this.cloudBackupTimer = undefined;
+      void this.saveCloudBackup();
+    }, 2_000);
+  }
+
+  private async saveCloudBackup(): Promise<boolean> {
+    if (!serverSessionEnabled() || !this.cloudBackupService) return false;
+    try {
+      await this.cloudBackupService.save(gameStore.get().id);
+      this.cloudBackupErrorShown = false;
+      return true;
+    } catch (error) {
+      if (!this.cloudBackupErrorShown) {
+        toastService.show(error instanceof Error ? error.message : 'Не удалось обновить резервную копию.', 'error');
+        this.cloudBackupErrorShown = true;
+      }
+      return false;
+    }
   }
 
   async requestAsset(assetId: string, reason: AssetRequestReason = 'scene-background'): Promise<boolean> {

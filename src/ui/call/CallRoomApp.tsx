@@ -25,7 +25,7 @@ type CallLayoutMode = 'focus' | 'grid';
 export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const sessionParams = typeof window === 'undefined'
     ? null
-    : parseCallSessionLocation(window.location.pathname, basePath, window.location.search, window.location.hash);
+    : parseCallSessionLocation(window.location.pathname, basePath, window.location.hash);
   const session = useStream(p2pSessionService.session$);
   const invite = useStream(p2pSessionService.invite$);
   const call = useStream(mediaCallService.call$);

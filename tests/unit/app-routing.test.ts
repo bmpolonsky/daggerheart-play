@@ -45,7 +45,7 @@ test('all transports use the same reload-safe hash routes', () => {
 test('hash routes survive a reload because the logical path comes from the fragment', () => {
   assert.equal(routePathFromLocation({ pathname: '/', search: '', hash: '#/library/settings/connection' }), '/library/settings/connection');
   assert.equal(routePathFromLocation({ pathname: '/daggerheart-play/', search: '', hash: '#/join/D8MX4M' }, '/daggerheart-play'), '/join/D8MX4M');
-  assert.equal(routePathFromLocation({ pathname: '/', search: '?join=OLD123', hash: '' }), '/join/OLD123');
+  assert.equal(routePathFromLocation({ pathname: '/', search: '?join=OLD123', hash: '' }), '/');
   assert.equal(routePathFromLocation({ pathname: '/tools/cards', search: '', hash: '#card/domain-card%3Alegacy' }), '/tools/cards');
 });
 

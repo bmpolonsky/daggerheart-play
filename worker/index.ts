@@ -1,11 +1,12 @@
 import { schemaStatements } from '../db/schema';
 import { isMasterLeaseActive, isPlayerEnvelopeAllowed, normalizeServerRoomId } from '../src/domain/p2p/serverSession';
 import { isP2PWireEnvelope, type P2PWireEnvelope } from '../src/services/p2p/P2PTransportAdapter';
-import type { D1Database, ExecutionContext, WorkerEnv } from './cloudflare';
+import type { D1Database, ExecutionContext, R2Bucket, WorkerEnv } from './cloudflare';
 
 const MASTER_LEASE_MS = 20_000;
 const PARTICIPANT_LEASE_MS = 30_000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
+const MAX_BACKUP_BYTES = 250 * 1024 * 1024;
 const PAGES_ASSET_ORIGIN = 'https://bmpolonsky.github.io/daggerheart-play';
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 let schemaReady: Promise<void> | null = null;
@@ -43,7 +44,7 @@ const worker = {
     if (url.pathname.startsWith('/api/')) {
       try {
         await ensureSchema(env.DB);
-        return await handleApi(request, env.DB, url);
+        return await handleApi(request, env, url);
       } catch (error) {
         console.error('Server session request failed.', error);
         return json({ error: 'server_error', message: 'Сервер временно недоступен.' }, 500);
@@ -63,7 +64,8 @@ const worker = {
 
 export default worker;
 
-async function handleApi(request: Request, db: D1Database, url: URL): Promise<Response> {
+async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Response> {
+  const db = env.DB;
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     const master = masterIdentity(request);
     return json(master ? { authenticated: true, user: master } : { authenticated: false });
@@ -76,6 +78,11 @@ async function handleApi(request: Request, db: D1Database, url: URL): Promise<Re
       'SELECT id, name, created_at AS createdAt, updated_at AS updatedAt FROM worlds WHERE owner_id = ? ORDER BY updated_at DESC'
     ).bind(master.id).all();
     return json({ worlds: worlds.results ?? [] });
+  }
+
+  const worldBackupMatch = url.pathname.match(/^\/api\/worlds\/([^/]+)\/backup$/);
+  if (worldBackupMatch) {
+    return worldBackup(request, db, env.FILES, decodeURIComponent(worldBackupMatch[1]));
   }
 
   const worldMatch = url.pathname.match(/^\/api\/worlds\/([^/]+)(?:\/export)?$/);
@@ -108,6 +115,42 @@ async function handleApi(request: Request, db: D1Database, url: URL): Promise<Re
   if (action === 'join' && request.method === 'POST') return joinRoom(request, db, roomId);
   if (action === 'events' && request.method === 'GET') return readEvents(request, db, roomId, url);
   if (action === 'events' && request.method === 'POST') return publishEvent(request, db, roomId);
+  return json({ error: 'method_not_allowed' }, 405);
+}
+
+async function worldBackup(
+  request: Request,
+  db: D1Database,
+  files: R2Bucket,
+  worldId: string
+): Promise<Response> {
+  const master = requireMaster(request);
+  if (master instanceof Response) return master;
+  const world = await db.prepare('SELECT id, name FROM worlds WHERE owner_id = ? AND id = ?')
+    .bind(master.id, worldId).first<{ id: string; name: string }>();
+  if (!world) return json({ error: 'world_not_found' }, 404);
+  const key = cloudBackupKey(master.id, worldId);
+  if (request.method === 'GET') {
+    const object = await files.get(key);
+    if (!object) return json({ error: 'backup_not_found' }, 404);
+    return new Response(object.body, {
+      headers: {
+        'cache-control': 'private, no-store',
+        'content-length': String(object.size),
+        'content-disposition': `attachment; filename="${safeFileName(world.name || 'daggerheart-world')}.dhgame"`,
+        'content-type': object.httpMetadata?.contentType || 'application/zip'
+      }
+    });
+  }
+  if (request.method === 'PUT') {
+    const declaredSize = Number(request.headers.get('x-daggerheart-backup-size') ?? request.headers.get('content-length') ?? 0);
+    if (declaredSize > MAX_BACKUP_BYTES) return json({ error: 'backup_too_large' }, 413);
+    if (!request.body) return json({ error: 'backup_required' }, 400);
+    await files.put(key, request.body, {
+      httpMetadata: { contentType: 'application/zip' }
+    });
+    return new Response(null, { status: 204 });
+  }
   return json({ error: 'method_not_allowed' }, 405);
 }
 
@@ -363,7 +406,12 @@ async function readJsonBody(request: Request): Promise<Record<string, unknown> |
 
 function snapshotName(snapshot: unknown): string {
   if (!snapshot || typeof snapshot !== 'object') return 'Без названия';
-  const game = (snapshot as { game?: unknown }).game;
+  const value = snapshot as { game?: unknown; manifest?: unknown; files?: Record<string, unknown> };
+  const manifestName = value.manifest && typeof value.manifest === 'object'
+    ? (value.manifest as { name?: unknown }).name
+    : null;
+  if (typeof manifestName === 'string' && manifestName.trim()) return manifestName.trim();
+  const game = value.game ?? value.files?.['data/game.json'];
   if (!game || typeof game !== 'object') return 'Без названия';
   const name = (game as { name?: unknown }).name;
   return typeof name === 'string' && name.trim() ? name.trim() : 'Без названия';
@@ -421,6 +469,10 @@ async function eventSequence(db: D1Database, roomId: string, eventId: string): P
 
 function safeFileName(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'daggerheart-world';
+}
+
+function cloudBackupKey(ownerId: string, worldId: string): string {
+  return `${[ownerId, worldId].map(encodeURIComponent).join('/')}/backup.dhgame`;
 }
 
 function json(value: unknown, status = 200): Response {

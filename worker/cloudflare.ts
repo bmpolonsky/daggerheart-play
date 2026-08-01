@@ -19,9 +19,23 @@ export interface Fetcher {
   fetch(request: Request): Promise<Response>;
 }
 
+export interface R2Object {
+  body: ReadableStream<Uint8Array>;
+  size: number;
+  httpMetadata?: {
+    contentType?: string;
+  };
+}
+
+export interface R2Bucket {
+  get(key: string): Promise<R2Object | null>;
+  put(key: string, value: ReadableStream<Uint8Array>, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+}
+
 export interface WorkerEnv {
   ASSETS: Fetcher;
   DB: D1Database;
+  FILES: R2Bucket;
 }
 
 export interface ExecutionContext {
