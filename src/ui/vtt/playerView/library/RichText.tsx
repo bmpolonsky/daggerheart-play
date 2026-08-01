@@ -4,7 +4,7 @@ import { cleanMarkdownText, stripMarkdownLinks } from '../../../../core/utils/ma
 
 export function RichText({ text }: { text: string }) {
   const blocks = richBlocks(text);
-  if (blocks.length === 0) return <p className="player-library-detail__text">Описание отсутствует в импортированных данных.</p>;
+  if (blocks.length === 0) return <p className="player-library-detail__text">Без описания.</p>;
   return <div className="player-library-richtext">{blocks}</div>;
 }
 

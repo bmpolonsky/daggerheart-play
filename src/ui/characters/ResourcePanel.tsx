@@ -63,7 +63,6 @@ export function ResourcePanel({ character, allowStructureEdit = false }: { chara
               label="Жетоны действия"
               value={character.actionTokens}
               onChange={(event) => characterService.setActionTokens(character.id, Number(event.currentTarget.value))}
-              hint="Устаревший опциональный счётчик; текущий SRD-поток использует Активацию."
             />
           )}
         </div>

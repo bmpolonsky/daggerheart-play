@@ -204,7 +204,7 @@ export function SharedToolsConnectionSettingsPanel({
           />
         </div>
       )}
-      {usesServer ? (
+      {usesServer && (
         <div className="player-tools-media-diagnostics" aria-label="Каналы подключения">
           <Card
             className="player-tools-media-card"
@@ -224,12 +224,6 @@ export function SharedToolsConnectionSettingsPanel({
           >
             <small>{mediaTransport.message}</small>
           </Card>
-        </div>
-      ) : (
-        <div className="player-tools-auto-network">
-          <span>Сигналинг</span>
-          <strong>Auto</strong>
-          <small>Supabase / Nostr / MQTT / BT tracker</small>
         </div>
       )}
       <div className="player-tools-sync__summary">
@@ -383,8 +377,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         {visibleRoutePeers.length === 0 && (
           <Card
             className="player-tools-peer-card player-tools-peer-card--empty"
-            title={usesServer ? 'Голос и видео ожидают собеседника' : 'Нет подключений'}
-            subtitle={usesServer ? 'Медиасигналинг готов, но другой участник ещё не найден' : 'Каналы сигналинга инициализированы, но другой участник ещё не найден'}
+            title={usesServer ? 'Голос и видео: участник не найден' : 'Участник не найден'}
           >
             <div className="player-tools-peer-routes">
               {P2P_ROUTE_COLUMNS.map((strategy) => (
@@ -414,16 +407,12 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           className="player-tools-media-card"
           title="Аудиовыход"
           subtitle={call.audioPlaybackBlocked
-            ? 'Браузер заблокировал воспроизведение'
-            : call.audioPlaybackActive
-              ? 'Входящий звук проигрывается'
-              : 'Входящий аудиопоток не получен'}
+            ? 'Разрешите воспроизведение звука в браузере'
+            : undefined}
           actions={<Badge tone={call.audioPlaybackBlocked ? 'danger' : call.audioPlaybackActive ? 'success' : 'neutral'}>
             {call.audioPlaybackBlocked ? 'заблокирован' : call.audioPlaybackActive ? 'работает' : 'нет потока'}
           </Badge>}
-        >
-          <small>Отдельный аудиоканал работает независимо от состояния камеры.</small>
-        </Card>
+        >{null}</Card>
         {mediaDiagnostics.map((connection) => (
           <Card
             className="player-tools-media-card"
@@ -445,11 +434,8 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         {mediaDiagnostics.length === 0 && (
           <Card
             className="player-tools-media-card player-tools-media-card--empty"
-            title="Нет WebRTC-медиа"
-            subtitle="Сначала должно появиться физическое подключение к участнику"
-          >
-            <small>После подключения здесь появятся входящие и исходящие RTP-счётчики.</small>
-          </Card>
+            title="Медиасоединение не установлено"
+          >{null}</Card>
         )}
       </div>
     </section>
@@ -510,11 +496,12 @@ function findMediaStat(
 
 function MediaFlowStatus({ label, stat }: { label: string; stat?: DisplayMediaRtpDiagnostic }) {
   const tone = mediaFlowTone(stat);
+  const detail = formatMediaFlowDetail(stat);
   return (
     <div className="player-tools-media-flow">
       <span>{label}</span>
       <Badge tone={tone}>{formatMediaFlowStatus(stat)}</Badge>
-      <small>{formatMediaFlowDetail(stat)}</small>
+      {detail && <small>{detail}</small>}
     </div>
   );
 }
@@ -542,7 +529,7 @@ function formatMediaFlowStatus(stat?: DisplayMediaRtpDiagnostic): string {
 }
 
 function formatMediaFlowDetail(stat?: DisplayMediaRtpDiagnostic): string {
-  if (!stat) return 'Счётчик потока отсутствует';
+  if (!stat) return '';
   const parts = [
     stat.bitrateKbps === null ? null : `${stat.bitrateKbps.toFixed(1)} кбит/с`,
     `${formatByteCount(stat.bytes)}`,

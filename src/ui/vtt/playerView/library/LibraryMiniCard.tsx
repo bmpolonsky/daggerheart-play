@@ -49,6 +49,6 @@ function compactLibraryText(value: string): string {
     .replace(/\|{2,}/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  if (!normalized) return 'Описание отсутствует в импортированных данных.';
+  if (!normalized) return 'Без описания.';
   return normalized.length > 190 ? `${normalized.slice(0, 187).trim()}...` : normalized;
 }

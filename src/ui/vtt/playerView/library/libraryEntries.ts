@@ -361,7 +361,7 @@ function titledFeatureSections(title: string, features: RawAdversaryFeature[] | 
 function detailText(sections: LibraryDetailSection[], stats: string[]): string {
   const statText = stats.length > 0 ? `Параметры\n${stats.join('\n')}` : '';
   const text = [statText, ...sections.map((section) => `${section.title}\n${section.body}`)].filter(Boolean).join('\n\n');
-  return text || 'Описание отсутствует в импортированных данных.';
+  return text || 'Без описания.';
 }
 
 function normalizeDetailText(value: unknown): string {
