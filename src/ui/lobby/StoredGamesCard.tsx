@@ -78,12 +78,8 @@ export function StoredGamesCard() {
     try {
       const restoredArchive = await cloudBackupService.restore(world.id);
       if (!restoredArchive) {
-        const response = await fetch(`/api/worlds/${encodeURIComponent(world.id)}`, { credentials: 'same-origin' });
-        if (!response.ok) throw new Error('cloud_world_unavailable');
-        const result = await response.json() as { snapshot?: unknown };
-        const imported = await importExportService.importJson(JSON.stringify(result.snapshot));
-        if (!imported.ok) throw new Error(imported.message);
-        setCloudWarning('Это старая резервная копия без архива файлов. Откройте игру один раз на исходном устройстве, чтобы сохранить полный бэкап.');
+        setCloudWarning('Полный бэкап ещё не создан. Откройте игру один раз на исходном устройстве, чтобы сохранить архив с файлами.');
+        return;
       }
       await persistenceService.refreshStoredGames();
     } catch {
