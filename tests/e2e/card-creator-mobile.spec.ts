@@ -23,7 +23,7 @@ test.describe('mobile card creator workspace', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('keeps cards search, header, preview, and tools within the viewport', async ({ page }) => {
-    await page.goto('/tools/cards');
+    await page.goto('/#/tools/cards');
 
     const root = page.locator('.tool-viewport--cards');
     const sidebar = root.locator('.sidebar');
@@ -60,7 +60,7 @@ test.describe('mobile card creator workspace', () => {
   });
 
   test('switches template category sections from the sidebar', async ({ page }) => {
-    await page.goto('/tools/cards');
+    await page.goto('/#/tools/cards');
 
     const root = page.locator('.tool-viewport--cards');
     const category = (title: string) => root.locator('.template-group').filter({ hasText: title }).first();

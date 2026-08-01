@@ -1,3 +1,5 @@
+import type { SessionTransportMode } from '../domain/p2p/serverSession';
+
 export type WorkspaceId = 'play' | 'combat' | 'cards';
 export type RouteId = 'entry' | 'game' | 'join' | 'call' | 'combat' | 'cards';
 export type LegacyRouteId = 'gm' | 'player';
@@ -18,6 +20,12 @@ const WORKSPACE_ROUTES: Record<WorkspaceId, RouteId> = {
   cards: 'cards'
 };
 
+interface LocationLike {
+  hash: string;
+  pathname: string;
+  search: string;
+}
+
 export function appBasePath(): string {
   const base = import.meta.env.BASE_URL;
   if (!base || base === '/' || base === './') return '';
@@ -26,20 +34,53 @@ export function appBasePath(): string {
 
 export function routeFromLocation(): RouteId {
   if (typeof window === 'undefined') return 'entry';
-  if (serverSessionEnabled()) {
-    const search = new URLSearchParams(window.location.search);
-    if (search.has('join')) return 'join';
-    if (search.has('call')) return 'call';
-  }
-  return routeFromPath(stripBasePath(window.location.pathname));
+  return routeFromPath(routePathFromLocation(window.location));
+}
+
+export function routePathFromLocation(location: LocationLike, basePath = appBasePath()): string {
+  const hashPath = routePathFromHash(location.hash);
+  if (hashPath) return hashPath;
+
+  const search = new URLSearchParams(location.search);
+  const joinedRoom = search.get('join');
+  if (joinedRoom) return `/join/${encodeURIComponent(joinedRoom)}`;
+  const callRoom = search.get('call');
+  if (callRoom) return `/calls/${encodeURIComponent(callRoom)}`;
+
+  const path = normalizeRoutePath(stripBasePath(location.pathname, basePath));
+  return legacyRouteTarget(path) ?? path;
+}
+
+export function currentRoutePathname(): string {
+  if (typeof window === 'undefined') return '/';
+  return routePathFromLocation(window.location);
+}
+
+export function routePathFromHash(hash: string): string | null {
+  const value = hash.replace(/^#/, '');
+  return value.startsWith('/') ? normalizeRoutePath(value) : null;
 }
 
 export function replaceLegacyRoute(): boolean {
-  if (typeof window === 'undefined') return false;
-  const normalized = stripBasePath(window.location.pathname).replace(/\/+$/, '') || '/';
-  const nextPath = legacyRouteTarget(normalized);
-  if (!nextPath) return false;
-  window.history.replaceState({}, '', `${nextPath}${window.location.search}${window.location.hash}`);
+  if (typeof window === 'undefined' || routePathFromHash(window.location.hash)) return false;
+  const search = new URLSearchParams(window.location.search);
+  const originalPath = normalizeRoutePath(stripBasePath(window.location.pathname));
+  let routePath = routePathFromLocation(window.location);
+  const hasLegacyQueryRoute = search.has('join') || search.has('call');
+  const legacyTarget = legacyRouteTarget(originalPath);
+  const hasLegacyCardHash = /^#(?:card|custom)\//.test(window.location.hash);
+
+  if (hasLegacyCardHash && (originalPath === '/' || originalPath === '/tools/cards')) {
+    routePath = `/tools/cards/${window.location.hash.slice(1)}`;
+  }
+
+  if (originalPath === '/' && !hasLegacyQueryRoute && !legacyTarget && !hasLegacyCardHash) return false;
+  if (!isKnownRoutePath(routePath) && !legacyTarget) return false;
+  if (search.has('join')) search.delete('join');
+  if (search.has('call')) search.delete('call');
+  const nextSearch = search.toString();
+  const navigation = hashRouteLocation(routePath, nextSearch ? `?${nextSearch}` : '');
+  window.history.replaceState({}, '', navigation.url);
   return true;
 }
 
@@ -52,32 +93,56 @@ export function routeFromWorkspace(workspace: WorkspaceId): RouteId {
   return WORKSPACE_ROUTES[workspace];
 }
 
-export function routeNavigation(routeId: NavigableRouteId, hash = '', search = '', roomId?: string, transportMode: SessionTransportMode = sessionTransportMode()) {
-  const canonicalRouteId = canonicalRouteIdForNavigation(routeId, roomId);
-  let pathname = pathForRoute(canonicalRouteId, roomId);
-  const searchParams = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-  if (transportMode === 'server' && roomId && (canonicalRouteId === 'join' || canonicalRouteId === 'call')) {
-    pathname = pathWithBase('/');
-    searchParams.set(canonicalRouteId, roomId);
-  }
-  const serializedSearch = searchParams.toString();
-  const nextSearch = serializedSearch ? `?${serializedSearch}` : '';
-  const url = `${pathname}${nextSearch}${hash}`;
+export function hashRouteLocation(routePath: string, search = '') {
+  const normalizedPath = normalizeRoutePath(routePath);
+  const nextSearch = search && !search.startsWith('?') ? `?${search}` : search;
+  const pathname = `${appBasePath()}/`;
+  const hash = normalizedPath === '/' ? '' : `#${normalizedPath}`;
   return {
     hash,
     pathname,
-    route: canonicalRouteId,
+    routePath: normalizedPath,
     search: nextSearch,
-    url
+    url: `${pathname}${nextSearch}${hash}`
+  };
+}
+
+export function routeNavigation(
+  routeId: NavigableRouteId,
+  legacyHash = '',
+  search = '',
+  roomId?: string,
+  _transportMode?: SessionTransportMode
+) {
+  const route = canonicalRouteIdForNavigation(routeId, roomId);
+  let routePath = pathForRoute(route, roomId);
+  if (route === 'cards' && /^#(?:card|custom)\//.test(legacyHash)) {
+    routePath += `/${legacyHash.slice(1)}`;
+  }
+  return {
+    ...hashRouteLocation(routePath, search),
+    route
   };
 }
 
 function routeFromPath(pathname: string): RouteId {
-  const normalized = pathname.replace(/\/+$/, '') || '/';
+  const normalized = normalizeRoutePath(pathname);
   if (/^\/join\/[^/]+$/.test(normalized)) return 'join';
   if (/^\/calls(?:\/[^/]+)?$/.test(normalized)) return 'call';
   if (/^\/library(?:\/.*)?$/.test(normalized)) return 'game';
+  if (/^\/tools\/cards(?:\/.*)?$/.test(normalized)) return 'cards';
   return (Object.entries(ROUTE_PATHS).find(([, path]) => path === normalized)?.[0] as RouteId | undefined) ?? 'entry';
+}
+
+function isKnownRoutePath(pathname: string): boolean {
+  const normalized = normalizeRoutePath(pathname);
+  return normalized === '/'
+    || normalized === '/game'
+    || normalized === '/tools/combat'
+    || /^\/tools\/cards(?:\/.*)?$/.test(normalized)
+    || /^\/join\/[^/]+$/.test(normalized)
+    || /^\/calls(?:\/[^/]+)?$/.test(normalized)
+    || /^\/library(?:\/.*)?$/.test(normalized);
 }
 
 function canonicalRouteIdForNavigation(routeId: NavigableRouteId, roomId?: string): RouteId {
@@ -86,35 +151,26 @@ function canonicalRouteIdForNavigation(routeId: NavigableRouteId, roomId?: strin
   return routeId;
 }
 
-function legacyRouteTarget(normalizedPathname: string): string | null {
-  if (normalizedPathname === '/gm' || normalizedPathname === '/player') {
-    return pathWithBase('/game');
-  }
-  const playerInviteMatch = normalizedPathname.match(/^\/player\/([^/]+)$/);
-  if (playerInviteMatch?.[1]) {
-    return pathWithBase(`/join/${playerInviteMatch[1]}`);
-  }
-  return null;
+function legacyRouteTarget(pathname: string): string | null {
+  if (pathname === '/gm' || pathname === '/player') return '/game';
+  const playerInviteMatch = pathname.match(/^\/player\/([^/]+)$/);
+  return playerInviteMatch?.[1] ? `/join/${playerInviteMatch[1]}` : null;
 }
 
-function stripBasePath(pathname: string): string {
-  const base = appBasePath();
-  if (!base || !pathname.startsWith(base)) return pathname;
+function stripBasePath(pathname: string, basePath = appBasePath()): string {
+  const base = basePath.replace(/\/+$/, '');
+  if (!base || (pathname !== base && !pathname.startsWith(`${base}/`))) return pathname;
   const stripped = pathname.slice(base.length);
   return stripped.startsWith('/') ? stripped : `/${stripped}`;
 }
 
-function pathWithBase(pathname: string): string {
-  return `${appBasePath()}${pathname}`;
+function pathForRoute(routeId: RouteId, roomId?: string): string {
+  if (routeId === 'join' && roomId) return `/join/${encodeURIComponent(roomId)}`;
+  if (routeId === 'call' && roomId) return `/calls/${encodeURIComponent(roomId)}`;
+  return ROUTE_PATHS[routeId];
 }
 
-function pathForRoute(routeId: RouteId, roomId?: string): string {
-  if (routeId === 'join' && roomId) {
-    return pathWithBase(`/join/${encodeURIComponent(roomId)}`);
-  }
-  if (routeId === 'call' && roomId) {
-    return pathWithBase(`/calls/${encodeURIComponent(roomId)}`);
-  }
-  return pathWithBase(ROUTE_PATHS[routeId]);
+function normalizeRoutePath(pathname: string): string {
+  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  return normalized.replace(/\/+$/, '') || '/';
 }
-import { serverSessionEnabled, sessionTransportMode, type SessionTransportMode } from '../domain/p2p/serverSession';

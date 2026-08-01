@@ -3,7 +3,7 @@ import { expectInsideViewport, rect } from './layout-helpers';
 
 async function openCombatBuilder(page: Page): Promise<void> {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/tools/combat');
+  await page.goto('/#/tools/combat');
 }
 
 test.describe('Combat Builder mobile workspace', () => {

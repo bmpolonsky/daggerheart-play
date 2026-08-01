@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import { currentRoutePathname } from '../../app/routing';
 import { BookOpenText, ScrollText, Swords, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import {
@@ -77,7 +78,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const [desktopLayout, setDesktopLayout] = useState(isDesktopLayout);
   const [activityOpen, setActivityOpen] = useState(defaultActivityPanelOpen);
   const [panelOpen, setPanelOpen] = useState(defaultDetailPanelOpen);
-  const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(typeof window === 'undefined' ? '' : window.location.pathname, role));
+  const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(currentRoutePathname(), role));
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role, sceneTable.musicDeliveryMode);
@@ -184,10 +185,14 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const syncRouteState = () => setRoutedUi(parseRoutedPlayerViewState(window.location.pathname, role));
+    const syncRouteState = () => setRoutedUi(parseRoutedPlayerViewState(currentRoutePathname(), role));
     syncRouteState();
     window.addEventListener('popstate', syncRouteState);
-    return () => window.removeEventListener('popstate', syncRouteState);
+    window.addEventListener('hashchange', syncRouteState);
+    return () => {
+      window.removeEventListener('popstate', syncRouteState);
+      window.removeEventListener('hashchange', syncRouteState);
+    };
   }, [role]);
 
   useEffect(() => {
@@ -214,14 +219,12 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   }, [sessionRoomId]);
   const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab; libraryCollection?: typeof content.selectedCollection | null; libraryEntrySlug?: string | null; settingsSection?: string | null }) => {
     if (typeof window === 'undefined') return;
-    const navigation = buildRoutedPlayerViewLocation({
-      hash: window.location.hash
-    }, role, next);
+    const navigation = buildRoutedPlayerViewLocation(role, next);
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     if (navigation.url !== currentUrl) {
       window.history.pushState({}, '', navigation.url);
     }
-    setRoutedUi(parseRoutedPlayerViewState(navigation.pathname, role));
+    setRoutedUi(parseRoutedPlayerViewState(navigation.routePath, role));
   }, [role]);
   useEffect(() => {
     const openRuleArticle = (event: Event) => {

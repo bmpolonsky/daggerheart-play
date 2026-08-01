@@ -456,7 +456,7 @@ test.describe('filled-game player character workflows', () => {
       await expect(gmCompanion.getByRole('button', { name: 'Убрать Искра Лесная со сцены' })).toBeVisible();
 
       await companionRuleTerm.click();
-      await expect(player).toHaveURL(/\/library\/compendium\/rules\/ranger-companion$/);
+      await expect(player).toHaveURL(/\/#\/library\/compendium\/rules\/ranger-companion$/);
       const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
       const detail = workspace.getByLabel('Полная запись компендиума');
       await expect(detail.getByRole('heading', { name: 'Компаньон Следопыта', exact: true })).toBeVisible();
@@ -537,7 +537,7 @@ test.describe('filled-game player character workflows', () => {
       await expect(tooltip).toContainText('быстры');
 
       await agilityTerm.click();
-      await expect(player).toHaveURL(/\/library\/compendium\/rules\/character-traits$/);
+      await expect(player).toHaveURL(/\/#\/library\/compendium\/rules\/character-traits$/);
       const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
       await expect(workspace).toBeVisible();
       await expect(workspace.getByRole('heading', { name: 'Характеристики персонажа', exact: true })).toBeVisible();

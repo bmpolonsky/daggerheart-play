@@ -34,7 +34,7 @@ test.describe('Player View empty state', () => {
     await expect(copyInvite).toBeEnabled();
     await copyInvite.click();
     await expect(page.getByText('Ссылка скопирована.')).toBeVisible();
-    await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem('e2e-copied-invite'))).toContain('/join/');
+    await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem('e2e-copied-invite'))).toContain('/#/join/');
 
     await openGmGame(page);
     await expect(page.locator('.player-token')).toHaveCount(0);

@@ -371,10 +371,11 @@ function isRemotePlayerJoin(): boolean {
   if (typeof window === 'undefined') return false;
   const location = (window as Window & { location?: Location }).location;
   const pathname = location?.pathname ?? '';
-  if (parsePlayerSessionLocation(pathname, inferBasePathFromWorkspacePath(pathname), location?.search ?? '')) {
+  if (parsePlayerSessionLocation(pathname, inferBasePathFromWorkspacePath(pathname), location?.search ?? '', location?.hash ?? '')) {
     return true;
   }
-  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const hashPath = location?.hash?.replace(/^#/, '') ?? '';
+  const normalizedPath = (hashPath.startsWith('/') ? hashPath : pathname).replace(/\/+$/, '') || '/';
   const activeSession = readActiveSession();
   return normalizedPath.endsWith('/game') && activeSession?.role === 'player';
 }

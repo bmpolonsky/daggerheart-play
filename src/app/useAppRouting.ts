@@ -9,15 +9,15 @@ import {
   type WorkspaceId
 } from './routing';
 
-type OpenWorkspaceEvent = CustomEvent<{ workspace: WorkspaceId; hash?: string }>;
-type NavigateRouteEvent = CustomEvent<{ route: NavigableRouteId; hash?: string; search?: string; roomId?: string }>;
+type OpenWorkspaceEvent = CustomEvent<{ workspace: WorkspaceId }>;
+type NavigateRouteEvent = CustomEvent<{ route: NavigableRouteId; roomId?: string }>;
 
 export function useAppRouting() {
   const [activeRoute, setActiveRoute] = useState(routeFromLocation);
   const [activeLocation, setActiveLocation] = useState(locationSignature);
 
-  const navigateToRoute = (routeId: NavigableRouteId, hash = '', search = '', roomId?: string) => {
-    const navigation = routeNavigation(routeId, hash, search, roomId);
+  const navigateToRoute = (routeId: NavigableRouteId, _hash = '', _search = '', roomId?: string) => {
+    const navigation = routeNavigation(routeId, '', '', roomId);
     if (
       window.location.pathname !== navigation.pathname ||
       window.location.search !== navigation.search ||
@@ -38,19 +38,21 @@ export function useAppRouting() {
     const handleOpenWorkspace = (event: Event) => {
       const detail = (event as OpenWorkspaceEvent).detail;
       if (!detail) return;
-      navigateToRoute(routeFromWorkspace(detail.workspace), detail.hash ?? '');
+      navigateToRoute(routeFromWorkspace(detail.workspace));
     };
     const handleNavigateRoute = (event: Event) => {
       const detail = (event as NavigateRouteEvent).detail;
       if (!detail) return;
-      navigateToRoute(detail.route, detail.hash ?? '', detail.search ?? '', detail.roomId);
+      navigateToRoute(detail.route, '', '', detail.roomId);
     };
 
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
     window.addEventListener('daggerheart-play:open-workspace', handleOpenWorkspace);
     window.addEventListener('daggerheart-play:navigate-route', handleNavigateRoute);
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
       window.removeEventListener('daggerheart-play:open-workspace', handleOpenWorkspace);
       window.removeEventListener('daggerheart-play:navigate-route', handleNavigateRoute);
     };

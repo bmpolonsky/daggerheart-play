@@ -1,5 +1,5 @@
 import type { SharedToolsTab, TableViewRole } from './types';
-import { appBasePath } from '../../../app/routing';
+import { hashRouteLocation } from '../../../app/routing';
 import type { ContentCollectionKey } from '../../../domain/content/types';
 
 export type RoutedPlayerViewState = {
@@ -63,7 +63,7 @@ export function normalizeSharedToolsTab(tab: string | null | undefined, role: Ta
 }
 
 export function parseRoutedPlayerViewState(pathname: string, role: TableViewRole): RoutedPlayerViewState {
-  const normalized = stripBasePath(pathname).replace(/\/+$/, '') || '/';
+  const normalized = pathname.replace(/\/+$/, '') || '/';
   if (normalized !== LIBRARY_PATH_PREFIX && !normalized.startsWith(`${LIBRARY_PATH_PREFIX}/`)) {
     return emptyRoutedPlayerViewState(role);
   }
@@ -112,7 +112,6 @@ export function parseRoutedPlayerViewState(pathname: string, role: TableViewRole
 }
 
 export function buildRoutedPlayerViewLocation(
-  current: { hash: string },
   role: TableViewRole,
   next: {
     toolsOpen: boolean;
@@ -121,14 +120,9 @@ export function buildRoutedPlayerViewLocation(
     libraryEntrySlug?: string | null;
     settingsSection?: string | null;
   }
-): { pathname: string; search: string; hash: string; url: string } {
-  const pathname = withBase(next.toolsOpen ? pathForToolsTab(normalizeSharedToolsTab(next.toolsTab, role), next) : '/game');
-  return {
-    pathname,
-    search: '',
-    hash: current.hash,
-    url: `${pathname}${current.hash}`
-  };
+): { pathname: string; search: string; hash: string; routePath: string; url: string } {
+  const routePath = next.toolsOpen ? pathForToolsTab(normalizeSharedToolsTab(next.toolsTab, role), next) : '/game';
+  return hashRouteLocation(routePath);
 }
 
 function emptyRoutedPlayerViewState(role: TableViewRole): RoutedPlayerViewState {
@@ -167,15 +161,4 @@ export function navigateToRuleArticle(ruleSlug: string): void {
 function collectionFromSlug(value: string | null | undefined): ContentCollectionKey | null {
   if (!value) return null;
   return COLLECTION_BY_SLUG[value] ?? null;
-}
-
-function stripBasePath(pathname: string): string {
-  const base = appBasePath();
-  if (!base || !pathname.startsWith(base)) return pathname;
-  const stripped = pathname.slice(base.length);
-  return stripped.startsWith('/') ? stripped : `/${stripped}`;
-}
-
-function withBase(pathname: string): string {
-  return `${appBasePath()}${pathname}`;
 }

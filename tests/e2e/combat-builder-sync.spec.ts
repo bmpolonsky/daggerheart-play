@@ -4,7 +4,7 @@ import { openGmGame } from './game-route-helpers';
 async function openCombatBuilder(context: BrowserContext): Promise<Page> {
   const page = await context.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/tools/combat');
+  await page.goto('/#/tools/combat');
   await expect(page.locator('.combat-builder-app')).toBeVisible();
   return page;
 }

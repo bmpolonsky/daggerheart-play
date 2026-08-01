@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Check, Copy, Hand, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, Volume2, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, writeStoredCallName } from '../../domain/p2p/sessionLinks';
+import { currentRoutePathname } from '../../app/routing';
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
 import type { TableParticipant } from '../../domain/tabletop/types';
 import { feedService, mediaCallService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
@@ -24,13 +25,13 @@ type CallLayoutMode = 'focus' | 'grid';
 export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const sessionParams = typeof window === 'undefined'
     ? null
-    : parseCallSessionLocation(window.location.pathname, basePath, window.location.search);
+    : parseCallSessionLocation(window.location.pathname, basePath, window.location.search, window.location.hash);
   const session = useStream(p2pSessionService.session$);
   const invite = useStream(p2pSessionService.invite$);
   const call = useStream(mediaCallService.call$);
   const feed = useStream(feedService.feed$);
   const sceneTable = useStream(sceneTableService.sceneTable$);
-  const bareCallsPath = typeof window !== 'undefined' && isBareCallsPath(window.location.pathname, basePath);
+  const bareCallsPath = typeof window !== 'undefined' && isBareCallsPath(currentRoutePathname());
   const roomId = resolveCallRoomId({
     bareCallsPath,
     inviteRoomId: invite.roomId,
@@ -70,7 +71,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     : [];
 
   useEffect(() => {
-    if (!roomId || typeof window === 'undefined' || !isBareCallsPath(window.location.pathname, basePath)) return;
+    if (!roomId || typeof window === 'undefined' || !isBareCallsPath(currentRoutePathname())) return;
     window.history.replaceState({}, '', buildCallInviteUrl({
       origin: window.location.origin,
       basePath,
@@ -472,12 +473,8 @@ function mediaStreamRenderKey(stream: MediaStream): string {
   return `${stream.id}:${stream.getVideoTracks().map((track) => track.id).join(',')}`;
 }
 
-function isBareCallsPath(pathname: string, basePath: string): boolean {
-  const normalizedBase = basePath.replace(/\/+$/, '');
-  const strippedPath = normalizedBase && pathname.startsWith(normalizedBase)
-    ? pathname.slice(normalizedBase.length) || '/'
-    : pathname;
-  return (strippedPath.replace(/\/+$/, '') || '/') === '/calls';
+function isBareCallsPath(pathname: string): boolean {
+  return (pathname.replace(/\/+$/, '') || '/') === '/calls';
 }
 
 function initials(name: string): string {

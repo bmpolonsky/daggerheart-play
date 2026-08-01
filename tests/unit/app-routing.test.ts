@@ -1,40 +1,52 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { replaceLegacyRoute, routeNavigation } from "../../src/app/routing";
+import { replaceLegacyRoute, routeNavigation, routePathFromLocation } from "../../src/app/routing";
 import { buildRoutedPlayerViewLocation, parseRoutedPlayerViewState, sharedToolsTabsForRole } from "../../src/ui/vtt/playerView/routedUiState";
+import { buildCardEditorHash, parseCardEditorHash } from "../../src/tools/card-creator/services/editorService";
 
 test('app route navigation canonicalizes legacy route events', () => {
   assert.deepEqual(routeNavigation('gm'), {
-    hash: '',
-    pathname: '/game',
+    hash: '#/game',
+    pathname: '/',
     route: 'game',
+    routePath: '/game',
     search: '',
-    url: '/game'
+    url: '/#/game'
   });
   assert.deepEqual(routeNavigation('player', '', '', '7K2Q'), {
-    hash: '',
-    pathname: '/join/7K2Q',
+    hash: '#/join/7K2Q',
+    pathname: '/',
     route: 'join',
+    routePath: '/join/7K2Q',
     search: '',
-    url: '/join/7K2Q'
+    url: '/#/join/7K2Q'
   });
 });
 
-test('server navigation keeps invite routes on the Sites root', () => {
+test('all transports use the same reload-safe hash routes', () => {
   assert.deepEqual(routeNavigation('player', '', '', '7K2Q', 'server'), {
-    hash: '',
+    hash: '#/join/7K2Q',
     pathname: '/',
     route: 'join',
-    search: '?join=7K2Q',
-    url: '/?join=7K2Q'
+    routePath: '/join/7K2Q',
+    search: '',
+    url: '/#/join/7K2Q'
   });
   assert.deepEqual(routeNavigation('call', '', '', '7K2Q', 'server'), {
-    hash: '',
+    hash: '#/calls/7K2Q',
     pathname: '/',
     route: 'call',
-    search: '?call=7K2Q',
-    url: '/?call=7K2Q'
+    routePath: '/calls/7K2Q',
+    search: '',
+    url: '/#/calls/7K2Q'
   });
+});
+
+test('hash routes survive a reload because the logical path comes from the fragment', () => {
+  assert.equal(routePathFromLocation({ pathname: '/', search: '', hash: '#/library/settings/connection' }), '/library/settings/connection');
+  assert.equal(routePathFromLocation({ pathname: '/daggerheart-play/', search: '', hash: '#/join/D8MX4M' }, '/daggerheart-play'), '/join/D8MX4M');
+  assert.equal(routePathFromLocation({ pathname: '/', search: '?join=OLD123', hash: '' }), '/join/OLD123');
+  assert.equal(routePathFromLocation({ pathname: '/tools/cards', search: '', hash: '#card/domain-card%3Alegacy' }), '/tools/cards');
 });
 
 test('app routing redirects legacy URLs at the compatibility boundary', () => {
@@ -57,7 +69,7 @@ test('app routing redirects legacy URLs at the compatibility boundary', () => {
   });
   try {
     assert.equal(replaceLegacyRoute(), true);
-    assert.equal(replacedUrl, '/join/7K2Q?sig=torrent-library#sheet');
+    assert.equal(replacedUrl, '/?sig=torrent-library#/join/7K2Q');
   } finally {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
@@ -103,37 +115,45 @@ test('player shared tools expose the owned-character area without GM-only tabs',
   assert.equal(sharedToolsTabsForRole('player').includes('notes'), false);
 });
 
-test('app routing builds path-based library URLs without query params', () => {
+test('app routing builds slash-based library hash URLs without query params', () => {
   assert.deepEqual(buildRoutedPlayerViewLocation(
-    { hash: '#sheet' },
     'gm',
     { toolsOpen: true, toolsTab: 'library', libraryCollection: 'domainCards' }
   ), {
-    hash: '#sheet',
-    pathname: '/library/compendium/domain-cards',
+    hash: '#/library/compendium/domain-cards',
+    pathname: '/',
+    routePath: '/library/compendium/domain-cards',
     search: '',
-    url: '/library/compendium/domain-cards#sheet'
+    url: '/#/library/compendium/domain-cards'
   });
 
   assert.deepEqual(buildRoutedPlayerViewLocation(
-    { hash: '' },
     'player',
     { toolsOpen: true, toolsTab: 'library', libraryCollection: 'rules', libraryEntrySlug: 'action-roll' }
   ), {
-    hash: '',
-    pathname: '/library/compendium/rules/action-roll',
+    hash: '#/library/compendium/rules/action-roll',
+    pathname: '/',
+    routePath: '/library/compendium/rules/action-roll',
     search: '',
-    url: '/library/compendium/rules/action-roll'
+    url: '/#/library/compendium/rules/action-roll'
   });
 
   assert.deepEqual(buildRoutedPlayerViewLocation(
-    { hash: '' },
     'gm',
     { toolsOpen: false }
   ), {
-    hash: '',
-    pathname: '/game',
+    hash: '#/game',
+    pathname: '/',
+    routePath: '/game',
     search: '',
-    url: '/game'
+    url: '/#/game'
   });
+});
+
+test('card editor state fits into slash-based hash routes', () => {
+  assert.equal(buildCardEditorHash({ type: 'card', value: 'domain-card:fireball' }), '#/tools/cards/card/domain-card%3Afireball');
+  assert.deepEqual(parseCardEditorHash('#/tools/cards/card/domain-card%3Afireball'), { type: 'card', value: 'domain-card:fireball' });
+  assert.equal(buildCardEditorHash({ type: 'custom', value: 'custom/id' }), '#/tools/cards/custom/custom%2Fid');
+  assert.deepEqual(parseCardEditorHash('#/tools/cards/custom/custom%2Fid'), { type: 'custom', value: 'custom/id' });
+  assert.deepEqual(parseCardEditorHash('#card/domain-card%3Alegacy'), { type: 'card', value: 'domain-card:legacy' });
 });

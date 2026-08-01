@@ -103,12 +103,12 @@ test.describe('dark glass visual system smoke', () => {
 
   test('combat and card tool shells render with dark glass chrome', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/tools/combat');
+    await page.goto('/#/tools/combat');
     await expect(page.locator('.tool-viewport--combat')).toBeVisible();
     await expectInsideViewport(page, page.locator('.tool-viewport--combat'));
     await expectNoHorizontalOverflow(page, 1440);
 
-    await page.goto('/tools/cards');
+    await page.goto('/#/tools/cards');
     await expect(page.locator('.tool-viewport--cards')).toBeVisible();
     await expectInsideViewport(page, page.locator('.tool-viewport--cards'));
     await expectStableButton(page.locator('.tool-viewport--cards button').first());

@@ -1,13 +1,11 @@
 import { localAppStorageStore, sessionAppStorageStore } from '../../core/persistence/appBrowserStorage';
 import type { P2PNetworkSettings } from './networkSettings';
-import { sessionTransportMode, type SessionTransportMode } from './serverSession';
 
 export interface PlayerInviteUrlInput {
   origin: string;
   basePath?: string;
   roomId: string;
   networkSettings?: P2PNetworkSettings;
-  transportMode?: SessionTransportMode;
 }
 
 export interface PlayerSessionParams {
@@ -28,11 +26,8 @@ export function normalizeSessionRoomId(roomId: string, fallback = createFallback
 
 export function buildPlayerInviteUrl(input: PlayerInviteUrlInput): string {
   const roomId = buildPlayerInviteRoomCode(input.roomId, input.networkSettings);
-  const serverRoute = (input.transportMode ?? sessionTransportMode()) === 'server';
-  const invite = new URL(serverRoute
-    ? '/'
-    : joinRoutePath(input.basePath, roomId), input.origin);
-  if (serverRoute) invite.searchParams.set('join', roomId);
+  const invite = new URL(baseRootPath(input.basePath), input.origin);
+  invite.hash = `/join/${encodeURIComponent(roomId)}`;
   return invite.toString();
 }
 
@@ -47,18 +42,15 @@ export function rebasePlayerInviteRoomCode(roomId: string, networkSettings: P2PN
 
 export function buildCallInviteUrl(input: PlayerInviteUrlInput): string {
   const roomId = normalizeLogicalRoomId(input.roomId);
-  const serverRoute = (input.transportMode ?? sessionTransportMode()) === 'server';
-  const invite = new URL(serverRoute
-    ? '/'
-    : callRoutePath(input.basePath, roomId), input.origin);
-  if (serverRoute) invite.searchParams.set('call', roomId);
+  const invite = new URL(baseRootPath(input.basePath), input.origin);
+  invite.hash = `/calls/${encodeURIComponent(roomId)}`;
   return invite.toString();
 }
 
-export function parsePlayerSessionLocation(pathname: string, basePath = '', search = ''): PlayerSessionParams | null {
+export function parsePlayerSessionLocation(pathname: string, basePath = '', search = '', hash = ''): PlayerSessionParams | null {
   const queryRoomId = new URLSearchParams(search).get('join');
   if (queryRoomId) return parsePlayerInviteRoomCode(queryRoomId);
-  const normalized = stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
+  const normalized = sessionRoutePath(pathname, basePath, hash);
   const match = normalized.match(/^\/join\/([^/]+)$/);
   return match?.[1] ? parsePlayerInviteRoomCode(decodeURIComponent(match[1])) : null;
 }
@@ -69,10 +61,10 @@ export function parsePlayerInviteRoomCode(value: string): PlayerSessionParams | 
   return { roomId };
 }
 
-export function parseCallSessionLocation(pathname: string, basePath = '', search = ''): PlayerSessionParams | null {
+export function parseCallSessionLocation(pathname: string, basePath = '', search = '', hash = ''): PlayerSessionParams | null {
   const queryRoomId = normalizeLogicalRoomId(new URLSearchParams(search).get('call') ?? '', '');
   if (queryRoomId) return { roomId: queryRoomId };
-  const normalized = stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
+  const normalized = sessionRoutePath(pathname, basePath, hash);
   const match = normalized.match(/^\/calls\/([^/]+)$/);
   const roomId = match?.[1] ? normalizeLogicalRoomId(decodeURIComponent(match[1]), '') : '';
   if (!roomId) {
@@ -125,16 +117,9 @@ export function writeStoredCallName(roomId: string, name: string): void {
   }));
 }
 
-function joinRoutePath(basePath = '', roomId: string): string {
+function baseRootPath(basePath = ''): string {
   const normalized = basePath.replace(/\/+$/, '');
-  const roomSegment = encodeURIComponent(roomId);
-  return normalized ? `${normalized}/join/${roomSegment}` : `/join/${roomSegment}`;
-}
-
-function callRoutePath(basePath = '', roomId: string): string {
-  const normalized = basePath.replace(/\/+$/, '');
-  const roomSegment = encodeURIComponent(roomId);
-  return normalized ? `${normalized}/calls/${roomSegment}` : `/calls/${roomSegment}`;
+  return normalized ? `${normalized}/` : '/';
 }
 
 function stripBasePath(pathname: string, basePath = ''): string {
@@ -142,6 +127,12 @@ function stripBasePath(pathname: string, basePath = ''): string {
   if (!normalizedBase || !pathname.startsWith(normalizedBase)) return pathname;
   const stripped = pathname.slice(normalizedBase.length);
   return stripped.startsWith('/') ? stripped : `/${stripped}`;
+}
+
+function sessionRoutePath(pathname: string, basePath: string, hash: string): string {
+  const hashPath = hash.replace(/^#/, '');
+  if (hashPath.startsWith('/')) return hashPath.replace(/\/+$/, '') || '/';
+  return stripBasePath(pathname, basePath).replace(/\/+$/, '') || '/';
 }
 
 export function normalizeLogicalRoomId(roomId: string, fallback = createFallbackRoomId()): string {

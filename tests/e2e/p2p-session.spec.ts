@@ -40,7 +40,7 @@ async function createLobbyInvite(page: Page): Promise<string> {
   await expect(gmLobby.getByLabel('Имя игрока')).toHaveValue('Игрок 1');
   const roomId = await gmLobby.getByRole('textbox', { name: /^Код комнаты/ }).inputValue();
   const invite = gmLobby.getByRole('textbox', { name: /^Ссылка приглашения/ });
-  await expect(invite).toHaveValue(new RegExp(`/join/${roomId}$`));
+  await expect(invite).toHaveValue(new RegExp(`/#/join/${roomId}$`));
   return invite.inputValue();
 }
 

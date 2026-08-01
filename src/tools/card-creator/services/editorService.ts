@@ -27,33 +27,40 @@ import type { RawAdversaryFeature, RawContentItem } from "../../../domain/conten
 
 type FieldTransformer = (value: string) => string;
 
-type HashTarget =
+export type CardEditorRouteTarget =
   | { type: "card"; value: string }
   | { type: "custom"; value: string }
   | { type: "none" };
 
 const isBrowser = () => typeof window !== "undefined";
 
-const parseHash = (hash: string): HashTarget => {
+export const parseCardEditorHash = (hash: string): CardEditorRouteTarget => {
   const cleaned = hash.replace(/^#/, "").trim();
   if (!cleaned) return { type: "none" };
-  const [kind, ...rest] = cleaned.split("/");
-  const value = decodeURIComponent(rest.join("/"));
+  const segments = cleaned.replace(/^\//, "").split("/");
+  const routeOffset = segments[0] === "tools" && segments[1] === "cards" ? 2 : 0;
+  const kind = segments[routeOffset];
+  let value = "";
+  try {
+    value = decodeURIComponent(segments.slice(routeOffset + 1).join("/"));
+  } catch {
+    return { type: "none" };
+  }
   if (kind === "card" && value && value.includes(":")) return { type: "card", value };
   if (kind === "custom" && value) return { type: "custom", value };
   return { type: "none" };
 };
 
-const buildHash = (target: HashTarget) => {
-  if (target.type === "card") return `#card/${encodeURIComponent(target.value)}`;
-  if (target.type === "custom") return `#custom/${encodeURIComponent(target.value)}`;
-  return "";
+export const buildCardEditorHash = (target: CardEditorRouteTarget) => {
+  if (target.type === "card") return `#/tools/cards/card/${encodeURIComponent(target.value)}`;
+  if (target.type === "custom") return `#/tools/cards/custom/${encodeURIComponent(target.value)}`;
+  return "#/tools/cards";
 };
 
 export class EditorService {
   readonly editor$ = editorStore.toStream();
   private hashBootstrapped = false;
-  private pendingHash: HashTarget | null = null;
+  private pendingHash: CardEditorRouteTarget | null = null;
   private customImageObjectUrl: string | null = null;
   private assetService = new AssetService();
 
@@ -270,7 +277,7 @@ export class EditorService {
   }
 
   private handleHashChange = () => {
-    const target = parseHash(window.location.hash);
+    const target = parseCardEditorHash(window.location.hash);
     if (target.type === "none") {
       this.closeEditor({ skipHash: true });
       return;
@@ -288,7 +295,7 @@ export class EditorService {
     }
   }
 
-  private tryApplyHashTarget(target: HashTarget) {
+  private tryApplyHashTarget(target: CardEditorRouteTarget) {
     if (target.type === "card") {
       const hasTemplates = templatesStore.get().templateGroups.length > 0;
       if (!hasTemplates) return false;
@@ -392,9 +399,9 @@ export class EditorService {
     this.setManagedCustomImage(objectUrl, imageUrl);
   }
 
-  private updateHash(target: HashTarget) {
+  private updateHash(target: CardEditorRouteTarget) {
     if (!isBrowser()) return;
-    const nextHash = buildHash(target);
+    const nextHash = buildCardEditorHash(target);
     const current = window.location.hash || "";
     if (nextHash === current) return;
     const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;

@@ -126,7 +126,7 @@ test.describe('mobile VTT composition', () => {
     const combatPopupPromise = page.waitForEvent('popup');
     await combatTool.click();
     const combatPopup = await combatPopupPromise;
-    await expect(combatPopup).toHaveURL(/\/tools\/combat$/);
+    await expect(combatPopup).toHaveURL(/\/#\/tools\/combat$/);
     await combatPopup.close();
 
     await cardTool.scrollIntoViewIfNeeded();
@@ -134,7 +134,7 @@ test.describe('mobile VTT composition', () => {
     const cardPopupPromise = page.waitForEvent('popup');
     await cardTool.click();
     const cardPopup = await cardPopupPromise;
-    await expect(cardPopup).toHaveURL(/\/tools\/cards$/);
+    await expect(cardPopup).toHaveURL(/\/#\/tools\/cards$/);
     await cardPopup.close();
   });
 });

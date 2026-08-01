@@ -8,7 +8,7 @@ import { defaultCharacterPortraitUrl } from '../../../domain/tabletop/defaultArt
 import { inferBasePathFromWorkspacePath } from '../../../domain/p2p/sessionLinks';
 import { publicAssetUrl } from '../../../domain/content/publicAssets';
 import { adversaryTypeLabel, classLabel } from '../../../domain/rules/constants';
-import { appBasePath } from '../../../app/routing';
+import { routeNavigation } from '../../../app/routing';
 import { buildEffectiveCharacterStats } from '../../../domain/rules/effects';
 import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
 
@@ -385,8 +385,7 @@ export function openWorkspace(workspace: 'combat' | 'cards'): void {
 
 export function openWorkspaceInNewTab(workspace: 'combat' | 'cards'): void {
   if (typeof window === 'undefined') return;
-  const route = workspace === 'cards' ? '/tools/cards' : '/tools/combat';
-  const url = new URL(`${appBasePath()}${route}`, window.location.origin);
+  const url = new URL(routeNavigation(workspace).url, window.location.origin);
   window.open(url.toString(), '_blank', 'noopener,noreferrer');
 }
 

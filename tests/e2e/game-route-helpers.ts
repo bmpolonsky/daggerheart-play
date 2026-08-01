@@ -193,7 +193,7 @@ export async function openSharedGmGame(page: Page, roomId = 'E2EROOM'): Promise<
       p2p: { activeSession: { version: 1, role: 'gm', roomId: activeRoomId, participantName: 'Мастер', updatedAt: new Date().toISOString() } }
     }));
   }, roomId);
-  await page.goto('/game');
+  await page.goto('/#/game');
   await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
 }
 
@@ -206,13 +206,13 @@ export async function openSharedPlayerGame(page: Page, roomId = 'E2EROOM'): Prom
       p2p: { activeSession: { version: 1, role: 'player', roomId: activeRoomId, participantName: 'Игрок', updatedAt: new Date().toISOString() } }
     }));
   }, roomId);
-  await page.goto('/game');
+  await page.goto('/#/game');
   await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
 }
 
 export async function openGmGame(page: Page): Promise<void> {
   await installDeterministicP2PTransport(page);
-  await page.goto('/game');
+  await page.goto('/#/game');
   await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
 }
 
@@ -232,6 +232,6 @@ export async function openPlayerGame(page: Page, roomId = 'TEST-ROOM'): Promise<
       }
     }));
   }, roomId);
-  await page.goto('/game');
+  await page.goto('/#/game');
   await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
 }

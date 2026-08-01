@@ -10,7 +10,7 @@ test('opening a GM room waits for background session restoration', async () => {
     finishRestore = resolve;
   });
   let createCalls = 0;
-  const invite: P2PSessionInvite = { roomId: 'ABC123', inviteUrl: 'https://example.test/?join=ABC123' };
+  const invite: P2PSessionInvite = { roomId: 'ABC123', inviteUrl: 'https://example.test/#/join/ABC123' };
   const fakeSessionService = {
     invite$: new Store<P2PInviteDraftState>({ roomId: 'ABC123', inviteUrl: '', roomCodeRefreshBlockedUntil: 0 }).toStream(),
     session$: new Store<P2PSessionState>({
