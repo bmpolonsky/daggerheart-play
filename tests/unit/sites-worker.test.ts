@@ -15,3 +15,25 @@ test('Sites redirects omitted image assets to the existing Pages deployment', as
   assert.equal(response.status, 307);
   assert.equal(response.headers.get('location'), 'https://bmpolonsky.github.io/daggerheart-play/image/environment/hallow-temple.webp?v=1');
 });
+
+test('Sites falls back to the client index for application routes', async () => {
+  const requestedPaths: string[] = [];
+  const response = await worker.fetch(
+    new Request('https://daggerheart-play-server.example/game', { headers: { accept: 'text/html' } }),
+    {
+      ASSETS: {
+        fetch: async (request: Request) => {
+          const pathname = new URL(request.url).pathname;
+          requestedPaths.push(pathname);
+          return pathname === '/index.html'
+            ? new Response('<main>Daggerheart Play</main>', { status: 200 })
+            : new Response(null, { status: 404 });
+        }
+      }
+    } as unknown as WorkerEnv,
+    {} as ExecutionContext
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(requestedPaths, ['/game', '/index.html']);
+});

@@ -124,8 +124,6 @@ export function SharedToolsConnectionSettingsPanel({
   game: GameState;
   role: TableViewRole;
 }) {
-  const usesServer = serverSessionEnabled();
-  const mediaTransport = useStream(p2pSessionService.mediaTransport$);
   const {
     connected: p2pConnected,
     lastSnapshotAt: p2pLastSnapshotAt,
@@ -202,28 +200,6 @@ export function SharedToolsConnectionSettingsPanel({
             value={syncRoomId}
             onInput={(event) => setPlayerRoomId(event.currentTarget.value)}
           />
-        </div>
-      )}
-      {usesServer && (
-        <div className="player-tools-media-diagnostics" aria-label="Каналы подключения">
-          <Card
-            className="player-tools-media-card"
-            title="Игровая связь"
-            subtitle="HTTPS · облачное состояние мира"
-            actions={<Badge tone={p2pConnected ? 'success' : 'neutral'}>{p2pConnected ? 'подключено' : 'ожидание'}</Badge>}
-          >
-            <small>События и состояние игры передаются через сервер.</small>
-          </Card>
-          <Card
-            className="player-tools-media-card"
-            title="Голос и видео"
-            subtitle="WebRTC · прямое соединение"
-            actions={<Badge tone={mediaTransport.peers.length > 0 ? 'success' : mediaTransport.connected ? 'gold' : 'neutral'}>
-              {mediaTransport.peers.length > 0 ? 'подключено' : mediaTransport.connected ? 'готово' : 'ожидание'}
-            </Badge>}
-          >
-            <small>{mediaTransport.message}</small>
-          </Card>
         </div>
       )}
       <div className="player-tools-sync__summary">

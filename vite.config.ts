@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const workspaceRoot = fileURLToPath(new URL('.', import.meta.url));
 const appRelease = execSync('git rev-parse --short HEAD', { cwd: workspaceRoot, encoding: 'utf8' }).trim();
+const sitesBuild = process.env.VITE_SESSION_MODE === 'server';
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
@@ -15,6 +16,9 @@ export default defineConfig({
     __SENTRY_DSN__: JSON.stringify(process.env.SENTRY_DSN ?? '')
   },
   plugins: [preact(), tailwindcss()],
+  build: {
+    outDir: sitesBuild ? 'dist/client' : 'dist'
+  },
   resolve: {
     alias: {
       '@cards': resolve(workspaceRoot, 'src/tools/card-creator'),
