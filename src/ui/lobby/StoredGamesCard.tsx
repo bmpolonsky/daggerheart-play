@@ -96,24 +96,20 @@ export function StoredGamesCard() {
   return (
     <>
       <Surface className="role-entry__card role-entry__games-card" aria-label="Управление сохранениями">
-        <SectionHeader
-          title="Сохранения"
-          actions={
-            <Toolbar className="role-entry__storage-tools">
-            <Button size="sm" type="button" onClick={() => void createStoredGame()}>
-              Новая
+        <SectionHeader title="Сохранения" />
+        <Toolbar className="role-entry__storage-tools">
+          <Button grow size="sm" type="button" onClick={() => void createStoredGame()}>
+            Новая
+          </Button>
+          <Button grow size="sm" type="button" title={activeStoredGame ? 'Импорт заменит текущую открытую игру' : 'Импортировать игру'} iconBefore={<Upload size={15} aria-hidden="true" />} onClick={() => importFileRef.current?.click()}>
+            Импорт
+          </Button>
+          {activeStoredGame && (
+            <Button grow size="sm" type="button" iconBefore={<Download size={15} aria-hidden="true" />} onClick={() => void importExportService.downloadArchive()}>
+              Экспорт
             </Button>
-            <Button size="sm" type="button" title={activeStoredGame ? 'Импорт заменит текущую открытую игру' : 'Импортировать игру'} iconBefore={<Upload size={15} aria-hidden="true" />} onClick={() => importFileRef.current?.click()}>
-              Импорт
-            </Button>
-            {activeStoredGame && (
-              <Button size="sm" type="button" iconBefore={<Download size={15} aria-hidden="true" />} onClick={() => void importExportService.downloadArchive()}>
-                Экспорт
-              </Button>
-            )}
-            </Toolbar>
-          }
-        />
+          )}
+        </Toolbar>
         <div className="role-entry__game-list">
           {storedGames.map((game) => (
             <ListItem
@@ -148,19 +144,23 @@ export function StoredGamesCard() {
         {usesServer && cloudError && <Notice tone="error">{cloudError}</Notice>}
         {usesServer && cloudWarning && <Notice tone="warning">{cloudWarning}</Notice>}
         {cloudWorlds && (
-          <>
-            <SectionHeader title="Облачные резервные копии" actions={<Cloud size={18} aria-hidden="true" />} />
-            <Notice>Резервная копия обновляется во время открытой серверной игры и включает пользовательские картинки, аудиофайлы и материалы.</Notice>
+          <div className="role-entry__cloud-saves">
+            <SectionHeader
+              title="Облачные копии"
+              subtitle="Полный архив мира: изображения, аудио и материалы"
+              actions={<Cloud size={18} aria-hidden="true" />}
+            />
             <div className="role-entry__game-list">
               {cloudWorlds.map((world) => (
                 <ListItem
                   key={world.id}
+                  className="role-entry__cloud-game"
                   title={world.name || 'Без названия'}
                   subtitle={world.updatedAt ? formatDateTime(new Date(world.updatedAt).toISOString()) : 'Без сохранения'}
                   leftAccessory={<Cloud size={17} aria-hidden="true" />}
                   rightAccessory={
                     <Toolbar className="role-entry__game-actions">
-                      <Button size="sm" type="button" onClick={() => setPendingCloudWorld(world)}>
+                      <Button noWrap size="xs" type="button" onClick={() => setPendingCloudWorld(world)}>
                         Восстановить
                       </Button>
                       <IconButton variant="ghost" size="sm" type="button" title="Скачать мир" aria-label={`Скачать мир ${world.name || 'Без названия'}`} onClick={() => downloadCloudWorld(world)}>
@@ -172,7 +172,7 @@ export function StoredGamesCard() {
               ))}
               {cloudWorlds.length === 0 && <EmptyState size="sm" title="Резервных копий пока нет" body="Резервная копия появится после первого успешного запуска серверной игры." />}
             </div>
-          </>
+          </div>
         )}
       </Surface>
       {pendingDelete && (
