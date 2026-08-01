@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Cloud, Download, HardDrive, Trash2, Upload } from 'lucide-react';
+import { Cloud, Download, HardDrive, Plus, Trash2, Upload } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
 import { serverSessionEnabled } from '../../domain/p2p/serverSession';
@@ -109,7 +109,7 @@ export function StoredGamesCard() {
       <Surface className="role-entry__card role-entry__games-card" aria-label="Управление сохранениями">
         <SectionHeader title="Сохранения" />
         <Toolbar className="role-entry__storage-tools">
-          <Button grow size="sm" type="button" onClick={() => void createStoredGame()}>
+          <Button grow size="sm" type="button" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={() => void createStoredGame()}>
             Новая
           </Button>
           <Button grow size="sm" type="button" title={activeStoredGame ? 'Импорт заменит текущую открытую игру' : 'Импортировать игру'} iconBefore={<Upload size={15} aria-hidden="true" />} onClick={() => importFileRef.current?.click()}>
@@ -121,29 +121,32 @@ export function StoredGamesCard() {
             </Button>
           )}
         </Toolbar>
-        <div className="role-entry__game-list">
-          {storedGames.map((game) => (
-            <ListItem
-              key={game.id}
-              title={game.name || 'Без названия'}
-              subtitle={`${game.active ? 'Текущая · ' : ''}${game.updatedAt ? formatDateTime(game.updatedAt) : 'Без сохранения'}`}
-              tone={game.active ? 'featured' : 'default'}
-              leftAccessory={<HardDrive size={17} aria-hidden="true" />}
-              rightAccessory={
-                <Toolbar className="role-entry__game-actions">
-                  {!game.active && (
-                    <Button size="sm" type="button" onClick={() => void switchStoredGame(game.id)}>
-                      Открыть
-                    </Button>
-                  )}
-                  <IconButton variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => setPendingDelete(game)}>
-                    <Trash2 size={14} aria-hidden="true" />
-                  </IconButton>
-                </Toolbar>
-              }
-            />
-          ))}
-          {storedGames.length === 0 && <EmptyState size="sm" title="Сохранений пока нет" />}
+        <div className="role-entry__save-section">
+          <SectionHeader title="На устройстве" subtitle="Доступны в этом браузере" />
+          <div className="role-entry__game-list">
+            {storedGames.map((game) => (
+              <ListItem
+                key={game.id}
+                title={game.name || 'Без названия'}
+                subtitle={`${game.active ? 'Текущая · ' : ''}${game.updatedAt ? formatDateTime(game.updatedAt) : 'Без сохранения'}`}
+                tone={game.active ? 'featured' : 'default'}
+                leftAccessory={<HardDrive size={17} aria-hidden="true" />}
+                rightAccessory={
+                  <Toolbar className="role-entry__game-actions">
+                    {!game.active && (
+                      <Button size="sm" type="button" onClick={() => void switchStoredGame(game.id)}>
+                        Открыть
+                      </Button>
+                    )}
+                    <IconButton variant="ghost" size="sm" type="button" title="Удалить игру" aria-label={`Удалить игру ${game.name || 'Без названия'}`} onClick={() => setPendingDelete(game)}>
+                      <Trash2 size={14} aria-hidden="true" />
+                    </IconButton>
+                  </Toolbar>
+                }
+              />
+            ))}
+            {storedGames.length === 0 && <EmptyState size="sm" title="Сохранений пока нет" />}
+          </div>
         </div>
         <input
           ref={importFileRef}
@@ -155,11 +158,10 @@ export function StoredGamesCard() {
         {usesServer && cloudError && <Notice tone="error">{cloudError}</Notice>}
         {usesServer && cloudWarning && <Notice tone="warning">{cloudWarning}</Notice>}
         {cloudWorlds && (
-          <div className="role-entry__cloud-saves">
+          <div className="role-entry__save-section">
             <SectionHeader
-              title="Облачные копии"
-              subtitle="Полный архив мира: изображения, аудио и материалы"
-              actions={<Cloud size={18} aria-hidden="true" />}
+              title="Резервные копии"
+              subtitle="Хранятся в аккаунте вместе с файлами"
             />
             <div className="role-entry__game-list">
               {cloudWorlds.map((world) => (
@@ -177,7 +179,7 @@ export function StoredGamesCard() {
                       <IconButton variant="ghost" size="sm" type="button" title="Скачать мир" aria-label={`Скачать мир ${world.name || 'Без названия'}`} onClick={() => downloadCloudWorld(world)}>
                         <Download size={14} aria-hidden="true" />
                       </IconButton>
-                      <IconButton variant="ghost" tone="danger" size="sm" type="button" title="Удалить облачную копию" aria-label={`Удалить облачную копию ${world.name || 'Без названия'}`} onClick={() => setPendingCloudDelete(world)}>
+                      <IconButton variant="ghost" size="sm" type="button" title="Удалить резервную копию" aria-label={`Удалить резервную копию ${world.name || 'Без названия'}`} onClick={() => setPendingCloudDelete(world)}>
                         <Trash2 size={14} aria-hidden="true" />
                       </IconButton>
                     </Toolbar>
@@ -217,7 +219,7 @@ export function StoredGamesCard() {
       )}
       {pendingCloudDelete && (
         <ConfirmDialog
-          title={`Удалить облачную копию «${pendingCloudDelete.name || 'Без названия'}»?`}
+          title={`Удалить резервную копию «${pendingCloudDelete.name || 'Без названия'}»?`}
           body="Серверная копия и связанная с ней комната будут удалены. Локальная игра на этом устройстве останется и при следующем запуске сможет создать новую резервную копию."
           confirmLabel="Удалить копию"
           onCancel={() => setPendingCloudDelete(null)}

@@ -372,11 +372,10 @@
   justify-content: stretch;
 }
 
-.role-entry__cloud-saves {
+.role-entry__save-section {
   min-width: 0;
   display: grid;
   gap: 8px;
-  padding-top: 4px;
 }
 
 .role-entry__game-actions {
