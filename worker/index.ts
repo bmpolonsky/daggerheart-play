@@ -44,7 +44,7 @@ const worker = {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) {
       try {
-        await ensureSchema(env.DB);
+        if (!url.pathname.startsWith('/api/rooms/') || request.method === 'PUT') await ensureSchema(env.DB);
         return await handleApi(request, env, url);
       } catch (error) {
         console.error('Server session request failed.', error);
@@ -267,7 +267,7 @@ async function openMasterRoom(request: Request, db: D1Database, roomId: string):
 
   const snapshotJson = JSON.stringify(snapshot);
   const worldName = snapshotName(snapshot);
-  await db.batch([
+  const [, , cursorResult, playersResult] = await db.batch([
     db.prepare(`INSERT INTO worlds (id, owner_id, name, snapshot_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_id, id) DO UPDATE SET name = excluded.name, snapshot_json = excluded.snapshot_json, updated_at = excluded.updated_at`)
@@ -277,10 +277,25 @@ async function openMasterRoom(request: Request, db: D1Database, roomId: string):
       ON CONFLICT(id) DO UPDATE SET owner_id = excluded.owner_id, world_id = excluded.world_id,
         gm_peer_id = excluded.gm_peer_id, gm_name = excluded.gm_name,
         active_until = excluded.active_until, updated_at = excluded.updated_at`)
-      .bind(roomId, master.id, worldId, peerId, displayName, now + MASTER_LEASE_MS, now, now)
+      .bind(roomId, master.id, worldId, peerId, displayName, now + MASTER_LEASE_MS, now, now),
+    db.prepare('SELECT COALESCE(MAX(sequence), 0) AS sequence FROM room_events WHERE room_id = ?').bind(roomId),
+    db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
+      .bind(roomId, now - PARTICIPANT_LEASE_MS, peerId)
   ]);
-  const cursor = await latestSequence(db, roomId);
-  return json({ roomId, cursor, peers: await activePeers(db, roomId, peerId, now) });
+  const cursor = Number((cursorResult?.results?.[0] as { sequence?: number } | undefined)?.sequence ?? 0);
+  const players = (playersResult?.results ?? []) as Array<{ id: string }>;
+  return json({
+    roomId,
+    cursor,
+    peers: activePeerIds({
+      id: roomId,
+      owner_id: master.id,
+      world_id: worldId,
+      gm_peer_id: peerId,
+      gm_name: displayName,
+      active_until: now + MASTER_LEASE_MS
+    }, peerId, now, players)
+  });
 }
 
 async function joinRoom(request: Request, db: D1Database, roomId: string): Promise<Response> {
@@ -295,16 +310,21 @@ async function joinRoom(request: Request, db: D1Database, roomId: string): Promi
   const token = randomToken();
   const tokenHash = await hashToken(token);
   const now = Date.now();
-  await db.prepare(`INSERT INTO participants (id, room_id, token_hash, display_name, last_seen_at)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(room_id, id) DO UPDATE SET token_hash = excluded.token_hash,
-      display_name = excluded.display_name, last_seen_at = excluded.last_seen_at`)
-    .bind(peerId, roomId, tokenHash, displayName, now).run();
+  const [, cursorResult, playersResult] = await db.batch([
+    db.prepare(`INSERT INTO participants (id, room_id, token_hash, display_name, last_seen_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(room_id, id) DO UPDATE SET token_hash = excluded.token_hash,
+        display_name = excluded.display_name, last_seen_at = excluded.last_seen_at`)
+      .bind(peerId, roomId, tokenHash, displayName, now),
+    db.prepare('SELECT COALESCE(MAX(sequence), 0) AS sequence FROM room_events WHERE room_id = ?').bind(roomId),
+    db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
+      .bind(roomId, now - PARTICIPANT_LEASE_MS, peerId)
+  ]);
   return json({
     roomId,
     participantToken: token,
-    cursor: await latestSequence(db, roomId),
-    peers: await activePeers(db, roomId, peerId, now)
+    cursor: Number((cursorResult?.results?.[0] as { sequence?: number } | undefined)?.sequence ?? 0),
+    peers: activePeerIds(activeRoom, peerId, now, (playersResult?.results ?? []) as Array<{ id: string }>)
   });
 }
 
@@ -312,37 +332,40 @@ async function readEvents(request: Request, db: D1Database, roomId: string, url:
   const identity = await roomIdentity(request, db, roomId);
   if (identity instanceof Response) return identity;
   const now = Date.now();
-  if (identity.role === 'gm') {
-    await db.prepare('UPDATE rooms SET active_until = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
-      .bind(now + MASTER_LEASE_MS, now, roomId, identity.ownerId).run();
-  } else {
-    const activeRoom = await activeRoomForPlayer(db, roomId, now);
-    if (activeRoom instanceof Response) return activeRoom;
-    await db.prepare('UPDATE participants SET last_seen_at = ? WHERE room_id = ? AND id = ?')
-      .bind(now, roomId, identity.peerId).run();
+  if (identity.role === 'player' && !isMasterLeaseActive(identity.room.active_until, now)) {
+    return json({ error: 'master_offline', message: 'Мастер ещё не запустил эту игру.' }, 409);
   }
 
   const after = Math.max(0, Number(url.searchParams.get('after')) || 0);
-  const events = await db.prepare(`SELECT sequence, author_peer_id, target_peer_id, envelope_json FROM room_events
-    WHERE room_id = ? AND sequence > ?
-    ORDER BY sequence ASC LIMIT 100`)
-    .bind(roomId, after).all<EventRow>();
-  const scannedEvents = events.results ?? [];
+  const heartbeat = identity.role === 'gm'
+    ? db.prepare('UPDATE rooms SET active_until = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
+      .bind(now + MASTER_LEASE_MS, now, roomId, identity.ownerId)
+    : db.prepare('UPDATE participants SET last_seen_at = ? WHERE room_id = ? AND id = ?')
+      .bind(now, roomId, identity.peerId);
+  const [, eventsResult, playersResult] = await db.batch([
+    heartbeat,
+    db.prepare(`SELECT sequence, author_peer_id, target_peer_id, envelope_json FROM room_events
+      WHERE room_id = ? AND sequence > ?
+      ORDER BY sequence ASC LIMIT 100`).bind(roomId, after),
+    db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
+      .bind(roomId, now - PARTICIPANT_LEASE_MS, identity.peerId)
+  ]);
+  const scannedEvents = (eventsResult?.results ?? []) as EventRow[];
+  const players = (playersResult?.results ?? []) as Array<{ id: string }>;
   const visibleEvents = scannedEvents.filter((event) => event.author_peer_id !== identity.peerId
     && (event.target_peer_id === null || event.target_peer_id === identity.peerId));
   return json({
     cursor: scannedEvents.reduce((cursor, event) => Math.max(cursor, event.sequence), after),
     events: visibleEvents.map((event) => ({ sequence: event.sequence, envelope: JSON.parse(event.envelope_json) })),
-    peers: await activePeers(db, roomId, identity.peerId, now)
+    peers: activePeerIds(identity.room, identity.peerId, now, players)
   });
 }
 
 async function publishEvent(request: Request, db: D1Database, roomId: string): Promise<Response> {
   const identity = await roomIdentity(request, db, roomId);
   if (identity instanceof Response) return identity;
-  if (identity.role === 'player') {
-    const activeRoom = await activeRoomForPlayer(db, roomId);
-    if (activeRoom instanceof Response) return activeRoom;
+  if (identity.role === 'player' && !isMasterLeaseActive(identity.room.active_until, Date.now())) {
+    return json({ error: 'master_offline', message: 'Мастер ещё не запустил эту игру.' }, 409);
   }
   const body = await readJsonBody(request);
   if (body instanceof Response) return body;
@@ -356,51 +379,57 @@ async function publishEvent(request: Request, db: D1Database, roomId: string): P
   }
 
   const now = Date.now();
+  const statements = [
+    db.prepare(`INSERT INTO room_events (room_id, event_id, author_peer_id, target_peer_id, envelope_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(room_id, event_id) DO NOTHING`)
+      .bind(roomId, envelope.id, identity.peerId, targetPeer, JSON.stringify(envelope), now)
+  ];
+  const type = controlType(envelope);
   if (identity.role === 'gm') {
-    await db.prepare('UPDATE rooms SET active_until = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
-      .bind(now + MASTER_LEASE_MS, now, roomId, identity.ownerId).run();
-  } else {
-    await db.prepare('UPDATE participants SET last_seen_at = ? WHERE room_id = ? AND id = ?')
-      .bind(now, roomId, identity.peerId).run();
-  }
-  await db.prepare(`INSERT INTO room_events (room_id, event_id, author_peer_id, target_peer_id, envelope_json, created_at)
-    VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(room_id, event_id) DO NOTHING`)
-    .bind(roomId, envelope.id, identity.peerId, targetPeer, JSON.stringify(envelope), now).run();
-  if (identity.role === 'gm') {
-    await saveSnapshotFromEnvelope(db, roomId, identity.ownerId, envelope, now);
-  }
-  if (controlType(envelope) === 'goodbye') {
-    if (identity.role === 'gm') {
-      await db.prepare('UPDATE rooms SET active_until = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
-        .bind(now, now, roomId, identity.ownerId).run();
-    } else {
-      await db.prepare('DELETE FROM participants WHERE room_id = ? AND id = ?').bind(roomId, identity.peerId).run();
+    statements.push(db.prepare('UPDATE rooms SET active_until = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
+      .bind(type === 'goodbye' ? now : now + MASTER_LEASE_MS, now, roomId, identity.ownerId));
+    const event = envelope.channel === 'data' && envelope.payload && typeof envelope.payload === 'object'
+      ? envelope.payload as { kind?: unknown; value?: unknown }
+      : null;
+    if (event?.kind === 'snapshot' && event.value && typeof event.value === 'object') {
+      statements.push(db.prepare('UPDATE worlds SET name = ?, snapshot_json = ?, updated_at = ? WHERE owner_id = ? AND id = ?')
+        .bind(snapshotName(event.value), JSON.stringify(event.value), now, identity.ownerId, identity.room.world_id));
     }
+  } else if (type === 'goodbye') {
+    statements.push(db.prepare('DELETE FROM participants WHERE room_id = ? AND id = ?').bind(roomId, identity.peerId));
+  } else {
+    statements.push(db.prepare('UPDATE participants SET last_seen_at = ? WHERE room_id = ? AND id = ?')
+      .bind(now, roomId, identity.peerId));
   }
-  return json({ sequence: await eventSequence(db, roomId, envelope.id) });
+  await db.batch(statements);
+  return json({ accepted: true });
 }
 
 async function roomIdentity(request: Request, db: D1Database, roomId: string): Promise<{
   role: 'gm' | 'player';
   peerId: string;
   ownerId: string;
+  room: RoomRow;
 } | Response> {
-  const currentRoom = await room(db, roomId);
-  if (!currentRoom) return json({ error: 'room_not_found' }, 404);
   const master = masterIdentity(request);
-  if (master && master.id === currentRoom.owner_id) {
-    return { role: 'gm', peerId: currentRoom.gm_peer_id, ownerId: currentRoom.owner_id };
-  }
   const bearer = bearerToken(request);
   const peerId = request.headers.get('x-daggerheart-peer-id')?.trim();
+  const statements = [db.prepare('SELECT id, owner_id, world_id, gm_peer_id, gm_name, active_until FROM rooms WHERE id = ?').bind(roomId)];
+  if (bearer && peerId) {
+    statements.push(db.prepare('SELECT id, token_hash FROM participants WHERE room_id = ? AND id = ?').bind(roomId, peerId));
+  }
+  const [roomResult, participantResult] = await db.batch(statements);
+  const currentRoom = roomResult?.results?.[0] as RoomRow | undefined;
+  if (!currentRoom) return json({ error: 'room_not_found' }, 404);
+  if (master && master.id === currentRoom.owner_id) {
+    return { role: 'gm', peerId: currentRoom.gm_peer_id, ownerId: currentRoom.owner_id, room: currentRoom };
+  }
   if (!bearer || !peerId) return json({ error: 'participant_unauthorized' }, 401);
-  const participant = await db.prepare(
-    'SELECT id, token_hash FROM participants WHERE room_id = ? AND id = ?'
-  ).bind(roomId, peerId).first<ParticipantRow>();
+  const participant = participantResult?.results?.[0] as ParticipantRow | undefined;
   if (!participant || !(await tokenMatches(bearer, participant.token_hash))) {
     return json({ error: 'participant_unauthorized' }, 401);
   }
-  return { role: 'player', peerId, ownerId: currentRoom.owner_id };
+  return { role: 'player', peerId, ownerId: currentRoom.owner_id, room: currentRoom };
 }
 
 async function activeRoomForPlayer(db: D1Database, roomId: string, now = Date.now()): Promise<RoomRow | Response> {
@@ -416,28 +445,12 @@ async function room(db: D1Database, roomId: string): Promise<RoomRow | null> {
     .bind(roomId).first<RoomRow>();
 }
 
-async function activePeers(db: D1Database, roomId: string, requesterPeerId: string, now: number): Promise<string[]> {
-  const currentRoom = await room(db, roomId);
-  if (!currentRoom) return [];
-  const players = await db.prepare(
-    'SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?'
-  ).bind(roomId, now - PARTICIPANT_LEASE_MS, requesterPeerId).all<{ id: string }>();
-  const peers = (players.results ?? []).map((player) => player.id);
+function activePeerIds(currentRoom: RoomRow, requesterPeerId: string, now: number, players: Array<{ id: string }>): string[] {
+  const peers = players.map((player) => player.id);
   if (currentRoom.gm_peer_id !== requesterPeerId && isMasterLeaseActive(currentRoom.active_until, now)) {
     peers.unshift(currentRoom.gm_peer_id);
   }
   return peers;
-}
-
-async function saveSnapshotFromEnvelope(db: D1Database, roomId: string, ownerId: string, envelope: P2PWireEnvelope, now: number): Promise<void> {
-  const event = envelope.channel === 'data' && envelope.payload && typeof envelope.payload === 'object'
-    ? envelope.payload as { kind?: unknown; value?: unknown }
-    : null;
-  if (event?.kind !== 'snapshot' || !event.value || typeof event.value !== 'object') return;
-  const currentRoom = await room(db, roomId);
-  if (!currentRoom) return;
-  await db.prepare('UPDATE worlds SET name = ?, snapshot_json = ?, updated_at = ? WHERE owner_id = ? AND id = ?')
-    .bind(snapshotName(event.value), JSON.stringify(event.value), now, ownerId, currentRoom.world_id).run();
 }
 
 async function ensureSchema(db: D1Database): Promise<void> {
@@ -538,18 +551,6 @@ async function tokenMatches(token: string, expectedHash: string): Promise<boolea
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-async function latestSequence(db: D1Database, roomId: string): Promise<number> {
-  const row = await db.prepare('SELECT COALESCE(MAX(sequence), 0) AS sequence FROM room_events WHERE room_id = ?')
-    .bind(roomId).first<{ sequence: number }>();
-  return Number(row?.sequence ?? 0);
-}
-
-async function eventSequence(db: D1Database, roomId: string, eventId: string): Promise<number> {
-  const row = await db.prepare('SELECT sequence FROM room_events WHERE room_id = ? AND event_id = ?')
-    .bind(roomId, eventId).first<{ sequence: number }>();
-  return Number(row?.sequence ?? 0);
 }
 
 function safeFileName(value: string): string {

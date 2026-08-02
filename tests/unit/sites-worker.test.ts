@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import worker from '../../worker/index';
-import type { D1Database, D1PreparedStatement, ExecutionContext, R2Bucket, WorkerEnv } from '../../worker/cloudflare';
+import type { D1Database, D1PreparedStatement, D1Result, ExecutionContext, R2Bucket, WorkerEnv } from '../../worker/cloudflare';
 
 test('Sites redirects omitted image assets to the existing Pages deployment', async () => {
   const response = await worker.fetch(
@@ -115,6 +115,46 @@ test('Sites serves world assets to players only while the master room is active'
   assert.equal(afterMasterLeft.status, 409);
 });
 
+test('Sites relays events with two D1 batches and no runtime schema work', async () => {
+  const relay = relayDatabase();
+  const env = {
+    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+    DB: relay.db,
+    FILES: memoryR2(new Map())
+  } satisfies WorkerEnv;
+  const authHeaders = {
+    'oai-authenticated-user-email': 'master@example.test',
+    'oai-authenticated-user-id': 'master-1'
+  };
+
+  const poll = await worker.fetch(
+    new Request('https://example.test/api/rooms/ROOM1/events?after=0', { headers: authHeaders }),
+    env,
+    {} as ExecutionContext
+  );
+  assert.equal(poll.status, 200);
+  assert.equal((await poll.json() as { events: unknown[] }).events.length, 1);
+  assert.equal(relay.batches.length, 2);
+
+  const publish = await worker.fetch(new Request('https://example.test/api/rooms/ROOM1/events', {
+    method: 'POST',
+    headers: { ...authHeaders, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      envelope: {
+        version: 2,
+        id: 'gm-event',
+        channel: 'control',
+        sender: { peerId: 'gm-peer', role: 'gm' },
+        sentAt: new Date(0).toISOString(),
+        payload: { type: 'gm-pong' }
+      }
+    })
+  }), env, {} as ExecutionContext);
+  assert.equal(publish.status, 200);
+  assert.equal(relay.batches.length, 4);
+  assert.equal(relay.batches.flat().some((query) => /CREATE TABLE|PRAGMA optimize|SELECT sequence FROM/.test(query)), false);
+});
+
 function ownedWorldDatabase(ownerId: string, worldId: string): D1Database {
   return {
     prepare: (query) => statement(query),
@@ -161,6 +201,60 @@ function activeRoomDatabase(
       run: async () => ({ success: true })
     };
   }
+}
+
+function relayDatabase(): { db: D1Database; batches: string[][] } {
+  const batches: string[][] = [];
+  const metadata = new WeakMap<D1PreparedStatement, { query: string; values: unknown[] }>();
+
+  const statement = (query: string, values: unknown[] = []): D1PreparedStatement => {
+    const prepared: D1PreparedStatement = {
+      bind: (...nextValues) => statement(query, nextValues),
+      first: async <T>() => (result(query, values).results?.[0] ?? null) as T | null,
+      all: async <T>() => result(query, values) as { success: boolean; results?: T[] },
+      run: async <T>() => result(query, values) as { success: boolean; results?: T[] }
+    };
+    metadata.set(prepared, { query, values });
+    return prepared;
+  };
+
+  const result = (query: string, _values: unknown[]) => {
+    if (query.includes('FROM rooms WHERE id')) return { success: true, results: [{
+      id: 'ROOM1',
+      owner_id: 'master-1',
+      world_id: 'world-1',
+      gm_peer_id: 'gm-peer',
+      gm_name: 'Мастер',
+      active_until: Date.now() + 60_000
+    }] };
+    if (query.includes('FROM room_events')) return { success: true, results: [{
+      sequence: 1,
+      author_peer_id: 'player-peer',
+      target_peer_id: null,
+      envelope_json: JSON.stringify({
+        version: 2,
+        id: 'player-event',
+        channel: 'control',
+        sender: { peerId: 'player-peer', role: 'player' },
+        sentAt: new Date(0).toISOString(),
+        payload: { type: 'player-ping' }
+      })
+    }] };
+    if (query.includes('SELECT id FROM participants')) return { success: true, results: [{ id: 'player-peer' }] };
+    return { success: true, results: [] };
+  };
+
+  return {
+    batches,
+    db: {
+      prepare: (query) => statement(query),
+      batch: async <T = unknown>(statements: D1PreparedStatement[]) => {
+        const descriptions = statements.map((prepared) => metadata.get(prepared)!);
+        batches.push(descriptions.map(({ query }) => query));
+        return descriptions.map(({ query, values }) => result(query, values)) as D1Result<T>[];
+      }
+    }
+  };
 }
 
 function memoryR2(objects: Map<string, { bytes: ArrayBuffer; contentType: string }>): R2Bucket {
