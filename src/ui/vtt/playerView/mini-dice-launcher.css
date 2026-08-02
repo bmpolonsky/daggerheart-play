@@ -343,6 +343,14 @@
   min-width: 160px;
 }
 
+.mini-dice-launcher__roll-spinner {
+  animation: mini-dice-spin 0.85s linear infinite;
+}
+
+@keyframes mini-dice-spin {
+  to { transform: rotate(360deg); }
+}
+
 .mini-stepper {
   min-height: 34px;
   flex: 0 0 auto;

@@ -124,6 +124,14 @@ export function buildP2PHealthSummary(session: P2PSessionState): P2PHealthSummar
       tone: 'waiting'
     };
   }
+  const directPeerCount = session.directPeers?.filter((peerId) => session.peers.includes(peerId)).length ?? connectionCount;
+  if (session.transportMode === 'hybrid' && directPeerCount < connectionCount) {
+    return {
+      label: `Подключено (${connectionCount})`,
+      detail: '',
+      tone: 'degraded'
+    };
+  }
   return {
     label: `Подключено (${connectionCount})`,
     detail: pingText,

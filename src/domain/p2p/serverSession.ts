@@ -35,7 +35,7 @@ export function isPlayerEnvelopeAllowed(envelope: P2PWireEnvelope): boolean {
   if (envelope.sender.role !== 'player') return false;
   if (envelope.channel === 'control') {
     const type = controlType(envelope.payload);
-    return type === 'hello' || type === 'player-ping' || type === 'heartbeat' || type === 'goodbye';
+    return type === 'hello' || type === 'player-ping' || type === 'heartbeat' || type === 'goodbye' || type === 'webrtc-signal';
   }
   const kind = eventKind(envelope.payload);
   return Boolean(kind && PLAYER_EVENT_KINDS.has(kind));

@@ -130,6 +130,12 @@ export interface PlayerRollIntentMessage {
   teamworkEntryId?: string;
 }
 
+export interface PlayerRollAckMessage {
+  type: 'playerRollAck';
+  intentId: string;
+  accepted: boolean;
+}
+
 export type PlayerDecision =
   | {
       kind: 'deathMove';
@@ -183,6 +189,7 @@ const syncChannels = {
   playerTokenMove: channel<PlayerTokenMoveMessage>('playerTokenMove', isPlayerTokenMoveMessage),
   playerRestChoice: channel<PlayerRestChoiceMessage>('playerRestChoice', isPlayerRestChoiceMessage),
   playerRollIntent: channel<PlayerRollIntentMessage>('playerRollIntent', isPlayerRollIntentMessage),
+  playerRollAck: channel<PlayerRollAckMessage>('playerRollAck', isPlayerRollAckMessage),
   playerDecision: channel<PlayerDecisionMessage>('playerDecision', isPlayerDecisionMessage),
   playerCharacterCreate: channel<PlayerCharacterCreateMessage>('playerCharacterCreate', isPlayerCharacterCreateMessage),
   snapshotRequest: channel<SnapshotRequestMessage>('snapshotRequest', isSnapshotRequestMessage),
@@ -354,6 +361,14 @@ export class SyncService {
     return this.subscribeChannel(syncChannels.playerRollIntent, listener);
   }
 
+  async publishPlayerRollAck(message: PlayerRollAckMessage, targetPeer?: SyncTargetPeer): Promise<boolean> {
+    return this.publishChannel(syncChannels.playerRollAck, message, targetPeer);
+  }
+
+  subscribePlayerRollAcks(listener: (message: PlayerRollAckMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
+    return this.subscribeChannel(syncChannels.playerRollAck, listener);
+  }
+
   async publishPlayerDecision(message: PlayerDecisionMessage): Promise<boolean> {
     return this.publishChannel(syncChannels.playerDecision, message);
   }
@@ -504,6 +519,13 @@ function isPlayerRollIntentMessage(value: unknown): value is PlayerRollIntentMes
     isPlayerRollIntent(value.intent) &&
     (value.resourcePatch === undefined || isPlayerCharacterResourcePatch(value.resourcePatch))
   );
+}
+
+function isPlayerRollAckMessage(value: unknown): value is PlayerRollAckMessage {
+  return isRecord(value)
+    && value.type === 'playerRollAck'
+    && typeof value.intentId === 'string'
+    && typeof value.accepted === 'boolean';
 }
 
 function isPlayerDecisionMessage(value: unknown): value is PlayerDecisionMessage {

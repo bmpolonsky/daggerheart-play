@@ -391,7 +391,7 @@ test('P2P player marks a silent GM disconnect as degraded and recovers when GM r
 
     await waitFor(() => {
       assert.equal(player.session$.get().status, 'degraded');
-      assert.equal(player.session$.get().message, 'Мастер не отвечает. Пытаемся переподключиться.');
+      assert.equal(player.session$.get().message, 'Восстанавливаем соединение.');
     }, 2_000);
 
     await reopenedGm.startGmRoom({ roomId: 'reopen-room', participantName: 'GM' });

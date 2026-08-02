@@ -176,5 +176,5 @@ test('delayed restore remains covered instead of revealing local stores', () => 
   });
 
   assert.equal(presentation.phase, 'restoring');
-  assert.equal(presentation.title, 'Мастер пока не ответил');
+  assert.equal(presentation.title, 'Восстанавливаем соединение');
 });

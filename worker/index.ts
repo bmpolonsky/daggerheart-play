@@ -36,6 +36,11 @@ interface ParticipantRow {
   token_hash: string;
 }
 
+interface ActiveParticipantRow {
+  id: string;
+  display_name: string;
+}
+
 interface EventRow {
   sequence: number;
   author_peer_id: string;
@@ -283,22 +288,24 @@ async function openMasterRoom(request: Request, db: D1Database, roomId: string):
         active_until = excluded.active_until, updated_at = excluded.updated_at`)
       .bind(roomId, master.id, worldId, peerId, displayName, now + MASTER_LEASE_MS, now, now),
     db.prepare('SELECT COALESCE(MAX(sequence), 0) AS sequence FROM room_events WHERE room_id = ?').bind(roomId),
-    db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
+    db.prepare('SELECT id, display_name FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
       .bind(roomId, now - PARTICIPANT_LEASE_MS, peerId)
   ]);
   const cursor = Number((cursorResult?.results?.[0] as { sequence?: number } | undefined)?.sequence ?? 0);
-  const players = (playersResult?.results ?? []) as Array<{ id: string }>;
+  const players = (playersResult?.results ?? []) as ActiveParticipantRow[];
+  const currentRoom = {
+    id: roomId,
+    owner_id: master.id,
+    world_id: worldId,
+    gm_peer_id: peerId,
+    gm_name: displayName,
+    active_until: now + MASTER_LEASE_MS
+  };
   return json({
     roomId,
     cursor,
-    peers: activePeerIds({
-      id: roomId,
-      owner_id: master.id,
-      world_id: worldId,
-      gm_peer_id: peerId,
-      gm_name: displayName,
-      active_until: now + MASTER_LEASE_MS
-    }, peerId, now, players)
+    peers: activePeerIds(currentRoom, peerId, now, players),
+    roster: activeRoster(currentRoom, peerId, now, players)
   });
 }
 
@@ -321,7 +328,7 @@ async function joinRoom(request: Request, db: D1Database, roomId: string): Promi
         display_name = excluded.display_name, last_seen_at = excluded.last_seen_at`)
       .bind(peerId, roomId, tokenHash, displayName, now),
     db.prepare('SELECT COALESCE(MAX(sequence), 0) AS sequence FROM room_events WHERE room_id = ?').bind(roomId),
-    db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
+    db.prepare('SELECT id, display_name FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
       .bind(roomId, now - PARTICIPANT_LEASE_MS, peerId),
     db.prepare('SELECT snapshot_json, updated_at FROM worlds WHERE owner_id = ? AND id = ?')
       .bind(activeRoom.owner_id, activeRoom.world_id)
@@ -333,7 +340,8 @@ async function joinRoom(request: Request, db: D1Database, roomId: string): Promi
     roomId,
     participantToken: token,
     cursor: Number((cursorResult?.results?.[0] as { sequence?: number } | undefined)?.sequence ?? 0),
-    peers: activePeerIds(activeRoom, peerId, now, (playersResult?.results ?? []) as Array<{ id: string }>),
+    peers: activePeerIds(activeRoom, peerId, now, (playersResult?.results ?? []) as ActiveParticipantRow[]),
+    roster: activeRoster(activeRoom, peerId, now, (playersResult?.results ?? []) as ActiveParticipantRow[]),
     initialEvent: snapshot?.snapshot_json ? {
       version: 2,
       id: `${snapshotEventId}-envelope`,
@@ -368,7 +376,7 @@ async function readEvents(request: Request, db: D1Database, roomId: string, url:
     : db.prepare('UPDATE participants SET last_seen_at = ? WHERE room_id = ? AND id = ?')
       .bind(startedAt, roomId, identity.peerId);
   let firstRead = true;
-  let players: Array<{ id: string }> = [];
+  let players: ActiveParticipantRow[] = [];
   while (true) {
     const now = Date.now();
     const statements = [
@@ -378,12 +386,12 @@ async function readEvents(request: Request, db: D1Database, roomId: string, url:
     ];
     if (firstRead) {
       statements.unshift(heartbeat);
-      statements.push(db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
+      statements.push(db.prepare('SELECT id, display_name FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
         .bind(roomId, now - PARTICIPANT_LEASE_MS, identity.peerId));
     }
     const results = await db.batch(statements);
     const eventsResult = results[firstRead ? 1 : 0];
-    if (firstRead) players = (results[2]?.results ?? []) as Array<{ id: string }>;
+    if (firstRead) players = (results[2]?.results ?? []) as ActiveParticipantRow[];
     firstRead = false;
     const scannedEvents = (eventsResult?.results ?? []) as EventRow[];
     const visibleEvents = scannedEvents.filter((event) => event.author_peer_id !== identity.peerId
@@ -393,7 +401,8 @@ async function readEvents(request: Request, db: D1Database, roomId: string, url:
       return json({
         cursor,
         events: visibleEvents.map((event) => ({ sequence: event.sequence, envelope: JSON.parse(event.envelope_json) })),
-        peers: activePeerIds(identity.room, identity.peerId, now, players)
+        peers: activePeerIds(identity.room, identity.peerId, now, players),
+        roster: activeRoster(identity.room, identity.peerId, now, players)
       });
     }
     await new Promise((resolve) => setTimeout(resolve, LONG_POLL_INTERVAL_MS));
@@ -489,12 +498,20 @@ async function room(db: D1Database, roomId: string): Promise<RoomRow | null> {
     .bind(roomId).first<RoomRow>();
 }
 
-function activePeerIds(currentRoom: RoomRow, requesterPeerId: string, now: number, players: Array<{ id: string }>): string[] {
+function activePeerIds(currentRoom: RoomRow, requesterPeerId: string, now: number, players: ActiveParticipantRow[]): string[] {
   const peers = players.map((player) => player.id);
   if (currentRoom.gm_peer_id !== requesterPeerId && isMasterLeaseActive(currentRoom.active_until, now)) {
     peers.unshift(currentRoom.gm_peer_id);
   }
   return peers;
+}
+
+function activeRoster(currentRoom: RoomRow, requesterPeerId: string, now: number, players: ActiveParticipantRow[]): Array<{ peerId: string; displayName: string; role: 'gm' | 'player' }> {
+  const roster: Array<{ peerId: string; displayName: string; role: 'gm' | 'player' }> = players.map((player) => ({ peerId: player.id, displayName: player.display_name || 'Игрок', role: 'player' }));
+  if (currentRoom.gm_peer_id !== requesterPeerId && isMasterLeaseActive(currentRoom.active_until, now)) {
+    roster.unshift({ peerId: currentRoom.gm_peer_id, displayName: currentRoom.gm_name || 'Мастер', role: 'gm' as const });
+  }
+  return roster;
 }
 
 async function ensureSchema(db: D1Database): Promise<void> {

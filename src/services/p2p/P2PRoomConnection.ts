@@ -1,7 +1,7 @@
 import { createId } from '../../core/utils/id';
 import { nowIso } from '../../core/utils/date';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableParticipant } from '../../domain/tabletop/types';
-import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PMediaConnectionDiagnostic, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent, P2PWireEnvelope, P2PWireRole } from './P2PTransportAdapter';
+import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PMediaConnectionDiagnostic, P2PSessionTransportMode, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportPeerDiagnostic, P2PTransportRosterEntry, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent, P2PWireEnvelope, P2PWireRole } from './P2PTransportAdapter';
 
 export type P2PRoomConnectionStatus = 'connected' | 'degraded';
 
@@ -12,6 +12,7 @@ export type P2PRoomConnectionEvent =
   | { type: 'gm-lost'; peers: string[] }
   | { type: 'gm-restored'; peerId: string; peers: string[] }
   | { type: 'diagnostics-updated'; peers: string[] }
+  | { type: 'roster-updated'; peers: string[]; roster: P2PTransportRosterEntry[] }
   | { type: 'route-switched'; peers: string[]; switch: P2PTransportRouteSwitchEvent }
   | { type: 'error'; message: string };
 
@@ -78,6 +79,18 @@ export class P2PRoomConnection implements SyncTransport {
 
   peerDiagnostics(): P2PTransportPeerDiagnostic[] {
     return this.adapter.getPeerDiagnostics?.() ?? [];
+  }
+
+  sessionMode(): P2PSessionTransportMode {
+    return this.adapter.sessionMode ?? 'p2p';
+  }
+
+  directPeerIds(): string[] {
+    return this.adapter.getDirectPeerIds?.() ?? this.peers();
+  }
+
+  roster(): P2PTransportRosterEntry[] {
+    return this.adapter.getRoster?.() ?? [];
   }
 
   async mediaDiagnostics(): Promise<P2PMediaConnectionDiagnostic[]> {
@@ -186,6 +199,7 @@ export class P2PRoomConnection implements SyncTransport {
       this.adapter.onPeerLeave((peerId) => this.removePeer(peerId)),
       this.adapter.onError((message) => this.emitRoomEvent({ type: 'error', message })),
       this.adapter.onDiagnosticsChange?.(() => this.emitRoomEvent({ type: 'diagnostics-updated', peers: this.peers() })) ?? (() => undefined),
+      this.adapter.onRosterChange?.((roster) => this.handleRoster(roster)) ?? (() => undefined),
       this.adapter.onRouteSwitch?.((routeSwitch) => this.emitRoomEvent({ type: 'route-switched', peers: this.peers(), switch: routeSwitch })) ?? (() => undefined),
       this.adapter.subscribeBinary?.((data, peerId, metadata) => this.handleBinary(peerId, data, metadata)) ?? (() => undefined),
       this.adapter.subscribeBinaryProgress?.((percent, peerId, metadata) => {
@@ -257,6 +271,11 @@ export class P2PRoomConnection implements SyncTransport {
       void this.sendControl({ type: 'hello' });
       void this.sendControl({ type: 'player-ping' });
     }
+  }
+
+  private handleRoster(roster: P2PTransportRosterEntry[]): void {
+    roster.forEach((entry) => this.rememberPeer(entry.peerId, Date.now(), entry.role));
+    this.emitRoomEvent({ type: 'roster-updated', peers: this.peers(), roster });
   }
 
   private rememberPeer(peerId: string, now: number, role?: P2PWireRole): boolean {

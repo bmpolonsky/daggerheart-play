@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Check, Copy, Hand, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, Volume2, X } from 'lucide-react';
+import { Check, Copy, Hand, LoaderCircle, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, Volume2, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, writeStoredCallName } from '../../domain/p2p/sessionLinks';
 import { currentRoutePathname } from '../../app/routing';
@@ -259,6 +259,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
             <CallVideoTile
               focused
               local={focusedParticipant.participantId === call.localParticipantId}
+              connecting={isParticipantConnecting(focusedParticipant.participantId, call.localParticipantId, session.transportMode, session.directPeers)}
               participant={focusedParticipant}
               onSelect={() => setLayoutMode('grid')}
             />
@@ -268,6 +269,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
                   <CallVideoTile
                     key={participant.participantId}
                     local={participant.participantId === call.localParticipantId}
+                    connecting={isParticipantConnecting(participant.participantId, call.localParticipantId, session.transportMode, session.directPeers)}
                     participant={participant}
                     onSelect={() => {
                       setFocusedParticipantId(participant.participantId);
@@ -285,6 +287,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
                 key={participant.participantId}
                 focused={participant.participantId === focusedParticipant?.participantId}
                 local={participant.participantId === call.localParticipantId}
+                connecting={isParticipantConnecting(participant.participantId, call.localParticipantId, session.transportMode, session.directPeers)}
                 participant={participant}
                 onSelect={() => {
                   setFocusedParticipantId(participant.participantId);
@@ -373,6 +376,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
               }}
               rightAccessory={
                 <Toolbar className="call-room__participant-status">
+                  {isParticipantConnecting(participant.participantId, call.localParticipantId, session.transportMode, session.directPeers) && <LoaderCircle className="call-room__connecting" size={15} aria-label="Подключается" />}
                   {participant.handRaised && <Hand size={15} aria-label="Рука поднята" />}
                   {participant.micMuted ? <MicOff size={15} aria-label="Микрофон выключен" /> : <Mic size={15} aria-label="Микрофон включен" />}
                   {participant.cameraOff ? <VideoOff size={15} aria-label="Камера выключена" /> : <Video size={15} aria-label="Камера включена" />}
@@ -412,7 +416,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   );
 }
 
-function CallVideoTile({ focused = false, local = false, onSelect, participant }: { focused?: boolean; local?: boolean; participant: CallParticipant; onSelect: () => void }) {
+function CallVideoTile({ connecting = false, focused = false, local = false, onSelect, participant }: { connecting?: boolean; focused?: boolean; local?: boolean; participant: CallParticipant; onSelect: () => void }) {
   const className = [
     'call-video-tile',
     participant.cameraOff || !participant.stream ? 'dh-camera-off' : '',
@@ -440,11 +444,16 @@ function CallVideoTile({ focused = false, local = false, onSelect, participant }
       )}
       <footer>
         <span>{participant.displayName || 'Гость'}{local ? ' — вы' : ''}</span>
+        {connecting && <LoaderCircle className="call-room__connecting" size={14} aria-label="Подключается" />}
         {participant.handRaised && <Hand size={14} aria-label="Рука поднята" />}
         {participant.micMuted ? <MicOff size={14} aria-label="Микрофон выключен" /> : <Mic size={14} aria-label="Микрофон включен" />}
       </footer>
     </article>
   );
+}
+
+function isParticipantConnecting(participantId: string, localParticipantId: string, transportMode?: 'p2p' | 'hybrid', directPeers: string[] = []): boolean {
+  return transportMode === 'hybrid' && participantId !== localParticipantId && !directPeers.includes(participantId);
 }
 
 function pickFocusedParticipant(participants: CallParticipant[], focusedParticipantId: string | null, localParticipantId: string): CallParticipant | null {

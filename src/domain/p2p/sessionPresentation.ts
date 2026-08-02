@@ -78,13 +78,13 @@ export function tableConnectionPresentation(input: {
     if (input.initialWaitDelayed) {
       return {
         phase: 'restoring',
-        title: 'Мастер пока не ответил',
-        message: 'Продолжаем восстанавливать сохраненную сессию.'
+        title: 'Восстанавливаем соединение',
+        message: 'Это занимает немного больше времени.'
       };
     }
     return {
       phase: 'restoring',
-      title: liveSessionMatches ? 'Ждем данные от мастера' : 'Восстанавливаем подключение',
+      title: liveSessionMatches ? 'Подключаемся к игре' : 'Восстанавливаем подключение',
       message: 'Сцена и персонаж появятся после синхронизации.'
     };
   }
@@ -98,10 +98,8 @@ export function tableConnectionPresentation(input: {
   if (input.hasCharacter && connectionInterrupted) {
     return {
       phase: 'reconnecting',
-      title: liveSession.status === 'error'
-        ? 'Связь с сервером мастера потеряна'
-        : 'Подключаемся к серверу мастера',
-      message: liveSession.message
+      title: 'Восстанавливаем соединение',
+      message: 'Игровой стол обновится автоматически.'
     };
   }
 

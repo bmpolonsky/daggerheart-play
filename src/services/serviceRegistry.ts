@@ -14,7 +14,7 @@ import { P2PSessionService } from './P2PSessionService';
 import type { P2PTransportAdapter } from './p2p/P2PTransportAdapter';
 import type { P2PTransportFactoryContext } from './p2p/P2PTransportAdapter';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
-import { ServerRelayTransport } from './ServerRelayTransport';
+import { HybridSessionTransport } from './p2p/HybridSessionTransport';
 import { serverSessionEnabled } from '../domain/p2p/serverSession';
 import type { TrysteroP2PTransportOptions } from './TrysteroSyncTransport';
 import { PersistenceService } from './PersistenceService';
@@ -55,7 +55,9 @@ const sessionTransportFactory = (
   context?: P2PTransportFactoryContext
 ): P2PTransportAdapter => {
   if (e2eP2PTransportFactory) return e2eP2PTransportFactory();
-  if (serverSessionEnabled() && context) return new ServerRelayTransport(context);
+  if (serverSessionEnabled() && context) {
+    return new HybridSessionTransport(createConfiguredP2PTransport(options), context);
+  }
   return createConfiguredP2PTransport(options);
 };
 const hybridMediaTransportFactory = serverSessionEnabled()

@@ -2,6 +2,13 @@ export type P2PWireRole = 'gm' | 'player';
 export type P2PTargetPeer = string | undefined;
 export type P2PTransportStrategy = 'supabase' | 'nostr' | 'mqtt' | 'torrent';
 export type P2PTransportMode = 'auto' | P2PTransportStrategy;
+export type P2PSessionTransportMode = 'p2p' | 'hybrid';
+
+export interface P2PTransportRosterEntry {
+  peerId: string;
+  displayName: string;
+  role: P2PWireRole;
+}
 
 export interface P2PTransportMessageContext {
   sourcePeerId?: string;
@@ -93,6 +100,7 @@ export interface P2PTransportAdapter {
   readonly id: string;
   readonly label: string;
   peerId: string;
+  readonly sessionMode?: P2PSessionTransportMode;
   connect(roomId: string): Promise<void>;
   disconnect(): Promise<void>;
   send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void>;
@@ -104,6 +112,7 @@ export interface P2PTransportAdapter {
   onPeerLeave(listener: (peerId: string) => void): () => void;
   onError(listener: (message: string) => void): () => void;
   onDiagnosticsChange?(listener: () => void): () => void;
+  onRosterChange?(listener: (roster: P2PTransportRosterEntry[]) => void): () => void;
   onRouteSwitch?(listener: (event: P2PTransportRouteSwitchEvent) => void): () => void;
   publishMediaStream?(stream: MediaStream, metadata?: unknown): Promise<void>;
   removeMediaStream?(stream: MediaStream): void;
@@ -111,6 +120,8 @@ export interface P2PTransportAdapter {
   subscribeMediaStreams?(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void;
   getRouteDiagnostics?(): P2PTransportRouteDiagnostic[];
   getPeerDiagnostics?(): P2PTransportPeerDiagnostic[];
+  getRoster?(): P2PTransportRosterEntry[];
+  getDirectPeerIds?(): string[];
   getMediaDiagnostics?(): Promise<P2PMediaConnectionDiagnostic[]>;
 }
 

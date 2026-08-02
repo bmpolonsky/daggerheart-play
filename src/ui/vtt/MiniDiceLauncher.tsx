@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Hand, LibraryBig, Mic, MicOff, RotateCcw, X } from 'lucide-react';
+import { Hand, LibraryBig, LoaderCircle, Mic, MicOff, RotateCcw, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ActionComposerRollOptions } from '../../domain/rules/actionComposer';
 import type { DiceVisualTone, RollPublication, TraitId } from '../../domain/rules/types';
@@ -39,6 +39,8 @@ type MiniDiceLauncherProps = {
   voiceState: AudioLayerState;
   activationRaised?: boolean;
   canRequestActivation?: boolean;
+  rollPending?: boolean;
+  rollDisabled?: boolean;
   onOpenTools: () => void;
   onActivationToggle?: () => void;
   onVoiceToggle: () => void;
@@ -46,7 +48,7 @@ type MiniDiceLauncherProps = {
   onDualityRoll?: (roll: { rollType: PlayerRollType; trait?: TraitId | null; options: MiniDualityRollOptions; publication?: RollPublication }) => void;
 };
 
-export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, voiceState, activationRaised = false, canRequestActivation = false, onOpenTools, onActivationToggle, onVoiceToggle, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
+export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, voiceState, activationRaised = false, canRequestActivation = false, rollPending = false, rollDisabled = false, onOpenTools, onActivationToggle, onVoiceToggle, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
   const launcherMode = resolveMiniDiceLauncherMode({ role, selectedActorKind });
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -281,7 +283,7 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
               ]}
             />
           )}
-          <Button className="mini-dice-launcher__roll" variant="primary" size="lg" type="button" disabled={trayItems.length === 0} onClick={rollTray}>
+          <Button className={`mini-dice-launcher__roll ${rollPending ? 'is-pending' : ''}`} variant="primary" size="lg" type="button" disabled={trayItems.length === 0 || rollPending || rollDisabled} onClick={rollTray} iconBefore={rollPending ? <LoaderCircle className="mini-dice-launcher__roll-spinner" size={16} aria-hidden="true" /> : undefined}>
             Бросить
           </Button>
         </div>

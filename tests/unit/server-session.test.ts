@@ -15,6 +15,7 @@ describe('server session policy', () => {
     assert.equal(isPlayerEnvelopeAllowed(envelope('data', { kind: 'playerTokenMove' })), true);
     assert.equal(isPlayerEnvelopeAllowed(envelope('data', { kind: 'snapshot' })), false);
     assert.equal(isPlayerEnvelopeAllowed(envelope('control', { type: 'player-ping' })), true);
+    assert.equal(isPlayerEnvelopeAllowed(envelope('control', { type: 'webrtc-signal', signal: {} })), true);
   });
 });
 

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
 import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$ } from '../../../domain/p2p/networkSettings';
-import { serverSessionEnabled } from '../../../domain/p2p/serverSession';
 import type { P2PMediaConnectionDiagnostic, P2PMediaRtpDiagnostic, P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
 import type { P2PSessionState } from '../../../services/P2PSessionService';
 import type { Character, GameState } from '../../../domain/rules/types';
@@ -247,8 +246,8 @@ export function SharedToolsConnectionSettingsPanel({
 }
 
 export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: { compact?: boolean; role: TableViewRole }) {
-  const usesServer = serverSessionEnabled();
   const liveSession = useStream(p2pSessionService.session$);
+  const usesServer = liveSession.transportMode === 'hybrid';
   const mediaTransport = useStream(p2pSessionService.mediaTransport$);
   const call = useStream(mediaCallService.call$);
   const session = e2eP2PDiagnosticsFixture() ?? liveSession;
@@ -267,9 +266,9 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   const sceneTable = useStream(sceneTableService.sceneTable$);
   const hasConnectedPlayers = role !== 'gm' || p2pSessionService.hasConnectedPlayers();
   const displayedP2PStatus = role === 'gm' && p2pConnected && !hasConnectedPlayers ? 'Ожидает игроков' : p2pStatusLabel(p2pStatus);
-  const displayedMediaPeers = usesServer ? mediaTransport.peers : p2pPeers;
-  const displayedRoutes = usesServer ? mediaTransport.routes : p2pRoutes;
-  const displayedRoutePeers = usesServer ? mediaTransport.routePeers : p2pRoutePeers;
+  const displayedMediaPeers = p2pPeers;
+  const displayedRoutes = p2pRoutes;
+  const displayedRoutePeers = p2pRoutePeers;
   const visibleRoutePeers = displayedMediaPeers.length > 0
     ? displayedMediaPeers.map((peerId) => displayedRoutePeers.find((peer) => peer.peerId === peerId) ?? createEmptyPeerDiagnostic(peerId))
     : displayedRoutePeers.filter((peer) => peer.activeStrategy);
@@ -328,11 +327,11 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         {usesServer && (
           <Card
             className="player-tools-peer-card"
-            title="Серверный канал"
-            subtitle="Состояние игры передаётся через HTTPS и хранится в D1"
+            title="Связь с игрой мастера"
+            subtitle="Прямое соединение с резервным серверным каналом"
             actions={<Badge tone={p2pConnected ? 'success' : 'neutral'}>{p2pConnected ? 'подключено' : 'ожидание'}</Badge>}
           >
-            <small>Комната доступна игрокам, пока мастер держит игру открытой.</small>
+            <small>Комната доступна игрокам, пока игра мастера открыта.</small>
           </Card>
         )}
         {visibleRoutePeers.map((peer) => (

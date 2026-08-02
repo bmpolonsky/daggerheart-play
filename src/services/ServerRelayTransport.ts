@@ -3,6 +3,7 @@ import type {
   P2PTransportAdapter,
   P2PTransportFactoryContext,
   P2PTransportMessageContext,
+  P2PTransportRosterEntry,
   P2PWireEnvelope
 } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
@@ -13,6 +14,7 @@ const POLL_RETRY_INTERVAL_MS = 1_000;
 interface RoomConnectionResponse {
   cursor: number;
   peers: string[];
+  roster?: P2PTransportRosterEntry[];
   participantToken?: string;
   initialEvent?: P2PWireEnvelope;
 }
@@ -20,6 +22,7 @@ interface RoomConnectionResponse {
 interface EventsResponse {
   cursor: number;
   peers: string[];
+  roster?: P2PTransportRosterEntry[];
   events: Array<{ sequence: number; envelope: P2PWireEnvelope }>;
 }
 
@@ -35,10 +38,12 @@ export class ServerRelayTransport implements P2PTransportAdapter {
   private pollTimer: number | undefined;
   private abortController: AbortController | null = null;
   private peers = new Set<string>();
+  private roster = new Map<string, P2PTransportRosterEntry>();
   private messageListeners = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
   private peerJoinListeners = new Set<(peerId: string) => void>();
   private peerLeaveListeners = new Set<(peerId: string) => void>();
   private errorListeners = new Set<(message: string) => void>();
+  private rosterListeners = new Set<(roster: P2PTransportRosterEntry[]) => void>();
 
   constructor(
     private context: P2PTransportFactoryContext,
@@ -68,6 +73,7 @@ export class ServerRelayTransport implements P2PTransportAdapter {
     this.participantToken = response.participantToken ?? '';
     this.connected = true;
     this.updatePeers(response.peers);
+    this.updateRoster(response.roster);
     if (response.initialEvent && isP2PWireEnvelope(response.initialEvent)) {
       this.deliver(response.initialEvent);
     }
@@ -84,6 +90,7 @@ export class ServerRelayTransport implements P2PTransportAdapter {
     this.cursor = 0;
     this.participantToken = '';
     this.peers.clear();
+    this.roster.clear();
   }
 
   async send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void> {
@@ -114,6 +121,15 @@ export class ServerRelayTransport implements P2PTransportAdapter {
     return () => this.errorListeners.delete(listener);
   }
 
+  onRosterChange(listener: (roster: P2PTransportRosterEntry[]) => void): () => void {
+    this.rosterListeners.add(listener);
+    return () => this.rosterListeners.delete(listener);
+  }
+
+  getRoster(): P2PTransportRosterEntry[] {
+    return Array.from(this.roster.values());
+  }
+
   private schedulePoll(delay = 0): void {
     if (!this.connected) return;
     globalThis.clearTimeout(this.pollTimer);
@@ -131,6 +147,7 @@ export class ServerRelayTransport implements P2PTransportAdapter {
       );
       this.cursor = Math.max(this.cursor, response.cursor);
       this.updatePeers(response.peers);
+      this.updateRoster(response.roster);
       for (const item of response.events) {
         if (!isP2PWireEnvelope(item.envelope)) continue;
         this.deliver(item.envelope);
@@ -155,6 +172,20 @@ export class ServerRelayTransport implements P2PTransportAdapter {
       if (!next.has(peerId)) this.peerLeaveListeners.forEach((listener) => listener(peerId));
     }
     this.peers = next;
+  }
+
+  private updateRoster(entries?: P2PTransportRosterEntry[]): void {
+    if (!entries) return;
+    const next = new Map(entries.filter((entry) => entry.peerId && entry.peerId !== this.peerId).map((entry) => [entry.peerId, entry]));
+    const changed = next.size !== this.roster.size || Array.from(next).some(([peerId, entry]) => {
+      const current = this.roster.get(peerId);
+      return !current || current.displayName !== entry.displayName || current.role !== entry.role;
+    });
+    this.roster = next;
+    if (changed) {
+      const roster = this.getRoster();
+      this.rosterListeners.forEach((listener) => listener(roster));
+    }
   }
 
   private deliver(envelope: P2PWireEnvelope): void {

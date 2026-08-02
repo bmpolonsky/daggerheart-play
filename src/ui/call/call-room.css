@@ -619,3 +619,12 @@
 .floating-call__controls {
   justify-content: center;
 }
+.call-room__connecting {
+  flex: 0 0 auto;
+  color: var(--dh-gold, #e4bd62);
+  animation: call-room-spin 0.9s linear infinite;
+}
+
+@keyframes call-room-spin {
+  to { transform: rotate(360deg); }
+}

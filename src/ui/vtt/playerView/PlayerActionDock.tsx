@@ -62,6 +62,8 @@ export function PlayerActionDock({
       voiceState={audioState}
       activationRaised={Boolean(displayedCharacter?.id && localActivation.raised && localActivation.actorId === displayedCharacter.id)}
       canRequestActivation={Boolean(role === 'player' && p2pSession.connected && displayedCharacter?.id)}
+      rollPending={role === 'player' && p2pSession.rollPending}
+      rollDisabled={role === 'player' && p2pSession.status !== 'connected'}
       onOpenTools={onOpenTools}
       onActivationToggle={toggleActivationRequest}
       onVoiceToggle={() => void audioService.toggleVoiceChat(role === 'player' ? selectedPlayerName : displayedActorName)}

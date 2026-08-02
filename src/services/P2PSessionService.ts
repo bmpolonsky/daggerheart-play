@@ -54,7 +54,7 @@ import {
   readActiveSession
 } from './p2p/P2PSessionPersistence';
 import { P2PRoomConnection, type P2PRoomConnectionConfig, type P2PRoomConnectionEvent } from './p2p/P2PRoomConnection';
-import type { P2PMediaConnectionDiagnostic, P2PTransportAdapter, P2PTransportFactoryContext, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent } from './p2p/P2PTransportAdapter';
+import type { P2PMediaConnectionDiagnostic, P2PSessionTransportMode, P2PTransportAdapter, P2PTransportFactoryContext, P2PTransportPeerDiagnostic, P2PTransportRosterEntry, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent } from './p2p/P2PTransportAdapter';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { P2PAssetTransferService } from './P2PAssetTransferService';
 
@@ -74,6 +74,10 @@ export interface P2PSessionState {
   message: string;
   routes: P2PTransportRouteDiagnostic[];
   routePeers: P2PTransportPeerDiagnostic[];
+  transportMode?: P2PSessionTransportMode;
+  directPeers?: string[];
+  rollPending?: boolean;
+  pendingRollIntentId?: string | null;
 }
 
 export interface P2PMediaTransportState {
@@ -162,7 +166,11 @@ export class P2PSessionService {
     lastRequestAt: null,
     message: 'Связь с сервером мастера не подключена.',
     routes: [],
-    routePeers: []
+    routePeers: [],
+    transportMode: 'p2p',
+    directPeers: [],
+    rollPending: false,
+    pendingRollIntentId: null
   });
   readonly session$ = this.sessionStore.toStream();
   private inviteStore = new Store<P2PInviteDraftState>(initialInviteDraftState());
@@ -447,12 +455,15 @@ export class P2PSessionService {
       void this.publishSnapshot();
     }));
     this.subscriptions.add(this.syncService.subscribePlayerRollIntents((message, _event, context) => {
-      if (!this.applyPlayerRollIntent(message, remotePeerContext(context))) {
-        this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Бросок игрока отклонен') });
-        return;
-      }
-      this.patchSession({ lastRequestAt: nowIso(), message: 'Бросок игрока выполнен.' });
-      void this.publishSnapshot();
+      void (async () => {
+        const accepted = this.applyPlayerRollIntent(message, remotePeerContext(context));
+        this.patchSession({
+          lastRequestAt: nowIso(),
+          message: accepted ? 'Бросок игрока выполнен.' : this.playerActorRejectionMessage(message.participantId, message.actorId, 'Бросок игрока отклонен')
+        });
+        await this.publishSnapshot({ targetPeer: context?.sourcePeerId });
+        await this.syncService.publishPlayerRollAck({ type: 'playerRollAck', intentId: message.intentId, accepted }, context?.sourcePeerId);
+      })();
     }));
     this.subscriptions.add(this.syncService.subscribePlayerDecisions((message, _event, context) => {
       if (!this.applyPlayerDecision(message, remotePeerContext(context))) {
@@ -502,6 +513,8 @@ export class P2PSessionService {
         peers,
         routes: transport.routeDiagnostics(),
         routePeers: transport.peerDiagnostics(),
+        transportMode: transport.sessionMode(),
+        directPeers: transport.directPeerIds(),
         lastSnapshotAt: state.role === 'gm' && state.roomId === roomId ? state.lastSnapshotAt : null,
         lastRequestAt: state.role === 'gm' && state.roomId === roomId ? state.lastRequestAt : null,
         message: peers.length > 0 ? 'Игрок подключился.' : 'Комната мастера открыта.'
@@ -547,7 +560,7 @@ export class P2PSessionService {
     this.mediaCallService?.setRoom({ roomId, participantId: participant.id, displayName: participant.name, role: 'player' });
     this.syncService.setTransport(transport);
     this.bindCallPresenceSync();
-    this.patchSession({ status: 'connecting', role: 'player', roomId, message: 'Подключаемся к серверу мастера.' });
+    this.patchSession({ status: 'connecting', role: 'player', roomId, message: 'Подключаемся к игре.' });
     try {
       await this.syncService.connectReadOnly(roomId, participant, (state, event) => {
         this.suppressPlayerStoreForwarding = true;
@@ -568,6 +581,10 @@ export class P2PSessionService {
       this.assetTransferService.subscribePlayer(transport).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
       this.subscriptions.add(this.syncService.subscribePlayerCharacterUpdateAcks((message, _event, context) => {
         this.receivePlayerCharacterUpdateAck(message, context);
+      }));
+      this.subscriptions.add(this.syncService.subscribePlayerRollAcks((message) => {
+        if (this.sessionStore.get().pendingRollIntentId !== message.intentId) return;
+        this.patchSession({ rollPending: false, pendingRollIntentId: null, lastRequestAt: nowIso() });
       }));
       this.capturePlayerForwardingBaseline();
       this.subscriptions.add(this.feedService.feed$.subscribe(() => {
@@ -599,7 +616,7 @@ export class P2PSessionService {
         peers: [],
         routes: [],
         routePeers: [],
-        message: error instanceof Error ? error.message : 'Не удалось подключиться к серверу мастера.'
+        message: error instanceof Error ? error.message : 'Не удалось подключиться к игре.'
       });
       throw error;
     }
@@ -625,17 +642,19 @@ export class P2PSessionService {
     this.sessionStore.update((state) => ({
       ...state,
       connected: true,
-      status: 'connected',
+      status: this.playerTransportStatus(state.lastSnapshotAt),
       role: 'player',
       roomId,
       peerId: transport.peerId,
       peers: state.role === 'player' && state.roomId === roomId ? state.peers : [],
       routes: transport.routeDiagnostics(),
       routePeers: transport.peerDiagnostics(),
+      transportMode: transport.sessionMode(),
+      directPeers: transport.directPeerIds(),
       lastSnapshotAt: state.role === 'player' && state.roomId === roomId ? state.lastSnapshotAt : null,
       latestRollAnimationId: state.role === 'player' && state.roomId === roomId ? state.latestRollAnimationId : null,
       lastRequestAt: state.role === 'player' && state.roomId === roomId ? state.lastRequestAt : null,
-      message: state.lastSnapshotAt ? 'Вы подключены к серверу мастера.' : 'Ждем данные игры от мастера.'
+      message: state.lastSnapshotAt ? 'Соединение установлено.' : 'Получаем данные игры.'
     }));
     this.startPlayerProductRecoveryPolling();
     this.persistActiveSession('player', roomId, input.participantName, participant.id, participant.actorIds);
@@ -728,7 +747,11 @@ export class P2PSessionService {
       lastRequestAt: null,
       message: 'Связь с сервером мастера отключена.',
       routes: [],
-      routePeers: []
+      routePeers: [],
+      transportMode: 'p2p',
+      directPeers: [],
+      rollPending: false,
+      pendingRollIntentId: null
     });
   }
 
@@ -857,7 +880,7 @@ export class P2PSessionService {
 
   async publishPlayerTokenMove(move: PlayerTokenMoveMessage): Promise<boolean> {
     const session = this.sessionStore.get();
-    if (session.role !== 'player' || !session.connected) {
+    if (session.role !== 'player' || !session.connected || session.status !== 'connected') {
       return false;
     }
     try {
@@ -905,18 +928,21 @@ export class P2PSessionService {
 
   async submitPlayerRollIntent(input: { actorId: string; actorName?: string; publication?: PlayerRollIntentMessage['publication']; intent: PlayerRollIntent; resourcePatch?: PlayerCharacterResourcePatch; teamworkEntryId?: string }): Promise<boolean> {
     const session = this.sessionStore.get();
-    if (session.role !== 'player' || !session.connected) {
+    if (session.role !== 'player' || !session.connected || session.status !== 'connected') {
       return false;
     }
+    if (session.rollPending) return false;
     const context = this.requirePlayerActorContext(input.actorId);
     if (!context) {
       this.patchSession({ status: 'degraded', message: 'Бросок не отправлен: персонаж не назначен этому игроку.' });
       return false;
     }
     try {
+      const intentId = createId('roll-intent');
+      this.patchSession({ rollPending: true, pendingRollIntentId: intentId });
       await this.syncService.publishPlayerRollIntent({
         type: 'playerRollIntent',
-        intentId: createId('roll-intent'),
+        intentId,
         participantId: context.participantId,
         actorId: input.actorId,
         actorName: input.actorName?.trim() || context.actorName || undefined,
@@ -930,7 +956,7 @@ export class P2PSessionService {
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось отправить бросок мастеру.';
-      this.patchSession({ status: 'degraded', message });
+      this.patchSession({ status: 'degraded', message, rollPending: false, pendingRollIntentId: null });
       return false;
     }
   }
@@ -1721,8 +1747,11 @@ export class P2PSessionService {
   private handleRoomConnectionEvent(event: P2PRoomConnectionEvent): void {
     const routes = this.activeRoomConnection?.routeDiagnostics() ?? [];
     const routePeers = this.activeRoomConnection?.peerDiagnostics() ?? [];
+    const transportMode = this.activeRoomConnection?.sessionMode?.() ?? 'p2p';
+    const directPeers = this.activeRoomConnection?.directPeerIds?.() ?? [];
     if (event.type === 'ready') {
-      this.patchSession({ peerId: event.peerId, peers: event.peers, status: 'connected', routes, routePeers });
+      const session = this.sessionStore.get();
+      this.patchSession({ peerId: event.peerId, peers: event.peers, status: session.role === 'player' ? this.playerTransportStatus(session.lastSnapshotAt) : 'connected', routes, routePeers, transportMode, directPeers });
       return;
     }
     if (event.type === 'peer-joined') {
@@ -1733,6 +1762,8 @@ export class P2PSessionService {
         peers: event.peers,
         routes,
         routePeers,
+        transportMode,
+        directPeers,
         status: session.role === 'gm' || isGmRestored ? 'connected' : session.status,
         message: session.role === 'gm' ? 'Игрок подключился.' : isGmRestored ? 'Соединение с мастером восстановлено.' : session.message
       });
@@ -1750,6 +1781,8 @@ export class P2PSessionService {
         peers: event.peers,
         routes,
         routePeers,
+        transportMode,
+        directPeers,
         status: state.role === 'player' && state.connected && (playerLostGm || event.peers.length === 0) ? 'degraded' : state.status,
         message:
           state.role === 'gm'
@@ -1765,8 +1798,10 @@ export class P2PSessionService {
         peers: event.peers,
         routes,
         routePeers,
+        transportMode,
+        directPeers,
         status: 'degraded',
-        message: 'Мастер не отвечает. Пытаемся переподключиться.'
+        message: 'Восстанавливаем соединение.'
       });
       void this.requestSnapshotFromGm('peer-reconnect');
       return;
@@ -1776,6 +1811,8 @@ export class P2PSessionService {
         peers: event.peers,
         routes,
         routePeers,
+        transportMode,
+        directPeers,
         status: 'connected',
         message: 'Соединение с мастером восстановлено.'
       });
@@ -1787,17 +1824,51 @@ export class P2PSessionService {
       return;
     }
     if (event.type === 'diagnostics-updated') {
-      this.patchSession({ peers: event.peers, routes, routePeers });
+      this.patchSession((state) => ({
+        ...state,
+        peers: event.peers,
+        routes,
+        routePeers,
+        transportMode,
+        directPeers,
+        status: state.role === 'player' ? this.playerTransportStatus(state.lastSnapshotAt) : state.status
+      }));
+      return;
+    }
+    if (event.type === 'roster-updated') {
+      this.applyTransportRoster(event.roster);
+      this.patchSession({ peers: event.peers, routes, routePeers, transportMode, directPeers });
       return;
     }
     if (event.type === 'route-switched') {
-      this.patchSession({ peers: event.peers, routes, routePeers });
+      this.patchSession({ peers: event.peers, routes, routePeers, transportMode, directPeers });
       void this.handleAckRouteSwitch(event.switch);
       return;
     }
     if (event.type === 'error') {
-      this.patchSession({ status: 'error', message: event.message, routes, routePeers });
+      this.patchSession({ status: 'error', message: event.message, routes, routePeers, transportMode, directPeers });
     }
+  }
+
+  private applyTransportRoster(roster: P2PTransportRosterEntry[]): void {
+    roster.forEach((entry) => {
+      this.sceneTableService.upsertParticipantPresence({
+        id: entry.peerId,
+        name: entry.displayName,
+        role: entry.role,
+        peerId: entry.peerId,
+        connected: true
+      });
+    });
+  }
+
+  private playerTransportStatus(lastSnapshotAt: string | null): P2PConnectionStatus {
+    const connection = this.activeRoomConnection;
+    if (!connection || connection.sessionMode?.() !== 'hybrid') return 'connected';
+    const gmPeerId = connection.gmPeerId();
+    return gmPeerId && connection.directPeerIds?.().includes(gmPeerId)
+      ? 'connected'
+      : lastSnapshotAt ? 'degraded' : 'connecting';
   }
 
   private async handleAckRouteSwitch(routeSwitch: P2PTransportRouteSwitchEvent): Promise<void> {
