@@ -156,13 +156,28 @@ export class SceneTableService {
     sceneTableStore.update((state) => {
       const current = state.participants[id];
       const name = input.name?.trim() || current?.name || (input.role === 'gm' ? 'Мастер' : 'Игрок');
+      const role = current?.role ?? input.role;
+      const actorIds = input.actorIds ?? current?.actorIds ?? [];
+      const peerId = input.peerId?.trim() || current?.peerId;
+      if (
+        current
+        && current.name === name
+        && current.role === role
+        && current.peerId === peerId
+        && current.connected === input.connected
+        && current.actorIds.length === actorIds.length
+        && current.actorIds.every((actorId, index) => actorId === actorIds[index])
+      ) {
+        participant = current;
+        return state;
+      }
       participant = createLocalParticipant({
         ...current,
         id,
         name,
-        role: current?.role ?? input.role,
-        actorIds: input.actorIds ?? current?.actorIds ?? [],
-        peerId: input.peerId?.trim() || current?.peerId,
+        role,
+        actorIds,
+        peerId,
         connected: input.connected,
         updatedAt: nowIso()
       });

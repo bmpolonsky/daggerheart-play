@@ -9,7 +9,7 @@ const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const MAX_BACKUP_BYTES = 250 * 1024 * 1024;
 const MAX_ASSET_BYTES = 50 * 1024 * 1024;
 const MAX_LONG_POLL_MS = 15_000;
-const LONG_POLL_INTERVAL_MS = 250;
+const LONG_POLL_INTERVAL_MS = 500;
 const EVENT_RETENTION_MS = 10 * 60_000;
 const MAX_EVENTS_PER_ROOM = 500;
 const PAGES_ASSET_ORIGIN = 'https://bmpolonsky.github.io/daggerheart-play';
@@ -368,26 +368,28 @@ async function readEvents(request: Request, db: D1Database, roomId: string, url:
     : db.prepare('UPDATE participants SET last_seen_at = ? WHERE room_id = ? AND id = ?')
       .bind(startedAt, roomId, identity.peerId);
   let firstRead = true;
+  let players: Array<{ id: string }> = [];
   while (true) {
     const now = Date.now();
     const statements = [
       db.prepare(`SELECT sequence, author_peer_id, target_peer_id, envelope_json FROM room_events
         WHERE room_id = ? AND sequence > ?
-        ORDER BY sequence ASC LIMIT 100`).bind(roomId, cursor),
-      db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
-        .bind(roomId, now - PARTICIPANT_LEASE_MS, identity.peerId)
+        ORDER BY sequence ASC LIMIT 100`).bind(roomId, cursor)
     ];
-    if (firstRead) statements.unshift(heartbeat);
+    if (firstRead) {
+      statements.unshift(heartbeat);
+      statements.push(db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
+        .bind(roomId, now - PARTICIPANT_LEASE_MS, identity.peerId));
+    }
     const results = await db.batch(statements);
     const eventsResult = results[firstRead ? 1 : 0];
-    const playersResult = results[firstRead ? 2 : 1];
+    if (firstRead) players = (results[2]?.results ?? []) as Array<{ id: string }>;
     firstRead = false;
     const scannedEvents = (eventsResult?.results ?? []) as EventRow[];
-    const players = (playersResult?.results ?? []) as Array<{ id: string }>;
     const visibleEvents = scannedEvents.filter((event) => event.author_peer_id !== identity.peerId
       && (event.target_peer_id === null || event.target_peer_id === identity.peerId));
     cursor = scannedEvents.reduce((latest, event) => Math.max(latest, event.sequence), cursor);
-    if (scannedEvents.length > 0 || waitMs === 0 || Date.now() >= deadline || request.signal.aborted) {
+    if (visibleEvents.length > 0 || waitMs === 0 || Date.now() >= deadline || request.signal.aborted) {
       return json({
         cursor,
         events: visibleEvents.map((event) => ({ sequence: event.sequence, envelope: JSON.parse(event.envelope_json) })),

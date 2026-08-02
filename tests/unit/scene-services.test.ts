@@ -80,6 +80,30 @@ test('participant presence creates and updates unified player identities', () =>
   assert.equal(sceneTableStore.get().participants['participant-1']?.connected, false);
 });
 
+test('unchanged participant presence does not update the scene table', () => {
+  resetAllStores();
+  sceneTableService.upsertParticipantPresence({
+    id: 'participant-1',
+    name: 'Анна',
+    role: 'player',
+    actorIds: ['character-1'],
+    peerId: 'p2p_peer_anna',
+    connected: true
+  });
+  const state = sceneTableStore.get();
+
+  sceneTableService.upsertParticipantPresence({
+    id: 'participant-1',
+    name: 'Анна',
+    role: 'player',
+    actorIds: ['character-1'],
+    peerId: 'p2p_peer_anna',
+    connected: true
+  });
+
+  assert.equal(sceneTableStore.get(), state);
+});
+
 test('services import old combat builder and map scene JSON exports', () => {
   resetAllStores();
   const combatReport = encounterService.importCombatBuilderJson(JSON.stringify({

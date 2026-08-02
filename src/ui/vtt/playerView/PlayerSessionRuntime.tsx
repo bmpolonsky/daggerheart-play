@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
+import { serverSessionEnabled } from '../../../domain/p2p/serverSession';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { audioService, p2pSessionService } from '../../../services/serviceRegistry';
 import type { TableViewRole } from './types';
@@ -98,6 +99,7 @@ export function PlayerSessionRuntime({
       });
     };
     publish();
+    if (serverSessionEnabled()) return;
     const intervalId = window.setInterval(publish, 3000);
     return () => window.clearInterval(intervalId);
   }, [audioState.voiceMuted, audioState.voiceStatus, displayedCharacter?.id, displayedCharacter?.name, p2pSession.connected, p2pSession.peerId, role, selectedPlayerName, selectedPlayerSeatId]);

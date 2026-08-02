@@ -137,6 +137,8 @@ interface PersistedPendingPlayerCharacterUpdate extends PendingPlayerCharacterUp
 const AUTO_SNAPSHOT_DELAY_MS = 350;
 const CLOUD_BACKUP_INTERVAL_MS = 30_000;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
+const SERVER_HEARTBEAT_MS = 15_000;
+const SERVER_PEER_TIMEOUT_MS = 45_000;
 const ROOM_CODE_REFRESH_COOLDOWN_MS = 30_000;
 const PENDING_PLAYER_CHARACTER_UPDATES_KEY = 'daggerheart-pending-player-character-updates';
 const initialMediaTransportState: P2PMediaTransportState = {
@@ -756,6 +758,8 @@ export class P2PSessionService {
   }
 
   async publishSnapshot(options: { requirePeers?: boolean; targetPeer?: SyncTargetPeer } = {}): Promise<boolean> {
+    window.clearTimeout(this.snapshotTimer);
+    this.snapshotTimer = undefined;
     const session = this.sessionStore.get();
     const savesToServer = session.role === 'gm' && serverSessionEnabled() && Boolean(this.cloudBackupService);
     if (session.role === 'gm' && session.peers.length === 0 && !savesToServer) {
@@ -1597,6 +1601,7 @@ export class P2PSessionService {
     }
     window.clearTimeout(this.snapshotTimer);
     this.snapshotTimer = window.setTimeout(() => {
+      this.snapshotTimer = undefined;
       void this.publishSnapshot();
     }, AUTO_SNAPSHOT_DELAY_MS);
   }
@@ -1622,6 +1627,9 @@ export class P2PSessionService {
 
   private createTransport(participant: TableParticipant): P2PRoomConnection {
     const options = trysteroOptionsForNetworkSettings(readP2PNetworkSettings());
+    const connectionConfig = serverSessionEnabled()
+      ? { ...this.roomConnectionConfig, heartbeatMs: SERVER_HEARTBEAT_MS, gmTimeoutMs: SERVER_PEER_TIMEOUT_MS }
+      : this.roomConnectionConfig;
     const connection = new P2PRoomConnection(this.transportFactory(
       options,
       {
@@ -1631,7 +1639,7 @@ export class P2PSessionService {
         worldId: gameStore.get().id,
         ...(participant.role === 'gm' ? { initialSnapshot: snapshotPersistedState() } : {})
       }
-    ), this.roomConnectionConfig);
+    ), connectionConfig);
     this.activeRoomConnection = connection;
     this.subscriptions.add(connection.subscribeRoomEvents((event) => this.handleRoomConnectionEvent(event)));
     if (this.mediaTransportFactory) {
