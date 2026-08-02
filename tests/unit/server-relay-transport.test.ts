@@ -68,10 +68,18 @@ describe('ServerRelayTransport', () => {
 
   it('uses the anonymous participant token after joining', async () => {
     const calls: Array<{ path: string; init?: RequestInit }> = [];
+    const received: P2PWireEnvelope[] = [];
+    const initialEvent = envelope('gm-peer', 'gm', 'data', {
+      id: 'initial-snapshot',
+      createdAt: new Date(0).toISOString(),
+      authorId: 'gm-peer',
+      kind: 'snapshot',
+      value: { game: { name: 'Серверный мир' } }
+    });
     const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       calls.push({ path, init });
-      if (path.endsWith('/join')) return response({ cursor: 0, peers: ['gm-peer'], participantToken: 'secret-player-token' });
+      if (path.endsWith('/join')) return response({ cursor: 0, peers: ['gm-peer'], participantToken: 'secret-player-token', initialEvent });
       if (path.includes('/events?')) return response({ cursor: 0, peers: ['gm-peer'], events: [] });
       return response({ sequence: 1 });
     };
@@ -81,6 +89,7 @@ describe('ServerRelayTransport', () => {
       displayName: 'Игрок',
       worldId: 'unused'
     }, fetcher as typeof fetch);
+    transport.subscribe((event) => received.push(event));
 
     await transport.connect('ABC123');
     await transport.send(envelope('player-peer', 'player', 'control', { type: 'player-ping' }));
@@ -90,6 +99,7 @@ describe('ServerRelayTransport', () => {
     const headers = new Headers(eventCall?.init?.headers);
     assert.equal(headers.get('authorization'), 'Bearer secret-player-token');
     assert.equal(headers.get('x-daggerheart-peer-id'), 'player-peer');
+    assert.equal(received[0]?.id, initialEvent.id);
   });
 });
 

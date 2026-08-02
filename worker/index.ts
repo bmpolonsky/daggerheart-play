@@ -8,6 +8,10 @@ const PARTICIPANT_LEASE_MS = 30_000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const MAX_BACKUP_BYTES = 250 * 1024 * 1024;
 const MAX_ASSET_BYTES = 50 * 1024 * 1024;
+const MAX_LONG_POLL_MS = 15_000;
+const LONG_POLL_INTERVAL_MS = 250;
+const EVENT_RETENTION_MS = 10 * 60_000;
+const MAX_EVENTS_PER_ROOM = 500;
 const PAGES_ASSET_ORIGIN = 'https://bmpolonsky.github.io/daggerheart-play';
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 let schemaReady: Promise<void> | null = null;
@@ -310,7 +314,7 @@ async function joinRoom(request: Request, db: D1Database, roomId: string): Promi
   const token = randomToken();
   const tokenHash = await hashToken(token);
   const now = Date.now();
-  const [, cursorResult, playersResult] = await db.batch([
+  const [, cursorResult, playersResult, snapshotResult] = await db.batch([
     db.prepare(`INSERT INTO participants (id, room_id, token_hash, display_name, last_seen_at)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(room_id, id) DO UPDATE SET token_hash = excluded.token_hash,
@@ -318,47 +322,80 @@ async function joinRoom(request: Request, db: D1Database, roomId: string): Promi
       .bind(peerId, roomId, tokenHash, displayName, now),
     db.prepare('SELECT COALESCE(MAX(sequence), 0) AS sequence FROM room_events WHERE room_id = ?').bind(roomId),
     db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
-      .bind(roomId, now - PARTICIPANT_LEASE_MS, peerId)
+      .bind(roomId, now - PARTICIPANT_LEASE_MS, peerId),
+    db.prepare('SELECT snapshot_json, updated_at FROM worlds WHERE owner_id = ? AND id = ?')
+      .bind(activeRoom.owner_id, activeRoom.world_id)
   ]);
+  const snapshot = snapshotResult?.results?.[0] as { snapshot_json?: string; updated_at?: number } | undefined;
+  const snapshotUpdatedAt = Number(snapshot?.updated_at ?? now);
+  const snapshotEventId = `server-snapshot-${roomId}-${snapshotUpdatedAt}`;
   return json({
     roomId,
     participantToken: token,
     cursor: Number((cursorResult?.results?.[0] as { sequence?: number } | undefined)?.sequence ?? 0),
-    peers: activePeerIds(activeRoom, peerId, now, (playersResult?.results ?? []) as Array<{ id: string }>)
+    peers: activePeerIds(activeRoom, peerId, now, (playersResult?.results ?? []) as Array<{ id: string }>),
+    initialEvent: snapshot?.snapshot_json ? {
+      version: 2,
+      id: `${snapshotEventId}-envelope`,
+      channel: 'data',
+      sender: { peerId: activeRoom.gm_peer_id, role: 'gm' },
+      sentAt: new Date(snapshotUpdatedAt).toISOString(),
+      payload: {
+        id: snapshotEventId,
+        createdAt: new Date(snapshotUpdatedAt).toISOString(),
+        authorId: activeRoom.gm_peer_id,
+        kind: 'snapshot',
+        value: JSON.parse(snapshot.snapshot_json)
+      }
+    } satisfies P2PWireEnvelope : undefined
   });
 }
 
 async function readEvents(request: Request, db: D1Database, roomId: string, url: URL): Promise<Response> {
   const identity = await roomIdentity(request, db, roomId);
   if (identity instanceof Response) return identity;
-  const now = Date.now();
-  if (identity.role === 'player' && !isMasterLeaseActive(identity.room.active_until, now)) {
+  const startedAt = Date.now();
+  const waitMs = Math.min(MAX_LONG_POLL_MS, Math.max(0, Number(url.searchParams.get('wait')) || 0));
+  const deadline = startedAt + waitMs;
+  if (identity.role === 'player' && !isMasterLeaseActive(identity.room.active_until, startedAt)) {
     return json({ error: 'master_offline', message: 'Мастер ещё не запустил эту игру.' }, 409);
   }
 
-  const after = Math.max(0, Number(url.searchParams.get('after')) || 0);
+  let cursor = Math.max(0, Number(url.searchParams.get('after')) || 0);
   const heartbeat = identity.role === 'gm'
     ? db.prepare('UPDATE rooms SET active_until = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
-      .bind(now + MASTER_LEASE_MS, now, roomId, identity.ownerId)
+      .bind(startedAt + MASTER_LEASE_MS, startedAt, roomId, identity.ownerId)
     : db.prepare('UPDATE participants SET last_seen_at = ? WHERE room_id = ? AND id = ?')
-      .bind(now, roomId, identity.peerId);
-  const [, eventsResult, playersResult] = await db.batch([
-    heartbeat,
-    db.prepare(`SELECT sequence, author_peer_id, target_peer_id, envelope_json FROM room_events
-      WHERE room_id = ? AND sequence > ?
-      ORDER BY sequence ASC LIMIT 100`).bind(roomId, after),
-    db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
-      .bind(roomId, now - PARTICIPANT_LEASE_MS, identity.peerId)
-  ]);
-  const scannedEvents = (eventsResult?.results ?? []) as EventRow[];
-  const players = (playersResult?.results ?? []) as Array<{ id: string }>;
-  const visibleEvents = scannedEvents.filter((event) => event.author_peer_id !== identity.peerId
-    && (event.target_peer_id === null || event.target_peer_id === identity.peerId));
-  return json({
-    cursor: scannedEvents.reduce((cursor, event) => Math.max(cursor, event.sequence), after),
-    events: visibleEvents.map((event) => ({ sequence: event.sequence, envelope: JSON.parse(event.envelope_json) })),
-    peers: activePeerIds(identity.room, identity.peerId, now, players)
-  });
+      .bind(startedAt, roomId, identity.peerId);
+  let firstRead = true;
+  while (true) {
+    const now = Date.now();
+    const statements = [
+      db.prepare(`SELECT sequence, author_peer_id, target_peer_id, envelope_json FROM room_events
+        WHERE room_id = ? AND sequence > ?
+        ORDER BY sequence ASC LIMIT 100`).bind(roomId, cursor),
+      db.prepare('SELECT id FROM participants WHERE room_id = ? AND last_seen_at > ? AND id <> ?')
+        .bind(roomId, now - PARTICIPANT_LEASE_MS, identity.peerId)
+    ];
+    if (firstRead) statements.unshift(heartbeat);
+    const results = await db.batch(statements);
+    const eventsResult = results[firstRead ? 1 : 0];
+    const playersResult = results[firstRead ? 2 : 1];
+    firstRead = false;
+    const scannedEvents = (eventsResult?.results ?? []) as EventRow[];
+    const players = (playersResult?.results ?? []) as Array<{ id: string }>;
+    const visibleEvents = scannedEvents.filter((event) => event.author_peer_id !== identity.peerId
+      && (event.target_peer_id === null || event.target_peer_id === identity.peerId));
+    cursor = scannedEvents.reduce((latest, event) => Math.max(latest, event.sequence), cursor);
+    if (scannedEvents.length > 0 || waitMs === 0 || Date.now() >= deadline || request.signal.aborted) {
+      return json({
+        cursor,
+        events: visibleEvents.map((event) => ({ sequence: event.sequence, envelope: JSON.parse(event.envelope_json) })),
+        peers: activePeerIds(identity.room, identity.peerId, now, players)
+      });
+    }
+    await new Promise((resolve) => setTimeout(resolve, LONG_POLL_INTERVAL_MS));
+  }
 }
 
 async function publishEvent(request: Request, db: D1Database, roomId: string): Promise<Response> {
@@ -382,7 +419,12 @@ async function publishEvent(request: Request, db: D1Database, roomId: string): P
   const statements = [
     db.prepare(`INSERT INTO room_events (room_id, event_id, author_peer_id, target_peer_id, envelope_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(room_id, event_id) DO NOTHING`)
-      .bind(roomId, envelope.id, identity.peerId, targetPeer, JSON.stringify(envelope), now)
+      .bind(roomId, envelope.id, identity.peerId, targetPeer, JSON.stringify(envelope), now),
+    db.prepare(`DELETE FROM room_events
+      WHERE room_id = ? AND (
+        created_at < ? OR
+        sequence <= (SELECT COALESCE(MAX(sequence), 0) - ? FROM room_events WHERE room_id = ?)
+      )`).bind(roomId, now - EVENT_RETENTION_MS, MAX_EVENTS_PER_ROOM, roomId)
   ];
   const type = controlType(envelope);
   if (identity.role === 'gm') {

@@ -152,7 +152,29 @@ test('Sites relays events with two D1 batches and no runtime schema work', async
   }), env, {} as ExecutionContext);
   assert.equal(publish.status, 200);
   assert.equal(relay.batches.length, 4);
+  assert.equal(relay.batches[3].some((query) => query.includes('DELETE FROM room_events')), true);
   assert.equal(relay.batches.flat().some((query) => /CREATE TABLE|PRAGMA optimize|SELECT sequence FROM/.test(query)), false);
+});
+
+test('Sites returns the current snapshot in the player join response', async () => {
+  const relay = relayDatabase();
+  const env = {
+    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+    DB: relay.db,
+    FILES: memoryR2(new Map())
+  } satisfies WorkerEnv;
+
+  const response = await worker.fetch(new Request('https://example.test/api/rooms/ROOM1/join', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ peerId: 'player-peer', displayName: 'Игрок' })
+  }), env, {} as ExecutionContext);
+  const body = await response.json() as { initialEvent?: { payload?: { kind?: string; value?: { game?: { name?: string } } } } };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.initialEvent?.payload?.kind, 'snapshot');
+  assert.equal(body.initialEvent?.payload?.value?.game?.name, 'Серверный мир');
+  assert.equal(relay.batches.length, 1);
 });
 
 function ownedWorldDatabase(ownerId: string, worldId: string): D1Database {
@@ -226,6 +248,11 @@ function relayDatabase(): { db: D1Database; batches: string[][] } {
       gm_peer_id: 'gm-peer',
       gm_name: 'Мастер',
       active_until: Date.now() + 60_000
+    }] };
+    if (query.includes('COALESCE(MAX(sequence)')) return { success: true, results: [{ sequence: 1 }] };
+    if (query.includes('SELECT snapshot_json')) return { success: true, results: [{
+      snapshot_json: JSON.stringify({ game: { name: 'Серверный мир' } }),
+      updated_at: 1
     }] };
     if (query.includes('FROM room_events')) return { success: true, results: [{
       sequence: 1,

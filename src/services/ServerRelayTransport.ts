@@ -7,12 +7,14 @@ import type {
 } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
-const POLL_INTERVAL_MS = 300;
+const LONG_POLL_MS = 15_000;
+const POLL_RETRY_INTERVAL_MS = 1_000;
 
 interface RoomConnectionResponse {
   cursor: number;
   peers: string[];
   participantToken?: string;
+  initialEvent?: P2PWireEnvelope;
 }
 
 interface EventsResponse {
@@ -66,6 +68,9 @@ export class ServerRelayTransport implements P2PTransportAdapter {
     this.participantToken = response.participantToken ?? '';
     this.connected = true;
     this.updatePeers(response.peers);
+    if (response.initialEvent && isP2PWireEnvelope(response.initialEvent)) {
+      this.deliver(response.initialEvent);
+    }
     this.schedulePoll(0);
   }
 
@@ -109,7 +114,7 @@ export class ServerRelayTransport implements P2PTransportAdapter {
     return () => this.errorListeners.delete(listener);
   }
 
-  private schedulePoll(delay = POLL_INTERVAL_MS): void {
+  private schedulePoll(delay = 0): void {
     if (!this.connected) return;
     globalThis.clearTimeout(this.pollTimer);
     this.pollTimer = globalThis.setTimeout(() => void this.poll(), delay) as unknown as number;
@@ -118,27 +123,26 @@ export class ServerRelayTransport implements P2PTransportAdapter {
   private async poll(): Promise<void> {
     if (!this.connected || !this.roomId) return;
     this.abortController = new AbortController();
+    let retryDelay = 0;
     try {
       const response = await this.request<EventsResponse>(
-        `/api/rooms/${encodeURIComponent(this.roomId)}/events?after=${this.cursor}`,
+        `/api/rooms/${encodeURIComponent(this.roomId)}/events?after=${this.cursor}&wait=${LONG_POLL_MS}`,
         { signal: this.abortController.signal }
       );
       this.cursor = Math.max(this.cursor, response.cursor);
       this.updatePeers(response.peers);
       for (const item of response.events) {
         if (!isP2PWireEnvelope(item.envelope)) continue;
-        this.messageListeners.forEach((listener) => listener(item.envelope, {
-          sourcePeerId: item.envelope.sender.peerId,
-          verifiedSourcePeerId: `server:${item.envelope.sender.peerId}`
-        }));
+        this.deliver(item.envelope);
       }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
         this.emitError(error instanceof Error ? error.message : 'Серверная синхронизация временно недоступна.');
+        retryDelay = POLL_RETRY_INTERVAL_MS;
       }
     } finally {
       this.abortController = null;
-      this.schedulePoll();
+      this.schedulePoll(retryDelay);
     }
   }
 
@@ -151,6 +155,13 @@ export class ServerRelayTransport implements P2PTransportAdapter {
       if (!next.has(peerId)) this.peerLeaveListeners.forEach((listener) => listener(peerId));
     }
     this.peers = next;
+  }
+
+  private deliver(envelope: P2PWireEnvelope): void {
+    this.messageListeners.forEach((listener) => listener(envelope, {
+      sourcePeerId: envelope.sender.peerId,
+      verifiedSourcePeerId: `server:${envelope.sender.peerId}`
+    }));
   }
 
   private async request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {

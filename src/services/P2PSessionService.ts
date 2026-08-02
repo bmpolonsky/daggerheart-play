@@ -579,7 +579,9 @@ export class P2PSessionService {
         void this.forwardPlayerCharacterUpdate();
       }));
       void this.republishPendingPlayerCharacterUpdates();
-      await this.syncService.publishSnapshotRequest('join', transport.gmPeerId() ?? undefined);
+      if (!serverSessionEnabled()) {
+        await this.syncService.publishSnapshotRequest('join', transport.gmPeerId() ?? undefined);
+      }
     } catch (error) {
       this.audioService?.setVoiceTransport(null);
       this.sceneAudioBroadcastService?.setTransport(null);
