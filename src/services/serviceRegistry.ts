@@ -31,7 +31,7 @@ import { UiService } from './UiService';
 export const assetService = new AssetService();
 export const persistenceService = new PersistenceService(undefined, assetService);
 export const importExportService = new ImportExportService(assetService, persistenceService);
-export const cloudBackupService = new CloudBackupService(importExportService);
+export const cloudBackupService = new CloudBackupService(importExportService, assetService);
 export const audioService = new AudioService();
 export const gameService = new GameService();
 export const characterService = new CharacterService();

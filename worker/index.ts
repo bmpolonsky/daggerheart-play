@@ -7,6 +7,7 @@ const MASTER_LEASE_MS = 20_000;
 const PARTICIPANT_LEASE_MS = 30_000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const MAX_BACKUP_BYTES = 250 * 1024 * 1024;
+const MAX_ASSET_BYTES = 50 * 1024 * 1024;
 const PAGES_ASSET_ORIGIN = 'https://bmpolonsky.github.io/daggerheart-play';
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 let schemaReady: Promise<void> | null = null;
@@ -80,6 +81,16 @@ async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Re
     return json({ worlds: worlds.results ?? [] });
   }
 
+  const worldAssetMatch = url.pathname.match(/^\/api\/worlds\/([^/]+)\/assets\/([^/]+)$/);
+  if (worldAssetMatch) {
+    return putWorldAsset(
+      request,
+      env.FILES,
+      decodeURIComponent(worldAssetMatch[1]),
+      decodeURIComponent(worldAssetMatch[2])
+    );
+  }
+
   const worldBackupMatch = url.pathname.match(/^\/api\/worlds\/([^/]+)\/backup$/);
   if (worldBackupMatch) {
     return worldBackup(request, db, env.FILES, decodeURIComponent(worldBackupMatch[1]));
@@ -108,6 +119,17 @@ async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Re
     return json({ id: worldId, name: world.name, snapshot: JSON.parse(world.snapshot_json) });
   }
 
+  const roomAssetMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/assets\/([^/]+)$/);
+  if (roomAssetMatch) {
+    return getRoomAsset(
+      request,
+      db,
+      env.FILES,
+      decodeURIComponent(roomAssetMatch[1]),
+      decodeURIComponent(roomAssetMatch[2])
+    );
+  }
+
   const roomMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)(?:\/(join|events))?$/);
   if (!roomMatch) return json({ error: 'not_found' }, 404);
   const roomId = normalizeServerRoomId(decodeURIComponent(roomMatch[1]));
@@ -119,6 +141,42 @@ async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Re
   if (action === 'events' && request.method === 'GET') return readEvents(request, db, roomId, url);
   if (action === 'events' && request.method === 'POST') return publishEvent(request, db, roomId);
   return json({ error: 'method_not_allowed' }, 405);
+}
+
+async function putWorldAsset(request: Request, files: R2Bucket, worldId: string, assetId: string): Promise<Response> {
+  if (request.method !== 'PUT') return json({ error: 'method_not_allowed' }, 405);
+  const master = requireMaster(request);
+  if (master instanceof Response) return master;
+  if (!worldId || !assetId || !request.body) return json({ error: 'asset_required' }, 400);
+  const declaredSize = Number(request.headers.get('x-daggerheart-asset-size') ?? request.headers.get('content-length') ?? 0);
+  if (declaredSize > MAX_ASSET_BYTES) return json({ error: 'asset_too_large' }, 413);
+  await files.put(cloudAssetKey(master.id, worldId, assetId), request.body, {
+    httpMetadata: { contentType: request.headers.get('content-type') || 'application/octet-stream' }
+  });
+  return new Response(null, { status: 204 });
+}
+
+async function getRoomAsset(
+  request: Request,
+  db: D1Database,
+  files: R2Bucket,
+  rawRoomId: string,
+  assetId: string
+): Promise<Response> {
+  if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+  const roomId = normalizeServerRoomId(rawRoomId);
+  if (!roomId || !assetId) return json({ error: 'invalid_asset' }, 400);
+  const activeRoom = await activeRoomForPlayer(db, roomId);
+  if (activeRoom instanceof Response) return activeRoom;
+  const object = await files.get(cloudAssetKey(activeRoom.owner_id, activeRoom.world_id, assetId));
+  if (!object) return json({ error: 'asset_not_found' }, 404);
+  return new Response(object.body, {
+    headers: {
+      'cache-control': 'private, no-store',
+      'content-length': String(object.size),
+      'content-type': object.httpMetadata?.contentType || 'application/octet-stream'
+    }
+  });
 }
 
 async function worldBackup(
@@ -169,7 +227,7 @@ async function deleteWorld(
     .bind(master.id, worldId).first<{ id: string }>();
   if (!world) return json({ error: 'world_not_found' }, 404);
 
-  await files.delete(cloudBackupKey(master.id, worldId));
+  await deleteCloudWorldFiles(files, master.id, worldId);
   await db.batch([
     db.prepare('DELETE FROM room_events WHERE room_id IN (SELECT id FROM rooms WHERE owner_id = ? AND world_id = ?)')
       .bind(master.id, worldId),
@@ -499,7 +557,26 @@ function safeFileName(value: string): string {
 }
 
 function cloudBackupKey(ownerId: string, worldId: string): string {
-  return `${[ownerId, worldId].map(encodeURIComponent).join('/')}/backup.dhgame`;
+  return `${cloudWorldPrefix(ownerId, worldId)}backup.dhgame`;
+}
+
+function cloudAssetKey(ownerId: string, worldId: string, assetId: string): string {
+  return `${cloudWorldPrefix(ownerId, worldId)}assets/${encodeURIComponent(assetId)}`;
+}
+
+function cloudWorldPrefix(ownerId: string, worldId: string): string {
+  return `${[ownerId, worldId].map(encodeURIComponent).join('/')}/`;
+}
+
+async function deleteCloudWorldFiles(files: R2Bucket, ownerId: string, worldId: string): Promise<void> {
+  const prefix = cloudWorldPrefix(ownerId, worldId);
+  let cursor: string | undefined;
+  do {
+    const page = await files.list({ prefix, ...(cursor ? { cursor } : {}) });
+    const keys = page.objects.map((object) => object.key);
+    if (keys.length > 0) await files.delete(keys);
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
 }
 
 function json(value: unknown, status = 200): Response {

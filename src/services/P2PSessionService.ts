@@ -201,7 +201,7 @@ export class P2PSessionService {
     private feedService: FeedService,
     private sceneTableService: SceneTableService,
     private diceService: DiceService | undefined,
-    assetService: AssetService,
+    private assetService: AssetService,
     private audioService?: AudioService,
     private sceneAudioBroadcastService?: SceneAudioBroadcastService,
     private transportFactory: (options: TrysteroP2PTransportOptions, context?: P2PTransportFactoryContext) => P2PTransportAdapter = (options) => createConfiguredP2PTransport(options),
@@ -383,6 +383,7 @@ export class P2PSessionService {
 
   private async openGmRoom(input: P2PSessionStartInput): Promise<void> {
     await this.stop({ forgetSession: false });
+    if (serverSessionEnabled()) await this.saveCloudAssets();
     const roomId = normalizeSessionRoomId(input.roomId);
     const participant = this.createParticipant('gm', input.participantName, {
       id: input.participantId
@@ -758,6 +759,7 @@ export class P2PSessionService {
       }
       return false;
     }
+    if (savesToServer) await this.saveCloudAssets();
     const snapshot = snapshotPersistedState();
     const ok = await this.syncService.publishSnapshot(snapshot, options.targetPeer);
     if (savesToServer) this.scheduleCloudBackup();
@@ -793,7 +795,33 @@ export class P2PSessionService {
     }
   }
 
+  private async saveCloudAssets(): Promise<boolean> {
+    if (!serverSessionEnabled() || !this.cloudBackupService) return false;
+    try {
+      await this.cloudBackupService.saveAssets(gameStore.get().id);
+      return true;
+    } catch (error) {
+      if (!this.cloudBackupErrorShown) {
+        toastService.show(error instanceof Error ? error.message : 'Не удалось загрузить файлы сцены.', 'error');
+        this.cloudBackupErrorShown = true;
+      }
+      return false;
+    }
+  }
+
   async requestAsset(assetId: string, reason: AssetRequestReason = 'scene-background'): Promise<boolean> {
+    if (serverSessionEnabled()) {
+      const session = this.sessionStore.get();
+      const asset = this.sceneTableService.sceneTable$.get().assets[assetId];
+      if (session.role !== 'player' || !session.connected || !session.roomId || !asset) return false;
+      const response = await fetch(`/api/rooms/${encodeURIComponent(session.roomId)}/assets/${encodeURIComponent(assetId)}`, {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      if (!response.ok) return false;
+      await this.assetService.putAssetBlob(asset, await response.blob());
+      return true;
+    }
     return await this.assetTransferService.request(assetId, reason);
   }
 

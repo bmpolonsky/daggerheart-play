@@ -27,10 +27,17 @@ export interface R2Object {
   };
 }
 
+export interface R2Objects {
+  objects: Array<{ key: string }>;
+  truncated: boolean;
+  cursor?: string;
+}
+
 export interface R2Bucket {
   get(key: string): Promise<R2Object | null>;
   put(key: string, value: ReadableStream<Uint8Array>, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
-  delete(key: string): Promise<void>;
+  list(options?: { prefix?: string; cursor?: string }): Promise<R2Objects>;
+  delete(keys: string | string[]): Promise<void>;
 }
 
 export interface WorkerEnv {

@@ -82,6 +82,39 @@ test('Sites stores dhgame backups privately for their authenticated master', asy
   assert.equal(objects.size, 0);
 });
 
+test('Sites serves world assets to players only while the master room is active', async () => {
+  const objects = new Map<string, { bytes: ArrayBuffer; contentType: string }>();
+  const env = {
+    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+    DB: activeRoomDatabase('master-1', 'world-1', 'ROOM1'),
+    FILES: memoryR2(objects)
+  } satisfies WorkerEnv;
+  const upload = await worker.fetch(new Request('https://example.test/api/worlds/world-1/assets/scene-image', {
+    method: 'PUT',
+    headers: {
+      'content-type': 'image/webp',
+      'oai-authenticated-user-email': 'master@example.test',
+      'oai-authenticated-user-id': 'master-1',
+      'x-daggerheart-asset-size': '3'
+    },
+    body: new Uint8Array([4, 5, 6])
+  }), env, {} as ExecutionContext);
+  assert.equal(upload.status, 204);
+
+  const download = await worker.fetch(new Request('https://example.test/api/rooms/ROOM1/assets/scene-image'), env, {} as ExecutionContext);
+  assert.equal(download.status, 200);
+  assert.equal(download.headers.get('content-type'), 'image/webp');
+  assert.deepEqual(Array.from(new Uint8Array(await download.arrayBuffer())), [4, 5, 6]);
+
+  env.DB = activeRoomDatabase('master-1', 'world-1', 'ROOM1', Date.now() - 1);
+  const afterMasterLeft = await worker.fetch(
+    new Request('https://example.test/api/rooms/ROOM1/assets/scene-image'),
+    env,
+    {} as ExecutionContext
+  );
+  assert.equal(afterMasterLeft.status, 409);
+});
+
 function ownedWorldDatabase(ownerId: string, worldId: string): D1Database {
   return {
     prepare: (query) => statement(query),
@@ -93,6 +126,36 @@ function ownedWorldDatabase(ownerId: string, worldId: string): D1Database {
       bind: (...nextValues) => statement(query, nextValues),
       first: async <T>() => query.includes('FROM worlds') && values[0] === ownerId && values[1] === worldId
         ? { id: worldId, name: 'Тестовый мир' } as T
+        : null,
+      all: async () => ({ success: true, results: [] }),
+      run: async () => ({ success: true })
+    };
+  }
+}
+
+function activeRoomDatabase(
+  ownerId: string,
+  worldId: string,
+  roomId: string,
+  activeUntil = Date.now() + 60_000
+): D1Database {
+  return {
+    prepare: (query) => statement(query),
+    batch: async () => []
+  };
+
+  function statement(query: string, values: unknown[] = []): D1PreparedStatement {
+    return {
+      bind: (...nextValues) => statement(query, nextValues),
+      first: async <T>() => query.includes('FROM rooms') && values[0] === roomId
+        ? {
+            id: roomId,
+            owner_id: ownerId,
+            world_id: worldId,
+            gm_peer_id: 'gm-peer',
+            gm_name: 'Мастер',
+            active_until: activeUntil
+          } as T
         : null,
       all: async () => ({ success: true, results: [] }),
       run: async () => ({ success: true })
@@ -114,8 +177,14 @@ function memoryR2(objects: Map<string, { bytes: ArrayBuffer; contentType: string
       const bytes = await new Response(value).arrayBuffer();
       objects.set(key, { bytes, contentType: options?.httpMetadata?.contentType ?? 'application/octet-stream' });
     },
-    delete: async (key) => {
-      objects.delete(key);
+    list: async ({ prefix = '' } = {}) => ({
+      objects: Array.from(objects.keys())
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => ({ key })),
+      truncated: false
+    }),
+    delete: async (keys) => {
+      for (const key of Array.isArray(keys) ? keys : [keys]) objects.delete(key);
     }
   };
 }
