@@ -135,6 +135,7 @@ interface PersistedPendingPlayerCharacterUpdate extends PendingPlayerCharacterUp
 }
 
 const AUTO_SNAPSHOT_DELAY_MS = 350;
+const CLOUD_BACKUP_INTERVAL_MS = 30_000;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
 const ROOM_CODE_REFRESH_COOLDOWN_MS = 30_000;
 const PENDING_PLAYER_CHARACTER_UPDATES_KEY = 'daggerheart-pending-player-character-updates';
@@ -383,7 +384,7 @@ export class P2PSessionService {
 
   private async openGmRoom(input: P2PSessionStartInput): Promise<void> {
     await this.stop({ forgetSession: false });
-    if (serverSessionEnabled()) await this.saveCloudAssets();
+    if (serverSessionEnabled()) void this.saveCloudAssets();
     const roomId = normalizeSessionRoomId(input.roomId);
     const participant = this.createParticipant('gm', input.participantName, {
       id: input.participantId
@@ -412,7 +413,8 @@ export class P2PSessionService {
     }));
     this.patchSession({ status: 'connecting', role: 'gm', roomId, message: 'Открываем комнату.' });
     await this.syncService.connectAuthority(roomId, participant);
-    await this.connectMediaRoom(roomId, participant);
+    if (serverSessionEnabled()) void this.connectMediaRoom(roomId, participant);
+    else await this.connectMediaRoom(roomId, participant);
     this.subscriptions.add(this.syncService.subscribePlayerRequests((request) => {
       this.playerActionRequestService.receiveRemote(request as PlayerActionRequest);
       this.patchSession({ lastRequestAt: nowIso(), message: 'Получена заявка игрока.' });
@@ -503,7 +505,7 @@ export class P2PSessionService {
         message: peers.length > 0 ? 'Игрок подключился.' : 'Комната мастера открыта.'
       };
     });
-    await this.saveCloudBackup();
+    void this.saveCloudBackup();
     this.persistActiveSession('gm', roomId, input.participantName, participant.id, participant.actorIds);
   }
 
@@ -559,7 +561,8 @@ export class P2PSessionService {
           this.suppressPlayerStoreForwarding = false;
         }
       });
-      await this.connectMediaRoom(roomId, participant);
+      if (serverSessionEnabled()) void this.connectMediaRoom(roomId, participant);
+      else await this.connectMediaRoom(roomId, participant);
       this.assetTransferService.subscribePlayer(transport).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
       this.subscriptions.add(this.syncService.subscribePlayerCharacterUpdateAcks((message, _event, context) => {
         this.receivePlayerCharacterUpdateAck(message, context);
@@ -759,7 +762,6 @@ export class P2PSessionService {
       }
       return false;
     }
-    if (savesToServer) await this.saveCloudAssets();
     const snapshot = snapshotPersistedState();
     const ok = await this.syncService.publishSnapshot(snapshot, options.targetPeer);
     if (savesToServer) this.scheduleCloudBackup();
@@ -773,11 +775,11 @@ export class P2PSessionService {
   }
 
   private scheduleCloudBackup(): void {
-    window.clearTimeout(this.cloudBackupTimer);
+    if (this.cloudBackupTimer) return;
     this.cloudBackupTimer = window.setTimeout(() => {
       this.cloudBackupTimer = undefined;
       void this.saveCloudBackup();
-    }, 2_000);
+    }, CLOUD_BACKUP_INTERVAL_MS);
   }
 
   private async saveCloudBackup(): Promise<boolean> {
@@ -814,13 +816,19 @@ export class P2PSessionService {
       const session = this.sessionStore.get();
       const asset = this.sceneTableService.sceneTable$.get().assets[assetId];
       if (session.role !== 'player' || !session.connected || !session.roomId || !asset) return false;
-      const response = await fetch(`/api/rooms/${encodeURIComponent(session.roomId)}/assets/${encodeURIComponent(assetId)}`, {
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-      if (!response.ok) return false;
-      await this.assetService.putAssetBlob(asset, await response.blob());
-      return true;
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const response = await fetch(`/api/rooms/${encodeURIComponent(session.roomId)}/assets/${encodeURIComponent(assetId)}`, {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
+        if (response.ok) {
+          await this.assetService.putAssetBlob(asset, await response.blob());
+          return true;
+        }
+        if (response.status !== 404) return false;
+        if (attempt < 9) await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+      return false;
     }
     return await this.assetTransferService.request(assetId, reason);
   }

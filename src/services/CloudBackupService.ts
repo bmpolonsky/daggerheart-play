@@ -3,6 +3,7 @@ import type { AssetService } from './AssetService';
 
 export class CloudBackupService {
   private saveQueue: Promise<void> = Promise.resolve();
+  private assetSavePromises = new Map<string, Promise<void>>();
   private uploadedAssets = new Map<string, Set<string>>();
 
   constructor(
@@ -34,7 +35,17 @@ export class CloudBackupService {
       : 'Не удалось обновить резервную копию игры.');
   }
 
-  async saveAssets(worldId: string): Promise<void> {
+  saveAssets(worldId: string): Promise<void> {
+    const pending = this.assetSavePromises.get(worldId);
+    if (pending) return pending;
+    const save = this.writeAssets(worldId).finally(() => {
+      if (this.assetSavePromises.get(worldId) === save) this.assetSavePromises.delete(worldId);
+    });
+    this.assetSavePromises.set(worldId, save);
+    return save;
+  }
+
+  private async writeAssets(worldId: string): Promise<void> {
     const files = await this.assetService?.exportAssetFiles() ?? [];
     const uploaded = this.uploadedAssets.get(worldId) ?? new Set<string>();
     this.uploadedAssets.set(worldId, uploaded);
@@ -74,6 +85,7 @@ export class CloudBackupService {
     });
     if (response.status === 404) return false;
     if (!response.ok) throw new Error('Не удалось удалить резервную копию игры.');
+    this.assetSavePromises.delete(worldId);
     this.uploadedAssets.delete(worldId);
     return true;
   }

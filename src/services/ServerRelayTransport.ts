@@ -7,7 +7,7 @@ import type {
 } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
-const POLL_INTERVAL_MS = 750;
+const POLL_INTERVAL_MS = 300;
 
 interface RoomConnectionResponse {
   cursor: number;
