@@ -114,13 +114,53 @@ test('P2P room connection tracks peers and heartbeats independently from product
   }
 });
 
-test('P2P room connection trusts adapter source peer over spoofable wire sender', async () => {
+test('P2P room uses participant ids and lets the creator publish the room roster', async () => {
+  const restoreWindow = installTimerWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gmRoom = new P2PRoomConnection(network.createTransport({}), { heartbeatMs: 20, gmTimeoutMs: 100 });
+  const playerRoom = new P2PRoomConnection(network.createTransport({}), { heartbeatMs: 20, gmTimeoutMs: 100 });
+  let playerRoster: Array<{ peerId: string; displayName: string; role: 'gm' | 'player' }> = [];
+  playerRoom.subscribeRoomEvents((event) => {
+    if (event.type === 'roster-updated') playerRoster = event.roster;
+  });
+
+  try {
+    await gmRoom.connect('creator-roster', {
+      id: 'gm-seat',
+      name: 'Леся',
+      role: 'gm',
+      actorIds: [],
+      connected: true,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    });
+    await playerRoom.connect('creator-roster', {
+      id: 'player-seat',
+      name: 'KJK',
+      role: 'player',
+      actorIds: [],
+      connected: true,
+      updatedAt: '2026-05-26T00:00:00.000Z'
+    });
+
+    await waitFor(() => {
+      assert.deepEqual(gmRoom.peers(), ['player-seat']);
+      assert.deepEqual(playerRoom.peers(), ['gm-seat']);
+      assert.deepEqual(playerRoster, [{ peerId: 'gm-seat', displayName: 'Леся', role: 'gm' }]);
+    }, 1000);
+  } finally {
+    await playerRoom.disconnect().catch(() => undefined);
+    await gmRoom.disconnect().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
+test('P2P room connection keeps logical and transport-verified peer identities separate', async () => {
   const restoreWindow = installTimerWindow();
   const adapter = new ContextProbeTransport();
   const room = new P2PRoomConnection(adapter);
-  const receivedSources: Array<string | undefined> = [];
+  const receivedSources: Array<{ logical?: string; verified?: string }> = [];
   room.subscribe((_event, context) => {
-    receivedSources.push(context?.sourcePeerId);
+    receivedSources.push({ logical: context?.sourcePeerId, verified: context?.verifiedSourcePeerId });
   });
 
   try {
@@ -154,7 +194,7 @@ test('P2P room connection trusts adapter source peer over spoofable wire sender'
       }
     }, 'transport-peer');
 
-    assert.deepEqual(receivedSources, ['transport-peer']);
+    assert.deepEqual(receivedSources, [{ logical: 'spoofed-peer', verified: 'transport-peer' }]);
   } finally {
     await room.disconnect().catch(() => undefined);
     restoreWindow();

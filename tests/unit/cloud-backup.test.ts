@@ -8,10 +8,12 @@ test('cloud backup uploads and restores the existing dhgame archive', async () =
   const archive = new Blob([new Uint8Array([80, 75, 3, 4])], { type: 'application/zip' });
   let stored: Blob | null = null;
   let imported: Blob | null = null;
+  let importedAsNewGame = false;
   const importExportService = {
     exportGameBundle: async () => archive,
-    importFile: async (file: Blob) => {
+    importFile: async (file: Blob, options?: { asNewGame?: boolean }) => {
       imported = file;
+      importedAsNewGame = options?.asNewGame === true;
       return { ok: true as const };
     }
   } as ImportExportService;
@@ -32,6 +34,7 @@ test('cloud backup uploads and restores the existing dhgame archive', async () =
   assert.equal(await (stored as Blob | null)?.arrayBuffer().then((bytes) => bytes.byteLength), 4);
   assert.equal(await backups.restore('world-1'), true);
   assert.equal(await (imported as Blob | null)?.arrayBuffer().then((bytes) => bytes.byteLength), 4);
+  assert.equal(importedAsNewGame, true);
   assert.equal(await backups.remove('world-1'), true);
   assert.equal(stored, null);
 });

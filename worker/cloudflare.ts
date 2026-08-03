@@ -35,7 +35,7 @@ export interface R2Objects {
 
 export interface R2Bucket {
   get(key: string): Promise<R2Object | null>;
-  put(key: string, value: ReadableStream<Uint8Array>, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+  put(key: string, value: ReadableStream<Uint8Array>, options?: { httpMetadata?: { contentType?: string } }): Promise<{ size?: number } | void>;
   list(options?: { prefix?: string; cursor?: string }): Promise<R2Objects>;
   delete(keys: string | string[]): Promise<void>;
 }
@@ -44,6 +44,8 @@ export interface WorkerEnv {
   ASSETS: Fetcher;
   DB: D1Database;
   FILES: R2Bucket;
+  TURN_KEY_ID?: string;
+  TURN_KEY_API_TOKEN?: string;
 }
 
 export interface ExecutionContext {

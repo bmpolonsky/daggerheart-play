@@ -8,8 +8,7 @@ import type {
 } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
-const LONG_POLL_MS = 15_000;
-const POLL_RETRY_INTERVAL_MS = 1_000;
+const PRESENCE_POLL_INTERVAL_MS = 3_000;
 
 interface RoomConnectionResponse {
   cursor: number;
@@ -55,6 +54,9 @@ export class ServerRelayTransport implements P2PTransportAdapter {
   async connect(roomId: string): Promise<void> {
     await this.disconnect();
     this.roomId = roomId;
+    if (this.context.role === 'player') {
+      this.participantToken = readServerParticipantToken(roomId, this.peerId);
+    }
     const response = this.context.role === 'gm'
       ? await this.request<RoomConnectionResponse>(`/api/rooms/${encodeURIComponent(roomId)}`, {
           method: 'PUT',
@@ -71,6 +73,9 @@ export class ServerRelayTransport implements P2PTransportAdapter {
         });
     this.cursor = response.cursor;
     this.participantToken = response.participantToken ?? '';
+    if (this.context.role === 'player' && this.participantToken) {
+      writeParticipantToken(roomId, this.peerId, this.participantToken);
+    }
     this.connected = true;
     this.updatePeers(response.peers);
     this.updateRoster(response.roster);
@@ -99,6 +104,9 @@ export class ServerRelayTransport implements P2PTransportAdapter {
       method: 'POST',
       body: JSON.stringify({ envelope, targetPeer })
     });
+    if (this.context.role === 'player' && controlType(envelope) === 'goodbye') {
+      removeParticipantToken(this.roomId, this.peerId);
+    }
   }
 
   subscribe(listener: (envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void): () => void {
@@ -139,10 +147,9 @@ export class ServerRelayTransport implements P2PTransportAdapter {
   private async poll(): Promise<void> {
     if (!this.connected || !this.roomId) return;
     this.abortController = new AbortController();
-    let retryDelay = 0;
     try {
       const response = await this.request<EventsResponse>(
-        `/api/rooms/${encodeURIComponent(this.roomId)}/events?after=${this.cursor}&wait=${LONG_POLL_MS}`,
+        `/api/rooms/${encodeURIComponent(this.roomId)}/events?after=${this.cursor}`,
         { signal: this.abortController.signal }
       );
       this.cursor = Math.max(this.cursor, response.cursor);
@@ -155,11 +162,10 @@ export class ServerRelayTransport implements P2PTransportAdapter {
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
         this.emitError(error instanceof Error ? error.message : 'Серверная синхронизация временно недоступна.');
-        retryDelay = POLL_RETRY_INTERVAL_MS;
       }
     } finally {
       this.abortController = null;
-      this.schedulePoll(retryDelay);
+      this.schedulePoll(PRESENCE_POLL_INTERVAL_MS);
     }
   }
 
@@ -216,4 +222,39 @@ export class ServerRelayTransport implements P2PTransportAdapter {
   private emitError(message: string): void {
     this.errorListeners.forEach((listener) => listener(message));
   }
+}
+
+function participantTokenKey(roomId: string, peerId: string): string {
+  return `daggerheart:server-participant:${roomId}:${peerId}`;
+}
+
+export function readServerParticipantToken(roomId: string, peerId: string): string {
+  try {
+    return globalThis.sessionStorage?.getItem(participantTokenKey(roomId, peerId)) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function writeParticipantToken(roomId: string, peerId: string, token: string): void {
+  try {
+    globalThis.sessionStorage?.setItem(participantTokenKey(roomId, peerId), token);
+  } catch {
+    // Session storage is optional; the room still works until the page reloads.
+  }
+}
+
+function removeParticipantToken(roomId: string, peerId: string): void {
+  try {
+    globalThis.sessionStorage?.removeItem(participantTokenKey(roomId, peerId));
+  } catch {
+    // Nothing to clean up when storage is unavailable.
+  }
+}
+
+function controlType(envelope: P2PWireEnvelope): string | null {
+  if (envelope.channel !== 'control' || !envelope.payload || typeof envelope.payload !== 'object') return null;
+  return typeof (envelope.payload as { type?: unknown }).type === 'string'
+    ? (envelope.payload as { type: string }).type
+    : null;
 }

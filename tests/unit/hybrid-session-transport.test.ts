@@ -53,11 +53,9 @@ describe('HybridSessionTransport', () => {
     }
   });
 
-  it('uses the server to exchange WebRTC signaling only', async () => {
+  it('uses the server roster without creating a second WebRTC connection', async () => {
     const originalFetch = globalThis.fetch;
-    const originalRtc = globalThis.RTCPeerConnection;
     const posts: Array<{ envelope?: P2PWireEnvelope; targetPeer?: string }> = [];
-    globalThis.RTCPeerConnection = FakePeerConnection as unknown as typeof RTCPeerConnection;
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       if (init?.method === 'PUT') return response({ cursor: 0, peers: ['player-peer'], roster: [{ peerId: 'player-peer', displayName: 'Игрок', role: 'player' }] });
@@ -72,12 +70,12 @@ describe('HybridSessionTransport', () => {
       await transport.connect('ABC123');
       await new Promise((resolve) => setTimeout(resolve, 10));
       const signal = posts.find((post) => (post.envelope?.payload as { type?: unknown } | undefined)?.type === 'webrtc-signal');
-      assert.equal(signal?.targetPeer, 'player-peer');
-      assert.equal(signal?.envelope?.channel, 'control');
+      assert.equal(signal, undefined);
+      assert.deepEqual(transport.getRoster(), [{ peerId: 'player-peer', displayName: 'Игрок', role: 'player' }]);
+      assert.deepEqual(transport.getDirectPeerIds(), []);
     } finally {
       await transport.disconnect();
       globalThis.fetch = originalFetch;
-      globalThis.RTCPeerConnection = originalRtc;
     }
   });
 });
@@ -98,21 +96,6 @@ class FakeTransport implements P2PTransportAdapter {
   onError() { return () => undefined; }
   deliver(message: P2PWireEnvelope) { this.messages.forEach((listener) => listener(message)); }
   join(peerId: string) { this.joins.forEach((listener) => listener(peerId)); }
-}
-
-class FakePeerConnection {
-  connectionState: RTCPeerConnectionState = 'new';
-  remoteDescription: RTCSessionDescription | null = null;
-  onicecandidate: ((event: RTCPeerConnectionIceEvent) => void) | null = null;
-  ondatachannel: ((event: RTCDataChannelEvent) => void) | null = null;
-  onconnectionstatechange: (() => void) | null = null;
-  createDataChannel() { return { readyState: 'connecting', close() {}, send() {} } as unknown as RTCDataChannel; }
-  async createOffer() { return { type: 'offer' as const, sdp: 'offer' }; }
-  async createAnswer() { return { type: 'answer' as const, sdp: 'answer' }; }
-  async setLocalDescription() {}
-  async setRemoteDescription(description: RTCSessionDescriptionInit) { this.remoteDescription = description as RTCSessionDescription; }
-  async addIceCandidate() {}
-  close() { this.connectionState = 'closed'; }
 }
 
 function context() {

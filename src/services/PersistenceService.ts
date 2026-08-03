@@ -131,7 +131,7 @@ export class PersistenceService {
     return true;
   }
 
-  async importGameDocument(document: GameDocument): Promise<void> {
+  async importGameDocument(document: GameDocument, options: { asNewGame?: boolean } = {}): Promise<void> {
     await this.flushPersistNow();
     if (!this.documentStore || typeof window === 'undefined' || isRemotePlayerJoin()) {
       applyBrowserCustomContent(gameDocumentCustomContent(document));
@@ -141,7 +141,8 @@ export class PersistenceService {
 
     this.isApplyingStoredDocument = true;
     try {
-      await this.documentStore.save(document);
+      if (options.asNewGame) await this.documentStore.create(document);
+      else await this.documentStore.save(document);
       const storedDocument = storedDocumentToGameDocument(await this.documentStore.load());
       const appliedDocument = storedDocument ?? document;
       applyBrowserCustomContent(gameDocumentCustomContent(appliedDocument));

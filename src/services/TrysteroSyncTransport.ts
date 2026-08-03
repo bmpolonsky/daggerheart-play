@@ -1,4 +1,4 @@
-import type { ActionSender, DataPayload, JsonValue, Room } from 'trystero';
+import type { DataPayload, JsonValue, MessageAction, Room } from 'trystero';
 import { stripPrefixedShortRoomCode } from '../domain/p2p/sessionLinks';
 import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PMediaConnectionDiagnostic, P2PMediaRtpDiagnostic, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportMode, P2PTransportStrategy, P2PWireEnvelope } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
@@ -9,6 +9,9 @@ export interface TrysteroP2PTransportOptions {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   candidates?: P2PTransportStrategy[];
+  rtcConfig?: RTCConfiguration;
+  turnConfig?: RTCIceServer[];
+  turnConfigProvider?: (roomId: string) => Promise<RTCIceServer[]>;
 }
 
 interface TrysteroJoinConfig {
@@ -16,6 +19,8 @@ interface TrysteroJoinConfig {
   relayConfig?: {
     supabaseKey: string;
   };
+  rtcConfig?: RTCConfiguration;
+  turnConfig?: RTCIceServer[];
 }
 
 type TrysteroJoinCallbacks = Parameters<typeof import('trystero').joinRoom>[2];
@@ -27,8 +32,8 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
   peerId = '';
 
   private room: Room | null = null;
-  private sendEnvelope: ActionSender<DataPayload> | null = null;
-  private sendBinaryPayload: ActionSender<DataPayload> | null = null;
+  private envelopeAction: MessageAction<DataPayload> | null = null;
+  private binaryAction: MessageAction<DataPayload> | null = null;
   private envelopeListeners = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
   private binaryListeners = new Set<(data: ArrayBuffer, peerId: string, metadata?: JsonValue) => void>();
   private binaryProgressListeners = new Set<P2PBinaryProgressHandler>();
@@ -47,7 +52,9 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     this.connectedStrategy = strategy;
     const resolvedRoom = resolveTrysteroRoom(roomId, strategy);
     const { joinRoom, selfId } = await importTrysteroStrategy(resolvedRoom.strategy);
-    const config = trysteroConfigForStrategy(resolvedRoom.strategy, this.options);
+    const providedTurnConfig = await this.options.turnConfigProvider?.(roomId).catch(() => []);
+    const turnConfig = providedTurnConfig?.length ? providedTurnConfig : this.options.turnConfig;
+    const config = trysteroConfigForStrategy(resolvedRoom.strategy, { ...this.options, turnConfig });
     this.peerId = selfId;
     this.room = joinRoom(
       config,
@@ -57,18 +64,18 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
       }
     );
 
-    const [sendEnvelope, receiveEnvelope] = this.room.makeAction<DataPayload>('daggerheart-p2p-v2');
-    this.sendEnvelope = sendEnvelope;
-    receiveEnvelope((data, peerId) => {
+    const envelopeAction = this.room.makeAction<DataPayload>('daggerheart-p2p-v2');
+    this.envelopeAction = envelopeAction;
+    envelopeAction.onMessage = (data, { peerId }) => {
       const envelope = data as unknown;
       if (!isP2PWireEnvelope(envelope)) {
         return;
       }
       this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: peerId, verifiedSourcePeerId: peerId }));
-    });
-    const [sendBinaryPayload, receiveBinaryPayload, onBinaryProgress] = this.room.makeAction<DataPayload>('daggerheart-binary-v1');
-    this.sendBinaryPayload = sendBinaryPayload;
-    receiveBinaryPayload((data, peerId, metadata) => {
+    };
+    const binaryAction = this.room.makeAction<DataPayload>('daggerheart-binary-v1');
+    this.binaryAction = binaryAction;
+    binaryAction.onMessage = (data, { peerId, metadata }) => {
       if (data instanceof ArrayBuffer) {
         this.binaryListeners.forEach((listener) => listener(data, peerId, metadata));
         return;
@@ -84,32 +91,32 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
           this.binaryListeners.forEach((listener) => listener(buffer, peerId, metadata));
         });
       }
-    });
-    onBinaryProgress((percent, peerId, metadata) => {
+    };
+    binaryAction.onReceiveProgress = (percent, { peerId, metadata }) => {
       this.binaryProgressListeners.forEach((listener) => listener(percent, peerId, metadata));
-    });
-    this.room.onPeerJoin((peerId) => {
+    };
+    this.room.onPeerJoin = (peerId) => {
       this.peerJoinListeners.forEach((listener) => listener(peerId));
       this.publishedMediaStreams.forEach((metadata, stream) => {
-        void Promise.all(this.room?.addStream(stream, peerId, metadata) ?? []);
+        void Promise.all(this.room?.addStream(stream, { target: peerId, metadata }) ?? []);
       });
-    });
-    this.room.onPeerLeave((peerId) => {
+    };
+    this.room.onPeerLeave = (peerId) => {
       this.peerLeaveListeners.forEach((listener) => listener(peerId));
-    });
-    this.room.onPeerStream((stream, peerId, metadata) => {
+    };
+    this.room.onPeerStream = (stream, peerId, metadata) => {
       this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
-    });
-    this.room.onPeerTrack((_track, stream, peerId, metadata) => {
+    };
+    this.room.onPeerTrack = (_track, stream, peerId, metadata) => {
       this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
-    });
+    };
   }
 
   async disconnect(): Promise<void> {
     await this.room?.leave();
     this.room = null;
-    this.sendEnvelope = null;
-    this.sendBinaryPayload = null;
+    this.envelopeAction = null;
+    this.binaryAction = null;
     this.envelopeListeners.clear();
     this.binaryListeners.clear();
     this.binaryProgressListeners.clear();
@@ -121,17 +128,23 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
   }
 
   async send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void> {
-    if (!this.sendEnvelope) {
+    if (!this.envelopeAction) {
       throw new Error('Trystero transport is not connected.');
     }
-    await this.sendEnvelope(envelope as unknown as DataPayload, targetPeer);
+    await this.envelopeAction.send(envelope as unknown as DataPayload, { target: targetPeer });
   }
 
   async sendBinary(data: P2PBinaryPayload, targetPeer?: P2PTargetPeer, metadata?: unknown, progress?: P2PBinaryProgressHandler): Promise<void> {
-    if (!this.sendBinaryPayload) {
+    if (!this.binaryAction) {
       throw new Error('Trystero transport is not connected.');
     }
-    await this.sendBinaryPayload(data, targetPeer, metadata as JsonValue | undefined, progress);
+    await this.binaryAction.send(data, {
+      target: targetPeer,
+      metadata: metadata as JsonValue | undefined,
+      onProgress: progress
+        ? (percent, context) => progress(percent, context.peerId, context.metadata)
+        : undefined
+    });
   }
 
   subscribe(listener: (envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void): () => void {
@@ -170,7 +183,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     }
     const mediaMetadata = metadata as JsonValue | undefined;
     this.publishedMediaStreams.set(stream, mediaMetadata);
-    await Promise.all(this.room.addStream(stream, undefined, mediaMetadata));
+    await Promise.all(this.room.addStream(stream, { metadata: mediaMetadata }));
   }
 
   removeMediaStream(stream: MediaStream): void {
@@ -183,7 +196,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
       throw new Error('Trystero transport is not connected.');
     }
     this.publishedMediaStreams.set(stream, metadata as JsonValue | undefined);
-    await Promise.all(this.room.addTrack(track, stream, undefined, metadata as JsonValue | undefined));
+    await Promise.all(this.room.addTrack(track, stream, { metadata: metadata as JsonValue | undefined }));
   }
 
   subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {
@@ -234,6 +247,10 @@ export function resolveTrysteroRoom(roomId: string, fallbackStrategy: P2PTranspo
 }
 
 export function trysteroConfigForStrategy(strategy: P2PTransportStrategy, options: TrysteroP2PTransportOptions = {}): TrysteroJoinConfig {
+  const iceConfig = {
+    ...(options.rtcConfig ? { rtcConfig: options.rtcConfig } : {}),
+    ...(options.turnConfig?.length ? { turnConfig: options.turnConfig } : {})
+  };
   if (strategy === 'supabase') {
     if (!options.supabaseUrl || !options.supabaseAnonKey) {
       throw new Error('Supabase signaling is not configured. Set VITE_TRYSTERO_SUPABASE_URL and VITE_TRYSTERO_SUPABASE_ANON_KEY.');
@@ -242,11 +259,13 @@ export function trysteroConfigForStrategy(strategy: P2PTransportStrategy, option
       appId: options.supabaseUrl,
       relayConfig: {
         supabaseKey: options.supabaseAnonKey
-      }
+      },
+      ...iceConfig
     };
   }
   return {
-    appId: options.appId ?? 'daggerheart-play'
+    appId: options.appId ?? 'daggerheart-play',
+    ...iceConfig
   };
 }
 

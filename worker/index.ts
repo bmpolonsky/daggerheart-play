@@ -3,8 +3,8 @@ import { isMasterLeaseActive, isPlayerEnvelopeAllowed, normalizeServerRoomId } f
 import { isP2PWireEnvelope, type P2PWireEnvelope } from '../src/services/p2p/P2PTransportAdapter';
 import type { D1Database, ExecutionContext, R2Bucket, WorkerEnv } from './cloudflare';
 
-const MASTER_LEASE_MS = 20_000;
-const PARTICIPANT_LEASE_MS = 30_000;
+const MASTER_LEASE_MS = 60_000;
+const PARTICIPANT_LEASE_MS = 90_000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const MAX_BACKUP_BYTES = 250 * 1024 * 1024;
 const MAX_ASSET_BYTES = 50 * 1024 * 1024;
@@ -12,7 +12,11 @@ const MAX_LONG_POLL_MS = 15_000;
 const LONG_POLL_INTERVAL_MS = 500;
 const EVENT_RETENTION_MS = 10 * 60_000;
 const MAX_EVENTS_PER_ROOM = 500;
+const TURN_CREDENTIAL_TTL_SECONDS = 12 * 60 * 60;
 const PAGES_ASSET_ORIGIN = 'https://bmpolonsky.github.io/daggerheart-play';
+const PAGES_ORIGIN = 'https://bmpolonsky.github.io';
+const PAGES_TURN_GRANTS_PER_HOUR = 60;
+const PAGES_TURN_GRANTS_PER_DAY = 1_000;
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 let schemaReady: Promise<void> | null = null;
 
@@ -34,6 +38,7 @@ interface RoomRow {
 interface ParticipantRow {
   id: string;
   token_hash: string;
+  last_seen_at: number;
 }
 
 interface ActiveParticipantRow {
@@ -76,6 +81,9 @@ export default worker;
 
 async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Response> {
   const db = env.DB;
+  if (url.pathname === '/api/turn-credentials') {
+    return pagesTurnCredentials(request, env, url);
+  }
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     const master = masterIdentity(request);
     return json(master ? { authenticated: true, user: master } : { authenticated: false });
@@ -139,7 +147,7 @@ async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Re
     );
   }
 
-  const roomMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)(?:\/(join|events))?$/);
+  const roomMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)(?:\/(join|events|turn-credentials))?$/);
   if (!roomMatch) return json({ error: 'not_found' }, 404);
   const roomId = normalizeServerRoomId(decodeURIComponent(roomMatch[1]));
   if (!roomId) return json({ error: 'invalid_room' }, 400);
@@ -149,7 +157,96 @@ async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Re
   if (action === 'join' && request.method === 'POST') return joinRoom(request, db, roomId);
   if (action === 'events' && request.method === 'GET') return readEvents(request, db, roomId, url);
   if (action === 'events' && request.method === 'POST') return publishEvent(request, db, roomId);
+  if (action === 'turn-credentials' && request.method === 'GET') return turnCredentials(request, env, roomId);
   return json({ error: 'method_not_allowed' }, 405);
+}
+
+async function turnCredentials(request: Request, env: WorkerEnv, roomId: string): Promise<Response> {
+  const identity = await roomIdentity(request, env.DB, roomId);
+  if (identity instanceof Response) return identity;
+  return generateTurnCredentials(env, `${roomId}:${identity.role}`);
+}
+
+async function pagesTurnCredentials(request: Request, env: WorkerEnv, url: URL): Promise<Response> {
+  const origin = request.headers.get('origin')?.trim() ?? '';
+  if (origin !== PAGES_ORIGIN) return pagesTurnResponse({ error: 'origin_not_allowed' }, 403, origin);
+  if (request.method === 'OPTIONS') return pagesTurnResponse(null, 204, origin);
+  if (request.method !== 'GET') return pagesTurnResponse({ error: 'method_not_allowed' }, 405, origin);
+
+  const clientAddress = request.headers.get('cf-connecting-ip')?.trim();
+  if (!clientAddress) return pagesTurnResponse({ error: 'client_unidentified' }, 400, origin);
+  const clientHash = await hashToken(clientAddress);
+  if (!(await allowPagesTurnGrant(env.DB, clientHash))) {
+    return pagesTurnResponse({ error: 'turn_rate_limited' }, 429, origin);
+  }
+  const roomId = normalizeServerRoomId(url.searchParams.get('room') ?? '') ?? 'UNKNOWN';
+  return withPagesTurnCors(await generateTurnCredentials(env, `pages:${roomId}:${clientHash.slice(0, 12)}`), origin);
+}
+
+async function generateTurnCredentials(env: WorkerEnv, customIdentifier: string): Promise<Response> {
+  const keyId = env.TURN_KEY_ID?.trim();
+  const apiToken = env.TURN_KEY_API_TOKEN?.trim();
+  if (!keyId || !apiToken) return json({ error: 'turn_not_configured' }, 503);
+
+  const response = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(keyId)}/credentials/generate-ice-servers`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${apiToken}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      ttl: TURN_CREDENTIAL_TTL_SECONDS,
+      customIdentifier
+    })
+  });
+  if (!response.ok) return json({ error: 'turn_unavailable' }, 502);
+  const body = await response.json() as { iceServers?: unknown };
+  const iceServers = browserIceServers(body.iceServers);
+  return iceServers.length > 0 ? json({ iceServers }) : json({ error: 'turn_invalid_response' }, 502);
+}
+
+async function allowPagesTurnGrant(db: D1Database, clientHash: string, now = Date.now()): Promise<boolean> {
+  const hour = Math.floor(now / 3_600_000) * 3_600_000;
+  const day = Math.floor(now / 86_400_000) * 86_400_000;
+  const buckets = [
+    { id: `ip:${clientHash}`, windowStartedAt: hour, limit: PAGES_TURN_GRANTS_PER_HOUR },
+    { id: 'global', windowStartedAt: day, limit: PAGES_TURN_GRANTS_PER_DAY }
+  ];
+  const rows = await db.batch<{ bucket: string; window_started_at: number; count: number }>(
+    buckets.map(({ id }) => db.prepare(
+      'SELECT bucket, window_started_at, count FROM turn_credential_grants WHERE bucket = ?'
+    ).bind(id))
+  );
+  if (buckets.some((bucket, index) => {
+    const row = rows[index]?.results?.[0];
+    return row?.window_started_at === bucket.windowStartedAt && row.count >= bucket.limit;
+  })) return false;
+
+  // ponytail: a D1 batch is sufficient at this scale; use a dedicated atomic limiter if concurrent abuse appears.
+  await db.batch([...buckets.map((bucket, index) => {
+    const row = rows[index]?.results?.[0];
+    const count = row?.window_started_at === bucket.windowStartedAt ? row.count + 1 : 1;
+    return db.prepare(
+      'INSERT INTO turn_credential_grants (bucket, window_started_at, count) VALUES (?, ?, ?) '
+      + 'ON CONFLICT(bucket) DO UPDATE SET window_started_at = excluded.window_started_at, count = excluded.count'
+    ).bind(bucket.id, bucket.windowStartedAt, count);
+  }), db.prepare(
+    "DELETE FROM turn_credential_grants WHERE bucket <> 'global' AND window_started_at < ?"
+  ).bind(day - 86_400_000)]);
+  return true;
+}
+
+function pagesTurnResponse(value: unknown, status: number, origin: string): Response {
+  return withPagesTurnCors(value === null ? new Response(null, { status }) : json(value, status), origin);
+}
+
+function withPagesTurnCors(response: Response, origin: string): Response {
+  const headers = new Headers(response.headers);
+  if (origin === PAGES_ORIGIN) headers.set('access-control-allow-origin', origin);
+  headers.set('access-control-allow-methods', 'GET, OPTIONS');
+  headers.set('cache-control', 'private, no-store');
+  headers.set('vary', 'Origin');
+  return new Response(response.body, { status: response.status, headers });
 }
 
 async function putWorldAsset(request: Request, files: R2Bucket, worldId: string, assetId: string): Promise<Response> {
@@ -159,9 +256,14 @@ async function putWorldAsset(request: Request, files: R2Bucket, worldId: string,
   if (!worldId || !assetId || !request.body) return json({ error: 'asset_required' }, 400);
   const declaredSize = Number(request.headers.get('x-daggerheart-asset-size') ?? request.headers.get('content-length') ?? 0);
   if (declaredSize > MAX_ASSET_BYTES) return json({ error: 'asset_too_large' }, 413);
-  await files.put(cloudAssetKey(master.id, worldId, assetId), request.body, {
+  const key = cloudAssetKey(master.id, worldId, assetId);
+  const stored = await files.put(key, request.body, {
     httpMetadata: { contentType: request.headers.get('content-type') || 'application/octet-stream' }
   });
+  if (typeof stored?.size === 'number' && stored.size > MAX_ASSET_BYTES) {
+    await files.delete(key);
+    return json({ error: 'asset_too_large' }, 413);
+  }
   return new Response(null, { status: 204 });
 }
 
@@ -216,9 +318,13 @@ async function worldBackup(
     const declaredSize = Number(request.headers.get('x-daggerheart-backup-size') ?? request.headers.get('content-length') ?? 0);
     if (declaredSize > MAX_BACKUP_BYTES) return json({ error: 'backup_too_large' }, 413);
     if (!request.body) return json({ error: 'backup_required' }, 400);
-    await files.put(key, request.body, {
+    const stored = await files.put(key, request.body, {
       httpMetadata: { contentType: 'application/zip' }
     });
+    if (typeof stored?.size === 'number' && stored.size > MAX_BACKUP_BYTES) {
+      await files.delete(key);
+      return json({ error: 'backup_too_large' }, 413);
+    }
     return new Response(null, { status: 204 });
   }
   return json({ error: 'method_not_allowed' }, 405);
@@ -272,6 +378,15 @@ async function openMasterRoom(request: Request, db: D1Database, roomId: string):
       db.prepare('DELETE FROM participants WHERE room_id = ?').bind(roomId),
       db.prepare('DELETE FROM rooms WHERE id = ?').bind(roomId)
     ]);
+  } else if (existing && (
+    !isMasterLeaseActive(existing.active_until, now)
+    || existing.world_id !== worldId
+    || existing.gm_peer_id !== peerId
+  )) {
+    await db.batch([
+      db.prepare('DELETE FROM room_events WHERE room_id = ?').bind(roomId),
+      db.prepare('DELETE FROM participants WHERE room_id = ?').bind(roomId)
+    ]);
   }
 
   const snapshotJson = JSON.stringify(snapshot);
@@ -318,9 +433,16 @@ async function joinRoom(request: Request, db: D1Database, roomId: string): Promi
   const displayName = stringField(body, 'displayName') || 'Игрок';
   if (!peerId) return json({ error: 'invalid_participant' }, 400);
 
-  const token = randomToken();
-  const tokenHash = await hashToken(token);
   const now = Date.now();
+  const existing = await db.prepare('SELECT id, token_hash, last_seen_at FROM participants WHERE room_id = ? AND id = ?')
+    .bind(roomId, peerId).first<ParticipantRow>();
+  const presentedToken = bearerToken(request);
+  const resumesExisting = Boolean(existing && presentedToken && await tokenMatches(presentedToken, existing.token_hash));
+  if (existing && existing.last_seen_at > now - PARTICIPANT_LEASE_MS && !resumesExisting) {
+    return json({ error: 'participant_in_use', message: 'Это подключение уже открыто в другой вкладке.' }, 409);
+  }
+  const token = resumesExisting && presentedToken ? presentedToken : randomToken();
+  const tokenHash = await hashToken(token);
   const [, cursorResult, playersResult, snapshotResult] = await db.batch([
     db.prepare(`INSERT INTO participants (id, room_id, token_hash, display_name, last_seen_at)
       VALUES (?, ?, ?, ?, ?)
@@ -469,7 +591,7 @@ async function roomIdentity(request: Request, db: D1Database, roomId: string): P
   const peerId = request.headers.get('x-daggerheart-peer-id')?.trim();
   const statements = [db.prepare('SELECT id, owner_id, world_id, gm_peer_id, gm_name, active_until FROM rooms WHERE id = ?').bind(roomId)];
   if (bearer && peerId) {
-    statements.push(db.prepare('SELECT id, token_hash FROM participants WHERE room_id = ? AND id = ?').bind(roomId, peerId));
+    statements.push(db.prepare('SELECT id, token_hash, last_seen_at FROM participants WHERE room_id = ? AND id = ?').bind(roomId, peerId));
   }
   const [roomResult, participantResult] = await db.batch(statements);
   const currentRoom = roomResult?.results?.[0] as RoomRow | undefined;
@@ -479,7 +601,7 @@ async function roomIdentity(request: Request, db: D1Database, roomId: string): P
   }
   if (!bearer || !peerId) return json({ error: 'participant_unauthorized' }, 401);
   const participant = participantResult?.results?.[0] as ParticipantRow | undefined;
-  if (!participant || !(await tokenMatches(bearer, participant.token_hash))) {
+  if (!participant || participant.last_seen_at <= Date.now() - PARTICIPANT_LEASE_MS || !(await tokenMatches(bearer, participant.token_hash))) {
     return json({ error: 'participant_unauthorized' }, 401);
   }
   return { role: 'player', peerId, ownerId: currentRoom.owner_id, room: currentRoom };
@@ -591,6 +713,22 @@ function controlType(envelope: P2PWireEnvelope): string | null {
 function bearerToken(request: Request): string | null {
   const match = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() || null;
+}
+
+function browserIceServers(value: unknown): Array<{ urls: string[]; username?: string; credential?: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const source = entry as { urls?: unknown; username?: unknown; credential?: unknown };
+    const urls = (Array.isArray(source.urls) ? source.urls : [source.urls])
+      .filter((url): url is string => typeof url === 'string' && !/:53(?:\?|$)/.test(url));
+    if (urls.length === 0) return [];
+    return [{
+      urls,
+      ...(typeof source.username === 'string' ? { username: source.username } : {}),
+      ...(typeof source.credential === 'string' ? { credential: source.credential } : {})
+    }];
+  });
 }
 
 function randomToken(): string {

@@ -161,10 +161,21 @@
   cursor: default;
   box-shadow: 0 0 0 4px var(--token-aura), 0 16px 44px rgba(0, 0, 0, 0.56), inset 0 0 14px rgba(255, 255, 255, 0.06);
   transform: translate(-50%, -50%);
+  transition: left 180ms ease-out, top 180ms ease-out;
+}
+
+.player-token:active {
+  transition: none;
 }
 
 .player-token.dh-is-player-origin {
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-token {
+    transition: none;
+  }
 }
 
 .player-token.dh-is-selected {

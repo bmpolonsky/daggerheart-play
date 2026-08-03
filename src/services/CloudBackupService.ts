@@ -73,7 +73,7 @@ export class CloudBackupService {
     });
     if (response.status === 404) return false;
     if (!response.ok) throw new Error('Не удалось загрузить резервную копию игры.');
-    const result = await this.importExportService.importFile(await response.blob());
+    const result = await this.importExportService.importFile(await response.blob(), { asNewGame: true });
     if (!result.ok) throw new Error(result.message);
     return true;
   }

@@ -41,5 +41,10 @@ export const schemaStatements = [
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
   )`,
   `CREATE INDEX IF NOT EXISTS idx_room_events_room_sequence
-    ON room_events(room_id, sequence)`
+    ON room_events(room_id, sequence)`,
+  `CREATE TABLE IF NOT EXISTS turn_credential_grants (
+    bucket TEXT PRIMARY KEY,
+    window_started_at INTEGER NOT NULL,
+    count INTEGER NOT NULL
+  )`
 ] as const;

@@ -34,6 +34,10 @@ export class P2PRoomConnection implements SyncTransport {
   private peerIds = new Set<string>();
   private peerSignals = new Map<string, number>();
   private peerRoles = new Map<string, P2PWireRole>();
+  private localParticipant: P2PTransportRosterEntry | null = null;
+  private authoritativeRoster = new Map<string, P2PTransportRosterEntry>();
+  private peerAliases = new Map<string, string>();
+  private logicalPeerByVerifiedSource = new Map<string, string>();
   private dataListeners = new Set<(event: SyncEvent, context?: SyncEventContext) => void>();
   private binaryListeners = new Set<(data: ArrayBuffer, peerId: string, metadata?: unknown) => void>();
   private binaryProgressListeners = new Set<P2PBinaryProgressHandler>();
@@ -86,7 +90,7 @@ export class P2PRoomConnection implements SyncTransport {
   }
 
   directPeerIds(): string[] {
-    return this.adapter.getDirectPeerIds?.() ?? this.peers();
+    return (this.adapter.getDirectPeerIds?.() ?? this.peers()).map((peerId) => this.peerAliases.get(peerId) ?? peerId);
   }
 
   roster(): P2PTransportRosterEntry[] {
@@ -106,15 +110,23 @@ export class P2PRoomConnection implements SyncTransport {
     await this.disconnect();
     this.roomId = roomId;
     this.role = participant.role === 'gm' ? 'gm' : 'player';
+    this.localParticipant = {
+      peerId: participant.id,
+      displayName: participant.name,
+      role: this.role
+    };
+    this.authoritativeRoster.clear();
+    if (this.role === 'gm') this.authoritativeRoster.set(participant.id, this.localParticipant);
     this.status = 'connected';
     const now = Date.now();
     this.startedAt = now;
     this.lastGmSignalAt = 0;
     this.hasGmSignal = false;
     this.ready = false;
+    this.adapter.peerId = participant.id;
     this.bindAdapterEvents();
     await this.adapter.connect(roomId);
-    await this.sendControl({ type: 'hello' });
+    await this.sendControl(this.helloPayload());
     if (this.role === 'player') {
       await this.sendControl({ type: 'player-ping' });
     }
@@ -131,6 +143,10 @@ export class P2PRoomConnection implements SyncTransport {
     this.peerIds.clear();
     this.peerSignals.clear();
     this.peerRoles.clear();
+    this.localParticipant = null;
+    this.authoritativeRoster.clear();
+    this.peerAliases.clear();
+    this.logicalPeerByVerifiedSource.clear();
     this.roomId = '';
     this.role = null;
     this.lastGmSignalAt = 0;
@@ -138,6 +154,12 @@ export class P2PRoomConnection implements SyncTransport {
     this.ready = false;
     this.hasGmSignal = false;
     this.status = 'connected';
+  }
+
+  async refresh(): Promise<void> {
+    if (!this.role || !this.roomId) return;
+    await this.sendControl(this.helloPayload());
+    if (this.role === 'player') await this.sendControl({ type: 'player-ping' });
   }
 
   async publish(event: SyncEvent, targetPeer?: SyncTargetPeer): Promise<void> {
@@ -196,28 +218,38 @@ export class P2PRoomConnection implements SyncTransport {
     this.unsubscribeAdapter.push(
       this.adapter.subscribe((envelope, context) => this.handleEnvelope(envelope, context)),
       this.adapter.onPeerJoin((peerId) => this.handlePeerJoin(peerId)),
-      this.adapter.onPeerLeave((peerId) => this.removePeer(peerId)),
+      this.adapter.onPeerLeave((peerId) => this.removePeer(this.peerAliases.get(peerId) ?? peerId)),
       this.adapter.onError((message) => this.emitRoomEvent({ type: 'error', message })),
       this.adapter.onDiagnosticsChange?.(() => this.emitRoomEvent({ type: 'diagnostics-updated', peers: this.peers() })) ?? (() => undefined),
       this.adapter.onRosterChange?.((roster) => this.handleRoster(roster)) ?? (() => undefined),
       this.adapter.onRouteSwitch?.((routeSwitch) => this.emitRoomEvent({ type: 'route-switched', peers: this.peers(), switch: routeSwitch })) ?? (() => undefined),
-      this.adapter.subscribeBinary?.((data, peerId, metadata) => this.handleBinary(peerId, data, metadata)) ?? (() => undefined),
+      this.adapter.subscribeBinary?.((data, peerId, metadata) => this.handleBinary(this.peerAliases.get(peerId) ?? peerId, data, metadata)) ?? (() => undefined),
       this.adapter.subscribeBinaryProgress?.((percent, peerId, metadata) => {
         this.binaryProgressListeners.forEach((listener) => listener(percent, peerId, metadata));
       }) ?? (() => undefined),
       this.adapter.subscribeMediaStreams?.((stream, peerId, metadata) => {
-        this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
+        const logicalPeerId = this.peerAliases.get(peerId) ?? peerId;
+        this.mediaStreamListeners.forEach((listener) => listener(stream, logicalPeerId, metadata));
       }) ?? (() => undefined)
     );
   }
 
   private handleEnvelope(envelope: P2PWireEnvelope, transportContext?: P2PTransportMessageContext): void {
-    const peerId = transportContext?.sourcePeerId || envelope.sender.peerId;
-    const verifiedSourcePeerId = transportContext?.verifiedSourcePeerId || peerId;
+    const peerId = envelope.sender.peerId;
+    const transportPeerId = transportContext?.sourcePeerId;
+    const verifiedSourcePeerId = transportContext?.verifiedSourcePeerId || transportPeerId || peerId;
+    const knownLogicalPeerId = this.logicalPeerByVerifiedSource.get(verifiedSourcePeerId);
+    if (knownLogicalPeerId && knownLogicalPeerId !== peerId) return;
+    this.logicalPeerByVerifiedSource.set(verifiedSourcePeerId, peerId);
+    if (transportPeerId) this.peerAliases.set(transportPeerId, peerId);
     if (!this.role || peerId === this.peerId) {
       return;
     }
     const peerWasAdded = this.rememberPeer(peerId, Date.now(), envelope.sender.role);
+    if (this.role === 'gm' && envelope.sender.role === 'player' && !this.authoritativeRoster.has(peerId)) {
+      this.authoritativeRoster.set(peerId, { peerId, displayName: 'Игрок', role: 'player' });
+      void this.publishAuthoritativeRoster();
+    }
     if (peerWasAdded && envelope.sender.role === 'gm' && this.role === 'player') {
       this.markGmSeen(peerId);
     }
@@ -254,7 +286,23 @@ export class P2PRoomConnection implements SyncTransport {
       return;
     }
     if (this.role === 'gm' && envelope.sender.role === 'player' && (type === 'hello' || type === 'player-ping')) {
-      void this.sendControl({ type: 'gm-pong' });
+      let rosterChanged = false;
+      if (type === 'hello') {
+        const displayName = stringProperty(payload, 'displayName') || this.authoritativeRoster.get(peerId)?.displayName || 'Игрок';
+        const previous = this.authoritativeRoster.get(peerId);
+        if (!previous || previous.displayName !== displayName || previous.role !== 'player') {
+          this.authoritativeRoster.set(peerId, { peerId, displayName, role: 'player' });
+          rosterChanged = true;
+        }
+      }
+      void this.sendControl({ type: 'gm-pong' }, peerId);
+      if (rosterChanged) void this.publishAuthoritativeRoster();
+      return;
+    }
+    if (this.role === 'player' && envelope.sender.role === 'gm' && type === 'gm-roster') {
+      const roster = rosterProperty(payload);
+      if (roster) this.handleRoster(roster);
+      this.markGmSeen(peerId);
       return;
     }
     if (this.role === 'player' && envelope.sender.role === 'gm' && (type === 'hello' || type === 'gm-pong')) {
@@ -262,20 +310,31 @@ export class P2PRoomConnection implements SyncTransport {
     }
   }
 
-  private handlePeerJoin(peerId: string): void {
-    this.rememberPeer(peerId, Date.now());
+  private handlePeerJoin(_peerId: string): void {
     if (this.role === 'gm') {
       void this.sendControl({ type: 'gm-pong' });
     }
     if (this.role === 'player') {
-      void this.sendControl({ type: 'hello' });
+      void this.sendControl(this.helloPayload());
       void this.sendControl({ type: 'player-ping' });
     }
   }
 
   private handleRoster(roster: P2PTransportRosterEntry[]): void {
-    roster.forEach((entry) => this.rememberPeer(entry.peerId, Date.now(), entry.role));
-    this.emitRoomEvent({ type: 'roster-updated', peers: this.peers(), roster });
+    const visibleRoster = roster.filter((entry) => entry.peerId !== this.peerId);
+    visibleRoster.forEach((entry) => this.rememberPeer(entry.peerId, Date.now(), entry.role));
+    if (this.role === 'gm') {
+      let rosterChanged = false;
+      visibleRoster.forEach((entry) => {
+        const previous = this.authoritativeRoster.get(entry.peerId);
+        if (!previous || previous.displayName !== entry.displayName || previous.role !== entry.role) {
+          this.authoritativeRoster.set(entry.peerId, entry);
+          rosterChanged = true;
+        }
+      });
+      if (rosterChanged) void this.publishAuthoritativeRoster();
+    }
+    this.emitRoomEvent({ type: 'roster-updated', peers: this.peers(), roster: visibleRoster });
   }
 
   private rememberPeer(peerId: string, now: number, role?: P2PWireRole): boolean {
@@ -301,6 +360,9 @@ export class P2PRoomConnection implements SyncTransport {
     }
     this.peerSignals.delete(peerId);
     this.peerRoles.delete(peerId);
+    if (this.role === 'gm' && this.authoritativeRoster.delete(peerId)) {
+      void this.publishAuthoritativeRoster();
+    }
     this.emitRoomEvent({ type: 'peer-left', peerId, role, peers: this.peers() });
     if (this.role === 'player' && (role === 'gm' || this.peerIds.size === 0) && this.status !== 'degraded') {
       this.status = 'degraded';
@@ -371,8 +433,20 @@ export class P2PRoomConnection implements SyncTransport {
     });
   }
 
-  private async sendControl(payload: { type: 'hello' | 'player-ping' | 'gm-pong' | 'goodbye' }): Promise<void> {
-    await this.sendEnvelope('control', payload);
+  private helloPayload(): { type: 'hello'; displayName: string } {
+    return { type: 'hello', displayName: this.localParticipant?.displayName || (this.role === 'gm' ? 'Мастер' : 'Игрок') };
+  }
+
+  private async publishAuthoritativeRoster(): Promise<void> {
+    if (this.role !== 'gm') return;
+    const roster = Array.from(this.authoritativeRoster.values());
+    const visibleRoster = roster.filter((entry) => entry.peerId !== this.peerId);
+    this.emitRoomEvent({ type: 'roster-updated', peers: this.peers(), roster: visibleRoster });
+    await this.sendControl({ type: 'gm-roster', roster }).catch(() => undefined);
+  }
+
+  private async sendControl(payload: { type: string; [key: string]: unknown }, targetPeer?: SyncTargetPeer): Promise<void> {
+    await this.sendEnvelope('control', payload, targetPeer);
   }
 
   private async sendEnvelope(channel: P2PWireEnvelope['channel'], payload: unknown, targetPeer?: SyncTargetPeer): Promise<void> {
@@ -403,4 +477,22 @@ function isSyncEvent(value: unknown): value is SyncEvent {
   }
   const event = value as Partial<SyncEvent>;
   return typeof event.id === 'string' && typeof event.createdAt === 'string' && typeof event.authorId === 'string' && typeof event.kind === 'string' && 'value' in event;
+}
+
+function stringProperty(value: object, key: string): string {
+  const property = (value as Record<string, unknown>)[key];
+  return typeof property === 'string' ? property.trim() : '';
+}
+
+function rosterProperty(value: object): P2PTransportRosterEntry[] | null {
+  const roster = (value as { roster?: unknown }).roster;
+  if (!Array.isArray(roster)) return null;
+  const entries = roster.filter((entry): entry is P2PTransportRosterEntry => Boolean(
+    entry
+    && typeof entry === 'object'
+    && typeof (entry as { peerId?: unknown }).peerId === 'string'
+    && typeof (entry as { displayName?: unknown }).displayName === 'string'
+    && ((entry as { role?: unknown }).role === 'gm' || (entry as { role?: unknown }).role === 'player')
+  ));
+  return entries.length === roster.length ? entries : null;
 }

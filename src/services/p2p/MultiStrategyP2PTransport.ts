@@ -25,6 +25,9 @@ export interface MultiStrategyP2PTransportOptions {
   mode?: P2PTransportMode;
   candidates?: P2PTransportStrategy[];
   ackTimeoutMs?: number;
+  rtcConfig?: RTCConfiguration;
+  turnConfig?: RTCIceServer[];
+  turnConfigProvider?: (roomId: string) => Promise<RTCIceServer[]>;
   createTransport?: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter;
 }
 
@@ -106,6 +109,9 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
           appId: options.appId,
           supabaseUrl: options.supabaseUrl,
           supabaseAnonKey: options.supabaseAnonKey,
+          rtcConfig: options.rtcConfig,
+          turnConfig: options.turnConfig,
+          turnConfigProvider: options.turnConfigProvider,
           strategy
         }),
         status: 'probing',
@@ -761,6 +767,9 @@ export function createConfiguredP2PTransport(options: TrysteroP2PTransportOption
       supabaseUrl: options.supabaseUrl,
       supabaseAnonKey: options.supabaseAnonKey,
       candidates: options.candidates,
+      rtcConfig: options.rtcConfig,
+      turnConfig: options.turnConfig,
+      turnConfigProvider: options.turnConfigProvider,
       mode: 'auto'
     });
   }

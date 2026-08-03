@@ -177,6 +177,140 @@ test('Sites returns the current snapshot in the player join response', async () 
   assert.equal(relay.batches.length, 1);
 });
 
+test('Sites only resumes an active participant id with its existing token', async () => {
+  const token = 'resume-token';
+  const env = {
+    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+    DB: participantRoomDatabase({
+      id: 'player-peer',
+      tokenHash: await sha256Hex(token),
+      lastSeenAt: Date.now()
+    }),
+    FILES: memoryR2(new Map())
+  } satisfies WorkerEnv;
+  const requestBody = JSON.stringify({ peerId: 'player-peer', displayName: 'Игрок' });
+
+  const duplicate = await worker.fetch(new Request('https://example.test/api/rooms/ROOM1/join', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: requestBody
+  }), env, {} as ExecutionContext);
+  assert.equal(duplicate.status, 409);
+
+  const resumed = await worker.fetch(new Request('https://example.test/api/rooms/ROOM1/join', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: requestBody
+  }), env, {} as ExecutionContext);
+  const body = await resumed.json() as { participantToken?: string };
+  assert.equal(resumed.status, 200);
+  assert.equal(body.participantToken, token);
+});
+
+test('Sites issues short-lived TURN credentials only inside an authorized room', async () => {
+  const originalFetch = globalThis.fetch;
+  const relay = relayDatabase();
+  let cloudflareAuthorization = '';
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    cloudflareAuthorization = new Headers(init?.headers).get('authorization') ?? '';
+    return new Response(JSON.stringify({
+      iceServers: [
+        { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
+        {
+          urls: ['turn:turn.cloudflare.com:3478?transport=udp', 'turn:turn.cloudflare.com:53?transport=udp'],
+          username: 'turn-user',
+          credential: 'turn-secret'
+        }
+      ]
+    }), { status: 201, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  try {
+    const response = await worker.fetch(new Request('https://example.test/api/rooms/ROOM1/turn-credentials', {
+      headers: {
+        'oai-authenticated-user-email': 'master@example.test',
+        'oai-authenticated-user-id': 'master-1'
+      }
+    }), {
+      ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+      DB: relay.db,
+      FILES: memoryR2(new Map()),
+      TURN_KEY_ID: 'turn-key',
+      TURN_KEY_API_TOKEN: 'api-token'
+    }, {} as ExecutionContext);
+    const body = await response.json() as { iceServers: Array<{ urls: string[] }> };
+    assert.equal(response.status, 200);
+    assert.equal(cloudflareAuthorization, 'Bearer api-token');
+    assert.deepEqual(body.iceServers.flatMap((server) => server.urls), [
+      'stun:stun.cloudflare.com:3478',
+      'turn:turn.cloudflare.com:3478?transport=udp'
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Sites issues rate-limited TURN credentials to the Pages origin without exposing the TURN key', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: { ttl?: number; customIdentifier?: string } = {};
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    requestBody = JSON.parse(String(init?.body ?? '{}')) as typeof requestBody;
+    return new Response(JSON.stringify({
+      iceServers: [{
+        urls: ['turn:turn.cloudflare.com:3478?transport=udp'],
+        username: 'turn-user',
+        credential: 'turn-secret'
+      }]
+    }), { status: 201, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  try {
+    const env = {
+      ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+      DB: turnGrantDatabase(),
+      FILES: memoryR2(new Map()),
+      TURN_KEY_ID: 'turn-key',
+      TURN_KEY_API_TOKEN: 'api-token'
+    } satisfies WorkerEnv;
+    const response = await worker.fetch(new Request('https://example.test/api/turn-credentials?room=ROOM1', {
+      headers: {
+        origin: 'https://bmpolonsky.github.io',
+        'cf-connecting-ip': '203.0.113.10'
+      }
+    }), env, {} as ExecutionContext);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('access-control-allow-origin'), 'https://bmpolonsky.github.io');
+    assert.equal(requestBody.ttl, 12 * 60 * 60);
+    assert.match(requestBody.customIdentifier ?? '', /^pages:ROOM1:[a-f0-9]{12}$/);
+
+    const wrongOrigin = await worker.fetch(new Request('https://example.test/api/turn-credentials', {
+      headers: { origin: 'https://attacker.example', 'cf-connecting-ip': '203.0.113.10' }
+    }), env, {} as ExecutionContext);
+    assert.equal(wrongOrigin.status, 403);
+    assert.equal(wrongOrigin.headers.get('access-control-allow-origin'), null);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Sites stops issuing Pages TURN credentials when the daily grant limit is reached', async () => {
+  const now = Date.now();
+  const response = await worker.fetch(new Request('https://example.test/api/turn-credentials', {
+    headers: {
+      origin: 'https://bmpolonsky.github.io',
+      'cf-connecting-ip': '203.0.113.10'
+    }
+  }), {
+    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+    DB: turnGrantDatabase({ globalCount: 1_000, now }),
+    FILES: memoryR2(new Map()),
+    TURN_KEY_ID: 'turn-key',
+    TURN_KEY_API_TOKEN: 'api-token'
+  }, {} as ExecutionContext);
+
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('access-control-allow-origin'), 'https://bmpolonsky.github.io');
+});
+
 function ownedWorldDatabase(ownerId: string, worldId: string): D1Database {
   return {
     prepare: (query) => statement(query),
@@ -284,6 +418,75 @@ function relayDatabase(): { db: D1Database; batches: string[][] } {
   };
 }
 
+function participantRoomDatabase(existing: { id: string; tokenHash: string; lastSeenAt: number }): D1Database {
+  const metadata = new WeakMap<D1PreparedStatement, { query: string; values: unknown[] }>();
+  const statement = (query: string, values: unknown[] = []): D1PreparedStatement => {
+    const prepared: D1PreparedStatement = {
+      bind: (...nextValues) => statement(query, nextValues),
+      first: async <T>() => (result(query).results?.[0] ?? null) as T | null,
+      all: async <T>() => result(query) as { success: boolean; results?: T[] },
+      run: async <T>() => result(query) as { success: boolean; results?: T[] }
+    };
+    metadata.set(prepared, { query, values });
+    return prepared;
+  };
+  const result = (query: string): D1Result => {
+    if (query.includes('FROM rooms WHERE id')) return { success: true, results: [{
+      id: 'ROOM1',
+      owner_id: 'master-1',
+      world_id: 'world-1',
+      gm_peer_id: 'gm-peer',
+      gm_name: 'Мастер',
+      active_until: Date.now() + 60_000
+    }] };
+    if (query.includes('FROM participants WHERE room_id') && query.includes('token_hash')) return { success: true, results: [{
+      id: existing.id,
+      token_hash: existing.tokenHash,
+      last_seen_at: existing.lastSeenAt
+    }] };
+    if (query.includes('COALESCE(MAX(sequence)')) return { success: true, results: [{ sequence: 0 }] };
+    return { success: true, results: [] };
+  };
+  return {
+    prepare: (query) => statement(query),
+    batch: async <T = unknown>(statements: D1PreparedStatement[]) => statements.map((prepared) => result(metadata.get(prepared)!.query)) as D1Result<T>[]
+  };
+}
+
+function turnGrantDatabase({ globalCount = 0, ipCount = 0, now = Date.now() } = {}): D1Database {
+  const metadata = new WeakMap<D1PreparedStatement, { query: string; values: unknown[] }>();
+  const statement = (query: string, values: unknown[] = []): D1PreparedStatement => {
+    const prepared: D1PreparedStatement = {
+      bind: (...nextValues) => statement(query, nextValues),
+      first: async () => null,
+      all: async () => ({ success: true, results: [] }),
+      run: async () => ({ success: true })
+    };
+    metadata.set(prepared, { query, values });
+    return prepared;
+  };
+  return {
+    prepare: (query) => statement(query),
+    batch: async <T = unknown>(statements: D1PreparedStatement[]) => statements.map((prepared) => {
+      const { query, values } = metadata.get(prepared)!;
+      if (!query.includes('FROM turn_credential_grants')) return { success: true, results: [] };
+      const bucket = String(values[0] ?? '');
+      const count = bucket === 'global' ? globalCount : ipCount;
+      const windowStartedAt = bucket === 'global'
+        ? Math.floor(now / 86_400_000) * 86_400_000
+        : Math.floor(now / 3_600_000) * 3_600_000;
+      return count > 0
+        ? { success: true, results: [{ bucket, window_started_at: windowStartedAt, count }] }
+        : { success: true, results: [] };
+    }) as D1Result<T>[]
+  };
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function memoryR2(objects: Map<string, { bytes: ArrayBuffer; contentType: string }>): R2Bucket {
   return {
     get: async (key) => {
@@ -297,6 +500,7 @@ function memoryR2(objects: Map<string, { bytes: ArrayBuffer; contentType: string
     put: async (key, value, options) => {
       const bytes = await new Response(value).arrayBuffer();
       objects.set(key, { bytes, contentType: options?.httpMetadata?.contentType ?? 'application/octet-stream' });
+      return { size: bytes.byteLength };
     },
     list: async ({ prefix = '' } = {}) => ({
       objects: Array.from(objects.keys())

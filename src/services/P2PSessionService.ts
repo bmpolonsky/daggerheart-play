@@ -6,6 +6,7 @@ import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
 import { buildPlayerInviteRoomCode, buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
 import { readP2PNetworkSettings, trysteroOptionsForNetworkSettings } from '../domain/p2p/networkSettings';
+import { turnConfigProvider } from './TurnCredentialService';
 import { serverSessionEnabled } from '../domain/p2p/serverSession';
 import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
@@ -203,6 +204,8 @@ export class P2PSessionService {
   private localParticipantId: string | null = null;
   private actorOwnerVerifiedPeers = new Map<string, string>();
   private cloudBackupErrorShown = false;
+  private gmWakeLock: WakeLockSentinel | null = null;
+  private hasDirectGmSnapshot = false;
 
   constructor(
     private syncService: SyncService,
@@ -520,6 +523,7 @@ export class P2PSessionService {
         message: peers.length > 0 ? 'Игрок подключился.' : 'Комната мастера открыта.'
       };
     });
+    this.startGmActivityGuard();
     void this.saveCloudBackup();
     this.persistActiveSession('gm', roomId, input.participantName, participant.id, participant.actorIds);
   }
@@ -531,6 +535,7 @@ export class P2PSessionService {
 
   private async openPlayerRoom(input: P2PSessionStartInput): Promise<void> {
     await this.stop({ forgetSession: false });
+    this.hasDirectGmSnapshot = false;
     resetAllStores();
     const participant = this.createParticipant('player', input.participantName, {
       id: input.participantId,
@@ -563,6 +568,7 @@ export class P2PSessionService {
     this.patchSession({ status: 'connecting', role: 'player', roomId, message: 'Подключаемся к игре.' });
     try {
       await this.syncService.connectReadOnly(roomId, participant, (state, event) => {
+        if (!event.id.startsWith('server-snapshot-')) this.hasDirectGmSnapshot = true;
         this.suppressPlayerStoreForwarding = true;
         try {
           hydratePersistedState(this.preserveUnacknowledgedPlayerCharacter(state));
@@ -570,6 +576,7 @@ export class P2PSessionService {
           this.patchSession({
             lastSnapshotAt: nowIso(),
             latestRollAnimationId: freshSnapshotRollId(state.rollLog, event.createdAt),
+            ...(this.hasDirectGmSnapshot ? { status: 'connected' as const } : {}),
             message: 'Данные игры получены.'
           });
         } finally {
@@ -598,9 +605,7 @@ export class P2PSessionService {
         void this.forwardPlayerCharacterUpdate();
       }));
       void this.republishPendingPlayerCharacterUpdates();
-      if (!serverSessionEnabled()) {
-        await this.syncService.publishSnapshotRequest('join', transport.gmPeerId() ?? undefined);
-      }
+      await this.syncService.publishSnapshotRequest('join', transport.gmPeerId() ?? undefined);
     } catch (error) {
       this.audioService?.setVoiceTransport(null);
       this.sceneAudioBroadcastService?.setTransport(null);
@@ -696,6 +701,8 @@ export class P2PSessionService {
   }
 
   async stop(options: { forgetSession?: boolean } = {}): Promise<void> {
+    this.stopGmActivityGuard();
+    this.hasDirectGmSnapshot = false;
     const stoppedSession = this.sessionStore.get();
     const stoppedParticipantId = this.playerActorContext.participantId ?? this.localParticipantId;
     if (options.forgetSession !== false && stoppedSession.role === 'player' && stoppedSession.roomId && stoppedParticipantId) {
@@ -776,7 +783,7 @@ export class P2PSessionService {
     } else {
       await this.startPlayerRoom(input);
     }
-    this.patchSession({ message: 'Связь с сервером мастера восстановлена после перезагрузки.' });
+    this.patchSession({ message: 'Связь с игрой мастера восстановлена после перезагрузки.' });
     return true;
   }
 
@@ -1640,7 +1647,7 @@ export class P2PSessionService {
         this.stopPlayerProductRecoveryPolling();
         return;
       }
-      if (!session.lastSnapshotAt || session.status === 'degraded' || session.peers.length === 0) {
+      if (!this.hasDirectGmSnapshot || session.status === 'degraded' || session.peers.length === 0) {
         void this.requestSnapshotFromGm(session.lastSnapshotAt ? 'peer-reconnect' : 'manual');
       }
     }, this.roomConnectionConfig.heartbeatMs ?? PRODUCT_SYNC_RECOVERY_POLL_MS);
@@ -1652,7 +1659,10 @@ export class P2PSessionService {
   }
 
   private createTransport(participant: TableParticipant): P2PRoomConnection {
-    const options = trysteroOptionsForNetworkSettings(readP2PNetworkSettings());
+    const options: TrysteroP2PTransportOptions = {
+      ...trysteroOptionsForNetworkSettings(readP2PNetworkSettings()),
+      turnConfigProvider: turnConfigProvider(participant.id, serverSessionEnabled())
+    };
     const connectionConfig = serverSessionEnabled()
       ? { ...this.roomConnectionConfig, heartbeatMs: SERVER_HEARTBEAT_MS, gmTimeoutMs: SERVER_PEER_TIMEOUT_MS }
       : this.roomConnectionConfig;
@@ -1867,8 +1877,46 @@ export class P2PSessionService {
     if (!connection || connection.sessionMode?.() !== 'hybrid') return 'connected';
     const gmPeerId = connection.gmPeerId();
     return gmPeerId && connection.directPeerIds?.().includes(gmPeerId)
-      ? 'connected'
+      ? this.hasDirectGmSnapshot ? 'connected' : 'connecting'
       : lastSnapshotAt ? 'degraded' : 'connecting';
+  }
+
+  private startGmActivityGuard(): void {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('visibilitychange', this.handleGmVisibilityChange);
+    void this.acquireGmWakeLock();
+  }
+
+  private stopGmActivityGuard(): void {
+    if (typeof document === 'undefined') return;
+    document.removeEventListener('visibilitychange', this.handleGmVisibilityChange);
+    const wakeLock = this.gmWakeLock;
+    this.gmWakeLock = null;
+    void wakeLock?.release().catch(() => undefined);
+  }
+
+  private handleGmVisibilityChange = (): void => {
+    if (document.visibilityState !== 'visible') return;
+    void this.acquireGmWakeLock();
+    void this.activeRoomConnection?.refresh().catch(() => undefined);
+    void this.activeMediaRoomConnection?.refresh().catch(() => undefined);
+  };
+
+  private async acquireGmWakeLock(): Promise<void> {
+    if (typeof document === 'undefined' || typeof navigator === 'undefined' || this.gmWakeLock || document.visibilityState !== 'visible' || !navigator.wakeLock) return;
+    try {
+      const wakeLock = await navigator.wakeLock.request('screen');
+      if (this.sessionStore.get().role !== 'gm') {
+        await wakeLock.release();
+        return;
+      }
+      this.gmWakeLock = wakeLock;
+      wakeLock.addEventListener('release', () => {
+        if (this.gmWakeLock === wakeLock) this.gmWakeLock = null;
+      });
+    } catch {
+      // Wake Lock is optional; the session still reconnects when the page becomes visible.
+    }
   }
 
   private async handleAckRouteSwitch(routeSwitch: P2PTransportRouteSwitchEvent): Promise<void> {

@@ -4,7 +4,7 @@ import { Cloud, Download, HardDrive, Plus, Trash2, Upload } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
 import { serverSessionEnabled } from '../../domain/p2p/serverSession';
-import { cloudBackupService, importExportService, persistenceService } from '../../services/serviceRegistry';
+import { cloudBackupService, gameService, importExportService, p2pSessionService, persistenceService } from '../../services/serviceRegistry';
 import { Button, ConfirmDialog, EmptyState, IconButton, ListItem, Notice, SectionHeader, Surface, Toolbar } from '../components/common';
 import type { StoredGameSummary } from '../../core/persistence/gameDocumentStore';
 
@@ -97,6 +97,10 @@ export function StoredGamesCard() {
   const removeCloudWorld = async (world: CloudWorldSummary) => {
     setCloudError('');
     try {
+      const session = p2pSessionService.session$.get();
+      if (session.role === 'gm' && gameService.game$.get().id === world.id) {
+        await p2pSessionService.stop();
+      }
       await cloudBackupService.remove(world.id);
       setCloudWorlds((worlds) => worlds?.filter((candidate) => candidate.id !== world.id) ?? []);
     } catch {

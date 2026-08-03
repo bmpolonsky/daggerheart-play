@@ -7,6 +7,7 @@ import {
   writeP2PNetworkSettings
 } from '../../src/domain/p2p/networkSettings';
 import { MultiStrategyP2PTransport, resolveTrysteroCandidates } from '../../src/services/p2p/MultiStrategyP2PTransport';
+import { trysteroConfigForStrategy } from '../../src/services/TrysteroSyncTransport';
 import type { P2PMediaConnectionDiagnostic, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportStrategy, P2PWireEnvelope } from '../../src/services/p2p/P2PTransportAdapter';
 
 test('P2P network settings always use auto strategy', () => {
@@ -48,6 +49,23 @@ test('auto P2P candidates prefer Supabase only when configured', () => {
     supabaseAnonKey: 'anon-key'
   }), ['supabase', 'nostr', 'mqtt', 'torrent']);
   assert.deepEqual(resolveTrysteroCandidates({ mode: 'mqtt' }), ['mqtt']);
+});
+
+test('Trystero applies one future TURN configuration to every signaling strategy', () => {
+  const turnConfig: RTCIceServer[] = [{ urls: 'turns:turn.example:443', username: 'user', credential: 'secret' }];
+  assert.deepEqual(trysteroConfigForStrategy('nostr', { turnConfig }), {
+    appId: 'daggerheart-play',
+    turnConfig
+  });
+  assert.deepEqual(trysteroConfigForStrategy('supabase', {
+    supabaseUrl: 'https://example.supabase.co',
+    supabaseAnonKey: 'anon-key',
+    turnConfig
+  }), {
+    appId: 'https://example.supabase.co',
+    relayConfig: { supabaseKey: 'anon-key' },
+    turnConfig
+  });
 });
 
 test('auto P2P bootstrap resolves after the first ready route while others keep probing', async () => {

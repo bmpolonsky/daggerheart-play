@@ -22,6 +22,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
   const lobby = useStream(gmLobbyService.lobby$);
   useStream(p2pNetworkSettings$);
   const [restoringSession, setRestoringSession] = useState(true);
+  const [restoreError, setRestoreError] = useState(false);
   const [opening, setOpening] = useState<'game' | 'call' | null>(null);
   const [roomRefreshOpen, setRoomRefreshOpen] = useState(false);
   const [masterAccount, setMasterAccount] = useState<{
@@ -65,9 +66,14 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
       return;
     }
     let active = true;
-    void gmLobbyService.restoreSession(gmName).finally(() => {
-      if (active) setRestoringSession(false);
-    });
+    setRestoreError(false);
+    void gmLobbyService.restoreSession(gmName)
+      .catch(() => {
+        if (active) setRestoreError(true);
+      })
+      .finally(() => {
+        if (active) setRestoringSession(false);
+      });
     return () => {
       active = false;
     };
@@ -141,6 +147,7 @@ export function GmLobbyCard({ inviteContext, onEnterGm, onOpenCall }: GmLobbyCar
       {usesServer && masterAccount.status === 'error' && (
         <Notice tone="error">Не удалось проверить аккаунт мастера. Серверная игра пока недоступна.</Notice>
       )}
+      {restoreError && <Notice tone="warning">Не удалось восстановить предыдущую комнату. Можно открыть новую.</Notice>}
       <div className="role-entry__invite-grid">
         <label>
           <span>Код комнаты</span>
