@@ -39,7 +39,7 @@ test.describe('Player View empty state', () => {
 
     await openGmGame(page);
     await expect(page.locator('.player-token')).toHaveCount(0);
-    await expect(page.getByLabel('Хроника игры')).toContainText('Хроника пока пуста');
+    await expect(page.getByLabel('Чат игры')).toContainText('Чат пока пуст');
     await expect(page.getByLabel('Инструменты сцены')).toContainText('Сцена пока пуста');
 
     await openGameLibrary(page);
@@ -142,8 +142,8 @@ test.describe('Player View empty state', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    await page.getByRole('button', { name: 'Скрыть хронику' }).click();
-    const chronicle = page.getByLabel('Хроника игры');
+    await page.getByRole('button', { name: 'Скрыть чат' }).click();
+    const chronicle = page.getByLabel('Чат игры');
     await expectHiddenSurface(chronicle);
     await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Действия' }).click();
     await page.getByRole('button', { name: 'Создать отсчет' }).click();

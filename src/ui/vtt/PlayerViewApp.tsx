@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import { currentRoutePathname } from '../../app/routing';
-import { BookOpenText, ScrollText, Swords, Wrench, X } from 'lucide-react';
+import { BookOpenText, ScrollText, Swords, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import {
   buildCharacterSummary,
@@ -423,12 +423,12 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       <PlayerTopBar model={model} role={role} />
       <Tabs className="player-mobile-layer-tabs" label="Слой интерфейса">
         <TabButton
-          active={mobileLayer === 'feed'}
-          aria-label={`Хроника. Соединение: ${p2pHealth.label}`}
+          active={mobileLayer === 'feed' || mobileLayer === 'tools'}
+          aria-label={`Чат. Соединение: ${p2pHealth.label}`}
           onClick={() => selectMobileLayer('feed')}
         >
           <BookOpenText size={18} aria-hidden="true" />
-          <span>Хроника</span>
+          <span>Чат</span>
           <span className={`player-connection-status-dot is-${p2pHealth.tone}`} aria-hidden="true" />
         </TabButton>
         <TabButton active={mobileLayer === 'scene'} onClick={() => selectMobileLayer('scene')}>
@@ -438,10 +438,6 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         <TabButton active={mobileLayer === 'sheet'} onClick={() => selectMobileLayer('sheet')}>
           <ScrollText size={18} aria-hidden="true" />
           <span>Лист</span>
-        </TabButton>
-        <TabButton active={mobileLayer === 'tools'} aria-label="Инструменты" onClick={() => openTool(role === 'gm' ? 'generators' : 'library')}>
-          <Wrench size={18} aria-hidden="true" />
-          <span>Инструменты</span>
         </TabButton>
       </Tabs>
       <PlayerLeftRail

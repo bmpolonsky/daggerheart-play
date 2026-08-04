@@ -40,18 +40,18 @@ export function PlayerRailHeaderActions({ role }: { role: TableViewRole }) {
         <P2PHealthIndicator placement="chronicle" role={role} />
         {role === 'gm' && (
           <ActionMenu
-            ariaLabel="Другие действия хроники"
+            ariaLabel="Другие действия чата"
             items={[
               {
                 id: 'clear-chronicle',
-                label: 'Очистить хронику',
+                label: 'Очистить чат',
                 icon: <Trash2 size={15} />,
                 disabled: !hasClearableActivity,
                 onSelect: () => setClearChronicleOpen(true)
               }
             ]}
             renderTrigger={(props) => (
-              <IconButton {...props} variant="ghost" size="sm" title="Ещё" aria-label="Другие действия хроники">
+              <IconButton {...props} variant="ghost" size="sm" title="Ещё" aria-label="Другие действия чата">
                 <Ellipsis size={15} aria-hidden="true" />
               </IconButton>
             )}
@@ -60,8 +60,8 @@ export function PlayerRailHeaderActions({ role }: { role: TableViewRole }) {
       </div>
       {clearChronicleOpen && (
         <ConfirmDialog
-          title="Очистить хронику?"
-          body="Все сообщения, опубликованные броски и карточки хроники будут удалены. Это действие нельзя отменить."
+          title="Очистить чат?"
+          body="Все сообщения, опубликованные броски и события будут удалены. Это действие нельзя отменить."
           confirmLabel="Очистить"
           onCancel={() => setClearChronicleOpen(false)}
           onConfirm={() => {

@@ -112,7 +112,7 @@ export function PlayerLeftRail({
     });
   };
   return (
-    <aside className="player-left-rail" aria-label="Хроника игры" aria-hidden={!accessible} inert={!accessible}>
+    <aside className="player-left-rail" aria-label="Чат игры" aria-hidden={!accessible} inert={!accessible}>
       {rollDraftState && (
         <PlayerRollConfirm
           character={rollDraftState.character}
@@ -181,7 +181,7 @@ export function PlayerLeftRail({
             <EmptyState
               tone="transparent"
               size="sm"
-              title="Хроника пока пуста"
+              title="Чат пока пуст"
             />
           )}
           {visibleActivity.map((event) => {

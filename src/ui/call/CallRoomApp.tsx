@@ -1,19 +1,23 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Check, Copy, Hand, LoaderCircle, MessageCircle, Mic, MicOff, PhoneOff, Send, UserRound, Video, VideoOff, Volume2, VolumeX, X } from 'lucide-react';
+import { Check, Copy, Ellipsis, Hand, LoaderCircle, Mic, MicOff, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PhoneOff, Send, Trash2, UserRound, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, writeStoredCallName } from '../../domain/p2p/sessionLinks';
 import { currentRoutePathname } from '../../app/routing';
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
+import { buildTableFeedFromEntries } from '../../domain/tabletop/feed';
 import type { TableParticipant } from '../../domain/tabletop/types';
 import { feedService, mediaCallService, p2pSessionService, playerActivationQueueService, sceneTableService } from '../../services/serviceRegistry';
 import { toastService } from '../../services/ToastService';
 import type { CallParticipant } from '../../services/MediaCallService';
-import { P2PHealthIndicator } from '../p2p/P2PHealthIndicator';
+import { buildP2PHealthSummary, P2PHealthIndicator } from '../p2p/P2PHealthIndicator';
 import { cssImageUrl } from '../vtt/playerView/helpers';
-import { Avatar, Badge, Button, ChoiceCard, EmptyState, Field, IconButton, ListItem, SectionHeader, Surface, TextControl, Toolbar } from '../components/common';
+import { ActionMenu, Avatar, Badge, Button, ChoiceCard, ConfirmDialog, EmptyState, Field, IconButton, ListItem, SectionHeader, Surface, TextControl, Toolbar } from '../components/common';
 import { MediaStreamVideo } from './MediaStreamVideo';
 import { buildCallParticipants, findLocalTableParticipant } from './callParticipants';
+import { FeedCard } from '../vtt/playerView/playerChrome/feedCards/FeedCard';
+import type { TableViewRole } from '../vtt/playerView/types';
+import '../vtt/playerView/player-chrome.css';
 import './call-room.css';
 
 interface CallRoomAppProps {
@@ -42,14 +46,19 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   });
   const [nameDraft, setNameDraft] = useState(() => roomId ? readStoredCallName(roomId) : '');
   const [chatDraft, setChatDraft] = useState('');
-  const [sideOpen, setSideOpen] = useState(defaultCallSideOpen);
+  const [leftOpen, setLeftOpen] = useState(defaultCallLeftOpen);
+  const [rightOpen, setRightOpen] = useState(defaultCallRightOpen);
   const [layoutMode, setLayoutMode] = useState<CallLayoutMode>(defaultCallLayoutMode);
   const [focusedParticipantId, setFocusedParticipantId] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [clearChronicleOpen, setClearChronicleOpen] = useState(false);
   const [leftCall, setLeftCall] = useState(false);
   const autoJoinKey = useRef<string | null>(null);
+  const chronicleRef = useRef<HTMLDivElement>(null);
   const storedSession = useMemo(() => roomId ? p2pSessionService.storedSessionForRoom(roomId) : null, [roomId]);
   const healthRole = session.role ?? storedSession?.role ?? 'player';
+  const p2pHealth = useMemo(() => buildP2PHealthSummary(session), [session]);
+  const role: TableViewRole = healthRole === 'gm' ? 'gm' : 'player';
   const connectedToRoom = session.connected && session.roomId === roomId;
   const connectingToRoom = session.status === 'connecting' && session.roomId === roomId;
   const callDirectPeers = session.transportMode === 'hybrid' ? mediaTransport.peers : session.directPeers;
@@ -59,11 +68,17 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     ? `url("${cssImageUrl(sceneBackgroundUrl)}")`
     : 'none';
   const playerSeats = useMemo(() => Object.values(sceneTable.participants).filter((participant) => participant.role === 'player'), [sceneTable.participants]);
-  const feedMessages = feed.filter((entry) => entry.type === 'message').slice(-8);
+  const localTableParticipant = findLocalTableParticipant(sceneTable.participants, call.localParticipantId, session.peerId);
+  const chronicleActorId = role === 'player' ? localTableParticipant?.actorIds[0] ?? null : null;
+  const chronicle = useMemo(() => buildTableFeedFromEntries({
+    feed,
+    role,
+    actorId: chronicleActorId
+  }).slice().reverse(), [chronicleActorId, feed, role]);
   const participantsList = buildCallParticipants({
     call,
     connectedToRoom,
-    feedEntries: feedMessages,
+    feedEntries: feed,
     sessionPeerId: session.peerId,
     tableParticipants: sceneTable.participants
   });
@@ -106,23 +121,30 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
 
   useEffect(() => {
     if (!roomId || !connectedToRoom || call.roomId !== roomId || call.active || leftCall) return;
-    const localParticipant = findLocalTableParticipant(sceneTable.participants, call.localParticipantId, session.peerId);
-    const displayName = call.displayName.trim() || localParticipant?.name || storedSession?.participantName || (session.role === 'gm' ? 'Мастер' : 'Игрок');
+    const displayName = call.displayName.trim() || localTableParticipant?.name || storedSession?.participantName || (session.role === 'gm' ? 'Мастер' : 'Игрок');
     mediaCallService.setRoom({
       roomId,
-      participantId: localParticipant?.id,
+      participantId: localTableParticipant?.id,
       displayName,
       role: session.role === 'gm' ? 'gm' : 'player',
       active: true
     });
     p2pSessionService.renameLocalParticipant(displayName);
-  }, [call.active, call.displayName, call.localParticipantId, call.roomId, connectedToRoom, leftCall, roomId, sceneTable.participants, session.peerId, session.role, storedSession?.participantName]);
+  }, [call.active, call.displayName, call.roomId, connectedToRoom, leftCall, localTableParticipant?.id, localTableParticipant?.name, roomId, session.role, storedSession?.participantName]);
 
   useEffect(() => {
     if (!focusedParticipantId) return;
     if (participantsList.some((participant) => participant.participantId === focusedParticipantId)) return;
     setFocusedParticipantId(null);
   }, [focusedParticipantId, participantsList]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const element = chronicleRef.current;
+      element?.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [chronicle.length, leftOpen]);
 
   const joinCall = async (displayName = nameDraft, selectedSeat?: TableParticipant): Promise<void> => {
     const name = displayName.trim();
@@ -210,35 +232,79 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   }
 
   return (
-    <main className={`call-room ${sideOpen ? '' : 'dh-side-collapsed'}`.trim()}>
+    <main className={`call-room ${leftOpen ? 'dh-left-open' : ''} ${rightOpen ? 'dh-right-open' : ''}`.trim()}>
       <div className="call-room__scene-image" aria-hidden="true" style={{ backgroundImage: sceneBackgroundImage }} />
       <div className="call-room__backdrop" aria-hidden="true" />
+
+      {leftOpen && (
+        <Surface as="aside" className="call-room__rail call-room__rail--left" tone="solid" padding="sm" aria-label="Чат игры">
+          <SectionHeader
+            title="Чат"
+            actions={(
+              <div className="player-chronicle-header__actions">
+                <P2PHealthIndicator placement="chronicle" role={healthRole} />
+                {role === 'gm' && (
+                  <ActionMenu
+                    ariaLabel="Другие действия чата"
+                    items={[{
+                      id: 'clear-chronicle',
+                      label: 'Очистить чат',
+                      icon: <Trash2 size={15} />,
+                      disabled: chronicle.length === 0,
+                      onSelect: () => setClearChronicleOpen(true)
+                    }]}
+                    renderTrigger={(props) => (
+                      <IconButton {...props} variant="ghost" size="sm" title="Ещё" aria-label="Другие действия чата">
+                        <Ellipsis size={15} aria-hidden="true" />
+                      </IconButton>
+                    )}
+                  />
+                )}
+              </div>
+            )}
+          />
+          <div className={`call-room__chronicle player-activity-list ${chronicle.length === 0 ? 'player-activity-list--empty' : ''}`} ref={chronicleRef}>
+            {chronicle.length === 0 && <EmptyState tone="transparent" size="sm" title="Чат пока пуст" />}
+            {chronicle.map((event) => (
+              <article className={`player-activity-event player-activity-event--${event.kind} player-activity-event--${event.tone}`} key={event.id}>
+                <FeedCard
+                  actorId={chronicleActorId}
+                  item={event}
+                  waitingForResult={false}
+                  role={role}
+                  onRevealToPublic={(item) => feedService.revealToPublic(item.id)}
+                />
+              </article>
+            ))}
+          </div>
+          <form className="player-chat-composer" onSubmit={(event) => {
+            event.preventDefault();
+            sendChat();
+          }}>
+            <TextControl tone="plain" aria-label="Сообщение в чат" value={chatDraft} onInput={(event) => setChatDraft(event.currentTarget.value)} placeholder="Сообщение" />
+            <IconButton variant="primary" size="sm" type="submit" disabled={!chatDraft.trim()} title="Отправить" aria-label="Отправить сообщение">
+              <Send size={16} aria-hidden="true" />
+            </IconButton>
+          </form>
+        </Surface>
+      )}
+
       <section className="call-room__stage" aria-label="Видео звонок">
         <header className="call-room__topbar">
-          <div>
-            <span>Видеозвонок</span>
-            <div className="call-room__room-title">
-              <h1>Комната {roomId}</h1>
-              <IconButton
-                className={inviteCopied ? 'dh-is-copied' : ''}
-                variant="ghost"
-                size="xs"
-                type="button"
-                title={inviteCopied ? 'Ссылка скопирована' : 'Копировать ссылку на созвон'}
-                aria-label={inviteCopied ? 'Ссылка скопирована' : 'Копировать ссылку на созвон'}
-                onClick={() => void copyCallInvite()}
-              >
-                {inviteCopied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
-              </IconButton>
-            </div>
+          <div className="call-room__room-title">
+            <h1>Комната {roomId}</h1>
+            <IconButton
+              className={inviteCopied ? 'dh-is-copied' : ''}
+              variant="ghost"
+              size="xs"
+              type="button"
+              title={inviteCopied ? 'Ссылка скопирована' : 'Копировать ссылку на созвон'}
+              aria-label={inviteCopied ? 'Ссылка скопирована' : 'Копировать ссылку на созвон'}
+              onClick={() => void copyCallInvite()}
+            >
+              {inviteCopied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+            </IconButton>
           </div>
-          {!sideOpen && (
-            <div className="call-room__top-actions">
-              <IconButton type="button" size="lg" title="Открыть участников и чат" aria-label="Открыть участников и чат" onClick={() => setSideOpen(true)}>
-                <UserRound size={18} aria-hidden="true" />
-              </IconButton>
-            </div>
-          )}
         </header>
 
         {!connectedToRoom && !connectingToRoom && (
@@ -344,68 +410,80 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
         </Toolbar>
       </section>
 
-      {sideOpen && (
-      <aside className="call-room__side" aria-label="Участники и чат">
-        <Toolbar className="call-room__side-actions" aria-label="Панель участников и чата">
-          <IconButton type="button" size="sm" variant="ghost" title="Скрыть участников и чат" aria-label="Скрыть участников и чат" onClick={() => setSideOpen(false)}>
-            <X size={16} aria-hidden="true" />
-          </IconButton>
-        </Toolbar>
-        <Surface className="call-room__panel call-room__participants" tone="subtle" padding="none">
+      {rightOpen && (
+        <Surface as="aside" className="call-room__rail call-room__rail--right" tone="solid" padding="sm" aria-label="Участники звонка">
           <SectionHeader
             title="Участники"
             actions={<Badge tone="gold">{participantsList.length}</Badge>}
           />
-          {participantsList.map((participant) => (
-            <ListItem
-              key={participant.participantId}
-              title={participant.displayName || 'Гость'}
-              subtitle={participant.participantId === call.localParticipantId ? 'Вы' : participant.role === 'gm' ? 'Ведущий' : 'Игрок'}
-              density="compact"
-              tone={layoutMode === 'focus' && participant.participantId === focusedParticipant?.participantId ? 'featured' : 'default'}
-              leftAccessory={<Avatar fallback={initials(participant.displayName)} size="sm" />}
-              onClick={() => {
-                setFocusedParticipantId(participant.participantId);
-                setLayoutMode('focus');
-              }}
-              rightAccessory={
-                <Toolbar className="call-room__participant-status">
-                  {isParticipantConnecting(participant.participantId, call.localParticipantId, callDirectPeers) && <LoaderCircle className="call-room__connecting" size={15} aria-label="Подключается" />}
-                  {gameHandRaised(participant, raisedIds) && <Hand size={15} aria-label="Игровая рука поднята" />}
-                  {participant.micMuted ? <MicOff size={15} aria-label="Микрофон выключен" /> : <Mic size={15} aria-label="Микрофон включен" />}
-                  {participant.cameraOff ? <VideoOff size={15} aria-label="Камера выключена" /> : <Video size={15} aria-label="Камера включена" />}
-                </Toolbar>
-              }
-            />
-          ))}
-        </Surface>
-        <Surface className="call-room__panel call-room__chat" tone="subtle" padding="none">
-          <SectionHeader
-            title="Чат"
-            actions={<MessageCircle size={18} aria-hidden="true" />}
-          />
-          <div className="call-room__messages">
-            {feedMessages.map((entry) => (
-              <article key={entry.id}>
-                <strong>{entry.authorName || 'Участник'}</strong>
-                <span>{entry.body}</span>
-              </article>
+          <div className="call-room__participant-list">
+            {participantsList.map((participant) => (
+              <ListItem
+                key={participant.participantId}
+                title={participant.displayName || 'Гость'}
+                subtitle={participant.participantId === call.localParticipantId ? 'Вы' : participant.role === 'gm' ? 'Ведущий' : 'Игрок'}
+                density="compact"
+                tone={layoutMode === 'focus' && participant.participantId === focusedParticipant?.participantId ? 'featured' : 'default'}
+                leftAccessory={<Avatar fallback={initials(participant.displayName)} size="sm" />}
+                onClick={() => {
+                  setFocusedParticipantId(participant.participantId);
+                  setLayoutMode('focus');
+                }}
+                rightAccessory={
+                  <Toolbar className="call-room__participant-status">
+                    {isParticipantConnecting(participant.participantId, call.localParticipantId, callDirectPeers) && <LoaderCircle className="call-room__connecting" size={15} aria-label="Подключается" />}
+                    {gameHandRaised(participant, raisedIds) && <Hand size={15} aria-label="Игровая рука поднята" />}
+                    {participant.micMuted ? <MicOff size={15} aria-label="Микрофон выключен" /> : <Mic size={15} aria-label="Микрофон включен" />}
+                    {participant.cameraOff ? <VideoOff size={15} aria-label="Камера выключена" /> : <Video size={15} aria-label="Камера включена" />}
+                  </Toolbar>
+                }
+              />
             ))}
-            {feedMessages.length === 0 && <EmptyState size="sm" title="Сообщений пока нет" />}
           </div>
-          <form className="call-room__chat-form" onSubmit={(event) => {
-            event.preventDefault();
-            sendChat();
-          }}>
-            <TextControl value={chatDraft} onInput={(event) => setChatDraft(event.currentTarget.value)} placeholder="Сообщение" />
-            <IconButton type="submit" title="Отправить" aria-label="Отправить" tone="gold">
-              <Send size={16} aria-hidden="true" />
-            </IconButton>
-          </form>
         </Surface>
-      </aside>
       )}
-      <P2PHealthIndicator role={healthRole} />
+
+      <div className="call-room__panel-toggles" aria-label="Боковые панели созвона">
+        <IconButton
+          className={`call-room__panel-toggle call-room__panel-toggle--left ${leftOpen ? 'dh-is-open' : ''}`}
+          variant="secondary"
+          tone={leftOpen ? 'gold' : 'neutral'}
+          size="sm"
+          type="button"
+          title={leftOpen ? 'Скрыть чат' : `Открыть чат — ${p2pHealth.label}`}
+          aria-label={leftOpen ? 'Скрыть чат' : `Открыть чат. Соединение: ${p2pHealth.label}`}
+          aria-pressed={leftOpen}
+          onClick={() => setLeftOpen((current) => !current)}
+        >
+          {leftOpen ? <PanelLeftClose size={17} aria-hidden="true" /> : <PanelLeftOpen size={17} aria-hidden="true" />}
+          {!leftOpen && <span className={`player-connection-status-dot is-${p2pHealth.tone}`} aria-hidden="true" />}
+        </IconButton>
+        <IconButton
+          className={`call-room__panel-toggle call-room__panel-toggle--right ${rightOpen ? 'dh-is-open' : ''}`}
+          variant="secondary"
+          tone={rightOpen ? 'gold' : 'neutral'}
+          size="sm"
+          type="button"
+          title={rightOpen ? 'Скрыть участников' : 'Открыть участников'}
+          aria-label={rightOpen ? 'Скрыть участников' : 'Открыть участников'}
+          aria-pressed={rightOpen}
+          onClick={() => setRightOpen((current) => !current)}
+        >
+          {rightOpen ? <PanelRightClose size={17} aria-hidden="true" /> : <PanelRightOpen size={17} aria-hidden="true" />}
+        </IconButton>
+      </div>
+      {clearChronicleOpen && (
+        <ConfirmDialog
+          title="Очистить чат?"
+          body="Все сообщения, опубликованные броски и события будут удалены. Это действие нельзя отменить."
+          confirmLabel="Очистить"
+          onCancel={() => setClearChronicleOpen(false)}
+          onConfirm={() => {
+            setClearChronicleOpen(false);
+            feedService.clear();
+          }}
+        />
+      )}
     </main>
   );
 }
@@ -466,9 +544,14 @@ function defaultCallLayoutMode(): CallLayoutMode {
   return 'grid';
 }
 
-function defaultCallSideOpen(): boolean {
+function defaultCallLeftOpen(): boolean {
   if (typeof window === 'undefined') return true;
-  return !window.matchMedia('(max-width: 900px)').matches;
+  return window.matchMedia('(min-width: 1181px)').matches;
+}
+
+function defaultCallRightOpen(): boolean {
+  if (typeof window === 'undefined') return true;
+  return window.matchMedia('(min-width: 901px)').matches;
 }
 
 function resolveCallRoomId(input: { bareCallsPath: boolean; inviteRoomId: string; sessionParamsRoomId: string; sessionRoomId: string }): string {

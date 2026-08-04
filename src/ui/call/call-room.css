@@ -5,7 +5,7 @@
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
   overflow: hidden;
   background: var(--dh-ink-950, #07090c);
@@ -18,10 +18,6 @@
   place-items: center;
 }
 
-.call-room.dh-side-collapsed {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .call-room__scene-image,
 .call-room__backdrop {
   position: absolute;
@@ -32,7 +28,8 @@
 .call-room__scene-image {
   z-index: 0;
   background-position: center;
-  background-size: cover;
+  background-size: contain;
+  background-repeat: no-repeat;
   filter: saturate(1.14) contrast(1.04);
 }
 
@@ -53,34 +50,20 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 16px;
   padding: 24px;
+  transition: padding 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .call-room__topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
 }
 
-.call-room__top-actions {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.call-room__topbar span {
-  color: rgba(243, 234, 216, 0.64);
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
 .call-room__topbar h1 {
-  margin: 2px 0 0;
+  margin: 0;
   font-family: "DH Overpass", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.1rem;
+  font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -273,7 +256,12 @@
 }
 
 .call-room__controls {
-  justify-self: center;
+  position: fixed;
+  z-index: 8;
+  left: 50%;
+  bottom: 24px;
+  width: max-content;
+  transform: translateX(-50%);
   gap: 10px;
   padding: 8px;
   border: 0;
@@ -284,102 +272,99 @@
   justify-content: center;
 }
 
-.call-room__side {
+.call-room__rail,
+.call-room__rail.dh-surface {
+  position: absolute;
+  top: 42px;
+  bottom: 44px;
   min-height: 0;
-  z-index: 2;
+  z-index: 7;
+  width: min(350px, calc(100vw - 36px));
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 12px;
-  padding: 18px;
-  border-left: 1px solid var(--dh-border);
-  background: var(--dh-glass);
-  backdrop-filter: var(--dh-blur);
-}
-
-.call-room__panel,
-.call-room__panel.dh-surface {
-  min-height: 0;
-  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
   border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  border-radius: 16px;
+  background: rgba(7, 9, 12, 0.54);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(22px) saturate(1.12);
 }
 
-.call-room__side-actions {
-  justify-content: flex-end;
+.call-room__rail--left {
+  left: 18px;
 }
 
-.call-room__participants {
-  align-content: start;
+.call-room__rail--right,
+.call-room__rail--right.dh-surface {
+  right: 18px;
+  width: min(336px, calc(100vw - 36px));
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
-.call-room__chat {
-  grid-template-rows: auto minmax(0, 1fr) auto;
+.call-room__chronicle {
+  margin-inline: -4px;
+  padding-inline: 4px;
 }
 
-.call-room__messages {
+.call-room__participant-list {
   min-height: 0;
   display: grid;
-  align-content: end;
-  gap: 8px;
+  align-content: start;
+  gap: 4px;
   overflow: auto;
+  scrollbar-width: thin;
 }
 
-.call-room__messages article {
-  display: grid;
-  gap: 2px;
-  padding: 8px;
-  border-radius: var(--dh-radius);
-  background: var(--dh-glass-subtle);
+.call-room__panel-toggle {
+  position: absolute;
+  top: 54px;
+  z-index: 6;
+  background: rgba(7, 9, 12, 0.86);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(18px) saturate(1.16);
+  transition: left 220ms cubic-bezier(0.2, 0.8, 0.2, 1), right 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.call-room__messages strong {
-  color: var(--dh-gold-400);
-  font-size: 0.72rem;
+.call-room__panel-toggle .player-connection-status-dot {
+  top: 4px;
+  right: 4px;
 }
 
-.call-room__messages span,
-.call-room__messages p {
-  margin: 0;
-  color: rgba(243, 234, 216, 0.78);
-  font-size: 0.82rem;
-  line-height: 1.35;
+.call-room__panel-toggle--left {
+  left: 12px;
 }
 
-.call-room__chat-form {
-  align-self: end;
-  width: 100%;
-  max-width: 100%;
-  min-height: 46px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 5px 5px 12px;
-  border: 0;
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-control);
-  box-shadow: none;
-  backdrop-filter: var(--dh-blur);
-  transition: background 0.16s ease;
+.call-room__panel-toggle--left.dh-is-open {
+  left: min(376px, calc(100vw - 44px));
 }
 
-.call-room__chat-form:focus-within {
-  background: var(--dh-control-hover);
+.call-room__panel-toggle--right {
+  right: 12px;
 }
 
-.call-room__chat-form .dh-field {
-  min-height: 32px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+.call-room__panel-toggle--right.dh-is-open {
+  right: min(362px, calc(100vw - 44px));
+}
+
+.call-room__rail .player-activity-event:first-child {
+  margin-top: auto;
+}
+
+@media (min-width: 1440px) {
+  .call-room.dh-left-open .call-room__stage {
+    padding-left: 392px;
+  }
+
+  .call-room.dh-right-open .call-room__stage {
+    padding-right: 378px;
+  }
 }
 
 @media (max-width: 900px) {
-  .call-room {
+  .call-room,
+  .call-room.dh-left-open,
+  .call-room.dh-right-open,
+  .call-room.dh-left-open.dh-right-open {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     overflow: auto;
@@ -394,11 +379,7 @@
   }
 
   .call-room__topbar {
-    align-items: flex-start;
-  }
-
-  .call-room__top-actions {
-    align-items: flex-end;
+    align-items: center;
   }
 
   .call-room__focus-layout {
@@ -454,25 +435,42 @@
     justify-self: center;
   }
 
-  .call-room__side {
+  .call-room__rail,
+  .call-room__rail.dh-surface {
     position: fixed;
     z-index: 10;
     inset: 0;
+    width: auto;
     min-height: 100dvh;
     max-height: none;
     overflow: auto;
     border: 0;
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+    padding: calc(64px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .call-room__panel-toggle {
+    position: fixed;
+    z-index: 12;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+  }
+
+  .call-room__panel-toggle--left,
+  .call-room__panel-toggle--left.dh-is-open {
+    left: calc(12px + env(safe-area-inset-left, 0px));
+  }
+
+  .call-room__panel-toggle--right,
+  .call-room__panel-toggle--right.dh-is-open {
+    right: calc(12px + env(safe-area-inset-right, 0px));
   }
 
   .call-room__controls {
-    position: fixed;
-    z-index: 8;
     left: 16px;
     right: 16px;
     bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     width: auto;
-    justify-self: auto;
+    transform: none;
   }
 }
 
@@ -522,15 +520,6 @@
 
   .call-room__topbar {
     display: grid;
-  }
-
-  .call-room__top-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .call-room__top-actions .dh-button {
-    flex: 0 0 auto;
   }
 
   .call-room__controls {

@@ -13,7 +13,7 @@ test.describe('filled VTT layout regressions', () => {
 
     const root = page.locator('.player-view--gm');
     const board = page.locator('.player-scene-stage__board');
-    const feed = page.getByLabel('Хроника игры');
+    const feed = page.getByLabel('Чат игры');
     const panel = page.getByLabel('Инструменты сцены');
 
     await expect(root).not.toHaveClass(/player-view--activity-open/);
@@ -32,14 +32,14 @@ test.describe('filled VTT layout regressions', () => {
 
     const dice = page.locator('.mini-dice-launcher');
     const quickDice = page.locator('.mini-dice-launcher__quick');
-    const health = page.getByLabel('Хроника игры').getByRole('button', { name: /Открыть диагностику соединения/ });
+    const health = page.getByLabel('Чат игры').getByRole('button', { name: /Открыть диагностику соединения/ });
     const diceBox = await rect(dice);
     const quickDiceBox = await rect(quickDice);
     expect(Math.abs(diceBox.x + diceBox.width / 2 - 720)).toBeLessThanOrEqual(1);
     expect(Math.abs(quickDiceBox.x + quickDiceBox.width / 2 - 720)).toBeLessThanOrEqual(1);
     await expect(health).toBeVisible();
     await expectNoOverlap(dice, health);
-    await expect(page.getByLabel('Хроника игры')).toBeVisible();
+    await expect(page.getByLabel('Чат игры')).toBeVisible();
     await expect(page.getByLabel('Инструменты сцены')).toBeVisible();
     await expect(page.locator('.player-token')).toHaveCount(6);
     await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCount(1);
@@ -93,7 +93,7 @@ test.describe('filled VTT layout regressions', () => {
     await page.reload();
 
     const mobileDice = page.locator('.mini-dice-launcher');
-    const mobileHealth = page.getByLabel('Хроника игры').getByRole('button', { name: /Открыть диагностику соединения/ });
+    const mobileHealth = page.getByLabel('Чат игры').getByRole('button', { name: /Открыть диагностику соединения/ });
     await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Сцена' }).click();
     await expect(mobileDice).toBeVisible();
     await expect(mobileHealth).toBeHidden();

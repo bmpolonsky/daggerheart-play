@@ -25,6 +25,22 @@ test('feed service keeps player chat separate from technical roll log and filter
   assert.deepEqual(gmFeed.map((entry) => entry.body), ['Скрытая ловушка активна.', 'Дверь открывается.']);
 });
 
+test('titled gameplay messages keep their event label in the chronicle', () => {
+  resetAllStores();
+
+  feedService.addMessage('Заброшенная роща', 'Осквернитель · -1 Страх', {
+    title: 'Окружение',
+    publication: 'public'
+  });
+  feedService.addMessage('Леся', 'Я осматриваю алтарь.', { publication: 'public' });
+
+  const [chat, environment] = buildTableFeedFromEntries({ feed: feedStore.get(), role: 'player' });
+  assert.deepEqual(
+    [chat.kicker, chat.title, environment.kicker, environment.title],
+    ['Сообщение', 'Леся', 'Окружение', 'Заброшенная роща']
+  );
+});
+
 test('dice rolls append public feed roll entries without replacing roll log history', () => {
   resetAllStores();
   const originalRandom = Math.random;

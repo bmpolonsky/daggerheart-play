@@ -271,7 +271,7 @@ test.describe('filled-game player character workflows', () => {
 
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Действия' }).click();
       await gm.getByRole('button', { name: 'Продолжительный отдых', exact: true }).click();
-      const chronicle = gm.getByLabel('Хроника игры');
+      const chronicle = gm.getByLabel('Чат игры');
       await chronicle.getByRole('button', { name: 'Получить страх и завершить' }).click();
       await expect.poll(async () => (
         await trackedCard.getByLabel('До долгого отдыха: 0 из 2').count()

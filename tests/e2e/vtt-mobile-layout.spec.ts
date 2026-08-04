@@ -9,7 +9,7 @@ test.describe('VTT detail composition', () => {
     await openGmGame(page);
 
     const root = page.locator('.player-view--gm');
-    const feed = page.getByLabel('Хроника игры');
+    const feed = page.getByLabel('Чат игры');
     const scene = page.getByLabel('Игровая сцена');
     const panel = page.getByLabel('Инструменты сцены');
 
@@ -27,7 +27,7 @@ test.describe('VTT detail composition', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const feed = page.getByLabel('Хроника игры');
+    const feed = page.getByLabel('Чат игры');
     const panel = page.getByLabel('Инструменты сцены');
     const contextTabs = panel.getByLabel('Контекст мастера');
 
@@ -62,7 +62,7 @@ test.describe('mobile VTT composition', () => {
 
     const root = page.locator('.player-view--player');
     const tabs = page.getByLabel('Слой интерфейса');
-    const feed = page.getByLabel('Хроника игры');
+    const feed = page.getByLabel('Чат игры');
     const scene = page.getByLabel('Игровая сцена');
     const sheet = page.getByLabel('Персонаж игрока');
     const dice = page.getByLabel('Бросок костей');
@@ -71,8 +71,16 @@ test.describe('mobile VTT composition', () => {
     await expect(scene).toBeVisible();
     await expectInsideViewport(page, tabs);
     await expectInsideViewport(page, dice);
-    await tabs.getByRole('button', { name: 'Хроника' }).click();
+    await expect(tabs.getByRole('button')).toHaveCount(3);
+    await expect(tabs.getByRole('button', { name: 'Инструменты' })).toHaveCount(0);
+    await tabs.getByRole('button', { name: 'Чат' }).click();
     await expect(root).toHaveClass(/player-view--mobile-feed/);
+    await expectInsideViewport(page, feed);
+    await feed.getByRole('button', { name: 'Генератор NPC' }).click();
+    await expect(page.getByLabel('Быстрые инструменты')).toBeVisible();
+    await expect(tabs.getByRole('button', { name: 'Чат' })).toHaveAttribute('aria-pressed', 'true');
+    await tabs.getByRole('button', { name: 'Чат' }).click();
+    await expect(page.getByLabel('Быстрые инструменты')).toHaveCount(0);
     await expectInsideViewport(page, feed);
     await tabs.getByRole('button', { name: 'Лист' }).click();
     await expect(root).toHaveClass(/player-view--mobile-sheet/);

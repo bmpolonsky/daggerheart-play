@@ -115,16 +115,16 @@ test.describe('P2P session workflow', () => {
 
     const root = page.locator('.player-view--gm');
     const layerTabs = page.getByLabel('Слой интерфейса');
-    const chronicleTab = layerTabs.getByRole('button', { name: /Хроника\. Соединение:/ });
-    const chronicle = page.getByLabel('Хроника игры');
+    const chronicleTab = layerTabs.getByRole('button', { name: /Чат\. Соединение:/ });
+    const chronicle = page.getByLabel('Чат игры');
     await expect(chronicleTab.locator('.player-connection-status-dot')).toBeVisible();
     await chronicleTab.click();
     await expect(root).toHaveClass(/player-view--mobile-feed/);
     await expect(chronicle).toBeVisible();
-    await page.getByLabel('Сообщение игрока').fill('Заполненная хроника для проверки заголовка');
+    await page.getByLabel('Сообщение игрока').fill('Заполненный чат для проверки заголовка');
     await page.getByRole('button', { name: 'Отправить сообщение' }).click();
-    await chronicle.getByRole('button', { name: 'Другие действия хроники' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Очистить хронику' })).toBeVisible();
+    await chronicle.getByRole('button', { name: 'Другие действия чата' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Очистить чат' })).toBeVisible();
 
     const chronicleHeader = chronicle.locator('.player-chronicle-header');
     const headerTitle = chronicleHeader.locator('.player-chronicle-header__title');
@@ -218,8 +218,8 @@ test.describe('P2P session workflow', () => {
     await seedConnectedDiagnostics(page, ['peer-alpha', 'peer-beta', 'peer-gamma', 'peer-delta']);
     await page.setViewportSize({ width: 320, height: 568 });
     await openGmGame(page);
-    await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Хроника' }).click();
-    await page.getByLabel('Хроника игры').getByRole('button', { name: /Открыть диагностику соединения/ }).click();
+    await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
+    await page.getByLabel('Чат игры').getByRole('button', { name: /Открыть диагностику соединения/ }).click();
 
     const dialog = page.getByRole('dialog', { name: 'Диагностика соединения' });
     const panel = dialog.locator('.p2p-health-dialog');
@@ -627,7 +627,7 @@ test.describe('P2P session workflow', () => {
     await expect(sessionMeta(player, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
 
     await player.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
-    await expect(player.getByLabel('Хроника игры')).toBeVisible();
+    await expect(player.getByLabel('Чат игры')).toBeVisible();
     const playerChat = 'сообщение игрока из live P2P smoke';
     await player.getByLabel('Сообщение игрока').fill(playerChat);
     await player.getByRole('button', { name: 'Отправить сообщение' }).click();

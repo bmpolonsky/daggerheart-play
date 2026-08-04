@@ -1320,7 +1320,7 @@
     left: max(10px, env(safe-area-inset-left));
     z-index: calc(var(--dh-z-floating, 220) + 110);
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
   }
 

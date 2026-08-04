@@ -12,7 +12,7 @@ export function PlayerRailTabs({ active, role, onSelect }: {
 }) {
   return (
     <Tabs align="start" className="player-left-rail-tabs" label="Режим левой панели">
-      <TabButton active={active === 'chronicle'} title="Хроника" aria-label="Хроника" onClick={() => onSelect('chronicle')}>
+      <TabButton active={active === 'chronicle'} title="Чат" aria-label="Чат" onClick={() => onSelect('chronicle')}>
         <BookOpenText size={16} aria-hidden="true" />
       </TabButton>
       <TabButton active={active === 'library'} title="Библиотека игры" aria-label="Библиотека игры" onClick={() => onSelect('library')}>

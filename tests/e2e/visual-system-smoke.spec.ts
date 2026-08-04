@@ -51,7 +51,7 @@ test.describe('dark glass visual system smoke', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const feed = page.getByLabel('Хроника игры');
+    const feed = page.getByLabel('Чат игры');
     const scene = page.getByLabel('Игровая сцена');
     const sheet = page.getByLabel('Инструменты сцены');
 
@@ -101,8 +101,8 @@ test.describe('dark glass visual system smoke', () => {
 
     const tabs = page.getByLabel('Слой интерфейса');
     await expectInsideViewport(page, tabs);
-    await tabs.getByRole('button', { name: 'Хроника' }).click();
-    await expectInsideViewport(page, page.getByLabel('Хроника игры'));
+    await tabs.getByRole('button', { name: 'Чат' }).click();
+    await expectInsideViewport(page, page.getByLabel('Чат игры'));
     await tabs.getByRole('button', { name: 'Лист' }).click();
     await expectInsideViewport(page, page.getByLabel('Персонаж игрока'));
     await expectNoHorizontalOverflow(page, 390);

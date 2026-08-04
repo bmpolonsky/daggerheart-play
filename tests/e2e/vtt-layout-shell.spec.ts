@@ -23,7 +23,7 @@ test.describe('VTT layout shell contract', () => {
 
     await close.click();
     await expect(modal).toHaveCount(0);
-    await expect(page.getByLabel('Хроника игры')).toBeVisible();
+    await expect(page.getByLabel('Чат игры')).toBeVisible();
     await expect(page).toHaveURL(/\/#\/game$/);
   });
 
@@ -31,11 +31,11 @@ test.describe('VTT layout shell contract', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const feed = page.getByLabel('Хроника игры');
+    const feed = page.getByLabel('Чат игры');
     const scene = page.getByLabel('Игровая сцена');
     const panel = page.getByLabel('Инструменты сцены');
     const dice = page.getByLabel('Бросок костей');
-    const leftToggle = page.getByRole('button', { name: 'Скрыть хронику' });
+    const leftToggle = page.getByRole('button', { name: 'Скрыть чат' });
     const rightToggle = page.getByRole('button', { name: 'Скрыть панель мастера' });
 
     await expect(page.locator('.player-view--activity-open.player-view--panel-open')).toBeVisible();
@@ -73,7 +73,7 @@ test.describe('VTT layout shell contract', () => {
     await expectHiddenSurface(feed);
     await expectHiddenSurface(panel);
 
-    const collapsedLeftToggle = page.getByRole('button', { name: 'Открыть хронику' });
+    const collapsedLeftToggle = page.getByRole('button', { name: 'Открыть чат' });
     const collapsedRightToggle = page.getByRole('button', { name: 'Открыть панель мастера' });
     expect((await rect(collapsedLeftToggle)).y).toBeLessThan(100);
     expect((await rect(collapsedRightToggle)).y).toBeLessThan(100);
@@ -88,10 +88,10 @@ test.describe('VTT layout shell contract', () => {
     await openGmGame(page);
 
     const root = page.locator('.player-view--gm');
-    const feed = page.getByLabel('Хроника игры');
+    const feed = page.getByLabel('Чат игры');
     const board = page.locator('.player-scene-stage__board');
     const panel = page.getByLabel('Инструменты сцены');
-    const leftToggle = page.getByRole('button', { name: 'Открыть хронику' });
+    const leftToggle = page.getByRole('button', { name: 'Открыть чат' });
     const rightToggle = page.getByRole('button', { name: 'Скрыть панель мастера' });
 
     await expect(root).not.toHaveClass(/player-view--activity-open/);
@@ -118,12 +118,12 @@ test.describe('VTT layout shell contract', () => {
     await openGmGame(page);
 
     const root = page.locator('.player-view--gm');
-    const feed = page.getByLabel('Хроника игры');
+    const feed = page.getByLabel('Чат игры');
     const panel = page.getByLabel('Инструменты сцены');
     await expect(root).not.toHaveClass(/player-view--activity-open/);
     await expect(root).not.toHaveClass(/player-view--panel-open/);
     await expect(page.getByLabel('Слой интерфейса')).toBeVisible();
-    await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Хроника' }).click();
+    await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
     await expect(root).toHaveClass(/player-view--mobile-feed/);
 
     await page.setViewportSize({ width: 1024, height: 900 });
@@ -164,7 +164,7 @@ test.describe('VTT layout shell contract', () => {
 
     const root = page.locator('.player-view--player');
     const tabs = page.getByLabel('Слой интерфейса');
-    const feedTab = tabs.getByRole('button', { name: 'Хроника' });
+    const feedTab = tabs.getByRole('button', { name: 'Чат' });
     const sceneTab = tabs.getByRole('button', { name: 'Сцена' });
     const sheetTab = tabs.getByRole('button', { name: 'Лист' });
 

@@ -368,13 +368,16 @@ function feedEntryToTableFeedItem(entry: FeedEntry): TableFeedItem {
   if (entry.type === 'deathMove') {
     return buildDeathMoveFeedItem(entry);
   }
+  const messageTitle = entry.type === 'message' && entry.title !== entry.authorName
+    ? entry.title
+    : null;
   return {
     id: entry.id,
     kind: entry.type,
     createdAt: entry.createdAt,
     authorName: entry.authorName,
-    kicker: entry.type === 'system' ? 'Система' : 'Сообщение',
-    title: entry.title,
+    kicker: entry.type === 'system' ? 'Система' : messageTitle ?? 'Сообщение',
+    title: messageTitle ? entry.authorName : entry.title,
     body: entry.body,
     tone: 'neutral',
     publication: feedEntryPublication(entry)

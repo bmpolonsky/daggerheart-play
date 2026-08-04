@@ -22,7 +22,7 @@ export function SessionFocusControls({
   onPanelToggle: () => void;
 }) {
   const rightPanelLabel = role === 'gm' ? 'панель мастера' : 'лист персонажа';
-  const chronicleCommand = activityOpen ? 'Скрыть хронику' : 'Открыть хронику';
+  const chronicleCommand = activityOpen ? 'Скрыть чат' : 'Открыть чат';
 
   return (
     <div className="player-session-panel-toggles" aria-label="Боковые панели">

@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useState } from 'preact/hooks';
-import { Copy, Dices, ScrollText } from 'lucide-react';
+import { Copy, Dices, LockKeyhole } from 'lucide-react';
 import { formatNpc, generateNpc, type GeneratedNpc } from '../../../../domain/generators/npc';
 import { feedService, gameService } from '../../../../services/serviceRegistry';
 import { Button, ListItem, Notice, SectionHeader, Surface, Toolbar } from '../../../components/common';
@@ -20,7 +20,7 @@ export function SharedToolsGeneratorsTab({ npc, onNpcChange }: { npc: GeneratedN
 
   const addToChronicle = () => {
     feedService.addMessage(gameService.game$.get().gmName || 'Мастер', text, { title: `NPC · ${npc.name}`, publication: 'gm' });
-    setMessage('Добавлено в приватную хронику мастера.');
+    setMessage('Добавлено приватно.');
   };
 
   return (
@@ -38,7 +38,16 @@ export function SharedToolsGeneratorsTab({ npc, onNpcChange }: { npc: GeneratedN
       <Toolbar>
         <Button size="sm" iconBefore={<Dices size={15} aria-hidden="true" />} onClick={() => { onNpcChange(generateNpc()); setMessage(''); }}>Сгенерировать ещё</Button>
         <Button size="sm" variant="ghost" iconBefore={<Copy size={15} aria-hidden="true" />} onClick={() => void copy()}>Скопировать</Button>
-        <Button size="sm" variant="ghost" iconBefore={<ScrollText size={15} aria-hidden="true" />} onClick={addToChronicle}>В хронику мастера</Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          iconBefore={<LockKeyhole size={15} aria-hidden="true" />}
+          title="В чат — видно только мастеру"
+          aria-label="Добавить NPC в чат приватно"
+          onClick={addToChronicle}
+        >
+          В чат (приватно)
+        </Button>
       </Toolbar>
       {message && <Notice tone="success">{message}</Notice>}
     </section>
