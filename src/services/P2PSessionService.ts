@@ -1647,7 +1647,7 @@ export class P2PSessionService {
         this.stopPlayerProductRecoveryPolling();
         return;
       }
-      if (!this.hasDirectGmSnapshot || session.status === 'degraded' || session.peers.length === 0) {
+      if (!session.lastSnapshotAt || session.status === 'degraded' || session.peers.length === 0) {
         void this.requestSnapshotFromGm(session.lastSnapshotAt ? 'peer-reconnect' : 'manual');
       }
     }, this.roomConnectionConfig.heartbeatMs ?? PRODUCT_SYNC_RECOVERY_POLL_MS);
@@ -1876,9 +1876,8 @@ export class P2PSessionService {
     const connection = this.activeRoomConnection;
     if (!connection || connection.sessionMode?.() !== 'hybrid') return 'connected';
     const gmPeerId = connection.gmPeerId();
-    return gmPeerId && connection.directPeerIds?.().includes(gmPeerId)
-      ? this.hasDirectGmSnapshot ? 'connected' : 'connecting'
-      : lastSnapshotAt ? 'degraded' : 'connecting';
+    if (!gmPeerId) return lastSnapshotAt ? 'degraded' : 'connecting';
+    return lastSnapshotAt ? 'connected' : 'connecting';
   }
 
   private startGmActivityGuard(): void {

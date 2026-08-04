@@ -10,10 +10,12 @@ import type {
 import { ServerRelayTransport } from '../ServerRelayTransport';
 
 const DIRECT_RETRY_MS = 5_000;
+const SERVER_FALLBACK_DELAY_MS = 350;
+const MAX_SEEN_ENVELOPES = 1_000;
 
 /**
  * The server owns room lifecycle, roster and the initial cloud snapshot.
- * Trystero remains the only WebRTC implementation and carries all live data.
+ * Live data prefers direct WebRTC and falls back to the server per participant.
  */
 export class HybridSessionTransport implements P2PTransportAdapter {
   readonly id = 'hybrid-session';
@@ -25,6 +27,8 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   private roster = new Map<string, P2PTransportRosterEntry>();
   private directPeers = new Set<string>();
   private visiblePeers = new Set<string>();
+  private seenEnvelopeIds = new Set<string>();
+  private seenEnvelopeOrder: string[] = [];
   private listeners = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
   private joinListeners = new Set<(peerId: string) => void>();
   private leaveListeners = new Set<(peerId: string) => void>();
@@ -62,6 +66,8 @@ export class HybridSessionTransport implements P2PTransportAdapter {
     this.roster.clear();
     this.directPeers.clear();
     this.visiblePeers.clear();
+    this.seenEnvelopeIds.clear();
+    this.seenEnvelopeOrder = [];
   }
 
   async send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void> {
@@ -79,7 +85,16 @@ export class HybridSessionTransport implements P2PTransportAdapter {
       await this.direct.send(envelope, targetPeer).catch(() => undefined);
       return;
     }
-    await this.direct.send(envelope, targetPeer);
+    if (targetPeer) {
+      await this.sendToPeer(envelope, targetPeer);
+      return;
+    }
+    const recipients = new Set([...this.roster.keys(), ...this.directPeers]);
+    if (recipients.size === 0) {
+      await this.server.send(envelope);
+      return;
+    }
+    await Promise.all(Array.from(recipients, (peerId) => this.sendToPeer(envelope, peerId)));
   }
 
   subscribe(listener: (envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void): () => void {
@@ -181,11 +196,24 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   }
 
   private handleServerEnvelope(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext): void {
-    const event = envelope.channel === 'data' && envelope.payload && typeof envelope.payload === 'object'
-      ? envelope.payload as { id?: unknown; kind?: unknown }
-      : null;
-    if (event?.kind === 'snapshot' && typeof event.id === 'string' && event.id.startsWith('server-snapshot-')) {
-      this.deliver(envelope, context);
+    if (envelope.channel === 'data') this.deliver(envelope, context);
+  }
+
+  private async sendToPeer(envelope: P2PWireEnvelope, peerId: string): Promise<void> {
+    if (!this.directPeers.has(peerId)) {
+      await this.server.send(envelope, peerId);
+      return;
+    }
+    let fallbackTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+    const delayedServerFallback = new Promise<void>((resolve, reject) => {
+      fallbackTimer = globalThis.setTimeout(() => {
+        void this.server.send(envelope, peerId).then(resolve, reject);
+      }, SERVER_FALLBACK_DELAY_MS);
+    });
+    try {
+      await Promise.any([this.direct.send(envelope, peerId), delayedServerFallback]);
+    } finally {
+      globalThis.clearTimeout(fallbackTimer);
     }
   }
 
@@ -201,6 +229,13 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   }
 
   private deliver(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext): void {
+    if (this.seenEnvelopeIds.has(envelope.id)) return;
+    this.seenEnvelopeIds.add(envelope.id);
+    this.seenEnvelopeOrder.push(envelope.id);
+    if (this.seenEnvelopeOrder.length > MAX_SEEN_ENVELOPES) {
+      const oldest = this.seenEnvelopeOrder.shift();
+      if (oldest) this.seenEnvelopeIds.delete(oldest);
+    }
     this.listeners.forEach((listener) => listener(envelope, {
       ...context,
       sourcePeerId: envelope.sender.peerId,

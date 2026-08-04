@@ -8,7 +8,8 @@ import type {
 } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
-const PRESENCE_POLL_INTERVAL_MS = 3_000;
+const LONG_POLL_WAIT_MS = 15_000;
+const POLL_RETRY_MS = 1_000;
 
 interface RoomConnectionResponse {
   cursor: number;
@@ -149,7 +150,7 @@ export class ServerRelayTransport implements P2PTransportAdapter {
     this.abortController = new AbortController();
     try {
       const response = await this.request<EventsResponse>(
-        `/api/rooms/${encodeURIComponent(this.roomId)}/events?after=${this.cursor}`,
+        `/api/rooms/${encodeURIComponent(this.roomId)}/events?after=${this.cursor}&wait=${LONG_POLL_WAIT_MS}`,
         { signal: this.abortController.signal }
       );
       this.cursor = Math.max(this.cursor, response.cursor);
@@ -160,13 +161,14 @@ export class ServerRelayTransport implements P2PTransportAdapter {
         this.deliver(item.envelope);
       }
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) {
-        this.emitError(error instanceof Error ? error.message : 'Серверная синхронизация временно недоступна.');
-      }
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      this.emitError(error instanceof Error ? error.message : 'Серверная синхронизация временно недоступна.');
+      this.schedulePoll(POLL_RETRY_MS);
+      return;
     } finally {
       this.abortController = null;
-      this.schedulePoll(PRESENCE_POLL_INTERVAL_MS);
     }
+    this.schedulePoll(0);
   }
 
   private updatePeers(peerIds: string[]): void {

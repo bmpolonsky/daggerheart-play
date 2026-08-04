@@ -4,14 +4,18 @@ import { HybridSessionTransport } from '../../src/services/p2p/HybridSessionTran
 import type { P2PTransportAdapter, P2PTransportMessageContext, P2PWireEnvelope } from '../../src/services/p2p/P2PTransportAdapter';
 
 describe('HybridSessionTransport', () => {
-  it('accepts the initial cloud snapshot but does not replay server event history', async () => {
+  it('accepts the initial cloud snapshot and server fallback events', async () => {
     const originalFetch = globalThis.fetch;
     const initial = envelope('gm-peer', 'initial', { id: 'server-snapshot-ABC123-1', kind: 'snapshot' });
+    const fallback = envelope('gm-peer', 'fallback', { id: 'fallback-event', kind: 'snapshot' });
+    let polled = false;
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method === 'POST' && String(input).endsWith('/join')) {
         return response({ cursor: 0, peers: ['gm-peer'], roster: [{ peerId: 'gm-peer', displayName: 'Мастер', role: 'gm' }], participantToken: 'token', initialEvent: initial });
       }
-      return response({ cursor: 1, peers: ['gm-peer'], roster: [{ peerId: 'gm-peer', displayName: 'Мастер', role: 'gm' }], events: [{ sequence: 1, envelope: envelope('gm-peer', 'history') }] });
+      const events = polled ? [] : [{ sequence: 1, envelope: fallback }];
+      polled = true;
+      return response({ cursor: 1, peers: ['gm-peer'], roster: [{ peerId: 'gm-peer', displayName: 'Мастер', role: 'gm' }], events });
     }) as typeof fetch;
     const direct = new FakeTransport();
     const transport = new HybridSessionTransport(direct, { ...context(), role: 'player', participantId: 'player-peer', initialSnapshot: undefined });
@@ -21,7 +25,7 @@ describe('HybridSessionTransport', () => {
       await transport.connect('ABC123');
       await new Promise((resolve) => setTimeout(resolve, 10));
       await transport.disconnect();
-      assert.deepEqual(received, [initial.id]);
+      assert.deepEqual(received, [initial.id, fallback.id]);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -49,6 +53,36 @@ describe('HybridSessionTransport', () => {
       assert.equal(serverPosts, 0);
       await transport.disconnect();
     } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('uses the server for game events until a direct peer is available', async () => {
+    const originalFetch = globalThis.fetch;
+    const direct = new FakeTransport();
+    let serverPosts = 0;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input);
+      if (init?.method === 'PUT') return response({ cursor: 0, peers: ['player-peer'], roster: [{ peerId: 'player-peer', displayName: 'Игрок', role: 'player' }] });
+      if (init?.method === 'POST' && path.endsWith('/events')) {
+        serverPosts += 1;
+        return response({ accepted: true });
+      }
+      return response({ cursor: 0, peers: ['player-peer'], roster: [{ peerId: 'player-peer', displayName: 'Игрок', role: 'player' }], events: [] });
+    }) as typeof fetch;
+    const transport = new HybridSessionTransport(direct, context());
+    try {
+      await transport.connect('ABC123');
+      await transport.send(envelope('gm-peer'));
+      assert.equal(serverPosts, 1);
+      assert.equal(direct.sent, 0);
+
+      direct.join('player-peer');
+      await transport.send(envelope('gm-peer', 'direct-event'));
+      assert.equal(serverPosts, 1);
+      assert.equal(direct.sent, 1);
+    } finally {
+      await transport.disconnect();
       globalThis.fetch = originalFetch;
     }
   });

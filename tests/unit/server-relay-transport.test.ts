@@ -61,6 +61,7 @@ describe('ServerRelayTransport', () => {
 
     assert.deepEqual(joined, ['player-peer']);
     assert.equal(received[0].sender.peerId, 'player-peer');
+    assert.match(calls.find((call) => call.path.includes('/events?'))?.path ?? '', /[?&]wait=15000/);
     const openBody = JSON.parse(String(calls.find((call) => call.init?.method === 'PUT')?.init?.body));
     assert.equal(openBody.worldId, 'world-1');
     assert.equal(openBody.snapshot.game.name, 'Тестовый мир');
