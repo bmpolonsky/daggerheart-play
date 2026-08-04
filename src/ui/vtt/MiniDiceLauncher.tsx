@@ -1,11 +1,12 @@
 /** @jsxImportSource preact */
-import { Hand, LibraryBig, LoaderCircle, Mic, MicOff, RotateCcw, X } from 'lucide-react';
+import { Hand, LoaderCircle, Phone, PhoneCall, RotateCcw, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ActionComposerRollOptions } from '../../domain/rules/actionComposer';
 import type { DiceVisualTone, RollPublication, TraitId } from '../../domain/rules/types';
-import type { AudioLayerState } from '../../services/AudioService';
+import type { MediaCallState } from '../../services/MediaCallService';
 import type { PolyhedralDieSides } from '../dice/types';
 import { Button } from '../components/common/Button';
+import { Badge } from '../components/common/Badge';
 import { Checkbox } from '../components/common/Checkbox';
 import { IconButton } from '../components/common/IconButton';
 import { SegmentedControl } from '../components/common/SegmentedControl';
@@ -36,19 +37,20 @@ type MiniDiceLauncherProps = {
   actorName: string;
   selectedActorKind?: MiniDiceSelectedActorKind;
   role: 'player' | 'gm';
-  voiceState: AudioLayerState;
+  callState: MediaCallState;
   activationRaised?: boolean;
+  activationRequestCount?: number;
   canRequestActivation?: boolean;
   rollPending?: boolean;
   rollDisabled?: boolean;
-  onOpenTools: () => void;
   onActivationToggle?: () => void;
-  onVoiceToggle: () => void;
+  onCallJoin: () => void;
+  onRosterOpen?: () => void;
   onRoll: (formula: string, label?: string, publication?: RollPublication, options?: { advantageCount?: number; disadvantageCount?: number; diceTones?: DiceVisualTone[] }) => void;
   onDualityRoll?: (roll: { rollType: PlayerRollType; trait?: TraitId | null; options: MiniDualityRollOptions; publication?: RollPublication }) => void;
 };
 
-export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, voiceState, activationRaised = false, canRequestActivation = false, rollPending = false, rollDisabled = false, onOpenTools, onActivationToggle, onVoiceToggle, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
+export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, callState, activationRaised = false, activationRequestCount = 0, canRequestActivation = false, rollPending = false, rollDisabled = false, onActivationToggle, onCallJoin, onRosterOpen, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
   const launcherMode = resolveMiniDiceLauncherMode({ role, selectedActorKind });
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -148,22 +150,31 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
     onRoll(manualFormula, `${actorName}: ${manualFormula}`, publication, rollOptions);
     resetAdvantage();
   };
-  const voiceActive = voiceState.voiceStatus === 'live';
-  const voiceAttention = voiceState.voiceStatus === 'connecting' || voiceState.voiceStatus === 'permission-denied' || voiceState.voiceStatus === 'error' || voiceState.voiceStatus === 'unsupported';
-  const voiceTitle = voiceState.voiceStatus === 'live'
-    ? 'Заглушить микрофон'
-    : voiceState.voiceStatus === 'muted'
-      ? 'Включить микрофон'
-      : voiceState.voiceMessage;
+  const callAttention = callState.status === 'permission-denied' || callState.status === 'error' || callState.status === 'unsupported';
+  const callTitle = callState.active ? 'Звонок подключён' : 'Подключиться к звонку';
+  const rosterTitle = activationRequestCount > 0
+    ? `Открыть участников: поднятых рук ${activationRequestCount}`
+    : 'Открыть участников';
 
   return (
     <section
       className={`mini-dice-launcher mini-dice-launcher--${role} ${open ? 'dh-is-open' : ''} ${dismissed ? 'dh-is-dismissed' : ''}`}
       aria-label="Бросок костей"
     >
-      <IconButton className="mini-dice-launcher__tools" variant="ghost" size="sm" type="button" title="Инструменты" aria-label="Инструменты" onClick={onOpenTools}>
-        <LibraryBig size={16} aria-hidden="true" />
-      </IconButton>
+      <div className="mini-dice-launcher__left-actions">
+        <IconButton
+          className="mini-dice-launcher__voice"
+          variant="ghost"
+          tone={callAttention ? 'danger' : callState.active ? 'green' : 'neutral'}
+          size="sm"
+          type="button"
+          title={callTitle}
+          aria-label={callTitle}
+          onClick={onCallJoin}
+        >
+          {callState.active ? <PhoneCall size={16} aria-hidden="true" /> : <Phone size={16} aria-hidden="true" />}
+        </IconButton>
+      </div>
       <IconButton
         className={`mini-dice-launcher__quick mini-dice-launcher__quick--${launcherMode}`}
         variant="secondary"
@@ -179,18 +190,6 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
         </span>
       </IconButton>
       <div className="mini-dice-launcher__right-actions">
-        <IconButton
-          className="mini-dice-launcher__voice"
-          variant="ghost"
-          tone={voiceAttention ? 'danger' : voiceActive ? 'green' : 'blue'}
-          size="sm"
-          type="button"
-          title={voiceTitle}
-          aria-label={voiceTitle}
-          onClick={onVoiceToggle}
-        >
-          {voiceActive ? <Mic size={16} aria-hidden="true" /> : <MicOff size={16} aria-hidden="true" />}
-        </IconButton>
         {role === 'player' && (
           <IconButton
             className="mini-dice-launcher__hand"
@@ -203,6 +202,21 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, vo
             onClick={onActivationToggle}
           >
             <Hand size={16} aria-hidden="true" />
+          </IconButton>
+        )}
+        {role === 'gm' && (
+          <IconButton
+            className="mini-dice-launcher__roster"
+            variant="ghost"
+            tone={activationRequestCount > 0 ? 'gold' : 'neutral'}
+            size="sm"
+            type="button"
+            title={rosterTitle}
+            aria-label={rosterTitle}
+            onClick={onRosterOpen}
+          >
+            <Users size={16} aria-hidden="true" />
+            {activationRequestCount > 0 && <Badge size="xs" tone="gold">{activationRequestCount}</Badge>}
           </IconButton>
         )}
       </div>

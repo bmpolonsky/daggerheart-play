@@ -21,6 +21,7 @@ export function PlayerCharacterPanel({
   emptyActionLabel,
   emptyState,
   role,
+  rosterRequestId,
   sceneId,
   sceneTable,
   onClearActivationRequest,
@@ -43,6 +44,7 @@ export function PlayerCharacterPanel({
   emptyActionLabel?: string;
   emptyState: PlayerViewEmptyCharacterState;
   role: TableViewRole;
+  rosterRequestId?: number;
   sceneId: string;
   sceneTable: SceneTableState;
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor["activationRequest"]>) => void;
@@ -86,6 +88,7 @@ export function PlayerCharacterPanel({
         actors={actors}
         beastforms={beastforms}
         character={character}
+        rosterRequestId={rosterRequestId}
         sceneId={sceneId}
         sceneTable={sceneTable}
         onClearActivationRequest={onClearActivationRequest}

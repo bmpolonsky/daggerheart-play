@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectHiddenSurface, expectInsideViewport } from './layout-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 async function openPlayerView(page: Page, viewport: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(viewport);
@@ -41,9 +42,9 @@ test.describe('Player View empty state', () => {
     await expect(page.getByLabel('Хроника игры')).toContainText('Хроника пока пуста');
     await expect(page.getByLabel('Инструменты сцены')).toContainText('Сцена пока пуста');
 
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    await openGameLibrary(page);
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     await expect(workspace.locator('.player-tools-character-card')).toHaveCount(0);
     await expect(workspace.getByRole('button', { name: 'Создать героя' })).toBeVisible();
   });

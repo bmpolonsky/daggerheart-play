@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Check, Copy, Eye, EyeOff, Minus, Plus, SendHorizontal, Trash2, X } from 'lucide-react';
+import { Check, Copy, Eye, EyeOff, LibraryBig, Minus, Plus, SendHorizontal, Trash2, X } from 'lucide-react';
 import { useStream } from '../../../../core/hooks/useStream';
 import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
@@ -17,7 +17,8 @@ import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainC
 import { currentSettingsInviteContext, feedRollRevealId, revealedRollIdsFromActivity } from '../helpers';
 import { playerViewUi$, playerViewUiActions } from '../playerViewUiState';
 import { PlayerRollConfirm } from '../PlayerRollConfirm';
-import type { PlayerRollDraft, TableViewRole } from '../types';
+import type { PlayerRollDraft, SharedToolsTab, TableViewRole } from '../types';
+import { PlayerRailTabs } from '../PlayerRailTabs';
 import { delaysRollResult, unrevealedRollIdsFromHistoricalActivity } from './activityReveal';
 import { FeedCard } from './feedCards/FeedCard';
 
@@ -31,13 +32,15 @@ export function PlayerLeftRail({
   macroCharacter,
   macroCharacters,
   model,
-  role
+  role,
+  onOpenTool
 }: {
   accessible: boolean;
   macroCharacter?: PlayerViewCharacterSummary | null;
   macroCharacters?: Record<string, PlayerViewCharacterSummary>;
   model: PlayerViewModel;
   role: TableViewRole;
+  onOpenTool: (tab: SharedToolsTab) => void;
 }) {
   const [message, setMessage] = useState('');
   const [rollDraftState, setRollDraftState] = useState<FeedCardRollDraftState | null>(null);
@@ -177,10 +180,13 @@ export function PlayerLeftRail({
       )}
       <section className={`player-activity-card ${role === 'gm' ? 'player-activity-card--gm' : ''}`}>
         <header className="player-chronicle-header">
-          <div className="player-chronicle-header__title">
-            <strong>Хроника</strong>
-          </div>
+          <PlayerRailTabs active="chronicle" role={role} onSelect={(tab) => {
+            if (tab === 'npc') onOpenTool('generators');
+          }} />
           <div className="player-chronicle-header__actions">
+            <IconButton variant="ghost" size="sm" type="button" title="Библиотека игры" aria-label="Библиотека игры" onClick={() => onOpenTool('library')}>
+              <LibraryBig size={16} aria-hidden="true" />
+            </IconButton>
             <P2PHealthIndicator placement="chronicle" role={role} />
             {role === 'gm' && (
               <IconButton className={inviteCopied ? 'dh-is-copied' : ''} variant="ghost" size="sm" type="button" disabled={!p2pSession.roomId} title={inviteCopied ? 'Ссылка скопирована' : 'Копировать приглашение'} aria-label={inviteCopied ? 'Ссылка скопирована' : 'Копировать приглашение'} onClick={() => void copyInvite()}>

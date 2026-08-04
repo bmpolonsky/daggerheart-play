@@ -168,13 +168,6 @@
   text-transform: uppercase;
 }
 
-.role-entry__lobby-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1.42fr) minmax(280px, 0.58fr);
-  align-items: start;
-  gap: 12px 14px;
-}
-
 .role-entry__card {
   position: relative;
   display: grid;
@@ -290,11 +283,6 @@
     gap: 10px;
   }
 
-  .role-entry__lobby-shell {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
   .role-entry__card {
     gap: 10px;
   }
@@ -318,6 +306,10 @@
 }
 
 /* Lobby journey: one primary way into play, with secondary tasks kept quiet. */
+.role-entry {
+  place-items: start center;
+}
+
 .role-entry__scene {
   background:
     linear-gradient(90deg, rgba(7, 9, 12, 0.9) 0%, rgba(7, 9, 12, 0.38) 58%, rgba(7, 9, 12, 0.7) 100%),
@@ -326,21 +318,69 @@
 }
 
 .role-entry__content {
-  width: min(1240px, calc(100vw - 48px));
+  width: min(720px, calc(100vw - 40px));
   gap: 16px;
 }
 
-.role-entry__lobby-shell {
-  grid-template-columns: minmax(0, 1.55fr) minmax(400px, 0.85fr);
-  gap: 18px;
-}
-
-.role-entry__primary-flow,
-.role-entry__side-flow {
+.role-entry__master-flow {
   min-width: 0;
   display: grid;
-  align-content: start;
-  gap: 14px;
+  gap: 12px;
+}
+
+.role-entry__topbar {
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 6px;
+  border-radius: 18px;
+  background: rgba(7, 9, 12, 0.42);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(22px) saturate(1.12);
+}
+
+.role-entry__topbar::before {
+  content: "";
+}
+
+.role-entry__topbar .dh-tab-row {
+  grid-column: 2;
+  width: 260px;
+}
+
+.role-entry__topbar .dh-tab {
+  gap: 7px;
+}
+
+.role-entry__account,
+.role-entry__game-statuses {
+  flex-wrap: wrap;
+}
+
+.role-entry__account {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.role-entry__account .dh-badge,
+.role-entry__game-statuses .dh-badge {
+  gap: 5px;
+}
+
+.role-entry__player-flow {
+  width: min(480px, 100%);
+  margin-inline: auto;
+}
+
+.role-entry__current-game {
+  padding: 6px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(7, 9, 12, 0.38);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px) saturate(1.1);
 }
 
 .role-entry__card,
@@ -372,19 +412,9 @@
   justify-content: stretch;
 }
 
-.role-entry__save-section {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-}
-
 .role-entry__game-actions {
   gap: 4px;
   flex-wrap: nowrap;
-}
-
-.role-entry__cloud-game {
-  min-height: 54px;
 }
 
 .role-entry__players {
@@ -395,32 +425,46 @@
 }
 
 .role-entry__player-row {
-  padding: 6px;
-  border-radius: 12px;
-  background: rgba(243, 234, 216, 0.035);
+  align-items: center;
 }
 
 .role-entry__inline-actions {
+  width: 100%;
   padding-top: 4px;
 }
 
 .role-entry__inline-actions .dh-button {
-  min-width: 160px;
-}
-
-.role-entry__inline-actions .role-entry__call-link {
-  min-width: 0;
-  color: var(--dh-paper-faint);
+  width: 100%;
 }
 
 .role-entry__game-list {
-  max-height: min(240px, 30vh);
+  max-height: min(520px, 58vh);
   overflow: auto;
 }
 
+.role-entry__games-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  gap: 8px;
+  padding: 8px;
+}
+
+.role-entry__games-dialog .role-entry__games-card {
+  min-height: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.role-entry__game-statuses {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 @media (max-width: 900px) {
-  .role-entry__lobby-shell {
-    grid-template-columns: 1fr;
+  .role-entry__game-list {
+    max-height: none;
   }
 }
 
@@ -431,9 +475,13 @@
     gap: 18px;
   }
 
-  .role-entry__lobby-shell {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .role-entry__topbar {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) minmax(0, 1fr);
+  }
+
+  .role-entry__account {
+    grid-column: 1 / -1;
+    justify-self: center;
   }
 
   .role-entry__gm-card,
@@ -441,5 +489,29 @@
   .role-entry__games-card {
     padding: 16px;
     border-radius: 16px;
+  }
+
+  .role-entry__games-dialog {
+    align-self: start;
+    align-content: start;
+  }
+
+  .role-entry__player-row {
+    grid-template-columns: minmax(0, 1fr) 38px;
+    grid-template-areas:
+      "name remove"
+      "character character";
+  }
+
+  .role-entry__player-row > :nth-child(1) {
+    grid-area: name;
+  }
+
+  .role-entry__player-row > :nth-child(2) {
+    grid-area: character;
+  }
+
+  .role-entry__player-row > :nth-child(3) {
+    grid-area: remove;
   }
 }

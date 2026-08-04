@@ -7,6 +7,7 @@ import {
   type IsolatedDeterministicP2PRelay
 } from './game-route-helpers';
 import type { Character } from '../../src/domain/rules/types';
+import { openGameLibrary } from './tools-helpers';
 
 const fixtureName = 'e2e-character-player-workflows.dhgame';
 
@@ -65,9 +66,9 @@ async function importCharacterWorkflowFixture(gm: Page, configureCharacter?: (ch
   character.domainCards[6] = { ...character.domainCards[6], loadoutChoicePending: true };
   configureCharacter?.(character);
 
-  await gm.getByRole('button', { name: 'Инструменты' }).click();
-  const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
-  await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Настройки' }).click();
+  await openGameLibrary(gm);
+  const workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
+  await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Настройки' }).click();
   await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игры проекта' }).click();
   await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles({
     name: fixtureName,
@@ -75,7 +76,7 @@ async function importCharacterWorkflowFixture(gm: Page, configureCharacter?: (ch
     buffer: Buffer.from(JSON.stringify(document))
   });
   await expect(workspace.getByText(`Игра импортирована: ${fixtureName}`)).toBeVisible({ timeout: 15_000 });
-  await workspace.getByRole('button', { name: 'Закрыть' }).click();
+  await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 }
 
 async function openCardSection(player: Page): Promise<Locator> {
@@ -106,9 +107,9 @@ async function markedStress(player: Page): Promise<number> {
 }
 
 async function openGmCharacterEditor(gm: Page): Promise<Locator> {
-  await gm.getByRole('button', { name: 'Инструменты' }).click();
-  const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
-  await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+  await openGameLibrary(gm);
+  const workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
+  await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
   await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
   const editor = workspace.getByLabel('Редактор персонажа');
   await expect(editor).toBeVisible();
@@ -457,7 +458,7 @@ test.describe('filled-game player character workflows', () => {
 
       await companionRuleTerm.click();
       await expect(player).toHaveURL(/\/#\/library\/compendium\/rules\/ranger-companion$/);
-      const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
+      const workspace = player.getByRole('dialog', { name: 'Библиотека игры' });
       const detail = workspace.getByLabel('Полная запись компендиума');
       await expect(detail.getByRole('heading', { name: 'Компаньон Следопыта', exact: true })).toBeVisible();
       await expect(detail.getByRole('heading', { name: 'Работа с компаньоном', exact: true })).toBeVisible();
@@ -538,7 +539,7 @@ test.describe('filled-game player character workflows', () => {
 
       await agilityTerm.click();
       await expect(player).toHaveURL(/\/#\/library\/compendium\/rules\/character-traits$/);
-      const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
+      const workspace = player.getByRole('dialog', { name: 'Библиотека игры' });
       await expect(workspace).toBeVisible();
       await expect(workspace.getByRole('heading', { name: 'Характеристики персонажа', exact: true })).toBeVisible();
       await expect(workspace.getByRole('heading', { name: 'Проворность', exact: true })).toBeVisible();

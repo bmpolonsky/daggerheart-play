@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 async function expectNoHorizontalOverflow(page: Page, width: number): Promise<void> {
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
@@ -31,9 +32,15 @@ test.describe('dark glass visual system smoke', () => {
 
     await expect(lobby).toBeVisible();
     await expectInsideViewport(page, gmCard);
-    await expectInsideViewport(page, joinCard);
     await expectStableButton(gmCard.getByRole('button', { name: 'Открыть игру' }));
     await expectNoHorizontalOverflow(page, 1440);
+
+    const roleTabs = page.getByLabel('Роль');
+    await roleTabs.getByRole('button', { name: 'Игрок' }).click();
+    await expectInsideViewport(page, joinCard);
+    await page.reload();
+    await expect(joinCard).toBeVisible();
+    await roleTabs.getByRole('button', { name: 'Мастер' }).click();
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expectInsideViewport(page, page.locator('.role-entry__gm-card'));
@@ -51,13 +58,13 @@ test.describe('dark glass visual system smoke', () => {
     await expectInsideViewport(page, feed);
     await expectInsideViewport(page, scene);
     await expectInsideViewport(page, sheet);
-    await expectStableButton(page.getByRole('button', { name: 'Инструменты' }));
+    await expectStableButton(page.getByRole('button', { name: 'Библиотека игры' }));
 
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    await openGameLibrary(page);
+    const modal = page.getByRole('dialog', { name: 'Библиотека игры' });
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
-    await modal.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    await modal.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     const createHeroButton = modal.getByRole('button', { name: 'Создать героя' }).first();
     await expectStableButton(createHeroButton);
     await createHeroButton.click();
@@ -73,10 +80,10 @@ test.describe('dark glass visual system smoke', () => {
     await page.setViewportSize({ width: 1024, height: 1200 });
     await openGmGame(page);
 
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    const nav = modal.getByLabel('Разделы рабочего пространства');
-    const body = modal.getByLabel('Содержимое рабочего пространства');
+    await openGameLibrary(page);
+    const modal = page.getByRole('dialog', { name: 'Библиотека игры' });
+    const nav = modal.getByLabel('Разделы библиотеки');
+    const body = modal.getByLabel('Содержимое библиотеки');
 
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);

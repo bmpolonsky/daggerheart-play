@@ -4,6 +4,7 @@ import { createSheetCard } from '../../src/domain/rules/factories';
 import { createIsolatedDeterministicP2PRelay, installDeterministicP2PTransport, openGmGame, openPlayerGame, openSharedGmGame, openSharedPlayerGame } from './game-route-helpers';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { expectInsideBounds, expectInsideViewport, expectNoOverlap, expectTopLayerAtPoint, rect } from './layout-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Игра' | 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -16,16 +17,16 @@ async function openSharedSettings(page: Page, role: 'gm' | 'player', section: '�
 }
 
 async function openCurrentSettings(page: Page, section: 'Игра' | 'Подключение' | 'Диагностика' | 'Игры проекта' = 'Подключение'): Promise<void> {
-  const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
+  const modal = page.getByRole('dialog', { name: 'Библиотека игры' });
   if (!(await modal.isVisible())) {
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
   }
   await expect(modal).toBeVisible();
   await modal.getByRole('button', { name: 'Настройки' }).click();
   const sectionButton = modal.getByLabel('Разделы настроек').getByRole('button', { name: section });
   await sectionButton.click();
   await expect(sectionButton).toHaveAttribute('aria-pressed', 'true');
-  await expect(modal.getByLabel('Содержимое рабочего пространства')).toBeVisible();
+  await expect(modal.getByLabel('Содержимое библиотеки')).toBeVisible();
 }
 
 function sessionMeta(page: Page, label: string) {
@@ -267,7 +268,7 @@ test.describe('P2P session workflow', () => {
     const gm = await newSharedPage(browser);
 
     await openSharedSettings(gm, 'gm', 'Игры проекта');
-    const gmModal = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+    const gmModal = gm.getByRole('dialog', { name: 'Библиотека игры' });
     await expect(gmModal.getByRole('button', { name: 'Экспорт' })).toBeVisible();
     await expect(gmModal.getByRole('button', { name: 'Импорт' })).toBeVisible();
     await expect(gm.getByText('Ручной JSON-архив')).toHaveCount(0);
@@ -377,9 +378,9 @@ test.describe('P2P session workflow', () => {
       });
       await importGameDocument(gm, document, 'e2e-player-roll-history.dhgame');
 
-      await gm.getByRole('button', { name: 'Инструменты' }).click();
-      const gmWorkspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
-      await gmWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+      await openGameLibrary(gm);
+      const gmWorkspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
+      await gmWorkspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
       await gmWorkspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
       const gmEditor = gmWorkspace.getByLabel('Редактор персонажа');
       await gmEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Свойства' }).click();
@@ -407,7 +408,7 @@ test.describe('P2P session workflow', () => {
       const gmLimitedFeature = gmEditor.locator('.character-rule-feature').filter({ hasText: 'Высвобождение хаоса' });
       await expect(gmLimitedFeature).toContainText('Эту способность можно использовать один раз до следующего продолжительного отдыха.');
       await expect(gmLimitedFeature.locator('[aria-describedby]')).toHaveCount(1);
-      await gmWorkspace.getByRole('button', { name: 'Закрыть' }).click();
+      await gmWorkspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
       await openSharedPlayerGame(player, roomId);
       await openSharedPlayerGame(observer, roomId);
@@ -419,9 +420,9 @@ test.describe('P2P session workflow', () => {
       await expect(player.getByText('Эффекты правил', { exact: true })).toHaveCount(0);
 
       await player.setViewportSize({ width: 390, height: 844 });
-      await player.getByRole('button', { name: 'Инструменты' }).click();
-      const workspace = player.getByRole('dialog', { name: 'Рабочее пространство' });
-      await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+      await openGameLibrary(player);
+      const workspace = player.getByRole('dialog', { name: 'Библиотека игры' });
+      await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
       const ownEditor = workspace.getByLabel('Мой персонаж');
       await expect(ownEditor).toContainText(filledCharacterName);
       await expect(ownEditor.getByRole('button', { name: 'Свободное редактирование' })).toBeVisible();
@@ -434,7 +435,7 @@ test.describe('P2P session workflow', () => {
       await expect(ownEditor.getByText('Эффекты правил', { exact: true })).toBeVisible();
       await expect(ownEditor.getByText('Оба порога: +1', { exact: true })).toHaveCount(1);
       await expect(player.locator('body')).toHaveJSProperty('scrollWidth', 390);
-      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+      await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
       await player.setViewportSize({ width: 1440, height: 900 });
 
       await player.getByRole('button', { name: 'Открыть панель костей' }).click();
@@ -480,16 +481,16 @@ test.describe('P2P session workflow', () => {
       await openSharedPlayerGame(player, roomId);
       await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
 
-      await gm.getByRole('button', { name: 'Инструменты' }).click();
-      const workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await openGameLibrary(gm);
+      const workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
       await workspace.getByRole('button', { name: 'Настройки' }).click();
       await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игра', exact: true }).click();
       await expect(workspace.getByLabel('Передача музыки сцены')).toHaveValue('download');
-      await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+      await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' }).click();
       const musicPicker = workspace.locator('input[type="file"][accept="audio/*"]');
       await selectGeneratedFile(musicPicker, { name: 'session-tone.wav', mimeType: 'audio/wav', buffer: silentWavBuffer(8) });
       await expect(musicPicker.locator('xpath=..').getByText('session-tone.wav', { exact: true })).toBeVisible();
-      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+      await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
       const gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
@@ -525,13 +526,13 @@ test.describe('P2P session workflow', () => {
     const roomId = `CAST${Date.now().toString().slice(-6)}`;
     try {
       await openSharedGmGame(gm, roomId);
-      await gm.getByRole('button', { name: 'Инструменты' }).click();
-      let workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await openGameLibrary(gm);
+      let workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
       await workspace.getByRole('button', { name: 'Настройки' }).click();
       await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игра', exact: true }).click();
       await workspace.getByLabel('Передача музыки сцены').selectOption('broadcast');
       await expect(workspace.getByLabel('Передача музыки сцены')).toHaveValue('broadcast');
-      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+      await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
       let gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
@@ -539,16 +540,16 @@ test.describe('P2P session workflow', () => {
       const tabAudio = gm.getByRole('region', { name: 'Звук вкладки' });
       await expect(tabAudio.getByRole('button', { name: 'Начать трансляцию' })).toBeVisible();
 
-      await gm.getByRole('button', { name: 'Инструменты' }).click();
-      workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
-      await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+      await openGameLibrary(gm);
+      workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
+      await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' }).click();
       await selectGeneratedFile(workspace.locator('input[type="file"][accept="audio/*"]'), {
         name: 'broadcast-tone.wav',
         mimeType: 'audio/wav',
         buffer: silentWavBuffer(2)
       });
       await expect(workspace.locator('input[type="file"][accept="audio/*"]').locator('xpath=..').getByText('broadcast-tone.wav', { exact: true })).toBeVisible();
-      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+      await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
       await openSharedPlayerGame(player, roomId);
       await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
@@ -557,12 +558,12 @@ test.describe('P2P session workflow', () => {
       expect(relay.messages.some((message) => message.type === 'binary')).toBe(false);
 
       await gm.reload();
-      await gm.getByRole('button', { name: 'Инструменты' }).click();
-      workspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
+      await openGameLibrary(gm);
+      workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
       await workspace.getByRole('button', { name: 'Настройки' }).click();
       await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игра', exact: true }).click();
       await expect(workspace.getByLabel('Передача музыки сцены')).toHaveValue('broadcast');
-      await workspace.getByRole('button', { name: 'Закрыть' }).click();
+      await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
       gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
@@ -612,33 +613,33 @@ test.describe('P2P session workflow', () => {
     await expect(sessionMeta(gm, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
     await expect(sessionMeta(player, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
 
-    await gm.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
+    await gm.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await gm.reload();
     await openCurrentSettings(gm, 'Диагностика');
     await expect(sessionMeta(gm, 'Роль')).toHaveText('gm', { timeout: 15_000 });
     await expect(sessionMeta(gm, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
 
-    await player.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
+    await player.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await player.reload();
     await openCurrentSettings(player, 'Диагностика');
     await expect(sessionMeta(player, 'Роль')).toHaveText('player', { timeout: 15_000 });
     await expect(sessionMeta(player, 'Логических подключений')).toHaveText('1', { timeout: 15_000 });
 
-    await player.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
+    await player.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await expect(player.getByLabel('Хроника игры')).toBeVisible();
     const playerChat = 'сообщение игрока из live P2P smoke';
     await player.getByLabel('Сообщение игрока').fill(playerChat);
     await player.getByRole('button', { name: 'Отправить сообщение' }).click();
     await expect(gm.getByText(playerChat)).toBeVisible({ timeout: 15_000 });
 
-    await gm.getByRole('dialog', { name: 'Рабочее пространство' }).getByRole('button', { name: 'Закрыть' }).click();
+    await gm.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await gm.getByRole('button', { name: 'Открыть панель костей' }).click();
     await gm.getByRole('button', { name: 'Бросить', exact: true }).click();
     await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 20_000 });
 
-    await gm.getByRole('button', { name: 'Инструменты' }).click();
-    const gmWorkspace = gm.getByRole('dialog', { name: 'Рабочее пространство' });
-    await gmWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+    await openGameLibrary(gm);
+    const gmWorkspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
+    await gmWorkspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' }).click();
     const liveMusicPicker = gmWorkspace.locator('input[type="file"][accept="audio/*"]');
     await selectGeneratedFile(liveMusicPicker, {
       name: 'live-p2p-tone.wav',

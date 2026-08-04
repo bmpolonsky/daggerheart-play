@@ -1,12 +1,12 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Check, Copy, Hand, LoaderCircle, MessageCircle, Mic, MicOff, Send, UserRound, Video, VideoOff, Volume2, X } from 'lucide-react';
+import { Check, Copy, Hand, LoaderCircle, MessageCircle, Mic, MicOff, PhoneOff, Send, UserRound, Video, VideoOff, Volume2, VolumeX, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { buildCallInviteUrl, parseCallSessionLocation, readStoredCallName, writeStoredCallName } from '../../domain/p2p/sessionLinks';
 import { currentRoutePathname } from '../../app/routing';
 import { defaultSceneImageUrl } from '../../domain/tabletop/defaultArt';
 import type { TableParticipant } from '../../domain/tabletop/types';
-import { feedService, mediaCallService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
+import { feedService, mediaCallService, p2pSessionService, playerActivationQueueService, sceneTableService } from '../../services/serviceRegistry';
 import { toastService } from '../../services/ToastService';
 import type { CallParticipant } from '../../services/MediaCallService';
 import { P2PHealthIndicator } from '../p2p/P2PHealthIndicator';
@@ -32,6 +32,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const call = useStream(mediaCallService.call$);
   const feed = useStream(feedService.feed$);
   const sceneTable = useStream(sceneTableService.sceneTable$);
+  const activationQueue = useStream(playerActivationQueueService.queue$);
   const bareCallsPath = typeof window !== 'undefined' && isBareCallsPath(currentRoutePathname());
   const roomId = resolveCallRoomId({
     bareCallsPath,
@@ -45,6 +46,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const [layoutMode, setLayoutMode] = useState<CallLayoutMode>(defaultCallLayoutMode);
   const [focusedParticipantId, setFocusedParticipantId] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [leftCall, setLeftCall] = useState(false);
   const autoJoinKey = useRef<string | null>(null);
   const storedSession = useMemo(() => roomId ? p2pSessionService.storedSessionForRoom(roomId) : null, [roomId]);
   const healthRole = session.role ?? storedSession?.role ?? 'player';
@@ -71,6 +73,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const thumbnailParticipants = focusedParticipant
     ? participantsList.filter((participant) => participant.participantId !== focusedParticipant.participantId)
     : [];
+  const raisedIds = useMemo(() => new Set(activationQueue.flatMap((request) => [request.requesterId, request.actorId, request.requesterName ?? '', request.actorName])), [activationQueue]);
 
   useEffect(() => {
     if (!roomId || typeof window === 'undefined' || !isBareCallsPath(currentRoutePathname())) return;
@@ -102,7 +105,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   }, [connectedToRoom, connectingToRoom, roomId]);
 
   useEffect(() => {
-    if (!roomId || !connectedToRoom || call.roomId !== roomId || call.active) return;
+    if (!roomId || !connectedToRoom || call.roomId !== roomId || call.active || leftCall) return;
     const localParticipant = findLocalTableParticipant(sceneTable.participants, call.localParticipantId, session.peerId);
     const displayName = call.displayName.trim() || localParticipant?.name || storedSession?.participantName || (session.role === 'gm' ? 'Мастер' : 'Игрок');
     mediaCallService.setRoom({
@@ -113,7 +116,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
       active: true
     });
     p2pSessionService.renameLocalParticipant(displayName);
-  }, [call.active, call.displayName, call.localParticipantId, call.roomId, connectedToRoom, roomId, sceneTable.participants, session.peerId, session.role, storedSession?.participantName]);
+  }, [call.active, call.displayName, call.localParticipantId, call.roomId, connectedToRoom, leftCall, roomId, sceneTable.participants, session.peerId, session.role, storedSession?.participantName]);
 
   useEffect(() => {
     if (!focusedParticipantId) return;
@@ -192,6 +195,12 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     }
   };
 
+  const leaveCall = async () => {
+    setLeftCall(true);
+    await mediaCallService.leaveCall();
+    window.dispatchEvent(new CustomEvent('daggerheart-play:navigate-route', { detail: { route: 'game' } }));
+  };
+
   if (!roomId) {
     return (
       <section className="call-room call-room--empty">
@@ -263,6 +272,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
               local={focusedParticipant.participantId === call.localParticipantId}
               connecting={isParticipantConnecting(focusedParticipant.participantId, call.localParticipantId, callDirectPeers)}
               participant={focusedParticipant}
+              handRaised={gameHandRaised(focusedParticipant, raisedIds)}
               onSelect={() => setLayoutMode('grid')}
             />
             {thumbnailParticipants.length > 0 && (
@@ -273,6 +283,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
                     local={participant.participantId === call.localParticipantId}
                     connecting={isParticipantConnecting(participant.participantId, call.localParticipantId, callDirectPeers)}
                     participant={participant}
+                    handRaised={gameHandRaised(participant, raisedIds)}
                     onSelect={() => {
                       setFocusedParticipantId(participant.participantId);
                       setLayoutMode('focus');
@@ -291,6 +302,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
                 local={participant.participantId === call.localParticipantId}
                 connecting={isParticipantConnecting(participant.participantId, call.localParticipantId, callDirectPeers)}
                 participant={participant}
+                handRaised={gameHandRaised(participant, raisedIds)}
                 onSelect={() => {
                   setFocusedParticipantId(participant.participantId);
                   setLayoutMode('focus');
@@ -301,18 +313,9 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
         )}
 
         <Toolbar className="call-room__controls" aria-label="Управление звонком">
-          {call.audioPlaybackBlocked && (
-            <Button
-              minWidth="sm"
-              size="sm"
-              type="button"
-              iconBefore={<Volume2 size={15} aria-hidden="true" />}
-              variant="primary"
-              onClick={() => void mediaCallService.unlockRemoteAudio()}
-            >
-              Включить звук
-            </Button>
-          )}
+          <Button minWidth="sm" size="sm" iconBefore={call.incomingAudioMuted || call.audioPlaybackBlocked ? <VolumeX size={15} aria-hidden="true" /> : <Volume2 size={15} aria-hidden="true" />} variant={call.incomingAudioMuted || call.audioPlaybackBlocked ? 'primary' : 'secondary'} onClick={() => void mediaCallService.toggleIncomingAudio()}>
+            {call.incomingAudioMuted || call.audioPlaybackBlocked ? 'Включить звук' : 'Входящий звук'}
+          </Button>
           <Button
             minWidth="sm"
             size="sm"
@@ -337,18 +340,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
           >
             Камера
           </Button>
-          <Button
-            minWidth="sm"
-            size="sm"
-            type="button"
-            iconBefore={<Hand size={15} aria-hidden="true" />}
-            title={call.handRaised ? 'Опустить руку' : 'Поднять руку'}
-            aria-label={call.handRaised ? 'Опустить руку' : 'Поднять руку'}
-            variant={call.handRaised ? 'primary' : 'secondary'}
-            onClick={() => void mediaCallService.toggleHand()}
-          >
-            Рука
-          </Button>
+          <Button minWidth="sm" size="sm" iconBefore={<PhoneOff size={15} aria-hidden="true" />} variant="danger" onClick={() => void leaveCall()}>Выйти</Button>
         </Toolbar>
       </section>
 
@@ -379,7 +371,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
               rightAccessory={
                 <Toolbar className="call-room__participant-status">
                   {isParticipantConnecting(participant.participantId, call.localParticipantId, callDirectPeers) && <LoaderCircle className="call-room__connecting" size={15} aria-label="Подключается" />}
-                  {participant.handRaised && <Hand size={15} aria-label="Рука поднята" />}
+                  {gameHandRaised(participant, raisedIds) && <Hand size={15} aria-label="Игровая рука поднята" />}
                   {participant.micMuted ? <MicOff size={15} aria-label="Микрофон выключен" /> : <Mic size={15} aria-label="Микрофон включен" />}
                   {participant.cameraOff ? <VideoOff size={15} aria-label="Камера выключена" /> : <Video size={15} aria-label="Камера включена" />}
                 </Toolbar>
@@ -418,7 +410,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   );
 }
 
-function CallVideoTile({ connecting = false, focused = false, local = false, onSelect, participant }: { connecting?: boolean; focused?: boolean; local?: boolean; participant: CallParticipant; onSelect: () => void }) {
+function CallVideoTile({ connecting = false, focused = false, handRaised = false, local = false, onSelect, participant }: { connecting?: boolean; focused?: boolean; handRaised?: boolean; local?: boolean; participant: CallParticipant; onSelect: () => void }) {
   const className = [
     'call-video-tile',
     participant.cameraOff || !participant.stream ? 'dh-camera-off' : '',
@@ -447,11 +439,15 @@ function CallVideoTile({ connecting = false, focused = false, local = false, onS
       <footer>
         <span>{participant.displayName || 'Гость'}{local ? ' — вы' : ''}</span>
         {connecting && <LoaderCircle className="call-room__connecting" size={14} aria-label="Подключается" />}
-        {participant.handRaised && <Hand size={14} aria-label="Рука поднята" />}
+        {handRaised && <Hand size={14} aria-label="Игровая рука поднята" />}
         {participant.micMuted ? <MicOff size={14} aria-label="Микрофон выключен" /> : <Mic size={14} aria-label="Микрофон включен" />}
       </footer>
     </article>
   );
+}
+
+function gameHandRaised(participant: CallParticipant, raisedIds: ReadonlySet<string>): boolean {
+  return raisedIds.has(participant.participantId) || raisedIds.has(participant.displayName);
 }
 
 function isParticipantConnecting(participantId: string, localParticipantId: string, directPeers: string[] = []): boolean {

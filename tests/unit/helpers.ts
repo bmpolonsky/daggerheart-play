@@ -6,13 +6,14 @@ import { P2PSessionService } from "../../src/services/P2PSessionService";
 import { MediaCallService } from "../../src/services/MediaCallService";
 import { P2PRoomConnection } from "../../src/services/p2p/P2PRoomConnection";
 import { MultiStrategyP2PTransport } from "../../src/services/p2p/MultiStrategyP2PTransport";
-import type { P2PBinaryPayload, P2PTargetPeer, P2PTransportAdapter, P2PTransportMode, P2PTransportStrategy, P2PWireEnvelope } from "../../src/services/p2p/P2PTransportAdapter";
+import type { P2PBinaryPayload, P2PTargetPeer, P2PTransportAdapter, P2PTransportFactoryContext, P2PTransportMode, P2PTransportStrategy, P2PWireEnvelope } from "../../src/services/p2p/P2PTransportAdapter";
 import { PlayerActionRequestService } from "../../src/services/PlayerActionRequestService";
 import { PlayerActivationQueueService } from "../../src/services/PlayerActivationQueueService";
 import { PlayerPresenceService } from "../../src/services/PlayerPresenceService";
 import { FeedService } from "../../src/services/FeedService";
 import { SceneTableService } from "../../src/services/SceneTableService";
 import { AssetService } from "../../src/services/AssetService";
+import type { CloudBackupService } from "../../src/services/CloudBackupService";
 import type { GameDocumentStore } from "../../src/core/persistence/gameDocumentStore";
 import { createGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState, type GameDocument } from "../../src/domain/game/gameDocument";
 import type { PersistedState } from "../../src/domain/rules/types";
@@ -352,7 +353,7 @@ async function binaryPayloadToArrayBuffer(data: P2PBinaryPayload): Promise<Array
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 }
 
-export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService; mediaNetwork?: ScriptedP2PNetwork } = {}): P2PSessionService {
+export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService; mediaNetwork?: ScriptedP2PNetwork; cloudBackupService?: CloudBackupService; transportFactory?: (transportOptions: ScriptedP2PTransportOptions, context?: P2PTransportFactoryContext) => P2PTransportAdapter } = {}): P2PSessionService {
   return new P2PSessionService(
     options.syncService ?? new SyncService(),
     new PlayerActionRequestService(),
@@ -364,11 +365,16 @@ export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dic
     options.assetService ?? new AssetService(null),
     undefined,
     undefined,
-    (options) => network.createTransport(options),
+    options.transportFactory ?? ((transportOptions) => {
+      const transport = network.createTransport(transportOptions);
+      if (options.mediaNetwork) Object.defineProperty(transport, 'sessionMode', { value: 'hybrid' });
+      return transport;
+    }),
     { heartbeatMs: 100, gmTimeoutMs: 400 },
     options.mediaCallService,
     options.characterService,
-    options.mediaNetwork ? (transportOptions) => options.mediaNetwork!.createTransport(transportOptions) : undefined
+    options.mediaNetwork ? (transportOptions) => options.mediaNetwork!.createTransport(transportOptions) : undefined,
+    options.cloudBackupService
   );
 }
 
@@ -491,10 +497,11 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
       const document = this.games.get(id);
       assert.ok(document);
       return {
-      id,
-      name: document.manifest.name,
-      updatedAt: document.manifest.updatedAt,
-      active: id === this.activeId
+        id,
+        worldId: document.files['data/game.json'].id,
+        name: document.manifest.name,
+        updatedAt: document.manifest.updatedAt,
+        active: id === this.activeId
       };
     });
   }

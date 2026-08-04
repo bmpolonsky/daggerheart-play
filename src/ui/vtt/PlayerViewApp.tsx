@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import { currentRoutePathname } from '../../app/routing';
-import { BookOpenText, ScrollText, Swords, X } from 'lucide-react';
+import { BookOpenText, ScrollText, Swords, Wrench, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import {
   buildCharacterSummary,
@@ -14,6 +14,7 @@ import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2
 import { resolveTableSessionContext } from '../../domain/p2p/sessionPresentation';
 import { diceAnimationContextKey, shouldAnimateInitialDiceRoll } from '../../domain/tabletop/diceAnimation';
 import { nowIso } from '../../core/utils/date';
+import { generateNpc } from '../../domain/generators/npc';
 import { normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../domain/tabletop/sceneBackground';
 import { gameService, characterService, contentService, encounterService, feedService, p2pSessionService, rollLogService, sceneTableService } from '../../services/serviceRegistry';
 import { CharacterBuilderModal } from '../characters/CharacterBuilderModal';
@@ -22,6 +23,7 @@ import { PlayerTopBar, PlayerLeftRail, PlayerSeatPicker } from './playerView/Pla
 import { PlayerCharacterPanel } from './playerView/PlayerCharacterPanel';
 import { PlayerScene } from './playerView/PlayerScene';
 import { SharedToolsModal } from './playerView/SharedToolsModal';
+import { QuickToolsRail } from './playerView/QuickToolsRail';
 import { SceneAudioRuntime } from './playerView/SceneAudioRuntime';
 import { PlayerActionDock } from './playerView/PlayerActionDock';
 import { PlayerConnectionStatus } from './playerView/PlayerConnectionStatus';
@@ -36,7 +38,6 @@ import {
 } from './playerView/helpers';
 import {
   buildRoutedPlayerViewLocation,
-  defaultSharedToolsTab,
   parseRoutedPlayerViewState
 } from './playerView/routedUiState';
 import { playerViewUiActions } from './playerView/playerViewUiState';
@@ -78,7 +79,10 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const [desktopLayout, setDesktopLayout] = useState(isDesktopLayout);
   const [activityOpen, setActivityOpen] = useState(defaultActivityPanelOpen);
   const [panelOpen, setPanelOpen] = useState(defaultDetailPanelOpen);
+  const [rosterRequestId, setRosterRequestId] = useState(0);
+  const [generatedNpc, setGeneratedNpc] = useState(generateNpc);
   const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(currentRoutePathname(), role));
+  const quickToolsOpen = role === 'gm' && routedUi.toolsOpen && routedUi.toolsTab === 'generators';
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role, sceneTable.musicDeliveryMode);
@@ -185,7 +189,13 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const syncRouteState = () => setRoutedUi(parseRoutedPlayerViewState(currentRoutePathname(), role));
+    const syncRouteState = () => {
+      const next = parseRoutedPlayerViewState(currentRoutePathname(), role);
+      setRoutedUi(next);
+      if (!desktopLayout) {
+        setMobileLayer((current) => next.toolsOpen && next.toolsTab === 'generators' ? 'tools' : current === 'tools' ? 'feed' : current);
+      }
+    };
     syncRouteState();
     window.addEventListener('popstate', syncRouteState);
     window.addEventListener('hashchange', syncRouteState);
@@ -193,7 +203,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       window.removeEventListener('popstate', syncRouteState);
       window.removeEventListener('hashchange', syncRouteState);
     };
-  }, [role]);
+  }, [desktopLayout, role]);
 
   useEffect(() => {
     if (!routedUi.libraryCollection || content.selectedCollection === routedUi.libraryCollection) return;
@@ -241,12 +251,21 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     window.addEventListener('daggerheart-play:open-rule-article', openRuleArticle);
     return () => window.removeEventListener('daggerheart-play:open-rule-article', openRuleArticle);
   }, [commitRoutedUi]);
-  const openTools = useCallback(() => {
-    commitRoutedUi({ toolsOpen: true, toolsTab: routedUi.toolsTab || defaultSharedToolsTab(role) });
-  }, [commitRoutedUi, role, routedUi.toolsTab]);
+  const openTool = useCallback((tab: SharedToolsTab) => {
+    if (tab === 'generators' && role === 'gm') {
+      setActivityOpen(true);
+      if (!desktopLayout) setMobileLayer('tools');
+    }
+    commitRoutedUi({ toolsOpen: true, toolsTab: tab });
+  }, [commitRoutedUi, desktopLayout, role]);
   const closeTools = useCallback(() => {
+    if (!desktopLayout) setMobileLayer('feed');
     commitRoutedUi({ toolsOpen: false });
-  }, [commitRoutedUi]);
+  }, [commitRoutedUi, desktopLayout]);
+  const selectMobileLayer = useCallback((layer: Exclude<PlayerMobileLayer, 'tools'>) => {
+    setMobileLayer(layer);
+    if (routedUi.toolsOpen) commitRoutedUi({ toolsOpen: false });
+  }, [commitRoutedUi, routedUi.toolsOpen]);
   const changeToolsTab = useCallback((tab: SharedToolsTab) => {
     commitRoutedUi({
       toolsOpen: true,
@@ -354,9 +373,15 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     setMobileLayer('feed');
   }, []);
   const needsSeatSelection = role === 'player' && playerSeats.length > 0 && !selectedPlayerSeat;
+  const openRoster = useCallback(() => {
+    setViewedActor(null);
+    setPanelOpen(true);
+    setMobileLayer('sheet');
+    setRosterRequestId((current) => current + 1);
+  }, []);
 
   return (
-    <main className={`player-view player-view--${role} player-view--mobile-${mobileLayer} ${activityOpen ? 'player-view--activity-open' : ''} ${panelOpen ? 'player-view--panel-open' : ''} ${!activityOpen && !panelOpen ? 'player-view--focus' : ''} ${model.handout ? 'dh-has-handout' : ''}`} data-vtt-root>
+    <main className={`player-view player-view--${role} player-view--mobile-${mobileLayer} ${activityOpen ? 'player-view--activity-open' : ''} ${quickToolsOpen ? 'player-view--tools-open' : ''} ${panelOpen ? 'player-view--panel-open' : ''} ${!activityOpen && !panelOpen ? 'player-view--focus' : ''} ${model.handout ? 'dh-has-handout' : ''}`} data-vtt-root>
       <PlayerSessionRuntime
         displayedCharacter={displayedCharacter}
         gameGmName={game.gmName}
@@ -400,27 +425,32 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         <TabButton
           active={mobileLayer === 'feed'}
           aria-label={`Хроника. Соединение: ${p2pHealth.label}`}
-          onClick={() => setMobileLayer('feed')}
+          onClick={() => selectMobileLayer('feed')}
         >
           <BookOpenText size={18} aria-hidden="true" />
           <span>Хроника</span>
           <span className={`player-connection-status-dot is-${p2pHealth.tone}`} aria-hidden="true" />
         </TabButton>
-        <TabButton active={mobileLayer === 'scene'} onClick={() => setMobileLayer('scene')}>
+        <TabButton active={mobileLayer === 'scene'} onClick={() => selectMobileLayer('scene')}>
           <Swords size={18} aria-hidden="true" />
           <span>Сцена</span>
         </TabButton>
-        <TabButton active={mobileLayer === 'sheet'} onClick={() => setMobileLayer('sheet')}>
+        <TabButton active={mobileLayer === 'sheet'} onClick={() => selectMobileLayer('sheet')}>
           <ScrollText size={18} aria-hidden="true" />
           <span>Лист</span>
         </TabButton>
+        <TabButton active={mobileLayer === 'tools'} aria-label="Инструменты" onClick={() => openTool(role === 'gm' ? 'generators' : 'library')}>
+          <Wrench size={18} aria-hidden="true" />
+          <span>Инструменты</span>
+        </TabButton>
       </Tabs>
       <PlayerLeftRail
-        accessible={desktopLayout ? activityOpen : mobileLayer === 'feed'}
+        accessible={(desktopLayout ? activityOpen : mobileLayer === 'feed') && !quickToolsOpen}
         macroCharacter={displayedCharacter ?? model.character}
         macroCharacters={macroCharacters}
         model={model}
         role={role}
+        onOpenTool={openTool}
       />
       <PlayerScene
         latestRoll={latestVisibleRoll}
@@ -451,9 +481,9 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         displayedActorName={displayedActorName}
         displayedCharacter={displayedCharacter}
         role={role}
+        onRosterOpen={role === 'gm' ? openRoster : undefined}
         selectedPlayerName={selectedPlayerName}
         selectedPlayerSeatId={selectedPlayerSeatId}
-        onOpenTools={openTools}
       />
       <FloatingCallWidget />
       <div
@@ -470,6 +500,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           emptyActionLabel={role === 'player' ? 'Создать персонажа' : undefined}
           emptyState={model.emptyCharacterState}
           role={role}
+          rosterRequestId={rosterRequestId}
           sceneId={model.scene.id}
           sceneTable={sceneTable}
           onClearActivationRequest={(request) => void p2pSessionService.clearRaisedHand(request)}
@@ -485,7 +516,8 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onOpenActor={openActor}
         />
       </div>
-      {routedUi.toolsOpen && (
+      {quickToolsOpen && <QuickToolsRail npc={generatedNpc} onNpcChange={setGeneratedNpc} onClose={closeTools} onOpenTool={openTool} />}
+      {routedUi.toolsOpen && !quickToolsOpen && (
         <SharedToolsModal
           role={role}
           tab={routedUi.toolsTab}

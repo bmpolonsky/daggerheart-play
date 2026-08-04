@@ -4,23 +4,19 @@
 }
 
 .menu {
-  position: absolute;
-  z-index: var(--dh-z-dialog);
-  top: calc(100% + 8px);
-  right: 0;
+  position: fixed;
+  z-index: calc(var(--dh-z-dialog) + 10);
   display: grid;
-  min-width: 12.5rem;
+  min-width: min(12.5rem, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
   padding: 5px;
   border: 1px solid rgba(243, 234, 216, 0.1);
   border-radius: var(--dh-radius);
   background: var(--dh-glass-strong);
   box-shadow: var(--dh-shadow);
   backdrop-filter: var(--dh-blur);
-}
-
-.topEnd .menu {
-  top: auto;
-  bottom: calc(100% + 8px);
+  overflow-y: auto;
 }
 
 .item {

@@ -26,6 +26,13 @@ interface EventsResponse {
   events: Array<{ sequence: number; envelope: P2PWireEnvelope }>;
 }
 
+export class ServerRelayError extends Error {
+  constructor(message: string, readonly code: string, readonly status: number) {
+    super(message);
+    this.name = 'ServerRelayError';
+  }
+}
+
 export class ServerRelayTransport implements P2PTransportAdapter {
   readonly id = 'server-relay';
   readonly label = 'Daggerheart server';
@@ -212,11 +219,11 @@ export class ServerRelayTransport implements P2PTransportAdapter {
       headers.set('x-daggerheart-peer-id', this.peerId);
     }
     const response = await this.fetcher(path, { ...init, credentials: 'same-origin', headers });
-    const body = await response.json().catch(() => ({})) as { message?: unknown };
+    const body = await response.json().catch(() => ({})) as { error?: unknown; message?: unknown };
     if (!response.ok) {
-      throw new Error(typeof body.message === 'string' ? body.message : response.status === 401
+      throw new ServerRelayError(typeof body.message === 'string' ? body.message : response.status === 401
         ? 'Войдите в аккаунт мастера.'
-        : 'Серверная синхронизация временно недоступна.');
+        : 'Серверная синхронизация временно недоступна.', typeof body.error === 'string' ? body.error : 'server_error', response.status);
     }
     return body as T;
   }

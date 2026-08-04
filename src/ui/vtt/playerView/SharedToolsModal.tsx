@@ -56,8 +56,7 @@ export function SharedToolsModal({
   routedSettingsSection?: string | null;
   onTabChange: (tab: SharedToolsTab) => void;
 }) {
-  const tabs: SharedToolsTab[] = sharedToolsTabsForRole(role);
-  const specialTabs: Array<Extract<SharedToolsTab, 'combat' | 'cards'>> = role === 'gm' ? ['combat', 'cards'] : [];
+  const tabs: SharedToolsTab[] = sharedToolsTabsForRole(role).filter((item) => item !== 'generators');
   const content = useStream(contentService.content$);
   const game = useStream(gameService.game$);
   const libraryView = contentService.buildLibraryView(content);
@@ -122,28 +121,22 @@ export function SharedToolsModal({
   };
 
   return (
-    <section className="player-tools-modal">
-      <Dialog aria-label="Рабочее пространство" className="player-tools-modal__panel" onClose={onClose}>
+    <Dialog aria-label="Библиотека игры" className="player-tools-modal__panel" onClose={onClose}>
         <header className="player-tools-modal__header">
-          <Tabs align="start" className="player-tools-modal__primary-nav" label="Разделы рабочего пространства">
+          <Tabs align="start" className="player-tools-modal__primary-nav" label="Разделы библиотеки">
             {tabs.map((item) => (
               <TabButton active={activeTab === item} key={item} onClick={() => onTabChange(item)}>
-                {item === 'library' ? 'Справочник' : toolTabLabel(item)}
+                {toolTabLabel(item)}
               </TabButton>
             ))}
-            {specialTabs.map((item) => (
-              <TabButton
-                className="player-tools-modal__external-action"
-                key={item}
-                aria-label={externalToolTabLabel(item)}
-                onClick={() => openWorkspaceInNewTab(item)}
-              >
-                <span>{externalToolTabLabel(item)}</span>
+            {role === 'gm' && (
+              <TabButton className="player-tools-modal__external-action" aria-label="Редактор карт" onClick={() => openWorkspaceInNewTab('cards')}>
+                <span>Редактор карт</span>
                 <ExternalLink size={13} aria-hidden="true" />
               </TabButton>
-            ))}
+            )}
           </Tabs>
-          <IconButton autoFocus variant="ghost" type="button" title="Закрыть" aria-label="Закрыть" onClick={onClose}>
+          <IconButton autoFocus variant="ghost" type="button" title="Закрыть" aria-label="Закрыть библиотеку" onClick={onClose}>
             <X size={18} aria-hidden="true" />
           </IconButton>
         </header>
@@ -176,7 +169,7 @@ export function SharedToolsModal({
           ref={bodyRef}
           className={`player-tools-modal__body ${activeTab === 'library' ? 'player-tools-modal__body--managed-scroll' : ''}`}
           role="region"
-          aria-label="Содержимое рабочего пространства"
+          aria-label="Содержимое библиотеки"
         >
           {activeTab === 'scenes' && (
             <SharedToolsScenesTabHost />
@@ -209,8 +202,7 @@ export function SharedToolsModal({
             <SharedToolsSettingsTabHost activeSection={normalizedSettingsSection} role={role} />
           )}
         </div>
-      </Dialog>
-    </section>
+    </Dialog>
   );
 }
 
@@ -308,8 +300,4 @@ function SharedToolsSettingsTabHost({
       role={role}
     />
   );
-}
-
-function externalToolTabLabel(item: SharedToolsTab): string {
-  return item === 'combat' ? 'Конструктор боя' : toolTabLabel(item);
 }

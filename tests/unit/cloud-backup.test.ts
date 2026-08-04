@@ -9,11 +9,15 @@ test('cloud backup uploads and restores the existing dhgame archive', async () =
   let stored: Blob | null = null;
   let imported: Blob | null = null;
   let importedAsNewGame = false;
+  let regeneratedGameId = false;
+  let forkNameSuffix = '';
   const importExportService = {
     exportGameBundle: async () => archive,
-    importFile: async (file: Blob, options?: { asNewGame?: boolean }) => {
+    importFile: async (file: Blob, options?: { asNewGame?: boolean; regenerateGameId?: boolean; forkNameSuffix?: string }) => {
       imported = file;
       importedAsNewGame = options?.asNewGame === true;
+      regeneratedGameId = options?.regenerateGameId === true;
+      forkNameSuffix = options?.forkNameSuffix ?? '';
       return { ok: true as const };
     }
   } as ImportExportService;
@@ -35,6 +39,10 @@ test('cloud backup uploads and restores the existing dhgame archive', async () =
   assert.equal(await backups.restore('world-1'), true);
   assert.equal(await (imported as Blob | null)?.arrayBuffer().then((bytes) => bytes.byteLength), 4);
   assert.equal(importedAsNewGame, true);
+  assert.equal(regeneratedGameId, false);
+  assert.equal(await backups.restore('world-1', { fork: true }), true);
+  assert.equal(regeneratedGameId, true);
+  assert.equal(forkNameSuffix, ' — восстановленная копия');
   assert.equal(await backups.remove('world-1'), true);
   assert.equal(stored, null);
 });

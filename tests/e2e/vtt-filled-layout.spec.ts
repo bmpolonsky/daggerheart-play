@@ -2,6 +2,7 @@ import { expect, test, type Locator } from '@playwright/test';
 import { filledCharacterName, filledCharacterResources, filledEnvironmentName, openFilledGmGame } from './filled-game-helpers';
 import { openPlayerGame } from './game-route-helpers';
 import { expectInsideHorizontalBounds, expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 test.describe('filled VTT layout regressions', () => {
   test.describe.configure({ timeout: 90_000 });
@@ -134,11 +135,11 @@ test.describe('filled VTT layout regressions', () => {
   test('keeps combat and compendium usable after opening populated details', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 900 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    const primaryNav = workspace.getByLabel('Разделы рабочего пространства');
-    const body = workspace.getByLabel('Содержимое рабочего пространства');
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    const primaryNav = workspace.getByLabel('Разделы библиотеки');
+    const body = workspace.getByLabel('Содержимое библиотеки');
     await primaryNav.getByRole('button', { name: 'Бой' }).click();
     expect((await rect(primaryNav)).height).toBeGreaterThanOrEqual(36);
 
@@ -210,10 +211,10 @@ test.describe('filled VTT layout regressions', () => {
   test('ranks compendium search results and opens the best match', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Справочник' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Справочник' }).click();
     await workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Правила' }).click();
     const search = workspace.getByLabel('Поиск по справочнику');
     const cards = workspace.locator('.player-library-card');
@@ -231,11 +232,11 @@ test.describe('filled VTT layout regressions', () => {
   test('uses the workspace scroll for an opened combat opponent on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    const primaryNav = workspace.getByLabel('Разделы рабочего пространства');
-    const body = workspace.getByLabel('Содержимое рабочего пространства');
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    const primaryNav = workspace.getByLabel('Разделы библиотеки');
+    const body = workspace.getByLabel('Содержимое библиотеки');
     await primaryNav.getByRole('button', { name: 'Бой' }).click();
 
     const combatCards = workspace.locator('.player-combat-card');
@@ -268,10 +269,10 @@ test.describe('filled VTT layout regressions', () => {
   test('keeps the player Tools → Compendium list and detail scroll owners stable on desktop and mobile', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openPlayerGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Справочник' }).click();
-    const body = workspace.getByLabel('Содержимое рабочего пространства');
+    await openGameLibrary(page);
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Справочник' }).click();
+    const body = workspace.getByLabel('Содержимое библиотеки');
     const layout = workspace.locator('.dh-list-detail-layout');
     const list = workspace.locator('.player-library-list');
     const cards = list.locator('.player-library-card');
@@ -316,10 +317,10 @@ test.describe('filled VTT layout regressions', () => {
   test('keeps compendium actions fixed below a scrolling environment detail', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 720 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Справочник' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Справочник' }).click();
     await workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Окружения' }).click();
     const environmentCard = workspace.locator('.player-library-card').filter({ hasText: filledEnvironmentName }).first();
     await expect(environmentCard).toBeVisible();
@@ -347,11 +348,11 @@ test.describe('filled VTT layout regressions', () => {
   test('scrolls the exact GM workspace character route through all seven cards with one scroll owner', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    const body = workspace.getByLabel('Содержимое рабочего пространства');
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    const body = workspace.getByLabel('Содержимое библиотеки');
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
 
     const editor = workspace.getByLabel('Редактор персонажа');
@@ -373,10 +374,10 @@ test.describe('filled VTT layout regressions', () => {
   test('keeps compact scene framing composable, saved, and rendered', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' }).click();
     const placement = workspace.getByLabel('Размещение');
     const fitting = workspace.getByLabel('Базовый размер');
     const zoom = workspace.getByLabel('Масштаб фона');
@@ -411,7 +412,7 @@ test.describe('filled VTT layout regressions', () => {
     await zoom.fill('1.5');
     await horizontal.fill('0.5');
     await vertical.fill('-0.25');
-    await workspace.getByRole('button', { name: 'Закрыть' }).click();
+    await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
     const renderedBackground = page.locator('.player-scene-stage__board > .player-scene-stage__background');
     await expect(renderedBackground).toHaveCSS('background-size', 'contain');
@@ -422,9 +423,9 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.locator('[data-vtt-root]')).toBeVisible();
     await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCSS('background-size', 'contain');
     await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const reopenedWorkspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await reopenedWorkspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Сцены' }).click();
+    await openGameLibrary(page);
+    const reopenedWorkspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await reopenedWorkspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' }).click();
     await expect(reopenedWorkspace.getByLabel('Базовый размер')).toHaveValue('fit');
     await expect(reopenedWorkspace.getByLabel('Масштаб фона')).toHaveValue('1.5');
     await expect(reopenedWorkspace.getByLabel('Положение фона по горизонтали')).toHaveValue('0.5');
@@ -434,10 +435,10 @@ test.describe('filled VTT layout regressions', () => {
   test('asks before removing a populated character and preserves it on cancel', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     await workspace.getByRole('button', { name: 'Редактировать' }).click();
     await workspace.getByRole('button', { name: `Удалить персонажа ${filledCharacterName}` }).first().click();
 
@@ -452,10 +453,10 @@ test.describe('filled VTT layout regressions', () => {
   test('uses a focused list to editor journey for populated characters on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     const roster = workspace.getByLabel('Ростер персонажей');
     const editor = workspace.getByLabel('Редактор персонажа');
     await expect(roster).toBeVisible();

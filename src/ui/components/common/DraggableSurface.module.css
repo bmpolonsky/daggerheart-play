@@ -7,6 +7,14 @@
   overflow: hidden;
 }
 
+.resizable {
+  min-width: 280px;
+  min-height: 190px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 90px);
+  resize: both;
+}
+
 .handle {
   min-height: 30px;
   min-width: 0;

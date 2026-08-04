@@ -1,34 +1,30 @@
 import { expect, test } from '@playwright/test';
 import { openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectHiddenSurface, expectNoOverlap, rect } from './layout-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 test.describe('VTT layout shell contract', () => {
-  test('workspace traps focus, closes on Escape, and restores its opener', async ({ page }) => {
+  test('large tools open in a modal and return to the game', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    const opener = page.getByRole('button', { name: 'Инструменты' });
-    await opener.click();
-    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    const close = modal.getByRole('button', { name: 'Закрыть' });
-    await expect(close).toBeFocused();
+    await openGameLibrary(page);
+    const modal = page.getByRole('dialog', { name: 'Библиотека игры' });
+    const close = modal.getByRole('button', { name: 'Закрыть библиотеку' });
+    await expect(close).toBeVisible();
 
     const workspaceHeader = modal.locator('.player-tools-modal__header');
-    const workspaceTabs = modal.getByLabel('Разделы рабочего пространства');
+    const workspaceTabs = modal.getByLabel('Разделы библиотеки');
     const headerBox = await rect(workspaceHeader);
     const tabsBox = await rect(workspaceTabs);
     const closeBox = await rect(close);
     expect(headerBox.height).toBeLessThanOrEqual(60);
     expect(Math.abs((tabsBox.y + tabsBox.height / 2) - (closeBox.y + closeBox.height / 2))).toBeLessThanOrEqual(2);
 
-    const focusable = modal.locator('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])');
-    await focusable.last().focus();
-    await page.keyboard.press('Tab');
-    await expect(focusable.first()).toBeFocused();
-
-    await page.keyboard.press('Escape');
+    await close.click();
     await expect(modal).toHaveCount(0);
-    await expect(opener).toBeFocused();
+    await expect(page.getByLabel('Хроника игры')).toBeVisible();
+    await expect(page).toHaveURL(/\/#\/game$/);
   });
 
   test('desktop starts with both side panels and collapses them independently', async ({ page }) => {

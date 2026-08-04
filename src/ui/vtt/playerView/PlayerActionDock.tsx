@@ -2,7 +2,7 @@
 import { useCallback } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
-import { audioService, diceService, gameService, p2pSessionService, playerActivationQueueService } from '../../../services/serviceRegistry';
+import { diceService, gameService, mediaCallService, p2pSessionService, playerActivationQueueService } from '../../../services/serviceRegistry';
 import { MiniDiceLauncher } from '../MiniDiceLauncher';
 import type { TableViewRole } from './types';
 
@@ -15,8 +15,8 @@ interface PlayerActionDockProps {
   displayedActor: DisplayedActor;
   displayedActorName: string;
   displayedCharacter: PlayerViewCharacterSummary | null;
-  onOpenTools: () => void;
   role: TableViewRole;
+  onRosterOpen?: () => void;
   selectedPlayerName?: string;
   selectedPlayerSeatId: string | null;
 }
@@ -27,13 +27,14 @@ export function PlayerActionDock({
   displayedActor,
   displayedActorName,
   displayedCharacter,
-  onOpenTools,
   role,
+  onRosterOpen,
   selectedPlayerName,
   selectedPlayerSeatId
 }: PlayerActionDockProps) {
-  const audioState = useStream(audioService.audio$);
+  const callState = useStream(mediaCallService.call$);
   const localActivation = useStream(playerActivationQueueService.local$);
+  const activationQueue = useStream(playerActivationQueueService.queue$);
   const p2pSession = useStream(p2pSessionService.session$);
 
   const toggleActivationRequest = useCallback(() => {
@@ -59,14 +60,15 @@ export function PlayerActionDock({
       actorName={displayedActorName}
       selectedActorKind={displayedActor?.kind === 'environment' ? null : displayedActor?.kind ?? null}
       role={role}
-      voiceState={audioState}
+      callState={callState}
       activationRaised={Boolean(displayedCharacter?.id && localActivation.raised && localActivation.actorId === displayedCharacter.id)}
+      activationRequestCount={role === 'gm' ? activationQueue.length : 0}
       canRequestActivation={Boolean(role === 'player' && p2pSession.connected && displayedCharacter?.id)}
       rollPending={role === 'player' && p2pSession.rollPending}
       rollDisabled={role === 'player' && p2pSession.status !== 'connected'}
-      onOpenTools={onOpenTools}
       onActivationToggle={toggleActivationRequest}
-      onVoiceToggle={() => void audioService.toggleVoiceChat(role === 'player' ? selectedPlayerName : displayedActorName)}
+      onCallJoin={() => void mediaCallService.joinWithoutDevices()}
+      onRosterOpen={onRosterOpen}
       onRoll={(formula, label, publication, options) => {
         if (role === 'player' && p2pSessionService.isConnectedPlayerSession() && displayedActor?.id) {
           void p2pSessionService.submitPlayerRollIntent({

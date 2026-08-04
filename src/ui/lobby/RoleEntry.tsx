@@ -32,7 +32,6 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
     <SessionLobby
       inviteContext={lobbyInviteContext(basePath)}
       sceneImageUrl={sceneImageUrl}
-      onOpenCall={(roomId) => onSelectRole('call', '', '', roomId)}
       onEnterGm={() => onSelectRole('game')}
       onJoinRoom={(roomId) => onSelectRole('join', '', '', roomId)}
     />

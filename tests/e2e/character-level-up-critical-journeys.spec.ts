@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { createCharacter } from '../../src/domain/rules/factories';
 import { openGmGame } from './game-route-helpers';
 import { createPopulatedGameDocument, filledCharacterName, filledCharacterResources, importGameDocument, openFilledGmGame } from './filled-game-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 async function chooseRichOption(page: Page, label: string, index = 0): Promise<void> {
   const trigger = page.getByRole('button', { name: label, exact: true });
@@ -30,10 +31,10 @@ test.describe('strict character level-up', () => {
   test('derives effects from weighted choices and applies only a complete valid level-up', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 860 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
     const editor = workspace.getByLabel('Редактор персонажа');
     await editor.getByRole('button', { name: 'Новый уровень' }).click();
@@ -72,9 +73,9 @@ test.describe('strict character level-up', () => {
   test('keeps every advancement reachable in one mobile scroll owner without premature errors', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    await openGameLibrary(page);
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
     await workspace.getByLabel('Редактор персонажа').getByRole('button', { name: 'Новый уровень' }).click();
 
@@ -91,10 +92,10 @@ test.describe('strict character level-up', () => {
   test('keeps the low desktop wizard compact and scrollable', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 400 });
     await openFilledGmGame(page);
-    await page.getByRole('button', { name: 'Инструменты' }).click();
+    await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
     await workspace.getByLabel('Редактор персонажа').getByRole('button', { name: 'Новый уровень' }).click();
 
@@ -135,9 +136,9 @@ test.describe('strict character level-up', () => {
     });
     await importGameDocument(page, document, 'e2e-level-up-rank-three.dhgame');
 
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' }).click();
+    await openGameLibrary(page);
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
     await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
     const editor = workspace.getByLabel('Редактор персонажа');
     await editor.getByRole('button', { name: 'Новый уровень' }).click();

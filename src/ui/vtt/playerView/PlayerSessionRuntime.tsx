@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { serverSessionEnabled } from '../../../domain/p2p/serverSession';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
-import { audioService, p2pSessionService } from '../../../services/serviceRegistry';
+import { mediaCallService, p2pSessionService } from '../../../services/serviceRegistry';
 import type { TableViewRole } from './types';
 
 interface PlayerSessionRuntimeProps {
@@ -25,7 +25,7 @@ export function PlayerSessionRuntime({
   selectedPlayerSeatId,
   sessionRoomId
 }: PlayerSessionRuntimeProps) {
-  const audioState = useStream(audioService.audio$);
+  const callState = useStream(mediaCallService.call$);
   const p2pSession = useStream(p2pSessionService.session$);
   const autoP2PRestoreKey = useRef<string | null>(null);
 
@@ -94,15 +94,15 @@ export function PlayerSessionRuntime({
         actorName: displayedCharacter.name,
         playerName: selectedPlayerName ?? '',
         connected: true,
-        voiceMuted: audioState.voiceMuted,
-        voiceLive: audioState.voiceStatus === 'live'
+        voiceMuted: callState.micMuted,
+        voiceLive: callState.active && !callState.micMuted
       });
     };
     publish();
     if (serverSessionEnabled()) return;
     const intervalId = window.setInterval(publish, 3000);
     return () => window.clearInterval(intervalId);
-  }, [audioState.voiceMuted, audioState.voiceStatus, displayedCharacter?.id, displayedCharacter?.name, p2pSession.connected, p2pSession.peerId, role, selectedPlayerName, selectedPlayerSeatId]);
+  }, [callState.active, callState.micMuted, displayedCharacter?.id, displayedCharacter?.name, p2pSession.connected, p2pSession.peerId, role, selectedPlayerName, selectedPlayerSeatId]);
 
   return null;
 }

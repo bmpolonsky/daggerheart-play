@@ -1,12 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openGmGame } from './game-route-helpers';
 import { expectAbove, expectInsideViewport, expectLeftOf, rect } from './layout-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 async function openBuilder(page: Page): Promise<void> {
   await openGmGame(page);
-  await page.getByRole('button', { name: 'Инструменты' }).click();
-  const toolsModal = page.getByRole('dialog', { name: 'Рабочее пространство' });
-  const tabs = toolsModal.getByRole('group', { name: 'Разделы рабочего пространства' });
+  await openGameLibrary(page);
+  const toolsModal = page.getByRole('dialog', { name: 'Библиотека игры' });
+  const tabs = toolsModal.getByRole('group', { name: 'Разделы библиотеки' });
   const charactersTab = tabs.getByRole('button', { name: 'Персонажи' });
   await charactersTab.evaluate((button) => {
     button.scrollIntoView({ block: 'nearest', inline: 'center' });

@@ -23,6 +23,7 @@ const PROJECT_DOCUMENT_VERSION = 2;
 
 export interface StoredGameSummary {
   id: string;
+  worldId: string;
   name: string;
   updatedAt: string | null;
   active: boolean;
@@ -115,6 +116,7 @@ class BrowserGameDocumentStore implements GameDocumentStore {
       .filter((record): record is ProjectGameRecord => Boolean(record))
       .map((record) => ({
         id: record.id,
+        worldId: record.state.game.id,
         name: record.state.game.name,
         updatedAt: record.state.game.updatedAt || record.updatedAt || null,
         active: record.id === project.activeGameId

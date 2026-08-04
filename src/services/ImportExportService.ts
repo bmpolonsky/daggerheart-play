@@ -5,6 +5,7 @@ import { isPersistedState, snapshotPersistedState } from '../stores/persistedSta
 import {
   assetResourcePath,
   createGameDocument,
+  forkGameDocument,
   isGameDocument,
   isLegacyGameArchive,
   gameDocumentToPersistedState,
@@ -61,13 +62,14 @@ export class ImportExportService {
     window.URL.revokeObjectURL(url);
   }
 
-  async importFile(file: Blob, options: { asNewGame?: boolean } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
+  async importFile(file: Blob, options: { asNewGame?: boolean; regenerateGameId?: boolean; forkNameSuffix?: string } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
     const result = await this.readGameDocumentFromFile(file);
     if (!result.ok) {
       return result;
     }
-    await this.importGameAssets(result.document, result.entries);
-    await this.persistenceService.importGameDocument(result.document, options);
+    const document = options.regenerateGameId ? forkGameDocument(result.document, options.forkNameSuffix ?? '') : result.document;
+    await this.importGameAssets(document, result.entries);
+    await this.persistenceService.importGameDocument(document, options);
     await this.assetService?.optimizeStoredImages();
     return { ok: true };
   }

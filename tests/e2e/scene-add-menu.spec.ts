@@ -13,15 +13,15 @@ test.describe('scene add menu', () => {
     await expect(menu.getByRole('menuitem')).toHaveText(['Героя', 'Противника', 'Окружение', 'Создать бой']);
 
     await menu.getByRole('menuitem', { name: 'Героя' }).click();
-    const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    await expect(workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Персонажи' })).toHaveAttribute('aria-pressed', 'true');
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await expect(workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' })).toHaveAttribute('aria-pressed', 'true');
     await expect(workspace.getByRole('button', { name: 'Создать героя' })).toBeVisible();
-    await workspace.getByRole('button', { name: 'Закрыть' }).click();
+    await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
     await addButton.click();
     await menu.getByRole('menuitem', { name: 'Противника' }).click();
     await expect(workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Противники' })).toHaveAttribute('aria-pressed', 'true');
-    await workspace.getByRole('button', { name: 'Закрыть' }).click();
+    await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Лист' }).click();
@@ -29,11 +29,11 @@ test.describe('scene add menu', () => {
     await addButton.click();
     await menu.getByRole('menuitem', { name: 'Окружение' }).click();
     await expect(workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Окружения' })).toHaveAttribute('aria-pressed', 'true');
-    await workspace.getByRole('button', { name: 'Закрыть' }).click();
+    await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
     await addButton.click();
     await menu.getByRole('menuitem', { name: 'Создать бой' }).click();
-    await expect(workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Бой' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Бой' })).toHaveAttribute('aria-pressed', 'true');
     await expect(workspace.getByRole('region', { name: 'Бой' })).toBeVisible();
   });
 });

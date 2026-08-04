@@ -1,6 +1,10 @@
 import type { P2PWireEnvelope } from '../../services/p2p/P2PTransportAdapter';
 
 export type SessionTransportMode = 'p2p' | 'server';
+export type ActiveSessionTransportMode = 'p2p' | 'hybrid';
+
+let masterAuthenticated = false;
+let activeTransportMode: ActiveSessionTransportMode = 'p2p';
 
 const PLAYER_EVENT_KINDS = new Set([
   'actor',
@@ -23,7 +27,23 @@ export function sessionTransportMode(env: Partial<ImportMetaEnv> = import.meta.e
 }
 
 export function serverSessionEnabled(env?: Partial<ImportMetaEnv>): boolean {
+  return env ? serverSessionAvailable(env) : activeTransportMode === 'hybrid';
+}
+
+export function serverSessionAvailable(env?: Partial<ImportMetaEnv>): boolean {
   return sessionTransportMode(env) === 'server';
+}
+
+export function setMasterServerAuthenticated(authenticated: boolean): void {
+  masterAuthenticated = authenticated;
+}
+
+export function shouldUseServerSession(role: 'gm' | 'player', env?: Partial<ImportMetaEnv>): boolean {
+  return serverSessionAvailable(env) && (role === 'player' || masterAuthenticated);
+}
+
+export function setActiveSessionTransportMode(mode: ActiveSessionTransportMode): void {
+  activeTransportMode = mode;
 }
 
 export function normalizeServerRoomId(value: string): string | null {

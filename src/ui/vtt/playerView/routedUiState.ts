@@ -49,7 +49,7 @@ const SETTINGS_BY_SLUG = Object.fromEntries(
 
 export function sharedToolsTabsForRole(role: TableViewRole): SharedToolsTab[] {
   return role === 'gm'
-    ? ['scenes', 'characters', 'combat', 'library', 'notes', 'handouts', 'settings']
+    ? ['scenes', 'characters', 'combat', 'library', 'notes', 'handouts', 'generators', 'settings']
     : ['characters', 'handouts', 'library', 'settings'];
 }
 

@@ -237,9 +237,10 @@ export function toolTabLabel(tab: SharedToolsTab): string {
     characters: 'Персонажи',
     combat: 'Бой',
     cards: 'Редактор карт',
-    library: 'Компендиумы',
+    library: 'Справочник',
     notes: 'Заметки',
     handouts: 'Раздатка',
+    generators: 'Генераторы',
     settings: 'Настройки'
   };
   return labels[tab];

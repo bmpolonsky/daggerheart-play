@@ -43,6 +43,66 @@ test('call roster does not duplicate message authors already present in table pa
   assert.equal(participants.filter((participant) => participant.displayName === 'Элина').length, 1);
 });
 
+test('call roster shows one tile for duplicate table records of the same peer', () => {
+  const playerPeerId = 'player-mpidu64b-3w72';
+  const remotePlayer = {
+    type: 'callPresence' as const,
+    participantId: 'call-player',
+    displayName: 'Игрок',
+    role: 'player' as const,
+    connected: true,
+    micMuted: true,
+    cameraOff: true,
+    updatedAt: '2026-08-04T18:31:51.219Z',
+    peerId: playerPeerId,
+    stream: null
+  };
+  const participants = buildCallParticipants({
+    call: {
+      ...createCallState(),
+      remoteParticipants: { [remotePlayer.participantId]: remotePlayer }
+    },
+    connectedToRoom: true,
+    sessionPeerId: 'peer-gm',
+    tableParticipants: {
+      'local-gm': createTableParticipant({ id: 'local-gm', name: 'Леся', peerId: 'peer-gm', role: 'gm' }),
+      'player-seat': createTableParticipant({ id: 'player-seat', name: 'Игрок', peerId: playerPeerId, role: 'player' }),
+      'player-presence': createTableParticipant({ id: 'player-presence', name: 'Игрок', peerId: playerPeerId, role: 'player' })
+    }
+  });
+
+  assert.deepEqual(participants.map((participant) => participant.displayName), ['Леся', 'Игрок']);
+});
+
+test('call roster ignores a stale connected table record without a peer', () => {
+  const remotePlayer = {
+    type: 'callPresence' as const,
+    participantId: 'call-player',
+    displayName: 'Игрок',
+    role: 'player' as const,
+    connected: true,
+    micMuted: true,
+    cameraOff: true,
+    updatedAt: '2026-08-04T18:31:51.219Z',
+    peerId: 'player-mpidu64b-3w72',
+    stream: null
+  };
+  const participants = buildCallParticipants({
+    call: {
+      ...createCallState(),
+      remoteParticipants: { [remotePlayer.participantId]: remotePlayer }
+    },
+    connectedToRoom: true,
+    sessionPeerId: 'peer-gm',
+    tableParticipants: {
+      'local-gm': createTableParticipant({ id: 'local-gm', name: 'Леся', peerId: 'peer-gm', role: 'gm' }),
+      'stale-player': createTableParticipant({ id: 'stale-player', name: 'Игрок', peerId: undefined, role: 'player' })
+    }
+  });
+
+  assert.deepEqual(participants.map((participant) => participant.displayName), ['Леся', 'Игрок']);
+});
+
 test('call roster ignores message authors without participant identity', () => {
   const participants = buildCallParticipants({
     call: createCallState(),
@@ -139,9 +199,9 @@ function createCallState(): MediaCallState {
     message: '',
     micMuted: true,
     cameraOff: true,
-    handRaised: false,
     audioPlaybackBlocked: false,
     audioPlaybackActive: false,
+    incomingAudioMuted: false,
     localStream: null,
     remoteParticipants: {}
   };

@@ -7,7 +7,7 @@ import type {
   P2PWireEnvelope,
   P2PTargetPeer
 } from './P2PTransportAdapter';
-import { ServerRelayTransport } from '../ServerRelayTransport';
+import { ServerRelayError, ServerRelayTransport } from '../ServerRelayTransport';
 
 const DIRECT_RETRY_MS = 5_000;
 const SERVER_FALLBACK_DELAY_MS = 350;
@@ -20,7 +20,7 @@ const MAX_SEEN_ENVELOPES = 1_000;
 export class HybridSessionTransport implements P2PTransportAdapter {
   readonly id = 'hybrid-session';
   readonly label = 'Hybrid session';
-  readonly sessionMode = 'hybrid' as const;
+  sessionMode: 'p2p' | 'hybrid' = 'hybrid';
   peerId: string;
 
   private server: ServerRelayTransport;
@@ -40,6 +40,7 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   private roomId = '';
   private retryTimer: number | undefined;
   private connected = false;
+  private directOnly = false;
 
   constructor(private direct: P2PTransportAdapter, context: P2PTransportFactoryContext) {
     this.peerId = context.participantId;
@@ -50,14 +51,26 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   async connect(roomId: string): Promise<void> {
     await this.disconnect();
     this.connected = true;
+    this.directOnly = false;
+    this.sessionMode = 'hybrid';
     this.roomId = roomId;
     this.bind();
-    await this.server.connect(roomId);
+    try {
+      await this.server.connect(roomId);
+    } catch (error) {
+      if (!(error instanceof ServerRelayError) || error.code !== 'room_not_found') throw error;
+      this.directOnly = true;
+      this.sessionMode = 'p2p';
+      await this.direct.connect(roomId);
+      return;
+    }
     void this.connectDirect();
   }
 
   async disconnect(): Promise<void> {
     this.connected = false;
+    this.directOnly = false;
+    this.sessionMode = 'hybrid';
     this.roomId = '';
     globalThis.clearTimeout(this.retryTimer);
     this.retryTimer = undefined;
@@ -71,6 +84,10 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   }
 
   async send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void> {
+    if (this.directOnly) {
+      await this.direct.send(envelope, targetPeer);
+      return;
+    }
     const controlType = envelope.channel === 'control' && envelope.payload && typeof envelope.payload === 'object'
       ? (envelope.payload as { type?: unknown }).type
       : null;

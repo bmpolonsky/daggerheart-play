@@ -1,15 +1,16 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { openGmGame } from './game-route-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 async function openWorkspace(page: Page): Promise<Locator> {
-  const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-  await page.getByRole('button', { name: 'Инструменты' }).click();
+  const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+  await openGameLibrary(page);
   await expect(workspace).toBeVisible();
   return workspace;
 }
 
 async function selectWorkspaceTab(workspace: Locator, name: string): Promise<void> {
-  const tab = workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name, exact: true });
+  const tab = workspace.getByLabel('Разделы библиотеки').getByRole('button', { name, exact: true });
   await tab.click();
   await expect(tab).toHaveAttribute('aria-pressed', 'true');
 }

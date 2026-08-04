@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import type { ComponentChildren } from "preact";
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { Users } from "lucide-react";
 import { useStream } from "../../../core/hooks/useStream";
 import type { LibraryBeastform } from "../../../domain/content/types";
@@ -33,6 +33,7 @@ export function GmRightPanel({
   beastforms,
   character,
   environment,
+  rosterRequestId = 0,
   sceneId,
   sceneTable,
   onClearActivationRequest,
@@ -53,6 +54,7 @@ export function GmRightPanel({
   beastforms?: LibraryBeastform[];
   character: PlayerViewCharacterSummary | null;
   environment: EncounterEnvironment | null;
+  rosterRequestId?: number;
   sceneId: string;
   sceneTable: SceneTableState;
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor['activationRequest']>) => void;
@@ -69,6 +71,9 @@ export function GmRightPanel({
   const { handouts } = useStream(gameService.game$);
   const encounter = useStream(encounterService.encounter$);
   const [activeView, setActiveView] = useState<GmPanelView>('cast');
+  useEffect(() => {
+    if (rosterRequestId > 0) setActiveView('cast');
+  }, [rosterRequestId]);
   if (adversary) {
     return <AdversarySheet adversary={adversary} onBack={onClearActor} />;
   }

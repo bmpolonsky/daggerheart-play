@@ -66,14 +66,18 @@ export class CloudBackupService {
     }
   }
 
-  async restore(worldId: string): Promise<boolean> {
+  async restore(worldId: string, options: { fork?: boolean } = {}): Promise<boolean> {
     const response = await this.fetcher(cloudBackupUrl(worldId), {
       credentials: 'same-origin',
       cache: 'no-store'
     });
     if (response.status === 404) return false;
     if (!response.ok) throw new Error('Не удалось загрузить резервную копию игры.');
-    const result = await this.importExportService.importFile(await response.blob(), { asNewGame: true });
+    const result = await this.importExportService.importFile(await response.blob(), {
+      asNewGame: true,
+      regenerateGameId: options.fork === true,
+      forkNameSuffix: options.fork ? ' — восстановленная копия' : undefined
+    });
     if (!result.ok) throw new Error(result.message);
     return true;
   }

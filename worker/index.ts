@@ -93,9 +93,19 @@ async function handleApi(request: Request, env: WorkerEnv, url: URL): Promise<Re
     const master = requireMaster(request);
     if (master instanceof Response) return master;
     const worlds = await db.prepare(
-      'SELECT id, name, created_at AS createdAt, updated_at AS updatedAt FROM worlds WHERE owner_id = ? ORDER BY updated_at DESC'
+      'SELECT id, name, snapshot_json AS snapshotJson, created_at AS createdAt, updated_at AS updatedAt FROM worlds WHERE owner_id = ? ORDER BY updated_at DESC'
     ).bind(master.id).all();
-    return json({ worlds: worlds.results ?? [] });
+    return json({
+      worlds: (worlds.results ?? []).map((row) => {
+        const world = row as { id: string; name: string; snapshotJson?: string; createdAt: number; updatedAt: number };
+        return {
+          id: world.id,
+          name: world.name,
+          createdAt: world.createdAt,
+          updatedAt: snapshotUpdatedAt(world.snapshotJson, world.updatedAt)
+        };
+      })
+    });
   }
 
   const worldAssetMatch = url.pathname.match(/^\/api\/worlds\/([^/]+)\/assets\/([^/]+)$/);
@@ -609,7 +619,10 @@ async function roomIdentity(request: Request, db: D1Database, roomId: string): P
 
 async function activeRoomForPlayer(db: D1Database, roomId: string, now = Date.now()): Promise<RoomRow | Response> {
   const currentRoom = await room(db, roomId);
-  if (!currentRoom || !isMasterLeaseActive(currentRoom.active_until, now)) {
+  if (!currentRoom) {
+    return json({ error: 'room_not_found', message: 'Комната не найдена.' }, 404);
+  }
+  if (!isMasterLeaseActive(currentRoom.active_until, now)) {
     return json({ error: 'master_offline', message: 'Мастер ещё не запустил эту игру.' }, 409);
   }
   return currentRoom;
@@ -696,6 +709,26 @@ function snapshotName(snapshot: unknown): string {
   if (!game || typeof game !== 'object') return 'Без названия';
   const name = (game as { name?: unknown }).name;
   return typeof name === 'string' && name.trim() ? name.trim() : 'Без названия';
+}
+
+function snapshotUpdatedAt(snapshotJson: string | undefined, fallback: number): number {
+  if (!snapshotJson) return fallback;
+  try {
+    const snapshot = JSON.parse(snapshotJson) as {
+      game?: { updatedAt?: unknown };
+      manifest?: { updatedAt?: unknown };
+      files?: Record<string, unknown>;
+    };
+    const game = snapshot.game ?? snapshot.files?.['data/game.json'];
+    const value = snapshot.manifest?.updatedAt ?? (game && typeof game === 'object'
+      ? (game as { updatedAt?: unknown }).updatedAt
+      : null);
+    if (typeof value !== 'string') return fallback;
+    const timestamp = Date.parse(value);
+    return Number.isFinite(timestamp) ? timestamp : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function stringField(body: Record<string, unknown>, key: string): string {

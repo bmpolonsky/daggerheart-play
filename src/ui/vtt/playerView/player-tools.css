@@ -1,16 +1,4 @@
-/* Shared player tools modal and sync/lobby tools. */
-.player-tools-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 520;
-  color: var(--dh-paper-100, #f3ead8);
-}
-
-.player-tools-modal > .dh-dialog-backdrop {
-  background: rgba(1, 2, 4, 0.68);
-  backdrop-filter: blur(14px);
-}
-
+/* Full-screen library plus compact tools built for the left rail. */
 .player-tools-modal__panel {
   position: absolute;
   top: 20px;
@@ -29,6 +17,7 @@
   backdrop-filter: blur(28px) saturate(1.18);
   overflow: hidden;
   transform: translateX(-50%);
+  color: var(--dh-paper-100, #f3ead8);
 }
 
 .player-tools-modal__header {
@@ -83,6 +72,46 @@
 
 .player-tools-modal__body--managed-scroll {
   overflow: hidden;
+}
+
+.player-tools-generators-section {
+  align-content: start;
+  padding: 14px;
+}
+
+.player-tools-npc {
+  display: grid;
+  gap: 12px;
+}
+
+.player-tools-npc > strong {
+  font-family: "DH Eveleth", "DH Overpass", sans-serif;
+  font-size: 1.1rem;
+}
+
+.player-tools-npc__traits {
+  display: grid;
+  gap: 4px;
+}
+
+.player-quick-tools-card {
+  height: 100%;
+}
+
+.player-quick-tools-card__body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.player-quick-tools-card__body .player-tools-section {
+  padding: 12px;
+}
+
+@media (max-width: 920px) {
+  .player-view--mobile-tools .player-quick-tools-rail {
+    display: block;
+    pointer-events: auto;
+  }
 }
 
 .player-character-editor-dialog {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { isMasterLeaseActive, isPlayerEnvelopeAllowed, normalizeServerRoomId } from '../../src/domain/p2p/serverSession';
+import { isMasterLeaseActive, isPlayerEnvelopeAllowed, normalizeServerRoomId, setMasterServerAuthenticated, shouldUseServerSession } from '../../src/domain/p2p/serverSession';
 import type { P2PWireEnvelope } from '../../src/services/p2p/P2PTransportAdapter';
 
 describe('server session policy', () => {
@@ -16,6 +16,18 @@ describe('server session policy', () => {
     assert.equal(isPlayerEnvelopeAllowed(envelope('data', { kind: 'snapshot' })), false);
     assert.equal(isPlayerEnvelopeAllowed(envelope('control', { type: 'player-ping' })), true);
     assert.equal(isPlayerEnvelopeAllowed(envelope('control', { type: 'webrtc-signal', signal: {} })), false);
+  });
+
+  it('selects hybrid only for players and authenticated masters in a server build', () => {
+    const sites = { VITE_SESSION_MODE: 'server' } as Partial<ImportMetaEnv>;
+    const pages = {} as Partial<ImportMetaEnv>;
+    setMasterServerAuthenticated(false);
+    assert.equal(shouldUseServerSession('gm', sites), false);
+    assert.equal(shouldUseServerSession('player', sites), true);
+    assert.equal(shouldUseServerSession('player', pages), false);
+    setMasterServerAuthenticated(true);
+    assert.equal(shouldUseServerSession('gm', sites), true);
+    setMasterServerAuthenticated(false);
   });
 });
 

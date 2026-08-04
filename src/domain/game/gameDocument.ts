@@ -1,5 +1,6 @@
 import type { PersistedState } from '../rules/types';
 import type { MapAsset } from '../tabletop/types';
+import { createId } from '../../core/utils/id';
 
 export const GAME_DOCUMENT_KIND = 'daggerheart-play:game';
 const LEGACY_GAME_PROJECT_KIND = 'daggerheart-play:game-project-folder';
@@ -106,6 +107,21 @@ export function gameDocumentToPersistedState(document: GameDocument): PersistedS
       }
     }
   };
+}
+
+export function forkGameDocument(document: GameDocument, suffix = ' — восстановленная копия'): GameDocument {
+  const state = gameDocumentToPersistedState(document);
+  const now = new Date().toISOString();
+  const name = `${state.game.name || 'Без названия'}${suffix}`;
+  return createGameDocument({
+    ...state,
+    game: {
+      ...state.game,
+      id: createId('game'),
+      name,
+      updatedAt: now
+    }
+  }, gameDocumentCustomContent(document));
 }
 
 export function emptyCustomContent(): GameCustomContent {

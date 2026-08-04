@@ -13,6 +13,7 @@ import {
 import type { PersistedState } from '../../src/domain/rules/types';
 import { createLocalParticipant, createTableScene, createTokenState } from '../../src/domain/tabletop/factories';
 import { openGmGame } from './game-route-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 export const filledCharacterName = 'Кадсуанэ';
 export const filledEnvironmentName = 'Заброшенная роща';
@@ -51,9 +52,9 @@ export async function importPopulatedGame(page: Page): Promise<void> {
 }
 
 export async function importGameDocument(page: Page, document: unknown, fileName = fixtureFileName): Promise<void> {
-  await page.getByRole('button', { name: 'Инструменты' }).click();
-  const workspace = page.getByRole('dialog', { name: 'Рабочее пространство' });
-  await workspace.getByLabel('Разделы рабочего пространства').getByRole('button', { name: 'Настройки' }).click();
+  await openGameLibrary(page);
+  const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+  await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Настройки' }).click();
   await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игры проекта' }).click();
   await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles({
     name: fileName,
@@ -61,7 +62,7 @@ export async function importGameDocument(page: Page, document: unknown, fileName
     buffer: Buffer.from(JSON.stringify(document))
   });
   await expect(workspace.getByText(`Игра импортирована: ${fileName}`)).toBeVisible({ timeout: 15_000 });
-  await workspace.getByRole('button', { name: 'Закрыть' }).click();
+  await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
   await expect(page.getByRole('button', { name: filledCharacterName, exact: true }).first()).toBeVisible({ timeout: 15_000 });
 }
 

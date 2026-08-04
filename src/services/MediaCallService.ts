@@ -16,7 +16,7 @@ export interface CallPresenceMessage {
   connected: boolean;
   micMuted: boolean;
   cameraOff: boolean;
-  handRaised: boolean;
+  handRaised?: boolean;
   updatedAt: string;
 }
 
@@ -35,9 +35,9 @@ export interface MediaCallState {
   message: string;
   micMuted: boolean;
   cameraOff: boolean;
-  handRaised: boolean;
   audioPlaybackBlocked: boolean;
   audioPlaybackActive: boolean;
+  incomingAudioMuted: boolean;
   localStream: MediaStream | null;
   remoteParticipants: Record<string, CallParticipant>;
 }
@@ -65,9 +65,9 @@ const initialState: MediaCallState = {
   message: 'Звонок не подключен.',
   micMuted: true,
   cameraOff: true,
-  handRaised: false,
   audioPlaybackBlocked: false,
   audioPlaybackActive: false,
+  incomingAudioMuted: false,
   localStream: null,
   remoteParticipants: {}
 };
@@ -99,11 +99,44 @@ export class MediaCallService {
   }
 
   activateCall(): void {
+    void this.joinWithoutDevices();
+  }
+
+  async joinWithoutDevices(): Promise<void> {
+    const stream = this.call$.get().localStream;
+    stream?.getAudioTracks().forEach((track) => { track.enabled = false; });
+    stream?.getVideoTracks().forEach((track) => { track.enabled = false; });
     this.callStore.update((state) => ({
       ...state,
-      active: true
+      active: true,
+      micMuted: true,
+      cameraOff: true,
+      status: state.roomId ? 'connected' : state.status,
+      message: state.roomId ? 'Вы подключены без камеры и микрофона.' : state.message
     }));
-    void this.publishPresence();
+    await this.publishPresence();
+  }
+
+  async leaveCall(): Promise<void> {
+    const state = this.call$.get();
+    if (state.active && state.roomId && state.displayName.trim()) {
+      await this.syncService.publishCallPresence(this.createLocalPresence(false)).catch(() => undefined);
+    }
+    if (state.localStream) {
+      this.mediaTransport?.removeMediaStream(state.localStream);
+      state.localStream.getTracks().forEach((track) => track.stop());
+    }
+    this.clearRemoteAudio();
+    this.callStore.update((current) => ({
+      ...current,
+      active: false,
+      status: 'idle',
+      message: 'Вы вышли из звонка.',
+      micMuted: true,
+      cameraOff: true,
+      localStream: null,
+      remoteParticipants: {}
+    }));
   }
 
   setDisplayName(displayName: string): void {
@@ -216,6 +249,12 @@ export class MediaCallService {
     await this.publishPresence();
   }
 
+  async muteMicrophone(): Promise<void> {
+    this.setAudioTracksEnabled(false);
+    this.callStore.update((state) => ({ ...state, micMuted: true }));
+    await this.publishPresence();
+  }
+
   async toggleCamera(): Promise<void> {
     await this.unlockRemoteAudio();
     const state = this.call$.get();
@@ -236,19 +275,28 @@ export class MediaCallService {
     await this.publishPresence();
   }
 
-  async toggleHand(): Promise<void> {
-    this.callStore.update((state) => ({
-      ...state,
-      active: true,
-      handRaised: !state.handRaised
-    }));
-    await this.publishPresence();
-  }
-
   async unlockRemoteAudio(): Promise<void> {
+    this.remoteAudioElements.forEach((element) => { element.muted = false; });
+    this.callStore.update((state) => ({ ...state, incomingAudioMuted: false }));
     await Promise.all(Array.from(this.remoteAudioElements.entries(), ([participantId, element]) =>
       this.playRemoteAudio(participantId, element, this.remoteAudioGenerations.get(participantId) ?? 0)
     ));
+  }
+
+  async toggleIncomingAudio(): Promise<void> {
+    const state = this.call$.get();
+    if (state.audioPlaybackBlocked) {
+      await this.unlockRemoteAudio();
+      return;
+    }
+    if (!state.incomingAudioMuted) {
+      this.remoteAudioElements.forEach((element) => { element.muted = true; });
+      this.blockedRemoteAudioIds.clear();
+      this.playingRemoteAudioIds.clear();
+      this.callStore.update((state) => ({ ...state, incomingAudioMuted: true, audioPlaybackBlocked: false, audioPlaybackActive: false }));
+      return;
+    }
+    await this.unlockRemoteAudio();
   }
 
   async publishPresence(): Promise<boolean> {
@@ -419,7 +467,6 @@ export class MediaCallService {
             connected: true,
             micMuted: existing?.micMuted ?? false,
             cameraOff: existing?.cameraOff ?? false,
-            handRaised: existing?.handRaised ?? false,
             updatedAt: nowIso(),
             peerId,
             stream
@@ -436,7 +483,7 @@ export class MediaCallService {
     }
     const element = this.remoteAudioElements.get(participantId) ?? new Audio();
     element.autoplay = true;
-    element.muted = false;
+    element.muted = this.call$.get().incomingAudioMuted;
     element.setAttribute('playsinline', 'true');
     element.srcObject = stream;
     this.remoteAudioElements.set(participantId, element);
@@ -515,7 +562,6 @@ export class MediaCallService {
       connected,
       micMuted: state.micMuted,
       cameraOff: state.cameraOff,
-      handRaised: state.handRaised,
       updatedAt: nowIso()
     };
   }
@@ -542,7 +588,8 @@ export function isCallPresenceMessage(value: unknown): value is CallPresenceMess
     value.type === 'callPresence' &&
     hasStringFields(value, ['participantId', 'displayName', 'role', 'updatedAt']) &&
     (value.role === 'gm' || value.role === 'player' || value.role === 'guest') &&
-    hasBooleanFields(value, ['connected', 'micMuted', 'cameraOff', 'handRaised']);
+    hasBooleanFields(value, ['connected', 'micMuted', 'cameraOff']) &&
+    (value.handRaised === undefined || typeof value.handRaised === 'boolean');
 }
 
 function applyCallContentHints(stream: MediaStream): void {

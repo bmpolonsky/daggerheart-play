@@ -228,6 +228,7 @@ Use for floating movable panels over the VTT, such as call widgets or roll confi
 <DraggableSurface
   aria-label="Видео звонок"
   title="Звонок"
+  resizable
   actions={<IconButton aria-label="Свернуть" title="Свернуть">...</IconButton>}
   defaultPosition={() => ({ x: window.innerWidth - 338, y: window.innerHeight - 316 })}
 >
@@ -240,6 +241,7 @@ Guidance:
 - Build draggable windows from this primitive instead of local pointer hooks.
 - Set `--dh-draggable-z-index` on the feature class when layering matters.
 - Put icon-only window controls in `actions`; they are excluded from drag capture.
+- Set `resizable` for desktop panels whose content benefits from more room. Disable it on compact mobile layouts.
 
 ### Card
 
@@ -554,7 +556,7 @@ Guidance:
 
 - Keep the trigger visible wherever its actions are relevant; do not hide it only behind an empty state.
 - Use short commands in the menu. A menu item should take the user to the appropriate focused flow rather than duplicate that flow inside the popover.
-- The primitive closes on outside click and Escape, restores trigger focus, and supports arrow-key navigation.
+- The primitive renders through a body portal, stays inside the viewport, flips at screen edges, closes on outside click and Escape, restores trigger focus, and supports arrow-key navigation.
 
 ### SectionHeader
 

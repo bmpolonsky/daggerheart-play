@@ -23,6 +23,7 @@ export interface DraggableSurfaceProps extends Omit<HTMLAttributes<HTMLElement>,
   children?: UiNode;
   defaultPosition: DraggableSurfacePosition | (() => DraggableSurfacePosition);
   bounds?: DraggableSurfaceBounds;
+  resizable?: boolean;
 }
 
 const INTERACTIVE_SELECTOR = 'button, input, select, textarea, a, [role="button"], [data-drag-ignore]';
@@ -33,6 +34,7 @@ export function DraggableSurface({
   children,
   defaultPosition,
   bounds,
+  resizable = false,
   className = '',
   ...props
 }: DraggableSurfaceProps) {
@@ -64,6 +66,16 @@ export function DraggableSurface({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [bounds?.bottom, bounds?.left, bounds?.right, bounds?.top]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !resizable || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      setPosition((current) => clampToViewport(current.x, current.y));
+    });
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [bounds?.bottom, bounds?.left, bounds?.right, bounds?.top, resizable]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -102,7 +114,7 @@ export function DraggableSurface({
       {...props}
       elementRef={rootRef}
       padding="sm"
-      className={`dh-draggable-surface ${styles.root} ${className}`.trim()}
+      className={`dh-draggable-surface ${styles.root} ${resizable ? styles.resizable : ''} ${className}`.trim()}
       style={{ left: position.x, top: position.y }}
     >
       <header

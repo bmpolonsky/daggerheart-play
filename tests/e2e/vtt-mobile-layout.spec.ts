@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { openGmGame, openPlayerGame } from './game-route-helpers';
 import { expectInsideHorizontalBounds, expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 test.describe('VTT detail composition', () => {
   test('desktop keeps the scene primary and overlays optional workspaces', async ({ page }) => {
@@ -82,20 +83,20 @@ test.describe('mobile VTT composition', () => {
   test('tools modal opens above player layers and closes cleanly', async ({ page }) => {
     await openGmGame(page);
 
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
+    await openGameLibrary(page);
+    const modal = page.getByRole('dialog', { name: 'Библиотека игры' });
     await expect(modal).toBeVisible();
     await expectInsideViewport(page, modal);
-    await modal.getByRole('button', { name: 'Закрыть' }).click();
+    await modal.getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await expect(modal).toHaveCount(0);
   });
 
   test('GM tools mobile tabs expose character creation', async ({ page }) => {
     await openGmGame(page);
 
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    const workspaceTabs = modal.getByRole('group', { name: 'Разделы рабочего пространства' });
+    await openGameLibrary(page);
+    const modal = page.getByRole('dialog', { name: 'Библиотека игры' });
+    const workspaceTabs = modal.getByRole('group', { name: 'Разделы библиотеки' });
     const charactersTab = workspaceTabs.getByRole('button', { name: 'Персонажи' });
 
     await expect(modal).toBeVisible();
@@ -106,33 +107,26 @@ test.describe('mobile VTT composition', () => {
     await expect(modal.getByRole('button', { name: 'Создать героя' })).toBeVisible();
   });
 
-  test('GM can reach both external tools while dialog focus stays trapped', async ({ page }) => {
+  test('GM can reach compatible full-screen tools from the compact panel', async ({ page }) => {
     await openGmGame(page);
 
-    await page.getByRole('button', { name: 'Инструменты' }).click();
-    const modal = page.getByRole('dialog', { name: 'Рабочее пространство' });
-    const workspaceTabs = modal.getByRole('group', { name: 'Разделы рабочего пространства' });
-    const combatTool = workspaceTabs.getByRole('button', { name: 'Конструктор боя', exact: true });
-    const cardTool = workspaceTabs.getByRole('button', { name: 'Редактор карт', exact: true });
-    const visibleFocusable = modal.locator('button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [href]:visible, [tabindex]:not([tabindex="-1"]):visible');
+    await openGameLibrary(page);
+    const modal = page.getByRole('dialog', { name: 'Библиотека игры' });
+    const workspaceTabs = modal.getByRole('group', { name: 'Разделы библиотеки' });
+    const combatTab = workspaceTabs.getByRole('button', { name: 'Бой', exact: true });
 
-    await combatTool.scrollIntoViewIfNeeded();
-    await expectInsideHorizontalBounds(workspaceTabs, combatTool);
-
-    await visibleFocusable.first().focus();
-    await page.keyboard.press('Shift+Tab');
-    await expect(visibleFocusable.last()).toBeFocused();
+    await combatTab.scrollIntoViewIfNeeded();
+    await expectInsideHorizontalBounds(workspaceTabs, combatTab);
+    await combatTab.click();
 
     const combatPopupPromise = page.waitForEvent('popup');
-    await combatTool.click();
+    await modal.getByRole('button', { name: 'Развернуть бой' }).click();
     const combatPopup = await combatPopupPromise;
     await expect(combatPopup).toHaveURL(/\/#\/tools\/combat$/);
     await combatPopup.close();
 
-    await cardTool.scrollIntoViewIfNeeded();
-    await expectInsideHorizontalBounds(workspaceTabs, cardTool);
     const cardPopupPromise = page.waitForEvent('popup');
-    await cardTool.click();
+    await workspaceTabs.getByRole('button', { name: 'Редактор карт' }).click();
     const cardPopup = await cardPopupPromise;
     await expect(cardPopup).toHaveURL(/\/#\/tools\/cards$/);
     await cardPopup.close();

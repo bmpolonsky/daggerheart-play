@@ -248,6 +248,20 @@
   padding: 2px 2px 0;
 }
 
+.player-left-rail-tabs {
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--dh-radius-sm);
+  background: rgba(9, 10, 12, 0.34);
+}
+
+.player-left-rail-tabs .dh-tab {
+  width: 32px;
+  min-width: 32px;
+  padding-inline: 0;
+}
+
 .player-chronicle-header__title {
   min-width: 0;
   display: grid;
@@ -1306,7 +1320,7 @@
     left: max(10px, env(safe-area-inset-left));
     z-index: calc(var(--dh-z-floating, 220) + 110);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
   }
 

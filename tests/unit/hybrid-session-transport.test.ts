@@ -112,6 +112,35 @@ describe('HybridSessionTransport', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('falls back to direct P2P only when the server room is absent', async () => {
+    const originalFetch = globalThis.fetch;
+    const direct = new FakeTransport();
+    globalThis.fetch = (async () => response({ error: 'room_not_found', message: 'Комната не найдена.' }, 404)) as typeof fetch;
+    const transport = new HybridSessionTransport(direct, { ...context(), role: 'player', participantId: 'player-peer', initialSnapshot: undefined });
+    try {
+      await transport.connect('ABC123');
+      assert.equal(transport.sessionMode, 'p2p');
+      assert.deepEqual(direct.connectedRooms, ['ABC123']);
+    } finally {
+      await transport.disconnect();
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('does not hide other server errors behind P2P fallback', async () => {
+    const originalFetch = globalThis.fetch;
+    const direct = new FakeTransport();
+    globalThis.fetch = (async () => response({ error: 'master_offline', message: 'Мастер не в сети.' }, 409)) as typeof fetch;
+    const transport = new HybridSessionTransport(direct, { ...context(), role: 'player', participantId: 'player-peer', initialSnapshot: undefined });
+    try {
+      await assert.rejects(() => transport.connect('ABC123'), /Мастер не в сети/);
+      assert.deepEqual(direct.connectedRooms, []);
+    } finally {
+      await transport.disconnect();
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 
 class FakeTransport implements P2PTransportAdapter {
@@ -119,9 +148,10 @@ class FakeTransport implements P2PTransportAdapter {
   readonly label = 'Fake';
   peerId = 'gm-peer';
   sent = 0;
+  connectedRooms: string[] = [];
   private messages = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
   private joins = new Set<(peerId: string) => void>();
-  async connect(): Promise<void> {}
+  async connect(roomId: string): Promise<void> { this.connectedRooms.push(roomId); }
   async disconnect(): Promise<void> {}
   async send(): Promise<void> { this.sent += 1; }
   subscribe(listener: (envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void) { this.messages.add(listener); return () => this.messages.delete(listener); }
@@ -140,6 +170,6 @@ function envelope(peerId: string, id = 'same-event', payload: unknown = {}): P2P
   return { version: 2, id, channel: 'data', sender: { peerId, role: peerId === 'gm-peer' ? 'gm' : 'player' }, sentAt: new Date(0).toISOString(), payload };
 }
 
-function response(body: unknown): Response {
-  return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+function response(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 }

@@ -15,7 +15,7 @@ import type { P2PTransportAdapter } from './p2p/P2PTransportAdapter';
 import type { P2PTransportFactoryContext } from './p2p/P2PTransportAdapter';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { HybridSessionTransport } from './p2p/HybridSessionTransport';
-import { serverSessionEnabled } from '../domain/p2p/serverSession';
+import { serverSessionAvailable, shouldUseServerSession } from '../domain/p2p/serverSession';
 import type { TrysteroP2PTransportOptions } from './TrysteroSyncTransport';
 import { PersistenceService } from './PersistenceService';
 import { PlayerActionRequestService } from './PlayerActionRequestService';
@@ -55,12 +55,12 @@ const sessionTransportFactory = (
   context?: P2PTransportFactoryContext
 ): P2PTransportAdapter => {
   if (e2eP2PTransportFactory) return e2eP2PTransportFactory();
-  if (serverSessionEnabled() && context) {
+  if (context && shouldUseServerSession(context.role)) {
     return new HybridSessionTransport(createConfiguredP2PTransport(options), context);
   }
   return createConfiguredP2PTransport(options);
 };
-const hybridMediaTransportFactory = serverSessionEnabled()
+const hybridMediaTransportFactory = serverSessionAvailable()
   ? (options: TrysteroP2PTransportOptions) => createConfiguredP2PTransport(options)
   : undefined;
 export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, sessionTransportFactory, undefined, mediaCallService, characterService, hybridMediaTransportFactory, cloudBackupService);

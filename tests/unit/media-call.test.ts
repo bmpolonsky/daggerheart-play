@@ -3,6 +3,30 @@ import assert from 'node:assert/strict';
 import { MediaCallService } from '../../src/services/MediaCallService';
 import { SyncService } from '../../src/services/SyncService';
 
+test('joining and leaving a call does not request devices', async () => {
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  let requestedDevices = false;
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: { mediaDevices: { getUserMedia: async () => { requestedDevices = true; throw new Error('unexpected'); } } }
+  });
+  const call = new MediaCallService(new SyncService());
+  try {
+    call.setRoom({ roomId: 'ROOM1', displayName: 'Игрок', role: 'player' });
+    await call.joinWithoutDevices();
+    assert.equal(call.call$.get().active, true);
+    assert.equal(call.call$.get().micMuted, true);
+    assert.equal(call.call$.get().cameraOff, true);
+    assert.equal(requestedDevices, false);
+    await call.leaveCall();
+    assert.equal(call.call$.get().active, false);
+    assert.equal(requestedDevices, false);
+  } finally {
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
+    else delete (globalThis as { navigator?: Navigator }).navigator;
+  }
+});
+
 test('call audio plays independently from camera state and exposes autoplay retry', async () => {
   const originalAudio = globalThis.Audio;
   const playResults: Array<'blocked' | 'playing'> = [];
@@ -66,7 +90,7 @@ test('call audio plays independently from camera state and exposes autoplay retr
     assert.equal(call.call$.get().audioPlaybackActive, false);
     assert.deepEqual(playResults, ['blocked']);
 
-    await call.unlockRemoteAudio();
+    await call.toggleIncomingAudio();
 
     assert.equal(call.call$.get().audioPlaybackBlocked, false);
     assert.equal(call.call$.get().audioPlaybackActive, true);
@@ -201,6 +225,10 @@ test('enabling microphone after camera adds an audio track without replacing the
     assert.deepEqual(published, [videoStream]);
     assert.deepEqual(added, [{ track: audioTrack, stream: videoStream }]);
     assert.equal(videoTrack.stopped, false);
+
+    await call.joinWithoutDevices();
+    assert.equal(videoTrack.enabled, false);
+    assert.equal(audioTrack.enabled, false);
   } finally {
     if (originalNavigator) {
       Object.defineProperty(globalThis, 'navigator', originalNavigator);
