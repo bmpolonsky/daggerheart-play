@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'vitest';
+import { test, vi } from 'vitest';
 import { turnConfigProvider } from '../../src/services/TurnCredentialService';
 
 test('Pages requests TURN credentials from Sites without sending server credentials', async () => {
@@ -26,5 +26,30 @@ test('Pages requests TURN credentials from Sites without sending server credenti
     }]);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test('Pages continues without TURN when the Sites broker is unreachable', async () => {
+  const originalFetch = globalThis.fetch;
+  vi.useFakeTimers();
+  let wasAborted = false;
+  globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) => {
+    const signal = init?.signal;
+    assert.ok(signal);
+    return new Promise<Response>((_resolve, reject) => {
+      signal.addEventListener('abort', () => {
+        wasAborted = true;
+        reject(new DOMException('Aborted', 'AbortError'));
+      }, { once: true });
+    });
+  }) as typeof fetch;
+  try {
+    const iceServers = turnConfigProvider('pages-player-timeout-test', false)('MEDIA-ROOM2');
+    await vi.advanceTimersByTimeAsync(2_500);
+    assert.deepEqual(await iceServers, []);
+    assert.equal(wasAborted, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    vi.useRealTimers();
   }
 });

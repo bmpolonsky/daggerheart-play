@@ -2,6 +2,7 @@ import { readServerParticipantToken } from './ServerRelayTransport';
 
 const PAGES_TURN_ENDPOINT = 'https://daggerheart-play.bmpolonsky.chatgpt.site/api/turn-credentials';
 const CACHE_MS = 10 * 60 * 60_000;
+const TURN_FETCH_TIMEOUT_MS = 2_500;
 const cachedCredentials = new Map<string, { expiresAt: number; promise: Promise<RTCIceServer[]> }>();
 
 export function turnConfigProvider(participantId: string, serverMode: boolean): (roomId: string) => Promise<RTCIceServer[]> {
@@ -10,9 +11,9 @@ export function turnConfigProvider(participantId: string, serverMode: boolean): 
     const cacheKey = `${serverMode ? 'server' : 'pages'}:${serverRoomId}:${participantId}`;
     const cached = cachedCredentials.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.promise;
-    const promise = fetchTurnConfig(serverRoomId, participantId, serverMode).catch((error) => {
+    const promise = fetchTurnConfig(serverRoomId, participantId, serverMode).catch(() => {
       cachedCredentials.delete(cacheKey);
-      throw error;
+      return [];
     });
     cachedCredentials.set(cacheKey, { expiresAt: Date.now() + CACHE_MS, promise });
     return promise;
@@ -20,6 +21,8 @@ export function turnConfigProvider(participantId: string, serverMode: boolean): 
 }
 
 async function fetchTurnConfig(roomId: string, participantId: string, serverMode: boolean): Promise<RTCIceServer[]> {
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), TURN_FETCH_TIMEOUT_MS);
   const headers = new Headers({ accept: 'application/json' });
   if (serverMode) {
     const participantToken = readServerParticipantToken(roomId, participantId);
@@ -31,13 +34,18 @@ async function fetchTurnConfig(roomId: string, participantId: string, serverMode
   const endpoint = serverMode
     ? `/api/rooms/${encodeURIComponent(roomId)}/turn-credentials`
     : `${PAGES_TURN_ENDPOINT}?room=${encodeURIComponent(roomId)}`;
-  const response = await fetch(endpoint, {
-    credentials: serverMode ? 'same-origin' : 'omit',
-    headers
-  });
-  if (!response.ok) return [];
-  const body = await response.json() as { iceServers?: unknown };
-  return validIceServers(body.iceServers);
+  try {
+    const response = await fetch(endpoint, {
+      credentials: serverMode ? 'same-origin' : 'omit',
+      headers,
+      signal: controller.signal
+    });
+    if (!response.ok) return [];
+    const body = await response.json() as { iceServers?: unknown };
+    return validIceServers(body.iceServers);
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
 }
 
 function validIceServers(value: unknown): RTCIceServer[] {

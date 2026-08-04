@@ -84,7 +84,7 @@ jobs:
 
   deploy-pages:
     name: Deploy verified build to GitHub Pages
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[deploy-pages]'))
     # E2E is deliberately advisory: it exercises valuable long journeys, but
     # the deployed artifact is gated by deterministic static and unit checks.
     needs: [typecheck-and-unit]
