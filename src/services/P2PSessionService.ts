@@ -144,6 +144,7 @@ const CLOUD_BACKUP_INTERVAL_MS = 30_000;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
 const SERVER_HEARTBEAT_MS = 15_000;
 const SERVER_PEER_TIMEOUT_MS = 45_000;
+const PLAYER_ROLL_ACK_TIMEOUT_MS = 5_000;
 const ROOM_CODE_REFRESH_COOLDOWN_MS = 30_000;
 const PENDING_PLAYER_CHARACTER_UPDATES_KEY = 'daggerheart-pending-player-character-updates';
 const initialMediaTransportState: P2PMediaTransportState = {
@@ -206,6 +207,7 @@ export class P2PSessionService {
   private cloudBackupErrorShown = false;
   private gmWakeLock: WakeLockSentinel | null = null;
   private hasDirectGmSnapshot = false;
+  private playerRollAckTimer: number | undefined;
 
   constructor(
     private syncService: SyncService,
@@ -464,8 +466,10 @@ export class P2PSessionService {
           lastRequestAt: nowIso(),
           message: accepted ? 'Бросок игрока выполнен.' : this.playerActorRejectionMessage(message.participantId, message.actorId, 'Бросок игрока отклонен')
         });
-        await this.publishSnapshot({ targetPeer: context?.sourcePeerId });
-        await this.syncService.publishPlayerRollAck({ type: 'playerRollAck', intentId: message.intentId, accepted }, context?.sourcePeerId);
+        await Promise.allSettled([
+          this.publishSnapshot({ targetPeer: context?.sourcePeerId }),
+          this.syncService.publishPlayerRollAck({ type: 'playerRollAck', intentId: message.intentId, accepted }, context?.sourcePeerId)
+        ]);
       })();
     }));
     this.subscriptions.add(this.syncService.subscribePlayerDecisions((message, _event, context) => {
@@ -591,7 +595,8 @@ export class P2PSessionService {
       }));
       this.subscriptions.add(this.syncService.subscribePlayerRollAcks((message) => {
         if (this.sessionStore.get().pendingRollIntentId !== message.intentId) return;
-        this.patchSession({ rollPending: false, pendingRollIntentId: null, lastRequestAt: nowIso() });
+        this.clearPendingPlayerRoll();
+        this.patchSession({ lastRequestAt: nowIso() });
       }));
       this.capturePlayerForwardingBaseline();
       this.subscriptions.add(this.feedService.feed$.subscribe(() => {
@@ -717,6 +722,8 @@ export class P2PSessionService {
     this.snapshotTimer = undefined;
     window.clearTimeout(this.cloudBackupTimer);
     this.cloudBackupTimer = undefined;
+    window.clearTimeout(this.playerRollAckTimer);
+    this.playerRollAckTimer = undefined;
     this.stopPlayerProductRecoveryPolling();
     const mediaConnection = this.activeMediaRoomConnection;
     this.activeRoomConnection = null;
@@ -947,6 +954,10 @@ export class P2PSessionService {
     try {
       const intentId = createId('roll-intent');
       this.patchSession({ rollPending: true, pendingRollIntentId: intentId });
+      window.clearTimeout(this.playerRollAckTimer);
+      this.playerRollAckTimer = window.setTimeout(() => {
+        if (this.sessionStore.get().pendingRollIntentId === intentId) this.clearPendingPlayerRoll();
+      }, PLAYER_ROLL_ACK_TIMEOUT_MS);
       await this.syncService.publishPlayerRollIntent({
         type: 'playerRollIntent',
         intentId,
@@ -963,7 +974,8 @@ export class P2PSessionService {
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось отправить бросок мастеру.';
-      this.patchSession({ status: 'degraded', message, rollPending: false, pendingRollIntentId: null });
+      this.clearPendingPlayerRoll();
+      this.patchSession({ status: 'degraded', message });
       return false;
     }
   }
@@ -2080,6 +2092,12 @@ export class P2PSessionService {
       return;
     }
     this.sessionStore.update((state) => ({ ...state, ...patch }));
+  }
+
+  private clearPendingPlayerRoll(): void {
+    window.clearTimeout(this.playerRollAckTimer);
+    this.playerRollAckTimer = undefined;
+    this.patchSession({ rollPending: false, pendingRollIntentId: null });
   }
 
   private persistInviteDraft(): void {

@@ -168,6 +168,11 @@
   transition: none;
 }
 
+.player-view--gm .player-token:not(:active) {
+  transition-duration: 320ms;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 .player-token.dh-is-player-origin {
   cursor: pointer;
 }
