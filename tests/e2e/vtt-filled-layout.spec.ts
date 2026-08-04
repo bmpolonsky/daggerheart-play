@@ -379,7 +379,6 @@ test.describe('filled VTT layout regressions', () => {
     const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
     await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' }).click();
     const placement = workspace.getByLabel('Размещение');
-    const fitting = workspace.getByLabel('Базовый размер');
     const zoom = workspace.getByLabel('Масштаб фона');
     const horizontal = workspace.getByLabel('Положение фона по горизонтали');
     const vertical = workspace.getByLabel('Положение фона по вертикали');
@@ -388,7 +387,7 @@ test.describe('filled VTT layout regressions', () => {
     await expect(placement).toHaveValue('tactical');
     await expect(zoom).toBeVisible();
     await expect(workspace.locator('.player-tools-scene-framing__sliders .dh-range-field')).toHaveCount(3);
-    await fitting.selectOption('fit');
+    await expect(workspace.getByLabel('Базовый размер')).toHaveCount(0);
     await expect(preview).toHaveCSS('background-size', 'contain');
     await horizontal.fill('0.5');
     await expect.poll(() => preview.evaluate((element) => getComputedStyle(element).transform)).not.toBe('matrix(1, 0, 0, 1, 0, 0)');
@@ -396,19 +395,13 @@ test.describe('filled VTT layout regressions', () => {
     await vertical.fill('-0.25');
     await expect(preview).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
 
-    await fitting.selectOption('fill');
-    await expect(preview).toHaveCSS('background-size', 'cover');
-    await expect(zoom).toHaveValue('1.5');
-    await expect(horizontal).toHaveValue('0.5');
-    await expect(vertical).toHaveValue('-0.25');
     await workspace.getByRole('button', { name: 'Сбросить' }).click();
-    await expect(fitting).toHaveValue('fill');
+    await expect(preview).toHaveCSS('background-size', 'contain');
     await expect(zoom).toHaveValue('1');
     await expect(horizontal).toHaveValue('0');
     await expect(vertical).toHaveValue('0');
     await expect(workspace.getByRole('button', { name: 'Сбросить' })).toHaveCount(0);
 
-    await fitting.selectOption('fit');
     await zoom.fill('1.5');
     await horizontal.fill('0.5');
     await vertical.fill('-0.25');
@@ -426,7 +419,7 @@ test.describe('filled VTT layout regressions', () => {
     await openGameLibrary(page);
     const reopenedWorkspace = page.getByRole('dialog', { name: 'Библиотека игры' });
     await reopenedWorkspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' }).click();
-    await expect(reopenedWorkspace.getByLabel('Базовый размер')).toHaveValue('fit');
+    await expect(reopenedWorkspace.getByLabel('Базовый размер')).toHaveCount(0);
     await expect(reopenedWorkspace.getByLabel('Масштаб фона')).toHaveValue('1.5');
     await expect(reopenedWorkspace.getByLabel('Положение фона по горизонтали')).toHaveValue('0.5');
     await expect(reopenedWorkspace.getByLabel('Положение фона по вертикали')).toHaveValue('-0.25');

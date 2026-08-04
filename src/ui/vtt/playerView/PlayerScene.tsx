@@ -75,7 +75,7 @@ export function PlayerScene({
             aria-hidden="true"
             style={{
               backgroundImage: `url("${cssImageUrl(model.scene.imageUrl)}")`,
-              backgroundSize: tacticalBackgroundFraming.fit === 'fit' ? 'contain' : 'cover',
+              backgroundSize: 'contain',
               transform: sceneBackgroundTransform(tacticalBackgroundFraming)
             }}
           />

@@ -123,7 +123,8 @@ test.describe('P2P session workflow', () => {
     await expect(chronicle).toBeVisible();
     await page.getByLabel('Сообщение игрока').fill('Заполненная хроника для проверки заголовка');
     await page.getByRole('button', { name: 'Отправить сообщение' }).click();
-    await expect(chronicle.getByRole('button', { name: 'Очистить хронику' })).toBeVisible();
+    await chronicle.getByRole('button', { name: 'Другие действия хроники' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Очистить хронику' })).toBeVisible();
 
     const chronicleHeader = chronicle.locator('.player-chronicle-header');
     const headerTitle = chronicleHeader.locator('.player-chronicle-header__title');

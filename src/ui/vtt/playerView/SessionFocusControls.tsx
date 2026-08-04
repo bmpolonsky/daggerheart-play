@@ -38,7 +38,7 @@ export function SessionFocusControls({
         onClick={onActivityToggle}
       >
         {activityOpen ? <PanelLeftClose size={17} aria-hidden="true" /> : <PanelLeftOpen size={17} aria-hidden="true" />}
-        <span className={`player-connection-status-dot is-${connectionTone}`} aria-hidden="true" />
+        {!activityOpen && <span className={`player-connection-status-dot is-${connectionTone}`} aria-hidden="true" />}
       </IconButton>
       <IconButton
         className={`player-session-panel-toggle player-session-panel-toggle--right ${panelOpen ? 'dh-is-open' : ''}`}

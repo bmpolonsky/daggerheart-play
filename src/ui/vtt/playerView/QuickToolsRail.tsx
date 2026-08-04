@@ -1,8 +1,7 @@
 /** @jsxImportSource preact */
-import { LibraryBig } from 'lucide-react';
 import type { GeneratedNpc } from '../../../domain/generators/npc';
-import { IconButton } from '../../components/common';
 import { PlayerRailTabs } from './PlayerRailTabs';
+import { PlayerRailHeaderActions } from './PlayerRailHeaderActions';
 import { SharedToolsGeneratorsTab } from './sharedTools/SharedToolsGeneratorsTab';
 import type { SharedToolsTab } from './types';
 
@@ -18,12 +17,9 @@ export function QuickToolsRail({ npc, onNpcChange, onClose, onOpenTool }: {
         <header className="player-chronicle-header">
           <PlayerRailTabs active="npc" role="gm" onSelect={(tab) => {
             if (tab === 'chronicle') onClose();
+            if (tab === 'library') onOpenTool('library');
           }} />
-          <div className="player-chronicle-header__actions">
-            <IconButton variant="ghost" size="sm" title="Библиотека игры" aria-label="Библиотека игры" onClick={() => onOpenTool('library')}>
-              <LibraryBig size={16} aria-hidden="true" />
-            </IconButton>
-          </div>
+          <PlayerRailHeaderActions role="gm" />
         </header>
         <div className="player-quick-tools-card__body">
           <SharedToolsGeneratorsTab npc={npc} onNpcChange={onNpcChange} />

@@ -9,10 +9,15 @@ import {
   sceneBackgroundTransform
 } from '../../src/domain/tabletop/sceneBackground';
 
-test('scene backgrounds default to the existing centered fill presentation', () => {
+test('scene backgrounds default to the full uncropped image', () => {
   const scene = createTableScene();
   assert.deepEqual(scene.backgroundFraming, DEFAULT_SCENE_BACKGROUND_FRAMING);
+  assert.equal(scene.backgroundFraming.fit, 'fit');
   assert.equal(sceneBackgroundTransform(scene.backgroundFraming), 'translate(0%, 0%) scale(1)');
+});
+
+test('scene framing repairs legacy fill mode to the uncropped presentation', () => {
+  assert.equal(normalizeSceneBackgroundFraming({ fit: 'fill' }).fit, 'fit');
 });
 
 test('scene framing normalizes imported and out-of-range values', () => {

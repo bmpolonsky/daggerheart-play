@@ -67,7 +67,11 @@ export function SceneEditorRow({
   const selectBackgroundImage = async (file: File | null | undefined) => {
     if (!file) return;
     const asset = await assetService.saveFile(file);
-    sceneTableService.updateScene(scene.id, { backgroundAssetId: asset.id, backgroundUrl: '' });
+    sceneTableService.updateScene(scene.id, {
+      backgroundAssetId: asset.id,
+      backgroundUrl: '',
+      backgroundFraming: { ...DEFAULT_SCENE_BACKGROUND_FRAMING }
+    });
   };
 
   const selectMusicFile = async (file: File | null | undefined) => {
@@ -93,8 +97,7 @@ export function SceneEditorRow({
       backgroundFraming: normalizeSceneBackgroundFraming({ ...backgroundFraming, ...patch })
     });
   };
-  const framingIsCustom = backgroundFraming.fit !== DEFAULT_SCENE_BACKGROUND_FRAMING.fit
-    || backgroundFraming.zoom !== DEFAULT_SCENE_BACKGROUND_FRAMING.zoom
+  const framingIsCustom = backgroundFraming.zoom !== DEFAULT_SCENE_BACKGROUND_FRAMING.zoom
     || backgroundFraming.offsetX !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX
     || backgroundFraming.offsetY !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY;
 
@@ -160,17 +163,6 @@ export function SceneEditorRow({
               </SelectField>
               {previewUrl && (
                 <div className="player-tools-scene-framing__frame">
-                  <SelectField
-                    label="Базовый размер"
-                    hint="От него считаются масштаб и положение."
-                    value={backgroundFraming.fit}
-                    onChange={(event) => updateBackgroundFraming({
-                      fit: event.currentTarget.value === 'fit' ? 'fit' : 'fill'
-                    })}
-                  >
-                    <option value="fit">Показать целиком</option>
-                    <option value="fill">Заполнить область</option>
-                  </SelectField>
                   <div className="player-tools-scene-framing__sliders">
                     <RangeField
                       label="Масштаб"
@@ -271,7 +263,7 @@ function SceneDisplayPreview({
   const framing = normalizeSceneBackgroundFraming(scene.backgroundFraming);
   const imageStyle = {
     backgroundImage: `url("${cssImageUrl(imageUrl)}")`,
-    backgroundSize: framing.fit === 'fit' ? 'contain' : 'cover',
+    backgroundSize: 'contain',
     transform: sceneBackgroundTransform(framing)
   };
 

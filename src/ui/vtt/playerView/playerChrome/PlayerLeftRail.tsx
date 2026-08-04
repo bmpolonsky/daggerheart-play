@@ -1,24 +1,23 @@
 /** @jsxImportSource preact */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Check, Copy, Eye, EyeOff, LibraryBig, Minus, Plus, SendHorizontal, Trash2, X } from 'lucide-react';
+import { Eye, EyeOff, Minus, Plus, SendHorizontal, X } from 'lucide-react';
 import { useStream } from '../../../../core/hooks/useStream';
 import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
 import type { TableFeedItem } from '../../../../domain/tabletop/feed';
 import { gameService, diceService, encounterService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
-import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { EmptyState } from '../../../components/common/EmptyState';
 import { IconButton } from '../../../components/common/IconButton';
 import { TextControl } from '../../../components/common/Field';
 import { PLAYER_ROLL_FEED_REVEAL_DELAY_MS } from '../constants';
-import { P2PHealthIndicator } from '../../../p2p/P2PHealthIndicator';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainCards/types';
-import { currentSettingsInviteContext, feedRollRevealId, revealedRollIdsFromActivity } from '../helpers';
+import { feedRollRevealId, revealedRollIdsFromActivity } from '../helpers';
 import { playerViewUi$, playerViewUiActions } from '../playerViewUiState';
 import { PlayerRollConfirm } from '../PlayerRollConfirm';
 import type { PlayerRollDraft, SharedToolsTab, TableViewRole } from '../types';
 import { PlayerRailTabs } from '../PlayerRailTabs';
+import { PlayerRailHeaderActions } from '../PlayerRailHeaderActions';
 import { delaysRollResult, unrevealedRollIdsFromHistoricalActivity } from './activityReveal';
 import { FeedCard } from './feedCards/FeedCard';
 
@@ -44,9 +43,6 @@ export function PlayerLeftRail({
 }) {
   const [message, setMessage] = useState('');
   const [rollDraftState, setRollDraftState] = useState<FeedCardRollDraftState | null>(null);
-  const [inviteCopied, setInviteCopied] = useState(false);
-  const [clearChronicleOpen, setClearChronicleOpen] = useState(false);
-  const p2pSession = useStream(p2pSessionService.session$);
   const encounter = useStream(encounterService.encounter$);
   const { ephemeralFeedItem } = useStream(playerViewUi$);
   const [revealedRollIds, setRevealedRollIds] = useState<Set<string>>(() => revealedRollIdsFromActivity(model.activity));
@@ -61,7 +57,6 @@ export function PlayerLeftRail({
   }, [ephemeralFeedItem, model.activity, model.character?.id, role]);
   const visibleActivity = useMemo(() => activity.slice().reverse(), [activity]);
   const visibleCountdowns = useMemo(() => encounter.countdowns.filter((countdown) => role === 'gm' || countdown.visibility === 'public'), [encounter.countdowns, role]);
-  const hasClearableActivity = activity.some((event) => event.id !== 'feed-empty');
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -116,18 +111,6 @@ export function PlayerLeftRail({
       openRollDraft: (draft) => setRollDraftState({ draft, character })
     });
   };
-  const copyInvite = async () => {
-    const inviteUrl = p2pSessionService.previewInviteUrl(currentSettingsInviteContext());
-    if (!inviteUrl) return;
-    setInviteCopied(true);
-    window.setTimeout(() => setInviteCopied(false), 1600);
-    try {
-      await navigator.clipboard?.writeText(inviteUrl);
-    } catch {
-      // The visible confirmation still acknowledges the click when Clipboard API
-      // access is unavailable (for example, in an insecure browser context).
-    }
-  };
   return (
     <aside className="player-left-rail" aria-label="Хроника игры" aria-hidden={!accessible} inert={!accessible}>
       {rollDraftState && (
@@ -181,24 +164,10 @@ export function PlayerLeftRail({
       <section className={`player-activity-card ${role === 'gm' ? 'player-activity-card--gm' : ''}`}>
         <header className="player-chronicle-header">
           <PlayerRailTabs active="chronicle" role={role} onSelect={(tab) => {
+            if (tab === 'library') onOpenTool('library');
             if (tab === 'npc') onOpenTool('generators');
           }} />
-          <div className="player-chronicle-header__actions">
-            <IconButton variant="ghost" size="sm" type="button" title="Библиотека игры" aria-label="Библиотека игры" onClick={() => onOpenTool('library')}>
-              <LibraryBig size={16} aria-hidden="true" />
-            </IconButton>
-            <P2PHealthIndicator placement="chronicle" role={role} />
-            {role === 'gm' && (
-              <IconButton className={inviteCopied ? 'dh-is-copied' : ''} variant="ghost" size="sm" type="button" disabled={!p2pSession.roomId} title={inviteCopied ? 'Ссылка скопирована' : 'Копировать приглашение'} aria-label={inviteCopied ? 'Ссылка скопирована' : 'Копировать приглашение'} onClick={() => void copyInvite()}>
-                {inviteCopied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
-              </IconButton>
-            )}
-            {role === 'gm' && hasClearableActivity && (
-              <IconButton variant="ghost" tone="danger" size="sm" type="button" title="Очистить хронику" aria-label="Очистить хронику" onClick={() => setClearChronicleOpen(true)}>
-                <Trash2 size={15} aria-hidden="true" />
-              </IconButton>
-            )}
-          </div>
+          <PlayerRailHeaderActions role={role} />
         </header>
         {visibleCountdowns.length > 0 && (
           <div className="player-countdown-strip" aria-label="Отсчеты">
@@ -261,19 +230,6 @@ export function PlayerLeftRail({
           </IconButton>
         </form>
       </section>
-      {clearChronicleOpen && (
-        <ConfirmDialog
-          title="Очистить хронику?"
-          body="Все сообщения, опубликованные броски и карточки хроники будут удалены. Это действие нельзя отменить."
-          confirmLabel="Очистить"
-          onCancel={() => setClearChronicleOpen(false)}
-          onConfirm={() => {
-            setClearChronicleOpen(false);
-            feedService.clear();
-            playerViewUiActions.setEphemeralFeedItem(null);
-          }}
-        />
-      )}
     </aside>
   );
 }

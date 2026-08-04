@@ -8,7 +8,7 @@ export interface SceneBackgroundFraming {
 }
 
 export const DEFAULT_SCENE_BACKGROUND_FRAMING: Readonly<SceneBackgroundFraming> = Object.freeze({
-  fit: 'fill',
+  fit: 'fit',
   zoom: 1,
   offsetX: 0,
   offsetY: 0
@@ -19,7 +19,7 @@ export const MAX_SCENE_BACKGROUND_ZOOM = 2.5;
 
 export function normalizeSceneBackgroundFraming(value: Partial<SceneBackgroundFraming> | null | undefined): SceneBackgroundFraming {
   return {
-    fit: value?.fit === 'fit' ? 'fit' : 'fill',
+    fit: 'fit',
     zoom: clampFinite(value?.zoom, MIN_SCENE_BACKGROUND_ZOOM, MAX_SCENE_BACKGROUND_ZOOM, DEFAULT_SCENE_BACKGROUND_FRAMING.zoom),
     offsetX: clampFinite(value?.offsetX, -1, 1, DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX),
     offsetY: clampFinite(value?.offsetY, -1, 1, DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY)

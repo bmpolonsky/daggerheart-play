@@ -398,7 +398,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           aria-hidden="true"
           style={{
             backgroundImage: sceneBackgroundImage,
-            backgroundSize: sceneBackgroundFraming.fit === 'fit' ? 'contain' : 'cover',
+            backgroundSize: 'contain',
             backgroundPosition: 'center',
             transform: sceneBackgroundTransform(sceneBackgroundFraming)
           }}
