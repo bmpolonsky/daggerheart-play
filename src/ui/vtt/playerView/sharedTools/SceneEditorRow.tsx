@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useState } from 'preact/hooks';
-import { Copy, Eye, LocateFixed, RotateCcw, Trash2 } from 'lucide-react';
+import { Copy, Eye, LocateFixed, RotateCcw, RotateCw, Trash2 } from 'lucide-react';
 import { useStream } from '../../../../core/hooks/useStream';
 import type { SceneTableState } from '../../../../domain/rules/types';
 import { DEFAULT_SCENE_HEIGHT, DEFAULT_SCENE_WIDTH } from '../../../../domain/tabletop/logic';
@@ -99,7 +99,8 @@ export function SceneEditorRow({
   };
   const framingIsCustom = backgroundFraming.zoom !== DEFAULT_SCENE_BACKGROUND_FRAMING.zoom
     || backgroundFraming.offsetX !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetX
-    || backgroundFraming.offsetY !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY;
+    || backgroundFraming.offsetY !== DEFAULT_SCENE_BACKGROUND_FRAMING.offsetY
+    || backgroundFraming.rotation !== DEFAULT_SCENE_BACKGROUND_FRAMING.rotation;
 
   return (
     <section className="player-tools-detail-editor player-tools-scene-editor" aria-label={`Редактор сцены ${scene.name}`}>
@@ -149,17 +150,17 @@ export function SceneEditorRow({
             <SectionHeader title="Изображение" />
             <div className="player-tools-scene-framing">
               <SelectField
-                label="Размещение"
+                label="Привязка"
                 hint={scene.mode === 'tactical'
-                  ? 'Привязано к полю и токенам.'
-                  : 'Заполняет экран за интерфейсом.'}
+                  ? 'Масштабируется и сдвигается вместе с полем, сохраняя положение относительно токенов.'
+                  : 'Положение не меняется при открытии и закрытии боковых панелей.'}
                 value={scene.mode}
                 onChange={(event) => sceneTableService.updateScene(scene.id, {
                   mode: event.currentTarget.value === 'tactical' ? 'tactical' : 'scene'
                 })}
               >
-                <option value="scene">Фон экрана</option>
-                <option value="tactical">Поле с токенами</option>
+                <option value="scene">К экрану</option>
+                <option value="tactical">К полю с токенами</option>
               </SelectField>
               {previewUrl && (
                 <div className="player-tools-scene-framing__frame">
@@ -198,19 +199,32 @@ export function SceneEditorRow({
                       onInput={(event) => updateBackgroundFraming({ offsetY: event.currentTarget.valueAsNumber })}
                     />
                   </div>
-                  {framingIsCustom && (
+                  <Toolbar className="player-tools-scene-framing__actions" aria-label="Поворот и сброс изображения">
                     <Button
                       variant="ghost"
                       size="xs"
                       type="button"
-                      iconBefore={<RotateCcw size={13} aria-hidden="true" />}
+                      iconBefore={<RotateCw size={13} aria-hidden="true" />}
                       onClick={() => updateBackgroundFraming({
-                        ...DEFAULT_SCENE_BACKGROUND_FRAMING
+                        rotation: normalizeSceneBackgroundFraming({ rotation: backgroundFraming.rotation + 90 }).rotation
                       })}
                     >
-                      Сбросить
+                      Повернуть на 90°
                     </Button>
-                  )}
+                    {framingIsCustom && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        type="button"
+                        iconBefore={<RotateCcw size={13} aria-hidden="true" />}
+                        onClick={() => updateBackgroundFraming({
+                          ...DEFAULT_SCENE_BACKGROUND_FRAMING
+                        })}
+                      >
+                        Сбросить
+                      </Button>
+                    )}
+                  </Toolbar>
                 </div>
               )}
             </div>

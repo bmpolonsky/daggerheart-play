@@ -378,7 +378,7 @@ test.describe('filled VTT layout regressions', () => {
 
     const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
     await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' }).click();
-    const placement = workspace.getByLabel('Размещение');
+    const placement = workspace.getByLabel('Привязка');
     const zoom = workspace.getByLabel('Масштаб фона');
     const horizontal = workspace.getByLabel('Положение фона по горизонтали');
     const vertical = workspace.getByLabel('Положение фона по вертикали');

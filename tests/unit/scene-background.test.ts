@@ -13,6 +13,7 @@ test('scene backgrounds default to the full uncropped image', () => {
   const scene = createTableScene();
   assert.deepEqual(scene.backgroundFraming, DEFAULT_SCENE_BACKGROUND_FRAMING);
   assert.equal(scene.backgroundFraming.fit, 'fit');
+  assert.equal(scene.backgroundFraming.rotation, 0);
   assert.equal(sceneBackgroundTransform(scene.backgroundFraming), 'translate(0%, 0%) scale(1)');
 });
 
@@ -26,13 +27,20 @@ test('scene framing normalizes imported and out-of-range values', () => {
     fit: 'fit',
     zoom: 9,
     offsetX: -4,
-    offsetY: Number.NaN
+    offsetY: Number.NaN,
+    rotation: -90
   }), {
     fit: 'fit',
     zoom: 2.5,
     offsetX: -1,
-    offsetY: 0
+    offsetY: 0,
+    rotation: 270
   });
+});
+
+test('scene framing rotates images in quarter turns', () => {
+  assert.equal(normalizeSceneBackgroundFraming({ rotation: 100 }).rotation, 90);
+  assert.equal(sceneBackgroundTransform({ rotation: 90 }), 'translate(0%, 0%) scale(1) rotate(90deg)');
 });
 
 test('scene framing keeps pan independent from zoom', () => {
@@ -47,7 +55,7 @@ test('scene framing allows maps to be reduced below their base size', () => {
 
 test('player view exposes the live scene framing without changing token coordinates', () => {
   const liveScene = createTableScene({
-    backgroundFraming: { fit: 'fit', zoom: 1.5, offsetX: 0.5, offsetY: -0.25 },
+    backgroundFraming: { fit: 'fit', zoom: 1.5, offsetX: 0.5, offsetY: -0.25, rotation: 90 },
     tokens: []
   });
   const model = buildPlayerViewModel({

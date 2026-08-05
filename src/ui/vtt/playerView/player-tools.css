@@ -411,12 +411,12 @@
 .player-tools-scene-framing__sliders {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
-.player-tools-scene-framing__frame > .dh-button {
-  justify-self: end;
+.player-tools-scene-framing__actions {
+  justify-content: flex-end;
 }
 
 .player-tools-scene-framing__advanced {
