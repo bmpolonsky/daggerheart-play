@@ -74,7 +74,12 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, scen
     <section className="role-entry" aria-label="Лобби игрока">
       <div className="role-entry__scene" aria-hidden="true" style={{ '--role-entry-scene-image': `url("${sceneImageUrl}")` }} />
       <div className="role-entry__content role-entry__content--join">
-        <span className="role-entry__join-context">Комната {roomId}</span>
+        <Toolbar className="role-entry__join-context" aria-label="Текущая комната">
+          <span>Комната {roomId}</span>
+          <Button variant="ghost" size="xs" type="button" onClick={onBackToLobby}>
+            Сменить
+          </Button>
+        </Toolbar>
         <div className="player-join-lobby">
           <Surface className="role-entry__card player-join-lobby__seats" aria-label="Игроки комнаты">
             <SectionHeader title="Игроки" subtitle={joinStatus} actions={<MonitorPlay size={20} aria-hidden="true" />} />
@@ -97,14 +102,13 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, scen
                 <EmptyState size="sm" title={joining || connectedToRoom ? 'Ждем список игроков от мастера' : session.message} />
               )}
             </div>
-            <Toolbar className="role-entry__inline-actions">
-              <Button type="button" onClick={onBackToLobby}>
-                Сменить комнату
-              </Button>
-              <Button variant="primary" type="button" disabled={!hasSnapshot || !selectedSeat} onClick={enterPlayerTable}>
-                Войти за игрока
-              </Button>
-            </Toolbar>
+            {selectedSeat && (
+              <Toolbar className="role-entry__inline-actions">
+                <Button variant="primary" type="button" onClick={enterPlayerTable}>
+                  Войти в игру
+                </Button>
+              </Toolbar>
+            )}
           </Surface>
         </div>
         <P2PHealthIndicator role="player" />

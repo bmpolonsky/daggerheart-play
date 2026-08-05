@@ -607,7 +607,7 @@ test.describe('P2P session workflow', () => {
     const seatButton = player.getByRole('button', { name: /Игрок 1/ });
     await expect(seatButton).toBeVisible();
     await seatButton.click();
-    await player.getByRole('button', { name: 'Войти за игрока' }).click();
+    await player.getByRole('button', { name: 'Войти в игру' }).click();
     await openCurrentSettings(player, 'Диагностика');
     await expect(sessionMeta(player, 'Роль')).toHaveText('player');
 
