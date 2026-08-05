@@ -26,6 +26,24 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCount(1);
   });
 
+  test('keeps token animation disabled for the whole master drag', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openFilledGmGame(page);
+
+    const token = page.locator('.player-token').first();
+    const box = await token.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await page.mouse.down();
+    await expect(token).toHaveClass(/dh-is-dragging/);
+    await expect(token).toHaveCSS('transition-duration', '0s');
+    await page.mouse.move(box!.x + box!.width / 2 + 180, box!.y + box!.height / 2 + 80, { steps: 4 });
+    await expect(token).toHaveClass(/dh-is-dragging/);
+    await expect(token).toHaveCSS('transition-duration', '0s');
+    await page.mouse.up();
+    await expect(token).not.toHaveClass(/dh-is-dragging/);
+  });
+
   test('keeps the dice dock centered and the complete character sheet scrollable on desktop and mobile', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openFilledGmGame(page);

@@ -14,6 +14,7 @@ import { Store } from '../core/store/Store';
 import { readActiveSession } from './p2p/P2PSessionPersistence';
 
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
+const AUTO_PERSIST_DELAY_MS = 500;
 
 export class PersistenceService {
   private storedGamesStore = new Store<StoredGameSummary[]>([]);
@@ -26,6 +27,8 @@ export class PersistenceService {
   private readyPromise: Promise<void> = Promise.resolve();
   private isApplyingStoredDocument = false;
   private lastDocumentSignature: string | null = null;
+  private ownPersistSignatures = new Set<string>();
+  private persistTimer: number | undefined;
   private queuedPersistSnapshot: ReturnType<typeof snapshotPersistedState> | null = null;
   private persistQueuePromise: Promise<void> | null = null;
   private flushPendingPersist = () => this.flushPersistNow();
@@ -65,6 +68,7 @@ export class PersistenceService {
     this.unsubscribeDocumentChanges?.();
     this.unsubscribeDocumentChanges = null;
     if (typeof window !== 'undefined') {
+      this.flushScheduledPersist();
       window.removeEventListener('pagehide', this.flushPendingPersist);
       window.removeEventListener('beforeunload', this.flushPendingPersist);
     }
@@ -204,14 +208,26 @@ export class PersistenceService {
     if (isRemotePlayerJoin()) {
       return;
     }
-    this.persistNow();
+    window.clearTimeout(this.persistTimer);
+    this.persistTimer = window.setTimeout(() => {
+      this.persistTimer = undefined;
+      this.persistNow();
+    }, AUTO_PERSIST_DELAY_MS);
   }
 
   private async flushPersistNow(): Promise<void> {
     if (typeof window === 'undefined') {
       return;
     }
+    this.flushScheduledPersist();
     await this.persistQueuePromise;
+  }
+
+  private flushScheduledPersist(): void {
+    if (this.persistTimer === undefined) return;
+    window.clearTimeout(this.persistTimer);
+    this.persistTimer = undefined;
+    this.persistNow();
   }
 
   private async hydrateFromIndexedDb(): Promise<boolean> {
@@ -243,13 +259,17 @@ export class PersistenceService {
     if (!this.documentStore) {
       return;
     }
+    let signature: string | null = null;
     try {
       await loadBrowserCustomContent();
       const document = createGameDocument(snapshot, readBrowserCustomContent());
+      signature = stableJsonSignature(document);
+      this.ownPersistSignatures.add(signature);
       await this.documentStore.save(document);
-      this.lastDocumentSignature = stableJsonSignature(document);
+      this.lastDocumentSignature = signature;
       void this.refreshStoredGames();
     } catch (error) {
+      if (signature) this.ownPersistSignatures.delete(signature);
       console.warn('Failed to persist Daggerheart game to IndexedDB.', error);
     }
   }
@@ -278,6 +298,9 @@ export class PersistenceService {
     this.unsubscribeDocumentChanges = this.documentStore.subscribe((stored) => {
       const document = stored ? storedDocumentToGameDocument(stored) : null;
       const signature = stableJsonSignature(document);
+      if (this.ownPersistSignatures.delete(signature)) {
+        return;
+      }
       if (signature === this.lastDocumentSignature) {
         return;
       }

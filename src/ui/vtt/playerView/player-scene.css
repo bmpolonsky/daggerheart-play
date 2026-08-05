@@ -142,9 +142,11 @@
 .player-range-ring {
   position: absolute;
   aspect-ratio: 1;
-  border: 2px dashed rgba(240, 201, 106, 0.26);
+  border: 2px solid rgba(255, 255, 255, 0.7);
   border-radius: 50%;
-  box-shadow: inset 0 0 34px rgba(240, 201, 106, 0.04);
+  box-shadow:
+    0 0 0 1px rgba(7, 9, 12, 0.7),
+    inset 0 0 0 1px rgba(7, 9, 12, 0.7);
   transform: translate(-50%, -50%);
 }
 
@@ -164,11 +166,12 @@
   transition: left 180ms ease-out, top 180ms ease-out;
 }
 
-.player-token:active {
+.player-token:active,
+.player-token.dh-is-dragging {
   transition: none;
 }
 
-.player-view--gm .player-token:not(:active) {
+.player-view--gm .player-token:not(:active):not(.dh-is-dragging) {
   transition-duration: 320ms;
   transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }

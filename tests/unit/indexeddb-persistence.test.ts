@@ -44,8 +44,10 @@ function createFakeWindow(memory = new Map<string, string>()) {
 
 class DelayedMemoryGameDocumentStore extends MemoryGameDocumentStore {
   saveDelays: number[] = [];
+  saveCount = 0;
 
   async save(document: GameDocument): Promise<void> {
+    this.saveCount += 1;
     const delay = this.saveDelays.shift() ?? 0;
     if (delay > 0) {
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -296,6 +298,80 @@ test('persistence keeps the newest snapshot when saves finish out of order', asy
     await new Promise((resolve) => setTimeout(resolve, 150));
     assert.equal(documentStore.state?.files['data/characters.json'].entities[character.id]?.name, 'Последний герой');
   } finally {
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});
+
+test('persistence debounces rapid automatic saves', async () => {
+  resetAllStores();
+  const originalWindow = globalThis.window;
+  const documentStore = new DelayedMemoryGameDocumentStore();
+  documentStore.state = JSON.parse(importExportService.exportGameJson(false)) as GameDocument;
+  Object.defineProperty(globalThis, 'window', { value: createFakeWindow(), configurable: true });
+  let service: PersistenceService | null = null;
+
+  try {
+    service = new PersistenceService(documentStore);
+    service.start();
+    await service.whenReady();
+    await waitFor(() => assert.equal(documentStore.saveCount, 1));
+    const initialSaveCount = documentStore.saveCount;
+
+    gameService.setFear(1);
+    gameService.setFear(2);
+    gameService.setFear(3);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(documentStore.saveCount, initialSaveCount);
+
+    await waitFor(() => assert.equal(documentStore.saveCount, initialSaveCount + 1));
+    assert.equal(documentStore.state?.files['data/game.json'].fear, 3);
+  } finally {
+    service?.stop();
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});
+
+test('persistence does not restore an older token position from its own in-flight save', async () => {
+  resetAllStores();
+  const originalWindow = globalThis.window;
+  const sceneId = sceneTableStore.get().activeSceneId;
+  sceneTableStore.update((state) => ({
+    ...state,
+    scenes: {
+      ...state.scenes,
+      [sceneId]: {
+        ...state.scenes[sceneId],
+        tokens: [createTokenState({ kind: 'character', id: 'dragged' }, { id: 'character:dragged', x: 10, y: 20 })]
+      }
+    }
+  }));
+  const documentStore = new DelayedMemoryGameDocumentStore();
+  documentStore.state = JSON.parse(importExportService.exportGameJson(false)) as GameDocument;
+  resetAllStores();
+  Object.defineProperty(globalThis, 'window', { value: createFakeWindow(), configurable: true });
+  let service: PersistenceService | null = null;
+
+  try {
+    service = new PersistenceService(documentStore);
+    service.start();
+    await service.whenReady();
+    await waitFor(() => {
+      assert.equal(documentStore.state?.files['data/scene-table.json'].scenes[sceneId].tokens[0]?.x, 10);
+    });
+    documentStore.saveDelays = [80, 80];
+
+    sceneTableService.moveTokenInScene(sceneId, 'character:dragged', 120, 120, null, true);
+    service.persistNow();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    sceneTableService.moveTokenInScene(sceneId, 'character:dragged', 780, 780, null, true);
+    await new Promise((resolve) => setTimeout(resolve, 90));
+
+    assert.equal(sceneTableStore.get().scenes[sceneId].tokens[0]?.x, 780);
+    await waitFor(() => {
+      assert.equal(documentStore.state?.files['data/scene-table.json'].scenes[sceneId].tokens[0]?.x, 780);
+    });
+  } finally {
+    service?.stop();
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });

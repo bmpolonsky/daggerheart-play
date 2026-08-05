@@ -33,6 +33,7 @@ export function PlayerScene({
 }) {
   const dragRef = useRef<{ tokenId: string; pointerId: number; startX: number; startY: number; moved: boolean } | null>(null);
   const suppressClickTokenIdRef = useRef<string | null>(null);
+  const [draggingTokenId, setDraggingTokenId] = useState<string | null>(null);
   const playerTokenIds = useMemo(() => playerTokensForCharacter(model.tokens, model.character?.id ?? null).map((token) => token.id), [model.character?.id, model.tokens]);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const selectedPlayerTokenId = role === 'gm'
@@ -98,7 +99,7 @@ export function PlayerScene({
             <button
               aria-label={tokenTitle}
               aria-pressed={canControlToken ? token.id === selectedPlayerTokenId : undefined}
-              className={`player-token player-token--${token.kind} ${canControlToken ? 'dh-is-player-origin' : ''} ${token.id === selectedPlayerTokenId ? 'dh-is-selected' : ''} ${token.hidden ? 'dh-is-hidden' : ''} ${token.visibility === 'gm' ? 'dh-is-gm-only' : ''} ${hasDefeatedStatus ? 'dh-is-defeated' : ''}`}
+              className={`player-token player-token--${token.kind} ${canControlToken ? 'dh-is-player-origin' : ''} ${token.id === selectedPlayerTokenId ? 'dh-is-selected' : ''} ${token.id === draggingTokenId ? 'dh-is-dragging' : ''} ${token.hidden ? 'dh-is-hidden' : ''} ${token.visibility === 'gm' ? 'dh-is-gm-only' : ''} ${hasDefeatedStatus ? 'dh-is-defeated' : ''}`}
               key={token.id}
               tabIndex={canControlToken ? 0 : -1}
               title={tokenTitle}
@@ -123,6 +124,7 @@ export function PlayerScene({
                 event.preventDefault();
                 event.currentTarget.setPointerCapture(event.pointerId);
                 setSelectedTokenId(token.id);
+                setDraggingTokenId(token.id);
                 dragRef.current = { tokenId: token.id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
               }}
               onPointerMove={(event) => {
@@ -141,6 +143,7 @@ export function PlayerScene({
                   event.currentTarget.releasePointerCapture(event.pointerId);
                 }
                 dragRef.current = null;
+                setDraggingTokenId(null);
                 if (drag.moved) {
                   suppressClickTokenIdRef.current = token.id;
                   if (typeof window !== 'undefined') {
@@ -166,6 +169,7 @@ export function PlayerScene({
                 const drag = dragRef.current;
                 if (!drag || drag.tokenId !== token.id || drag.pointerId !== event.pointerId) return;
                 dragRef.current = null;
+                setDraggingTokenId(null);
               }}
               style={{
                 left: `${(token.x / PLAYER_SCENE_WIDTH) * 100}%`,
