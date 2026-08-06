@@ -70,14 +70,25 @@ function richBlocks(text: string): VNode[] {
 function inlineRichText(text: string): Array<string | VNode> {
   const cleaned = cleanRuleLinks(text);
   const pieces: Array<string | VNode> = [];
-  const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  const pattern = /(\*\*\*([^*]+)\*\*([^*]+)\*|(\*{1,3})([^*]+)\4)/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(cleaned))) {
     if (match.index > cursor) pieces.push(cleaned.slice(cursor, match.index));
     const token = match[0];
-    const value = token.replace(/^\*+|\*+$/g, '');
-    pieces.push(<strong key={`${match.index}-${value}`}>{value}</strong>);
+    const nestedLabel = match[2];
+    const nestedText = match[3];
+    const marker = match[4];
+    const value = match[5];
+    pieces.push(nestedLabel !== undefined ? (
+      <em key={`${match.index}-${nestedLabel}`}><strong>{nestedLabel}</strong>{nestedText}</em>
+    ) : marker.length === 1 ? (
+      <em key={`${match.index}-${value}`}>{value}</em>
+    ) : marker.length === 2 ? (
+      <strong key={`${match.index}-${value}`}>{value}</strong>
+    ) : (
+      <strong key={`${match.index}-${value}`}><em>{value}</em></strong>
+    ));
     cursor = match.index + token.length;
   }
   if (cursor < cleaned.length) pieces.push(cleaned.slice(cursor));

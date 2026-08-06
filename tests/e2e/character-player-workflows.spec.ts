@@ -503,7 +503,7 @@ test.describe('filled-game player character workflows', () => {
       const vulnerableTerm = sheet.getByRole('button', { name: 'Уязвим', exact: true });
       await vulnerableTerm.hover();
       const vulnerableTooltipId = await vulnerableTerm.getAttribute('aria-describedby');
-      await expect(player.locator(`[id="${vulnerableTooltipId}"]`)).toContainText('Уязвим');
+      await expect(player.locator(`[id="${vulnerableTooltipId}"]`)).toContainText('Все броски против Уязвимого существа имеют преимущество.');
 
       await player.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Характеристики' }).click();
       const heading = sheet.locator('#player-sheet-traits h3');

@@ -60,7 +60,8 @@ export function GmCombatTracker({
                       tone={entry.hidden ? 'neutral' : 'gold'}
                       aria-label={entry.hidden ? `Показать ${entry.adversary.name} игрокам` : `Скрыть ${entry.adversary.name} от игроков`}
                       title={entry.hidden ? 'Показать игрокам' : 'Скрыть от игроков'}
-                      onClick={() => {
+                      onClick={(event) => {
+                        event.stopPropagation();
                         if (!targetSceneId) return;
                         sceneTableService.setTokenHiddenInScene(targetSceneId, entry.tokenId!, !entry.hidden);
                       }}
@@ -75,7 +76,8 @@ export function GmCombatTracker({
                       tone="danger"
                       aria-label={`Убрать ${entry.adversary.name} со сцены`}
                       title="Убрать со сцены"
-                      onClick={() => {
+                      onClick={(event) => {
+                        event.stopPropagation();
                         if (!targetSceneId) return;
                         tabletopService.removeTokenFromScene(entry.tokenId!, targetSceneId);
                       }}
@@ -91,7 +93,8 @@ export function GmCombatTracker({
                     disabled={!targetSceneId}
                     aria-label={`Добавить ${entry.adversary.name} на сцену скрытым`}
                     title="Добавить скрытым на сцену"
-                    onClick={() => {
+                    onClick={(event) => {
+                      event.stopPropagation();
                       if (!targetSceneId) return;
                       tabletopService.placeActorOnScene(
                         { kind: 'adversary', id: entry.adversary.id },

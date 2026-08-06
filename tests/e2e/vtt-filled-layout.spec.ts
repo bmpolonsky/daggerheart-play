@@ -240,11 +240,21 @@ test.describe('filled VTT layout regressions', () => {
     await search.fill('Уяз');
     await expect(cards.first().locator('strong')).toHaveText('Уязвимость');
     await expect(cards.first()).toContainText(/Уязвим/i);
-    await expect(workspace.getByLabel('Полная запись компендиума').getByRole('heading', { name: 'Уязвимость' })).toBeVisible();
+    const vulnerableDetail = workspace.getByLabel('Полная запись компендиума');
+    await expect(vulnerableDetail.getByRole('heading', { name: 'Уязвимость' })).toBeVisible();
+    await expect(vulnerableDetail.locator('.player-library-richtext strong').first()).toHaveText('Уязвим');
+    await expect(vulnerableDetail).not.toContainText('*Уязвим');
 
     await search.fill('уязвимсоть');
     await expect(cards.first().locator('strong')).toHaveText('Уязвимость');
     await expect(workspace.getByLabel('Полная запись компендиума').getByRole('heading', { name: 'Уязвимость' })).toBeVisible();
+
+    await search.fill('Скрытность');
+    const hiddenDetail = workspace.getByLabel('Полная запись компендиума');
+    await expect(hiddenDetail.getByRole('heading', { name: 'Скрытность' })).toBeVisible();
+    await expect(hiddenDetail.locator('.player-library-richtext em').last()).toContainText('Разведывая храм Падших Богов');
+    await expect(hiddenDetail.locator('.player-library-richtext em').last().locator('strong')).toHaveText('Пример:');
+    await expect(hiddenDetail).not.toContainText('*Пример:');
   });
 
   test('uses the workspace scroll for an opened combat opponent on mobile', async ({ page }) => {
@@ -494,6 +504,8 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.getByLabel('Инструменты сцены').locator('.player-combat-tracker__entry-actions').getByRole('button', { name: /^Открыть лист / })).toHaveCount(0);
 
     const adversaryCard = page.locator('.player-combat-tracker__entry').first();
+    await adversaryCard.getByRole('button', { name: /^(Показать|Скрыть).*игрок/ }).click();
+    await expect(page.getByLabel('Противник мастера')).toHaveCount(0);
     await adversaryCard.click({ position: { x: 12, y: 14 } });
     await expect(page.getByLabel('Противник мастера')).toBeVisible();
     await page.getByRole('button', { name: 'К ростеру' }).click();

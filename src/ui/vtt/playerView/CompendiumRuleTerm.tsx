@@ -7,6 +7,11 @@ import { RuleTerm } from '../../components/common';
 import { navigateToRuleArticle } from './routedUiState';
 
 const CHARACTER_TRAIT_RULE_SLUGS = new Set(['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge']);
+const RULE_SUMMARY_OVERRIDES: Record<string, string> = {
+  vulnerable: 'Все броски против Уязвимого существа имеют преимущество.',
+  hidden: 'Все броски против Скрытого существа имеют помеху. Состояние снимается, когда его замечают или оно атакует.',
+  restrained: 'Обездвиженное существо не может двигаться, но может действовать с текущей позиции.'
+};
 
 export function CompendiumRuleTerm({
   children,
@@ -27,9 +32,9 @@ export function CompendiumRuleTerm({
     ? content.rules.find((rule) => rule.slug === 'character-traits') ?? article
     : article;
   const sourceSection = isCharacterTrait ? article.slug : sectionAnchor;
-  const summary = sourceSection
+  const summary = RULE_SUMMARY_OVERRIDES[article.slug] ?? (sourceSection
     ? ruleSectionSummary(sourceArticle.body, sourceSection) || plainRuleSummary(article.summary || article.body)
-    : plainRuleSummary(article.summary || article.body);
+    : plainRuleSummary(article.summary || article.body));
 
   return (
     <RuleTerm
