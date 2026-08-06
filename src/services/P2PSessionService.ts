@@ -7,7 +7,7 @@ import { createId } from '../core/utils/id';
 import { buildPlayerInviteRoomCode, buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
 import { readP2PNetworkSettings, trysteroOptionsForNetworkSettings } from '../domain/p2p/networkSettings';
 import { turnConfigProvider } from './TurnCredentialService';
-import { serverSessionEnabled, setActiveSessionTransportMode, shouldUseServerSession } from '../domain/p2p/serverSession';
+import { shouldUseServerSession } from '../domain/p2p/serverSession';
 import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
@@ -81,14 +81,6 @@ export interface P2PSessionState {
   pendingRollIntentId?: string | null;
 }
 
-export interface P2PMediaTransportState {
-  connected: boolean;
-  peers: string[];
-  routes: P2PTransportRouteDiagnostic[];
-  routePeers: P2PTransportPeerDiagnostic[];
-  message: string;
-}
-
 export interface P2PSessionStartInput {
   roomId: string;
   participantName?: string;
@@ -147,14 +139,6 @@ const SERVER_PEER_TIMEOUT_MS = 45_000;
 const PLAYER_ROLL_ACK_TIMEOUT_MS = 5_000;
 const ROOM_CODE_REFRESH_COOLDOWN_MS = 30_000;
 const PENDING_PLAYER_CHARACTER_UPDATES_KEY = 'daggerheart-pending-player-character-updates';
-const initialMediaTransportState: P2PMediaTransportState = {
-  connected: false,
-  peers: [],
-  routes: [],
-  routePeers: [],
-  message: 'Медиаканал не подключен.'
-};
-
 export class P2PSessionService {
   private sessionStore = new Store<P2PSessionState>({
     connected: false,
@@ -183,9 +167,6 @@ export class P2PSessionService {
   private productRecoveryTimer: number | undefined;
   private roomCodeRefreshTimer: number | undefined;
   private activeRoomConnection: P2PRoomConnection | null = null;
-  private activeMediaRoomConnection: P2PRoomConnection | null = null;
-  private mediaTransportStore = new Store<P2PMediaTransportState>(initialMediaTransportState);
-  readonly mediaTransport$ = this.mediaTransportStore.toStream();
   private startInFlight: { role: P2PSessionRole; roomId: string; promise: Promise<void> } | null = null;
   private assetTransferService: P2PAssetTransferService;
   private publishedPlayerFeedEntrySignatures = new Map<string, string>();
@@ -224,7 +205,6 @@ export class P2PSessionService {
     private roomConnectionConfig: P2PRoomConnectionConfig = {},
     private mediaCallService?: MediaCallService,
     private characterService?: CharacterService,
-    private mediaTransportFactory?: (options: TrysteroP2PTransportOptions) => P2PTransportAdapter,
     private cloudBackupService?: CloudBackupService
   ) {
     this.assetTransferService = new P2PAssetTransferService(
@@ -285,7 +265,7 @@ export class P2PSessionService {
   }
 
   async mediaDiagnostics(): Promise<P2PMediaConnectionDiagnostic[]> {
-    return await (this.activeMediaRoomConnection ?? this.activeRoomConnection)?.mediaDiagnostics() ?? [];
+    return await this.activeRoomConnection?.mediaDiagnostics() ?? [];
   }
 
   canPublishSnapshotToPlayers(): boolean {
@@ -399,7 +379,6 @@ export class P2PSessionService {
 
   private async openGmRoom(input: P2PSessionStartInput): Promise<void> {
     await this.stop({ forgetSession: false });
-    if (shouldUseServerSession('gm')) void this.saveCloudAssets();
     const roomId = normalizeSessionRoomId(input.roomId);
     const participant = this.createParticipant('gm', input.participantName, {
       id: input.participantId
@@ -426,8 +405,6 @@ export class P2PSessionService {
     }));
     this.patchSession({ status: 'connecting', role: 'gm', roomId, message: 'Открываем комнату.' });
     await this.syncService.connectAuthority(roomId, participant);
-    setActiveSessionTransportMode(transport.sessionMode());
-    await this.activateMediaTransport(roomId, participant, transport);
     this.subscriptions.add(this.syncService.subscribePlayerRequests((request) => {
       this.playerActionRequestService.receiveRemote(request as PlayerActionRequest);
       this.patchSession({ lastRequestAt: nowIso(), message: 'Получена заявка игрока.' });
@@ -583,8 +560,6 @@ export class P2PSessionService {
           this.suppressPlayerStoreForwarding = false;
         }
       });
-      setActiveSessionTransportMode(transport.sessionMode());
-      await this.activateMediaTransport(roomId, participant, transport);
       this.assetTransferService.subscribePlayer(transport).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
       this.subscriptions.add(this.syncService.subscribePlayerCharacterUpdateAcks((message, _event, context) => {
         this.receivePlayerCharacterUpdateAck(message, context);
@@ -708,7 +683,7 @@ export class P2PSessionService {
     if (options.forgetSession !== false && stoppedSession.role === 'player' && stoppedSession.roomId && stoppedParticipantId) {
       await this.removePersistedPendingPlayerCharacterUpdate(stoppedSession.roomId, stoppedParticipantId);
     }
-    if (this.cloudBackupTimer && stoppedSession.role === 'gm' && serverSessionEnabled()) {
+    if (this.cloudBackupTimer && stoppedSession.role === 'gm' && stoppedSession.transportMode === 'hybrid') {
       window.clearTimeout(this.cloudBackupTimer);
       this.cloudBackupTimer = undefined;
       await this.saveCloudBackup();
@@ -720,9 +695,7 @@ export class P2PSessionService {
     window.clearTimeout(this.playerRollAckTimer);
     this.playerRollAckTimer = undefined;
     this.stopPlayerProductRecoveryPolling();
-    const mediaConnection = this.activeMediaRoomConnection;
     this.activeRoomConnection = null;
-    this.activeMediaRoomConnection = null;
     this.assetTransferService.clear(false);
     this.publishedPlayerFeedEntrySignatures.clear();
     this.publishingPlayerFeedEntryIds.clear();
@@ -736,8 +709,6 @@ export class P2PSessionService {
     this.localParticipantId = null;
     this.subscriptions.clear();
     await this.syncService.disconnect();
-    await mediaConnection?.disconnect().catch(() => undefined);
-    this.mediaTransportStore.set(initialMediaTransportState);
     this.sceneAudioBroadcastService?.setTransport(null);
     this.mediaCallService?.setMediaTransport(null);
     if (options.forgetSession !== false) {
@@ -792,7 +763,7 @@ export class P2PSessionService {
     window.clearTimeout(this.snapshotTimer);
     this.snapshotTimer = undefined;
     const session = this.sessionStore.get();
-    const savesToServer = session.role === 'gm' && serverSessionEnabled() && Boolean(this.cloudBackupService);
+    const savesToServer = session.role === 'gm' && session.transportMode === 'hybrid' && Boolean(this.cloudBackupService);
     if (session.role === 'gm' && session.peers.length === 0 && !savesToServer) {
       if (options.requirePeers) {
         this.patchSession({ message: 'Некому отправлять обновление: подключенных игроков нет.' });
@@ -820,7 +791,7 @@ export class P2PSessionService {
   }
 
   private async saveCloudBackup(): Promise<boolean> {
-    if (!serverSessionEnabled() || !this.cloudBackupService) return false;
+    if (this.sessionStore.get().transportMode !== 'hybrid' || !this.cloudBackupService) return false;
     try {
       await this.cloudBackupService.save(gameStore.get().id);
       this.cloudBackupErrorShown = false;
@@ -834,38 +805,27 @@ export class P2PSessionService {
     }
   }
 
-  private async saveCloudAssets(): Promise<boolean> {
-    if (!serverSessionEnabled() || !this.cloudBackupService) return false;
-    try {
-      await this.cloudBackupService.saveAssets(gameStore.get().id);
-      return true;
-    } catch (error) {
-      if (!this.cloudBackupErrorShown) {
-        toastService.show(error instanceof Error ? error.message : 'Не удалось загрузить файлы сцены.', 'error');
-        this.cloudBackupErrorShown = true;
-      }
-      return false;
-    }
-  }
-
   async requestAsset(assetId: string, reason: AssetRequestReason = 'scene-background'): Promise<boolean> {
-    if (serverSessionEnabled()) {
-      const session = this.sessionStore.get();
+    const session = this.sessionStore.get();
+    if (session.transportMode === 'hybrid') {
       const asset = this.sceneTableService.sceneTable$.get().assets[assetId];
-      if (session.role !== 'player' || !session.connected || !session.roomId || !asset) return false;
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        const response = await fetch(`/api/rooms/${encodeURIComponent(session.roomId)}/assets/${encodeURIComponent(assetId)}`, {
-          credentials: 'same-origin',
-          cache: 'no-store'
-        });
-        if (response.ok) {
-          await this.assetService.putAssetBlob(asset, await response.blob());
-          return true;
+      if (session.role === 'player' && session.connected && session.roomId && asset) {
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          try {
+            const response = await fetch(`/api/rooms/${encodeURIComponent(session.roomId)}/assets/${encodeURIComponent(assetId)}`, {
+              credentials: 'same-origin',
+              cache: 'no-store'
+            });
+            if (response.ok) {
+              await this.assetService.putAssetBlob(asset, await response.blob());
+              return true;
+            }
+          } catch {}
+          const gmPeerId = this.activeRoomConnection?.gmPeerId();
+          if (gmPeerId && this.activeRoomConnection?.directPeerIds().includes(gmPeerId)) break;
+          if (attempt < 9) await new Promise((resolve) => window.setTimeout(resolve, 500));
         }
-        if (response.status !== 404) return false;
-        if (attempt < 9) await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
-      return false;
     }
     return await this.assetTransferService.request(assetId, reason);
   }
@@ -1635,7 +1595,7 @@ export class P2PSessionService {
 
   private scheduleSnapshot(): void {
     const session = this.session$.get();
-    const savesToServer = serverSessionEnabled() && Boolean(this.cloudBackupService);
+    const savesToServer = session.transportMode === 'hybrid' && Boolean(this.cloudBackupService);
     if (session.role !== 'gm' || (session.peers.length === 0 && !savesToServer)) {
       return;
     }
@@ -1684,77 +1644,10 @@ export class P2PSessionService {
         ...(participant.role === 'gm' ? { initialSnapshot: snapshotPersistedState() } : {})
       }
     );
-    setActiveSessionTransportMode(adapter.sessionMode ?? 'p2p');
     const connection = new P2PRoomConnection(adapter, connectionConfig);
     this.activeRoomConnection = connection;
     this.subscriptions.add(connection.subscribeRoomEvents((event) => this.handleRoomConnectionEvent(event)));
     return connection;
-  }
-
-  private async activateMediaTransport(roomId: string, participant: TableParticipant, transport: P2PRoomConnection): Promise<void> {
-    if (transport.sessionMode() !== 'hybrid' || !this.mediaTransportFactory) {
-      this.sceneAudioBroadcastService?.setTransport(transport);
-      this.mediaCallService?.setMediaTransport(transport);
-      this.mediaTransportStore.set(initialMediaTransportState);
-      return;
-    }
-    const options: TrysteroP2PTransportOptions = {
-      ...trysteroOptionsForNetworkSettings(readP2PNetworkSettings()),
-      turnConfigProvider: turnConfigProvider(participant.id, true)
-    };
-    const mediaConnection = new P2PRoomConnection(this.mediaTransportFactory(options), this.roomConnectionConfig);
-    this.activeMediaRoomConnection = mediaConnection;
-    this.mediaTransportStore.set({ ...initialMediaTransportState, message: 'Подключаем P2P-медиаканал.' });
-    this.subscriptions.add(mediaConnection.subscribeRoomEvents((event) => this.handleMediaRoomConnectionEvent(event)));
-    await this.connectMediaRoom(roomId, participant);
-    this.sceneAudioBroadcastService?.setTransport(mediaConnection);
-    this.mediaCallService?.setMediaTransport(mediaConnection);
-  }
-
-  private async connectMediaRoom(roomId: string, participant: TableParticipant): Promise<void> {
-    const connection = this.activeMediaRoomConnection;
-    if (!connection) return;
-    try {
-      await connection.connect(`MEDIA-${roomId}`, participant);
-    } catch (error) {
-      this.patchMediaTransport({
-        connected: false,
-        message: error instanceof Error ? error.message : 'Не удалось подключить P2P-медиаканал.'
-      });
-    }
-  }
-
-  private handleMediaRoomConnectionEvent(event: P2PRoomConnectionEvent): void {
-    const connection = this.activeMediaRoomConnection;
-    const currentState = this.mediaTransportStore.get();
-    const diagnostics = {
-      peers: connection?.peers() ?? [],
-      routes: connection?.routeDiagnostics() ?? [],
-      routePeers: connection?.peerDiagnostics() ?? []
-    };
-    if (event.type === 'error') {
-      this.patchMediaTransport({ ...diagnostics, connected: false, message: event.message });
-      return;
-    }
-    if (event.type === 'peer-left') {
-      this.mediaCallService?.removeRemotePeer(event.peerId);
-    }
-    if (event.type === 'ready' || event.type === 'peer-joined' || event.type === 'peer-left' || event.type === 'gm-restored' || event.type === 'gm-lost') {
-      void this.mediaCallService?.publishPresence();
-    }
-    this.patchMediaTransport({
-      ...diagnostics,
-      connected: event.type === 'ready' ? true : event.type === 'gm-lost' ? false : currentState.connected,
-      message: diagnostics.peers.length > 0
-        ? 'P2P-медиаканал подключен.'
-        : event.type === 'ready' || currentState.connected
-          ? 'Медиаканал готов и ждёт собеседника.'
-          : currentState.message
-    });
-  }
-
-  private patchMediaTransport(patch: Partial<P2PMediaTransportState>): void {
-    this.mediaTransportStore.update((state) => ({ ...state, ...patch }));
   }
 
   private persistActiveSession(
@@ -1921,7 +1814,6 @@ export class P2PSessionService {
     if (document.visibilityState !== 'visible') return;
     void this.acquireGmWakeLock();
     void this.activeRoomConnection?.refresh().catch(() => undefined);
-    void this.activeMediaRoomConnection?.refresh().catch(() => undefined);
   };
 
   private async acquireGmWakeLock(): Promise<void> {

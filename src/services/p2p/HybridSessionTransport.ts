@@ -1,4 +1,6 @@
 import type {
+  P2PBinaryPayload,
+  P2PBinaryProgressHandler,
   P2PTransportAdapter,
   P2PTransportFactoryContext,
   P2PTransportMessageContext,
@@ -112,6 +114,38 @@ export class HybridSessionTransport implements P2PTransportAdapter {
       return;
     }
     await Promise.all(Array.from(recipients, (peerId) => this.sendToPeer(envelope, peerId)));
+  }
+
+  async sendBinary(data: P2PBinaryPayload, targetPeer?: P2PTargetPeer, metadata?: unknown, progress?: P2PBinaryProgressHandler): Promise<void> {
+    if (!this.direct.sendBinary) throw new Error('Direct P2P transport does not support binary payloads.');
+    if (targetPeer && !this.directOnly && !this.directPeers.has(targetPeer)) throw new Error('Direct P2P peer is unavailable.');
+    await this.direct.sendBinary(data, targetPeer, metadata, progress);
+  }
+
+  subscribeBinary(listener: (data: ArrayBuffer, peerId: string, metadata?: unknown) => void): () => void {
+    return this.direct.subscribeBinary?.(listener) ?? (() => undefined);
+  }
+
+  subscribeBinaryProgress(listener: P2PBinaryProgressHandler): () => void {
+    return this.direct.subscribeBinaryProgress?.(listener) ?? (() => undefined);
+  }
+
+  async publishMediaStream(stream: MediaStream, metadata?: unknown): Promise<void> {
+    if (!this.direct.publishMediaStream) throw new Error('Direct P2P transport does not support media streams.');
+    await this.direct.publishMediaStream(stream, metadata);
+  }
+
+  removeMediaStream(stream: MediaStream): void {
+    this.direct.removeMediaStream?.(stream);
+  }
+
+  async addMediaTrack(track: MediaStreamTrack, stream: MediaStream, metadata?: unknown): Promise<void> {
+    if (!this.direct.addMediaTrack) throw new Error('Direct P2P transport does not support adding media tracks.');
+    await this.direct.addMediaTrack(track, stream, metadata);
+  }
+
+  subscribeMediaStreams(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void {
+    return this.direct.subscribeMediaStreams?.(listener) ?? (() => undefined);
   }
 
   subscribe(listener: (envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void): () => void {

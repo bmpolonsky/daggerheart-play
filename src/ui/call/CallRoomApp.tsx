@@ -31,7 +31,6 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
     ? null
     : parseCallSessionLocation(window.location.pathname, basePath, window.location.hash);
   const session = useStream(p2pSessionService.session$);
-  const mediaTransport = useStream(p2pSessionService.mediaTransport$);
   const invite = useStream(p2pSessionService.invite$);
   const call = useStream(mediaCallService.call$);
   const feed = useStream(feedService.feed$);
@@ -61,7 +60,7 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const role: TableViewRole = healthRole === 'gm' ? 'gm' : 'player';
   const connectedToRoom = session.connected && session.roomId === roomId;
   const connectingToRoom = session.status === 'connecting' && session.roomId === roomId;
-  const callDirectPeers = session.transportMode === 'hybrid' ? mediaTransport.peers : session.directPeers;
+  const callDirectPeers = session.directPeers;
   const liveScene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
   const sceneBackgroundUrl = liveScene?.backgroundUrl || (liveScene?.backgroundAssetId ? '' : liveScene ? defaultSceneImageUrl(liveScene) : '');
   const sceneBackgroundImage = sceneBackgroundUrl

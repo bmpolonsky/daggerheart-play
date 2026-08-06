@@ -353,7 +353,7 @@ async function binaryPayloadToArrayBuffer(data: P2PBinaryPayload): Promise<Array
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 }
 
-export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService; mediaNetwork?: ScriptedP2PNetwork; cloudBackupService?: CloudBackupService; transportFactory?: (transportOptions: ScriptedP2PTransportOptions, context?: P2PTransportFactoryContext) => P2PTransportAdapter } = {}): P2PSessionService {
+export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService; hybrid?: boolean; cloudBackupService?: CloudBackupService; transportFactory?: (transportOptions: ScriptedP2PTransportOptions, context?: P2PTransportFactoryContext) => P2PTransportAdapter } = {}): P2PSessionService {
   return new P2PSessionService(
     options.syncService ?? new SyncService(),
     new PlayerActionRequestService(),
@@ -367,13 +367,12 @@ export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dic
     undefined,
     options.transportFactory ?? ((transportOptions) => {
       const transport = network.createTransport(transportOptions);
-      if (options.mediaNetwork) Object.defineProperty(transport, 'sessionMode', { value: 'hybrid' });
+      if (options.hybrid) Object.defineProperty(transport, 'sessionMode', { value: 'hybrid' });
       return transport;
     }),
     { heartbeatMs: 100, gmTimeoutMs: 400 },
     options.mediaCallService,
     options.characterService,
-    options.mediaNetwork ? (transportOptions) => options.mediaNetwork!.createTransport(transportOptions) : undefined,
     options.cloudBackupService
   );
 }

@@ -179,7 +179,9 @@ async function turnCredentials(request: Request, env: WorkerEnv, roomId: string)
 
 async function pagesTurnCredentials(request: Request, env: WorkerEnv, url: URL): Promise<Response> {
   const origin = request.headers.get('origin')?.trim() ?? '';
-  if (origin !== PAGES_ORIGIN) return pagesTurnResponse({ error: 'origin_not_allowed' }, 403, origin);
+  if (origin && origin !== PAGES_ORIGIN && origin !== url.origin) {
+    return pagesTurnResponse({ error: 'origin_not_allowed' }, 403, origin);
+  }
   if (request.method === 'OPTIONS') return pagesTurnResponse(null, 204, origin);
   if (request.method !== 'GET') return pagesTurnResponse({ error: 'method_not_allowed' }, 405, origin);
 

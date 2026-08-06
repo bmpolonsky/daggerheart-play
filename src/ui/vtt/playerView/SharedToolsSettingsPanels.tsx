@@ -248,7 +248,6 @@ export function SharedToolsConnectionSettingsPanel({
 export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: { compact?: boolean; role: TableViewRole }) {
   const liveSession = useStream(p2pSessionService.session$);
   const usesServer = liveSession.transportMode === 'hybrid';
-  const mediaTransport = useStream(p2pSessionService.mediaTransport$);
   const call = useStream(mediaCallService.call$);
   const session = e2eP2PDiagnosticsFixture() ?? liveSession;
   const {
@@ -285,7 +284,6 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     page: window.location.href,
     browser: navigator.userAgent,
     session,
-    hybridMediaTransport: usesServer ? mediaTransport : undefined,
     media: mediaDiagnostics
   }, null, 2);
 
@@ -323,7 +321,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         <div><dt>Логических подключений</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
         <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
       </dl>
-      <div className="player-tools-peer-list" aria-label={usesServer ? 'Серверное и медиа-соединение' : 'Маршруты соединений'}>
+      <div className="player-tools-peer-list" aria-label={usesServer ? 'Серверное и прямое соединение' : 'Маршруты соединений'}>
         {usesServer && (
           <Card
             className="player-tools-peer-card"
@@ -352,7 +350,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         {visibleRoutePeers.length === 0 && (
           <Card
             className="player-tools-peer-card player-tools-peer-card--empty"
-            title={usesServer ? 'Голос и видео: участник не найден' : 'Участник не найден'}
+            title="Участник не найден"
           >
             <div className="player-tools-peer-routes">
               {P2P_ROUTE_COLUMNS.map((strategy) => (
@@ -366,7 +364,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         <summary>Технические данные</summary>
         <div className="player-tools-scene-framing__controls player-tools-technical-report__content">
           <dl className="player-tools-sync__meta">
-            <div><dt>Режим</dt><dd aria-label="Режим">{usesServer ? 'Hybrid · Server + P2P media' : P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
+            <div><dt>Режим</dt><dd aria-label="Режим">{usesServer ? 'Hybrid · Server + P2P' : P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
             <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
             <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
           </dl>

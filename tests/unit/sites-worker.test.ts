@@ -282,6 +282,12 @@ test('Sites issues rate-limited TURN credentials to the Pages origin without exp
     assert.equal(requestBody.ttl, 12 * 60 * 60);
     assert.match(requestBody.customIdentifier ?? '', /^pages:ROOM1:[a-f0-9]{12}$/);
 
+    const sameOrigin = await worker.fetch(new Request('https://example.test/api/turn-credentials?room=ROOM1', {
+      headers: { 'cf-connecting-ip': '203.0.113.11' }
+    }), env, {} as ExecutionContext);
+    assert.equal(sameOrigin.status, 200);
+    assert.equal(sameOrigin.headers.get('access-control-allow-origin'), null);
+
     const wrongOrigin = await worker.fetch(new Request('https://example.test/api/turn-credentials', {
       headers: { origin: 'https://attacker.example', 'cf-connecting-ip': '203.0.113.10' }
     }), env, {} as ExecutionContext);

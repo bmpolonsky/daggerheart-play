@@ -7,14 +7,22 @@ const cachedCredentials = new Map<string, { expiresAt: number; promise: Promise<
 
 export function turnConfigProvider(participantId: string, serverMode: boolean): (roomId: string) => Promise<RTCIceServer[]> {
   return async (roomId) => {
-    const serverRoomId = roomId.replace(/^MEDIA-/i, '');
-    const cacheKey = `${serverMode ? 'server' : 'pages'}:${serverRoomId}:${participantId}`;
+    const cacheKey = `${serverMode ? 'server' : 'pages'}:${roomId}:${participantId}`;
     const cached = cachedCredentials.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.promise;
-    const promise = fetchTurnConfig(serverRoomId, participantId, serverMode).catch(() => {
-      cachedCredentials.delete(cacheKey);
-      return [];
-    });
+    const promise = fetchTurnConfig(roomId, participantId, serverMode)
+      .catch(() => [])
+      .then((iceServers) => serverMode && iceServers.length === 0
+        ? fetchTurnConfig(roomId, participantId, false)
+        : iceServers)
+      .then((iceServers) => {
+        if (iceServers.length === 0) cachedCredentials.delete(cacheKey);
+        return iceServers;
+      })
+      .catch(() => {
+        cachedCredentials.delete(cacheKey);
+        return [];
+      });
     cachedCredentials.set(cacheKey, { expiresAt: Date.now() + CACHE_MS, promise });
     return promise;
   };
