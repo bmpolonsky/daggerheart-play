@@ -402,6 +402,21 @@
   gap: 12px;
 }
 
+.player-tools-scene-overflow-setting {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.player-tools-scene-overflow-hint {
+  min-width: 0;
+  color: var(--dh-paper-faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .player-tools-scene-framing__frame {
   min-width: 0;
   display: grid;

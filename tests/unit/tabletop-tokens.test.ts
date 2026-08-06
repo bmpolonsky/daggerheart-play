@@ -2,7 +2,7 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import { createGameState } from "../../src/domain/rules/factories";
 import { buildPlayerViewModel } from "../../src/domain/tabletop/playerView";
-import { autoArrangeTokens, measureRange, syncSceneTokens } from "../../src/domain/tabletop/logic";
+import { autoArrangeTokens, measureRange, moveTokenWithinWorld, syncSceneTokens } from "../../src/domain/tabletop/logic";
 import { arrangedTokenPositionForActor, createTableScene, createTokenState, nextArrangedTokenPositionForActor, randomAvailableTokenPosition } from "../../src/domain/tabletop/factories";
 import { clientPointToWorld, rangeLabelStyle, rangeLineStyle, tokenPositionStyle, worldToPercent } from "../../src/domain/tabletop/viewport";
 import { resetAllStores, charactersStore, sceneTableStore } from "../../src/stores/gameStores";
@@ -32,6 +32,56 @@ test('createTokenState defaults tokens inside safe tactical placement columns', 
   assert.equal(adversaryToken.x, 600);
   assert.equal(characterToken.y, 520);
   assert.equal(adversaryToken.y, 520);
+});
+
+test('token movement only permits coordinates outside the board when the scene allows it', () => {
+  const token = createTokenState({ kind: 'character', id: 'traveller' });
+  const constrained = moveTokenWithinWorld(token, -120, 1_240);
+  const unconstrained = moveTokenWithinWorld(token, -120, 1_240, true);
+
+  assert.deepEqual({ x: constrained.x, y: constrained.y }, { x: 0, y: 960 });
+  assert.deepEqual({ x: unconstrained.x, y: unconstrained.y }, { x: -120, y: 1_240 });
+});
+
+test('disabling token overflow returns every token to the board', () => {
+  resetAllStores();
+  const scene = createTableScene({
+    mode: 'tactical',
+    allowTokenOverflow: true,
+    tokens: [
+      createTokenState({ kind: 'character', id: 'outside' }, { x: -120, y: 1_240, locked: true })
+    ]
+  });
+  sceneTableService.updateActiveScene(scene);
+
+  sceneTableService.updateScene(scene.id, { allowTokenOverflow: false });
+
+  const updated = sceneTableService.getActiveScene();
+  assert.equal(updated.allowTokenOverflow, false);
+  assert.deepEqual({ x: updated.tokens[0].x, y: updated.tokens[0].y }, { x: 0, y: 960 });
+});
+
+test('binding the image to the screen preserves the overflow preference and token positions', () => {
+  resetAllStores();
+  const scene = createTableScene({
+    mode: 'tactical',
+    allowTokenOverflow: true,
+    tokens: [createTokenState({ kind: 'character', id: 'outside' }, { x: 1_120, y: -40 })]
+  });
+  sceneTableService.updateActiveScene(scene);
+
+  sceneTableService.updateScene(scene.id, { mode: 'scene' });
+
+  const updated = sceneTableService.getActiveScene();
+  assert.equal(updated.mode, 'scene');
+  assert.equal(updated.allowTokenOverflow, true);
+  assert.deepEqual({ x: updated.tokens[0].x, y: updated.tokens[0].y }, { x: 1_120, y: -40 });
+
+  assert.equal(sceneTableService.moveTokenInScene(scene.id, updated.tokens[0].id, 1_240, 500, null, true), true);
+  assert.deepEqual(
+    { x: sceneTableService.getActiveScene().tokens[0].x, y: sceneTableService.getActiveScene().tokens[0].y },
+    { x: 960, y: 500 }
+  );
 });
 
 test('syncSceneTokens creates missing actor tokens in safe tactical placement columns', () => {

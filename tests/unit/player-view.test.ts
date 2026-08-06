@@ -99,6 +99,7 @@ test('player view model exposes only public live scene state', () => {
   const scene = createTableScene({
     name: 'Публичная сцена',
     backgroundUrl: 'https://example.test/scene.webp',
+    allowTokenOverflow: true,
     tokens: [
       createTokenState({ kind: 'character', id: character.id }, { id: 'visible-token', x: 120, y: 220 }),
       createTokenState({ kind: 'character', id: character.id }, { id: 'hidden-token', hidden: true }),
@@ -117,6 +118,7 @@ test('player view model exposes only public live scene state', () => {
   });
 
   assert.equal(model.scene.imageUrl, 'https://example.test/scene.webp');
+  assert.equal(model.scene.allowTokenOverflow, true);
   assert.equal(model.fear.value, 3);
   assert.deepEqual(model.tokens.map((token) => token.id), ['visible-token']);
   assert.equal(model.handout?.title, 'Карта руин');

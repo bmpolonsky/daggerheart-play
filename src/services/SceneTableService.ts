@@ -445,13 +445,22 @@ export class SceneTableService {
     return scene;
   }
 
-  updateScene(id: string, patch: Partial<Pick<TableScene, 'name' | 'subtitle' | 'backgroundAssetId' | 'backgroundUrl' | 'backgroundFraming' | 'mode'>>): void {
+  updateScene(id: string, patch: Partial<Pick<TableScene, 'name' | 'subtitle' | 'backgroundAssetId' | 'backgroundUrl' | 'backgroundFraming' | 'mode' | 'allowTokenOverflow'>>): void {
     sceneTableStore.update((state) => {
       const scene = state.scenes[id];
       if (!scene) return state;
+      const allowTokenOverflow = patch.allowTokenOverflow ?? scene.allowTokenOverflow ?? false;
       const nextScene: TableScene = {
         ...scene,
         ...patch,
+        allowTokenOverflow,
+        tokens: scene.allowTokenOverflow && !allowTokenOverflow
+          ? scene.tokens.map((token) => ({
+            ...token,
+            x: clamp(token.x, 0, DEFAULT_SCENE_WIDTH),
+            y: clamp(token.y, 0, DEFAULT_SCENE_HEIGHT)
+          }))
+          : scene.tokens,
         updatedAt: nowIso()
       };
       return {
@@ -626,7 +635,7 @@ export class SceneTableService {
         )) return token;
         if (token.locked || (!allowRestricted && (token.hidden || token.ownership.visibility !== 'public'))) return token;
         moved = true;
-        return moveTokenWithinWorld(token, x, y);
+        return moveTokenWithinWorld(token, x, y, scene.mode === 'tactical' && scene.allowTokenOverflow);
       });
       if (!moved) return state;
       return {

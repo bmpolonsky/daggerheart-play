@@ -123,6 +123,7 @@ export interface PlayerViewScene {
   imageUrl: string;
   backgroundFraming: TableScene['backgroundFraming'];
   mode: TableScene['mode'];
+  allowTokenOverflow: boolean;
   music: TableScene['music'];
 }
 
@@ -175,6 +176,7 @@ export function buildPlayerViewModel(input: PlayerViewInput): PlayerViewModel {
       imageUrl: resolveSceneImageUrl(input.liveScene, input.assets, input.assetUrls),
       backgroundFraming: normalizeSceneBackgroundFraming(input.liveScene.backgroundFraming),
       mode: input.liveScene.mode,
+      allowTokenOverflow: input.liveScene.allowTokenOverflow ?? false,
       music: input.liveScene.music
     },
     tokens: buildPlayerTokens(input.liveScene.tokens, input.characters.entities, input.encounter, role),

@@ -139,8 +139,11 @@ export class TabletopService {
   }
 
   moveToken(tokenId: string, x: number, y: number): void {
+    const scene = this.dependencies.sceneTableService.getActiveScene();
     this.dependencies.sceneTableService.updateSceneTokens((tokens) =>
-      tokens.map((token) => (token.id === tokenId ? moveTokenWithinWorld(token, x, y) : token))
+      tokens.map((token) => (token.id === tokenId
+        ? moveTokenWithinWorld(token, x, y, scene.mode === 'tactical' && scene.allowTokenOverflow)
+        : token))
     );
   }
 

@@ -34,6 +34,7 @@ export function createTableScene(input?: Partial<TableScene>): TableScene {
     name: input?.name ?? 'Открывающая сцена',
     subtitle: input?.subtitle ?? '',
     mode: input?.mode ?? 'scene',
+    allowTokenOverflow: input?.allowTokenOverflow ?? false,
     backgroundAssetId: input?.backgroundAssetId,
     backgroundUrl: input?.backgroundUrl ?? '',
     backgroundFraming: normalizeSceneBackgroundFraming(input?.backgroundFraming),

@@ -78,6 +78,7 @@ export interface TableScene {
   name: string;
   subtitle: string;
   mode: 'scene' | 'tactical';
+  allowTokenOverflow: boolean;
   backgroundAssetId?: string;
   backgroundUrl: string;
   backgroundFraming: SceneBackgroundFraming;

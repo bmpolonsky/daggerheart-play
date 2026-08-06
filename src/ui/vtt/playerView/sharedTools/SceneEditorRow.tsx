@@ -15,6 +15,7 @@ import {
 import { assetService, characterService, encounterService, gameService, sceneTableService } from '../../../../services/serviceRegistry';
 import {
   Button,
+  Checkbox,
   ConfirmDialog,
   FilePicker,
   IconButton,
@@ -162,6 +163,28 @@ export function SceneEditorRow({
                 <option value="scene">К экрану</option>
                 <option value="tactical">К полю с токенами</option>
               </SelectField>
+              {scene.mode === 'tactical' && (
+                <div className="player-tools-scene-overflow-setting">
+                  <Checkbox
+                    size="sm"
+                    boxPosition="start"
+                    label="Токены за пределами поля"
+                    aria-describedby={scene.allowTokenOverflow ? `scene-${scene.id}-token-overflow-hint` : undefined}
+                    checked={scene.allowTokenOverflow}
+                    onChange={(event) => sceneTableService.updateScene(scene.id, {
+                      allowTokenOverflow: event.currentTarget.checked
+                    })}
+                  />
+                  {scene.allowTokenOverflow && (
+                    <small
+                      id={`scene-${scene.id}-token-overflow-hint`}
+                    className="player-tools-scene-overflow-hint"
+                  >
+                      Такие токены могут оказаться под интерфейсом или за границами экрана.
+                  </small>
+                  )}
+                </div>
+              )}
               {previewUrl && (
                 <div className="player-tools-scene-framing__frame">
                   <div className="player-tools-scene-framing__sliders">

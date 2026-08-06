@@ -300,19 +300,24 @@
     --player-board-center-offset: 0px;
   }
 
-  .player-view--activity-open:not(.player-view--panel-open) .player-scene-stage {
+  .player-view--activity-open:not(.player-view--panel-open):not(.player-view--token-overflow) .player-scene-stage {
     --player-board-safe-inline: 370px;
     --player-board-center-offset: 175px;
   }
 
-  .player-view--panel-open:not(.player-view--activity-open) .player-scene-stage {
+  .player-view--panel-open:not(.player-view--activity-open):not(.player-view--token-overflow) .player-scene-stage {
     --player-board-safe-inline: 390px;
     --player-board-center-offset: -185px;
   }
 
-  .player-view--activity-open.player-view--panel-open .player-scene-stage {
+  .player-view--activity-open.player-view--panel-open:not(.player-view--token-overflow) .player-scene-stage {
     --player-board-safe-inline: 780px;
     --player-board-center-offset: -8px;
+  }
+
+  .player-view--token-overflow .player-scene-stage {
+    --player-board-safe-inline: 16px;
+    --player-board-center-offset: 0px;
   }
 
   .player-view--focus .player-token footer {

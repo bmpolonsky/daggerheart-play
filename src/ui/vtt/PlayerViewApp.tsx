@@ -379,9 +379,20 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     setMobileLayer('sheet');
     setRosterRequestId((current) => current + 1);
   }, []);
+  const rootClassName = [
+    'player-view',
+    `player-view--${role}`,
+    `player-view--mobile-${mobileLayer}`,
+    activityOpen && 'player-view--activity-open',
+    quickToolsOpen && 'player-view--tools-open',
+    panelOpen && 'player-view--panel-open',
+    !activityOpen && !panelOpen && 'player-view--focus',
+    model.scene.mode === 'tactical' && model.scene.allowTokenOverflow && 'player-view--token-overflow',
+    model.handout && 'dh-has-handout'
+  ].filter(Boolean).join(' ');
 
   return (
-    <main className={`player-view player-view--${role} player-view--mobile-${mobileLayer} ${activityOpen ? 'player-view--activity-open' : ''} ${quickToolsOpen ? 'player-view--tools-open' : ''} ${panelOpen ? 'player-view--panel-open' : ''} ${!activityOpen && !panelOpen ? 'player-view--focus' : ''} ${model.handout ? 'dh-has-handout' : ''}`} data-vtt-root>
+    <main className={rootClassName} data-vtt-root>
       <PlayerSessionRuntime
         displayedCharacter={displayedCharacter}
         gameGmName={game.gmName}

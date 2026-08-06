@@ -44,12 +44,14 @@ export function patchTokenFlags(token: TokenState, patch: TokenFlagPatch): Token
   };
 }
 
-export function moveTokenWithinWorld(token: TokenState, x: number, y: number): TokenState {
+export function moveTokenWithinWorld(token: TokenState, x: number, y: number, allowOverflow = false): TokenState {
   if (token.locked) return token;
+  const nextX = Number.isFinite(x) ? x : token.x;
+  const nextY = Number.isFinite(y) ? y : token.y;
   return {
     ...token,
-    x: clamp(Number.isFinite(x) ? x : token.x, 0, DEFAULT_SCENE_WIDTH),
-    y: clamp(Number.isFinite(y) ? y : token.y, 0, DEFAULT_SCENE_HEIGHT)
+    x: allowOverflow ? nextX : clamp(nextX, 0, DEFAULT_SCENE_WIDTH),
+    y: allowOverflow ? nextY : clamp(nextY, 0, DEFAULT_SCENE_HEIGHT)
   };
 }
 
