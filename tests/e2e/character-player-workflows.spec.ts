@@ -106,6 +106,13 @@ async function markedStress(player: Page): Promise<number> {
   ));
 }
 
+async function expectRuleTooltip(page: Page, term: Locator, expected: string): Promise<void> {
+  await term.hover();
+  const tooltipId = await term.getAttribute('aria-describedby');
+  expect(tooltipId).toBeTruthy();
+  await expect(page.locator(`[id="${tooltipId}"] > span`)).toHaveText(expected);
+}
+
 async function openGmCharacterEditor(gm: Page): Promise<Locator> {
   await openGameLibrary(gm);
   const workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
@@ -418,8 +425,16 @@ test.describe('filled-game player character workflows', () => {
       await expect(companion).not.toContainText('Успех с Надеждой');
       await expect(companion.getByRole('button', { name: 'Когти' })).toBeVisible();
       const companionRuleTerm = companion.getByRole('button', { name: 'Компаньон', exact: true });
-      await companionRuleTerm.hover();
-      await expect(player.getByRole('tooltip').filter({ hasText: 'Сделайте Бросок Заклинания' })).toContainText('Преимущество');
+      await expectRuleTooltip(
+        player,
+        companionRuleTerm,
+        'Сделайте Бросок Заклинания, чтобы связаться со своим компаньоном и приказать ему совершить действие. Потратьте Надежду, чтобы добавить подходящий Опыт Компаньона к броску. При успехе с Надеждой, если ваше следующее действие опирается на успех компаньона, вы получаете Преимущество на этот бросок.'
+      );
+      await expectRuleTooltip(
+        player,
+        companion.getByRole('button', { name: 'Стресс', exact: true }),
+        'Стресс отражает вашу способность выдерживать давление опасных ситуаций и умственное напряжение. Каждый класс начинает с 6 ячейками Стресса.'
+      );
       await expect(companion.locator('.player-companion-panel__stress')).toContainText('0/3');
       const identityBox = await companion.locator('.player-companion-panel__identity').boundingBox();
       const stressBox = await companion.locator('.player-companion-panel__stress').boundingBox();
@@ -475,35 +490,43 @@ test.describe('filled-game player character workflows', () => {
         id: 'e2e-vulnerable',
         name: 'vulnerable',
         notes: ''
+      }, {
+        id: 'e2e-hidden',
+        name: 'hidden',
+        notes: ''
       });
     });
     try {
       const sheet = player.getByLabel('Персонаж игрока');
-      const armorTerm = sheet.getByRole('button', { name: 'Броня', exact: true });
-      await armorTerm.hover();
-      const armorTooltipId = await armorTerm.getAttribute('aria-describedby');
-      await expect(player.locator(`[id="${armorTooltipId}"]`)).toContainText('снизив тяжесть урона на один порог');
-
       for (const [label, expected] of [
-        ['Легкий', '1 Рану'],
-        ['Ощутимый', '2 Раны'],
-        ['Тяжелый', '3 Раны']
+        ['Мастерство', 'Ваше Мастерство определяет, сколько Костей Урона вы бросаете при успешной атаке оружием, а также другие свойства, использующие Мастерство.'],
+        ['НАДЕЖДА', 'Надежда — это валюта, используемая игроками для обозначения того, как складывается судьба персонажей в ходе игры.'],
+        ['Раны', 'Раны — это абстрактное отражение физической стойкости персонажа и его способности выдерживать удары клинком и магией.'],
+        ['Стресс', 'Стресс отражает вашу способность выдерживать давление опасных ситуаций и умственное напряжение. Каждый класс начинает с 6 ячейками Стресса.'],
+        ['Легкий', 'Легкий урон - это любой урон, меньший, чем ваш порог Ощутимого урона; вы отмечаете 1 Рану.'],
+        ['Ощутимый', 'Ощутимый урон равен или превышает ваш порог Ощутимого урона, но ниже порога Тяжелого урона; вы получаете 2 Раны.'],
+        ['Тяжелый', 'Тяжелый урон равен или превышает ваш порог Тяжелого урона; вы отмечаете 3 Раны.'],
+        ['Уклонение', 'Уклонение вашего персонажа определяет, насколько сложно противникам попасть в вас.'],
+        ['Броня', 'Когда ваш персонаж получает урон, вы можете отменить часть или весь урон, отметив доступную Ячейку Брони рядом с большим щитом Брони на листе персонажа, а затем снизив тяжесть урона на один порог: с Тяжёлого до Ощутимого, с Ощутимого до Лёгкого, с Лёгкого до нулевого. Каждый раз, когда ваш персонаж получает урон, вы можете отметить только 1 Ячейку Брони,...'],
+        ['Состояния', 'Некоторые свойства накладывают состояние на вашего персонажа (или противника). Это эффекты, которые дают определенные преимущества или недостатки цели, на которую они наложены.']
       ] as const) {
-        const thresholdTerm = sheet.getByRole('button', { name: label, exact: true });
-        await thresholdTerm.hover();
-        const thresholdTooltipId = await thresholdTerm.getAttribute('aria-describedby');
-        await expect(player.locator(`[id="${thresholdTooltipId}"]`)).toContainText(expected);
+        await expectRuleTooltip(player, sheet.getByRole('button', { name: label, exact: true }), expected);
       }
 
-      const conditionsHeading = sheet.getByRole('button', { name: 'Состояния', exact: true });
-      await conditionsHeading.hover();
-      const conditionsTooltipId = await conditionsHeading.getAttribute('aria-describedby');
-      await expect(player.locator(`[id="${conditionsTooltipId}"]`)).toContainText('преимущества или недостатки');
-
-      const vulnerableTerm = sheet.getByRole('button', { name: 'Уязвим', exact: true });
-      await vulnerableTerm.hover();
-      const vulnerableTooltipId = await vulnerableTerm.getAttribute('aria-describedby');
-      await expect(player.locator(`[id="${vulnerableTooltipId}"]`)).toContainText('Все броски против Уязвимого существа имеют преимущество.');
+      for (const [label, expected] of [
+        ['Уязвим', 'Когда существо становится Уязвимым, игроки и Мастер должны совместно описать, как это произошло. Пока вы Уязвимы, все броски, направленные на вас, имеют преимущество.'],
+        ['Скрыт', 'Пока вы Скрыты, все броски против вас имеют помеху. После того, как противник переместился в место, откуда он может вас увидеть, вы переместились в его поле зрения или совершили атаку, вы больше не Скрыт.']
+      ] as const) {
+        await expectRuleTooltip(player, sheet.getByRole('button', { name: label, exact: true }), expected);
+      }
+      await sheet.getByRole('button', { name: 'Добавить состояние', exact: true }).click();
+      const restrainedMenuItem = sheet.getByRole('menuitem', { name: 'Обездвижен', exact: true });
+      await expectRuleTooltip(
+        player,
+        restrainedMenuItem.locator('[aria-describedby]'),
+        'Когда вы получаете состояние Обездвижен, вы не можете двигаться, пока это состояние не будет снято, но вы всё ещё можете совершать действия с вашей текущей позиции.'
+      );
+      await sheet.getByRole('button', { name: 'Добавить состояние', exact: true }).click();
 
       await player.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Характеристики' }).click();
       const heading = sheet.locator('#player-sheet-traits h3');
@@ -518,12 +541,34 @@ test.describe('filled-game player character workflows', () => {
       expect(headingParts[1]!.x - (headingParts[0]!.x + headingParts[0]!.width)).toBeGreaterThan(1);
       expect(headingParts[2]!.x - (headingParts[1]!.x + headingParts[1]!.width)).toBeGreaterThan(1);
 
+      await expectRuleTooltip(
+        player,
+        heading.getByRole('button', { name: 'Характеристики', exact: true }),
+        'Эти значения отражают ваши природные или приобретенные способности в каждой из шести основных характеристик: Проворность, Сила, Искусность, Инстинкт, Влияние и Знание.'
+      );
+      await expectRuleTooltip(
+        player,
+        heading.getByRole('button', { name: 'опыт', exact: true }),
+        'Когда один из Опытов вашего персонажа подходит к текущей ситуации, вы можете использовать этот Опыт, чтобы продемонстрировать его мастерство. Перед тем, как совершить действие или бросок реакции, вы можете потратить Надежду, чтобы добавить модификатор Опыта к результату броска. Иногда несколько Опытов вашего персонажа подходят к ситуации (например, если в...'
+      );
+
+      for (const [label, expected] of [
+        ['Проворность', 'Пробежать, Прыгнуть, Маневрировать Высокая Проворность означает, что вы быстры, ловки на пересеченной местности и быстро реагируете на опасность. Вы совершаете бросок Проворности, чтобы взобраться по веревке, спринтом укрыться или перепрыгнуть с крыши на крышу.'],
+        ['Сила', 'Поднять, Крушить, Схватить Высокая Сила означает, что вы лучше справляетесь с задачами, требующими физической силы и выносливости. Вы совершаете бросок Силы, чтобы выбить дверь, поднять тяжелые предметы или удержать позицию против наступающего противника.'],
+        ['Искусность', 'Взломать, Скрыться, Смастерить Высокая Искусность означает, что вы умеете выполнять задачи, требующие точности, скрытности или предельного контроля. Вы совершаете бросок Искусности, чтобы использовать точные инструменты, ускользнуть от внимания или нанести точный удар.'],
+        ['Инстинкт', 'Увидеть, Чувствовать, Ориентироваться Высокий Инстинкт означает, что вы обладаете острым чувством окружающей обстановки и природной интуицией. Вы совершаете бросок Инстинкта, чтобы почувствовать опасность, заметить детали в окружающем мире или выследить неуловимого врага.'],
+        ['Влияние', 'Очаровать, Выступить, Обмануть Высокий уровень Влияния означает, что у вас сильная личность и вы легко ладите с людьми. Вы совершаете бросок Влияния, чтобы отстоять свою точку зрения, запугать противника или привлечь внимание толпы.'],
+        ['Знание', 'Вспоминать, Анализировать, Понимать Высокий показатель Знания означает, что вы обладаете информацией, недоступной другим, и умеете применять свой ум для дедукции и умозаключений. Вы совершаете бросок Знания, чтобы интерпретировать факты, ясно видеть закономерности или вспомнить важную информацию.']
+      ] as const) {
+        const traitCard = sheet.locator('.player-trait-grid').getByRole('button', { name: new RegExp(label) });
+        await expectRuleTooltip(player, traitCard.locator('[aria-describedby]'), expected);
+      }
+
       const agilityCard = sheet.locator('.player-trait-grid').getByRole('button', { name: /Проворность/ });
       const cardRuleTerm = agilityCard.locator('[aria-describedby]');
       await cardRuleTerm.hover();
       const cardTooltipId = await cardRuleTerm.getAttribute('aria-describedby');
       const cardTooltip = player.locator(`[id="${cardTooltipId}"]`);
-      await expect(cardTooltip).toContainText('быстры');
       await expect(cardTooltip).not.toContainText('Нажмите, чтобы открыть статью');
       await agilityCard.click();
 
@@ -531,11 +576,16 @@ test.describe('filled-game player character workflows', () => {
       const agilityTerm = roll.getByRole('button', { name: 'Проворность', exact: true });
       await expect(agilityTerm).toBeVisible();
       await expect(agilityTerm).toHaveCSS('text-decoration-line', 'none');
-      await agilityTerm.hover();
-      const tooltipId = await agilityTerm.getAttribute('aria-describedby');
-      const tooltip = player.locator(`[id="${tooltipId}"]`);
-      await expect(tooltip).toContainText('Проворность');
-      await expect(tooltip).toContainText('быстры');
+      await expectRuleTooltip(
+        player,
+        agilityTerm,
+        'Пробежать, Прыгнуть, Маневрировать Высокая Проворность означает, что вы быстры, ловки на пересеченной местности и быстро реагируете на опасность. Вы совершаете бросок Проворности, чтобы взобраться по веревке, спринтом укрыться или перепрыгнуть с крыши на крышу.'
+      );
+      await expectRuleTooltip(
+        player,
+        roll.getByRole('button', { name: 'Опыт', exact: true }),
+        'Когда один из Опытов вашего персонажа подходит к текущей ситуации, вы можете использовать этот Опыт, чтобы продемонстрировать его мастерство. Перед тем, как совершить действие или бросок реакции, вы можете потратить Надежду, чтобы добавить модификатор Опыта к результату броска. Иногда несколько Опытов вашего персонажа подходят к ситуации (например, если в...'
+      );
 
       await agilityTerm.click();
       await expect(player).toHaveURL(/\/#\/library\/compendium\/rules\/character-traits$/);

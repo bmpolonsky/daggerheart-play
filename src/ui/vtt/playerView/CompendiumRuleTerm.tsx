@@ -7,21 +7,18 @@ import { RuleTerm } from '../../components/common';
 import { navigateToRuleArticle } from './routedUiState';
 
 const CHARACTER_TRAIT_RULE_SLUGS = new Set(['agility', 'strength', 'finesse', 'instinct', 'presence', 'knowledge']);
-const RULE_SUMMARY_OVERRIDES: Record<string, string> = {
-  vulnerable: 'Все броски против Уязвимого существа имеют преимущество.',
-  hidden: 'Все броски против Скрытого существа имеют помеху. Состояние снимается, когда его замечают или оно атакует.',
-  restrained: 'Обездвиженное существо не может двигаться, но может действовать с текущей позиции.'
-};
 
 export function CompendiumRuleTerm({
   children,
   ruleSlug,
   sectionAnchor,
+  leadSummary = false,
   tooltipOnly = false
 }: {
   children: ComponentChildren;
   ruleSlug: string;
   sectionAnchor?: string;
+  leadSummary?: boolean;
   tooltipOnly?: boolean;
 }) {
   const content = useStream(contentService.content$);
@@ -32,9 +29,11 @@ export function CompendiumRuleTerm({
     ? content.rules.find((rule) => rule.slug === 'character-traits') ?? article
     : article;
   const sourceSection = isCharacterTrait ? article.slug : sectionAnchor;
-  const summary = RULE_SUMMARY_OVERRIDES[article.slug] ?? (sourceSection
+  const summary = sourceSection
     ? ruleSectionSummary(sourceArticle.body, sourceSection) || plainRuleSummary(article.summary || article.body)
-    : plainRuleSummary(article.summary || article.body));
+    : leadSummary
+      ? ruleLeadSummary(article.body) || plainRuleSummary(article.summary || article.body)
+      : plainRuleSummary(article.summary || article.body);
 
   return (
     <RuleTerm
@@ -48,12 +47,24 @@ export function CompendiumRuleTerm({
 }
 
 export function plainRuleSummary(value: string): string {
-  const summary = cleanMarkdownText(value, { stripEmphasis: true })
+  const summary = cleanRuleText(value);
+  return summary.length > 360 ? `${summary.slice(0, 357).trim()}...` : summary;
+}
+
+export function ruleLeadSummary(value: string): string {
+  const lead = value.replace(/\r\n/g, '\n').split(/\n\s*\n/, 1)[0] ?? '';
+  const sentences = cleanRuleText(lead).match(/[^.!?]+(?:[.!?]+|$)/g)
+    ?.map((sentence) => sentence.trim())
+    .filter(Boolean) ?? [];
+  return sentences.slice(-2).join(' ');
+}
+
+function cleanRuleText(value: string): string {
+  return cleanMarkdownText(value, { stripEmphasis: true })
     .replace(/<\/?div\b[^>]*>/gi, '')
     .replace(/\s*\{#[^}]+\}/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return summary.length > 360 ? `${summary.slice(0, 357).trim()}...` : summary;
 }
 
 export function ruleSectionSummary(body: string, sectionAnchor: string): string {

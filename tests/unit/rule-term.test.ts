@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { plainRuleSummary, ruleSectionSummary } from '../../src/ui/vtt/playerView/CompendiumRuleTerm';
+import { plainRuleSummary, ruleLeadSummary, ruleSectionSummary } from '../../src/ui/vtt/playerView/CompendiumRuleTerm';
 
 test('contextual rule summaries come from clean source text and can target one article section', () => {
   const body = [
@@ -36,5 +36,20 @@ test('contextual rule summaries come from clean source text and can target one a
       'Следующий раздел.'
     ].join('\n'), 'agility'),
     'Пробежать, Прыгнуть, Маневрировать Высокая Проворность означает скорость и ловкость.'
+  );
+});
+
+test('status tooltip summaries keep the useful tail of the translated lead paragraph', () => {
+  assert.equal(
+    ruleLeadSummary('Когда вы получаете состояние ***Уязвим***, вы оказываетесь в затруднительном положении. Это может означать что угодно в данной сцене. Когда существо становится *Уязвимым*, игроки и Мастер описывают, как это произошло. Пока вы *Уязвимы*, все броски против вас имеют [преимущество](/rule/advantage-and-disadvantage).'),
+    'Когда существо становится Уязвимым, игроки и Мастер описывают, как это произошло. Пока вы Уязвимы, все броски против вас имеют преимущество.'
+  );
+  assert.equal(
+    ruleLeadSummary('Пока противники вас не видят, вы получаете состояние ***Скрыт***. Пока вы *Скрыты*, все броски против вас имеют [помеху](/rule/advantage-and-disadvantage). После перемещения в поле зрения или совершения атаки вы больше не *Скрыт*.\n\n***Пример:** Этот текст не должен попадать в подсказку.*'),
+    'Пока вы Скрыты, все броски против вас имеют помеху. После перемещения в поле зрения или совершения атаки вы больше не Скрыт.'
+  );
+  assert.equal(
+    ruleLeadSummary('Когда вы получаете [состояние](/rule/condition) ***Обездвижен***, вы не можете двигаться, но всё ещё можете действовать с текущей позиции.'),
+    'Когда вы получаете состояние Обездвижен, вы не можете двигаться, но всё ещё можете действовать с текущей позиции.'
   );
 });

@@ -36,7 +36,7 @@ export function StatusChips({
         {visibleConditions.map((condition) => (
           <span className="player-status-chip" key={condition.id} title={condition.notes || undefined}>
             <span>
-              <CompendiumRuleTerm ruleSlug={statusRuleSlug(condition.name)}>
+              <CompendiumRuleTerm ruleSlug={statusRuleSlug(condition.name)} leadSummary>
                 {statusLabel(condition.name)}
               </CompendiumRuleTerm>
             </span>
@@ -73,7 +73,7 @@ export function StatusChips({
                     setIsMenuOpen(false);
                   }}
                 >
-                  <CompendiumRuleTerm ruleSlug={statusRuleSlug(status)} tooltipOnly>
+                  <CompendiumRuleTerm ruleSlug={statusRuleSlug(status)} leadSummary tooltipOnly>
                     {statusLabel(status)}
                   </CompendiumRuleTerm>
                 </Button>
