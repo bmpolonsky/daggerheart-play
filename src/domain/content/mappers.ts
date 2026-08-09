@@ -101,7 +101,7 @@ function slugify(input: string): string {
 function assetPath(imageUrl: unknown): string | null {
   if (typeof imageUrl !== 'string' || !imageUrl.trim()) return null;
   const trimmed = imageUrl.trim();
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(?:https?:\/\/|blob:|data:)/i.test(trimmed)) return trimmed;
   const normalized = trimmed.replace(/^\/+/, '');
   return `${import.meta.env.BASE_URL}${normalized}`.replace(/\/\//g, '/');
 }

@@ -58,6 +58,12 @@ test('content mappers retain both summaries and full rule text', () => {
   assert.equal(subclass.body, 'Короткое описание подкласса.\n\nПолные правила спутника.');
 });
 
+test('content mappers preserve uploaded image data URLs', () => {
+  const imageUrl = 'data:image/webp;base64,AQID';
+
+  assert.equal(mapRawAdversary({ name: 'Кастомный противник', image_url: imageUrl }).imageUrl, imageUrl);
+});
+
 test('content library query searches all compendium sections outside UI', () => {
   const adversary = {
     id: 'adv:1',
