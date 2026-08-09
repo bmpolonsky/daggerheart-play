@@ -31,3 +31,7 @@ Avoid:
 If a primitive is missing, add it under `src/ui/components/common` with a `.module.css`, exported prop types, an `index.ts` export, and README documentation. Then replace at least one real caller.
 
 Keep card creator print/card preview styles isolated; the design system applies to editor chrome, tools, lobby, VTT, and application panels.
+
+## UI Architecture
+
+Keep business rules out of Preact components and hooks. Components may hold ephemeral presentation state, render view models, and dispatch user intents. Put state transitions and cross-domain decisions in services, and put reusable projections, filtering, sorting, and grouping in pure model/helper modules that can be unit tested without rendering UI.

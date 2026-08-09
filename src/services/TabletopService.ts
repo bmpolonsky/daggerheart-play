@@ -98,6 +98,34 @@ export class TabletopService {
     return token?.id ?? null;
   }
 
+  placeActorOnSceneWithDefaults(
+    actor: ActorRef,
+    sceneId = this.dependencies.sceneTableService.sceneTable$.get().activeSceneId
+  ): string | null {
+    const hiddenPlacement = actor.kind === 'adversary' || actor.kind === 'environment';
+    return this.placeActorOnScene(actor, sceneId, hiddenPlacement ? { hidden: true, placement: 'random' } : {});
+  }
+
+  setActorResource(actor: ActorRef, resource: 'hope' | 'hp' | 'stress', next: number): boolean {
+    if (actor.kind === 'companion' && resource === 'stress') {
+      const companion = this.dependencies.characterService.characters$.get().entities[actor.id]?.companion;
+      if (!companion) return false;
+      this.dependencies.characterService.markCompanionStress(actor.id, next - companion.stress.marked);
+      return true;
+    }
+    if (actor.kind === 'adversary' && resource !== 'hope') {
+      if (!this.dependencies.encounterService.encounter$.get().adversaries[actor.id]) return false;
+      this.dependencies.encounterService.updateAdversarySlots(actor.id, resource, { marked: next });
+      return true;
+    }
+    if (actor.kind !== 'character') return false;
+    const character = this.dependencies.characterService.characters$.get().entities[actor.id];
+    if (!character) return false;
+    if (resource === 'hope') this.dependencies.characterService.setHope(actor.id, next);
+    else this.dependencies.characterService.markSlots(actor.id, resource, next - character[resource].marked);
+    return true;
+  }
+
   syncActorsToActiveScene(characters: Character[], adversaries: Adversary[]): void {
     this.dependencies.sceneTableService.updateActiveScene((scene) => syncSceneTokens(scene, characters, adversaries));
   }

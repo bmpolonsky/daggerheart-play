@@ -50,8 +50,8 @@ export function PlayerRoster({
           ? actor.subtitle
           : actor.kind === 'environment'
             ? actor.subtitle || 'Окружение'
-            : 'НПС';
-        const hasResources = actor.kind === 'character' && Boolean(actor.hope && actor.hp && actor.stress);
+            : actor.subtitle;
+        const hasResources = (actor.kind === 'character' || actor.kind === 'adversary') && Boolean(actor.hp && actor.stress);
         const viewedActor: PlayerViewedActor = actor.kind === 'companion'
           ? { kind: 'character', actorId: actor.actorId }
           : { kind: actor.kind, actorId: actor.actorId };
@@ -130,7 +130,7 @@ export function PlayerRoster({
                       <Hand size={13} aria-hidden="true" />
                     </IconButton>
                   )}
-                  {actor.kind === 'environment' && actor.isOnScene && (
+                  {(actor.kind === 'environment' || actor.kind === 'adversary') && actor.isOnScene && (
                     <IconButton
                       aria-label={actor.hidden ? `Показать ${actor.name} игрокам` : `Скрыть ${actor.name} от игроков`}
                       variant="ghost"
@@ -181,16 +181,18 @@ export function PlayerRoster({
                 </>
               ) : undefined}
             />
-            {hasResources && actor.hope && actor.hp && actor.stress && (
+            {hasResources && actor.hp && actor.stress && (
               <div className="player-roster__tracks" onClick={(event) => event.stopPropagation()}>
-                <ResourcePips
-                  label="Надежда"
-                  current={actor.hope.value}
-                  max={actor.hope.max}
-                  tone="hope"
-                  filledMeansMarked={false}
-                  onChange={(next) => onSetResource?.(actor, 'hope', next)}
-                />
+                {actor.kind === 'character' && actor.hope && (
+                  <ResourcePips
+                    label="Надежда"
+                    current={actor.hope.value}
+                    max={actor.hope.max}
+                    tone="hope"
+                    filledMeansMarked={false}
+                    onChange={(next) => onSetResource?.(actor, 'hope', next)}
+                  />
+                )}
                 <ResourcePips
                   label="Раны"
                   current={actor.hp.marked}

@@ -101,7 +101,6 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
       });
     });
   }
-  if (!characters && !environments) return actors;
   const enriched = actors.map((actor) => {
     if (actor.kind === 'environment') {
       const environment = environments?.[actor.actorId];
@@ -123,6 +122,15 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
         ownerName: character.name,
         evasion: companion.evasion,
         stress: { ...companion.stress }
+      };
+    }
+    if (actor.kind === 'adversary') {
+      const adversary = adversaries?.[actor.actorId];
+      if (!adversary) return actor;
+      return {
+        ...actor,
+        hp: { ...adversary.hp },
+        stress: { ...adversary.stress }
       };
     }
     if (actor.kind !== 'character') return actor;

@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { filledCharacterName, filledCharacterResources, filledEnvironmentName, openFilledGmGame } from './filled-game-helpers';
+import { filledAdversaryName, filledCharacterName, filledCharacterResources, filledEnvironmentName, openFilledGmGame } from './filled-game-helpers';
 import { openPlayerGame } from './game-route-helpers';
 import { expectInsideHorizontalBounds, expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
 import { openGameLibrary } from './tools-helpers';
@@ -513,10 +513,7 @@ test.describe('filled VTT layout regressions', () => {
     await page.setViewportSize({ width: 1280, height: 860 });
     await openFilledGmGame(page);
 
-    await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Бой', exact: true }).click();
-    await expect(page.getByLabel('Инструменты сцены').locator('.player-combat-tracker__entry-actions').getByRole('button', { name: /^Открыть лист / })).toHaveCount(0);
-
-    const adversaryCard = page.locator('.player-combat-tracker__entry').first();
+    const adversaryCard = page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledAdversaryName });
     await adversaryCard.getByRole('button', { name: /^(Показать|Скрыть).*игрок/ }).click();
     await expect(page.getByLabel('Противник мастера')).toHaveCount(0);
     await adversaryCard.click({ position: { x: 12, y: 14 } });

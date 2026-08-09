@@ -495,6 +495,41 @@ test('GM roster nests a lightweight companion under its owner with scene control
   assert.equal(companion?.presence, undefined);
 });
 
+test('GM roster keeps adversary tracks beside the shared participant list', () => {
+  resetAllStores();
+  const adversary = encounterService.createAdversary({
+    name: 'Страж ворот',
+    hp: { marked: 2, max: 5 },
+    stress: { marked: 1, max: 3 }
+  });
+  const scene = createTableScene({
+    tokens: [createTokenState({ kind: 'adversary', id: adversary.id }, { id: 'adversary-token' })]
+  });
+  const model = buildPlayerViewModel({
+    game: createGameState(),
+    characters: charactersStore.get(),
+    encounter: encounterService.encounter$.get(),
+    liveScene: scene,
+    assets: {},
+    assetUrls: {},
+    rollLog: [],
+    role: 'gm'
+  });
+  const roster = buildSessionRosterActors({
+    tokens: model.tokens,
+    characters: charactersStore.get(),
+    adversaries: encounterService.encounter$.get().adversaries,
+    role: 'gm',
+    activationQueue: [],
+    presence: {}
+  });
+  const actor = roster.find((item) => item.kind === 'adversary' && item.actorId === adversary.id);
+
+  assert.equal(actor?.subtitle, 'Ранг 1 / Обычный');
+  assert.deepEqual(actor?.hp, { marked: 2, max: 5 });
+  assert.deepEqual(actor?.stress, { marked: 1, max: 3 });
+});
+
 test('player view model exposes adversary details only to GM role', () => {
   resetAllStores();
   const adversary = encounterService.createAdversary({

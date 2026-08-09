@@ -1,13 +1,13 @@
 /** @jsxImportSource preact */
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { FileStack, Images, Pencil, ScrollText, Settings2, Sparkles, Swords, Users } from "lucide-react";
+import { Clapperboard, FolderOpen, NotebookText, Pencil, Settings2, Users, Zap } from "lucide-react";
 import { useStream } from "../../../core/hooks/useStream";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewAdversarySummary, PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
-import { characterService, gameService, sceneTableService, tabletopService } from "../../../services/serviceRegistry";
+import { gameService, sceneTableService, tabletopService } from "../../../services/serviceRegistry";
 import { PlayerRoster } from "./PlayerRoster";
 import type { PlayerRosterActor, PlayerViewedActor } from "./types";
 import { AdversarySheet } from "./AdversarySheet";
@@ -18,11 +18,10 @@ import { GmActionsPanel } from "./gmPanel/GmActionsPanel";
 import { GmHandoutsPanel } from "./gmPanel/GmHandoutsPanel";
 import { LiveSceneSwitcher } from "./gmPanel/LiveSceneSwitcher";
 import { SceneMusicControls } from "./gmPanel/SceneMusicControls";
-import { GmCombatTracker } from "./gmPanel/GmCombatTracker";
 import { Button, EmptyState, TabButton, Tabs } from "../../components/common";
 import { SceneAddMenu, type SceneAddTarget } from './SceneAddMenu';
 
-type GmPanelView = 'cast' | 'sheet' | 'scenes' | 'combat' | 'actions' | 'media';
+type GmPanelView = 'cast' | 'sheet' | 'scenes' | 'actions' | 'media';
 
 export function GmRightPanel({
   activeAdversaryId,
@@ -93,7 +92,6 @@ export function GmRightPanel({
   const configure = () => {
     if (activeView === 'cast') onOpenTool('characters');
     if (activeView === 'scenes') onOpenTool('scenes');
-    if (activeView === 'combat') onOpenTool('combat');
     if (activeView === 'media') onOpenTool('handouts');
     if (activeView === 'sheet') {
       if (character && onEditCharacter) onEditCharacter();
@@ -115,11 +113,10 @@ export function GmRightPanel({
     <div className="player-context-navigation">
       <Tabs align="start" className="player-left-rail-tabs player-context-tabs" label="Контекст мастера">
         <TabButton active={activeView === 'cast'} title="Участники" aria-label="Участники" onClick={() => setActiveView('cast')}><Users size={16} aria-hidden="true" /></TabButton>
-        <TabButton active={activeView === 'sheet'} disabled={!selectedActorKey} title={selectedActorName ? `Лист: ${selectedActorName}` : 'Лист не выбран'} aria-label={selectedActorName ? `Лист: ${selectedActorName}` : 'Лист не выбран'} onClick={() => setActiveView('sheet')}><ScrollText size={16} aria-hidden="true" /></TabButton>
-        <TabButton active={activeView === 'scenes'} title="Сцены" aria-label="Сцены" onClick={() => setActiveView('scenes')}><Images size={16} aria-hidden="true" /></TabButton>
-        <TabButton active={activeView === 'combat'} title="Бой" aria-label="Бой" onClick={() => setActiveView('combat')}><Swords size={16} aria-hidden="true" /></TabButton>
-        <TabButton active={activeView === 'actions'} title="Действия" aria-label="Действия" onClick={() => setActiveView('actions')}><Sparkles size={16} aria-hidden="true" /></TabButton>
-        <TabButton active={activeView === 'media'} title="Материалы" aria-label="Материалы" onClick={() => setActiveView('media')}><FileStack size={16} aria-hidden="true" /></TabButton>
+        <TabButton active={activeView === 'sheet'} disabled={!selectedActorKey} title={selectedActorName ? `Лист: ${selectedActorName}` : 'Лист не выбран'} aria-label={selectedActorName ? `Лист: ${selectedActorName}` : 'Лист не выбран'} onClick={() => setActiveView('sheet')}><NotebookText size={16} aria-hidden="true" /></TabButton>
+        <TabButton active={activeView === 'scenes'} title="Сцены" aria-label="Сцены" onClick={() => setActiveView('scenes')}><Clapperboard size={16} aria-hidden="true" /></TabButton>
+        <TabButton active={activeView === 'actions'} title="Действия" aria-label="Действия" onClick={() => setActiveView('actions')}><Zap size={16} aria-hidden="true" /></TabButton>
+        <TabButton active={activeView === 'media'} title="Материалы" aria-label="Материалы" onClick={() => setActiveView('media')}><FolderOpen size={16} aria-hidden="true" /></TabButton>
       </Tabs>
       {configureButton}
     </div>
@@ -136,8 +133,22 @@ export function GmRightPanel({
   }
 
   const playerActors = actors.filter((actor) => actor.kind === 'character' || actor.kind === 'companion');
+  const adversaryActors = actors.filter((actor) => actor.kind === 'adversary');
   const environmentActors = actors.filter((actor) => actor.kind === 'environment');
-  const rosterIsEmpty = playerActors.length === 0 && environmentActors.length === 0;
+  const rosterIsEmpty = actors.length === 0;
+  const rosterProps = {
+    activeAdversaryId,
+    activeCharacterId,
+    role: 'gm' as const,
+    sceneId,
+    onAddActorToScene: (actor: PlayerRosterActor, targetSceneId: string) => tabletopService.placeActorOnSceneWithDefaults({ kind: actor.kind, id: actor.actorId }, targetSceneId),
+    onRemoveActorFromScene: (actor: PlayerRosterActor, targetSceneId: string) => tabletopService.removeTokenFromScene(actor.tokenId, targetSceneId),
+    onSetActorHidden: (actor: PlayerRosterActor, hidden: boolean, targetSceneId: string) => sceneTableService.setTokenHiddenInScene(targetSceneId, actor.tokenId, hidden),
+    onClearActivationRequest,
+    onForceMutePlayer,
+    onSetResource: (actor: PlayerRosterActor, resource: 'hope' | 'hp' | 'stress', next: number) => tabletopService.setActorResource({ kind: actor.kind, id: actor.actorId }, resource, next),
+    onOpenActor: openActorSheet
+  };
   return (
     <div className="player-character-panel-shell">
       {navigation}
@@ -148,50 +159,17 @@ export function GmRightPanel({
               <div className="player-participant-feed">
                 {playerActors.length > 0 && (
                   <RosterGroup label="Игроки">
-                    <PlayerRoster
-                    actors={playerActors}
-                    activeAdversaryId={activeAdversaryId}
-                    activeCharacterId={activeCharacterId}
-                    role="gm"
-                    sceneId={sceneId}
-                    onAddActorToScene={(actor, targetSceneId) => tabletopService.placeActorOnScene({ kind: actor.kind, id: actor.actorId }, targetSceneId)}
-                    onRemoveActorFromScene={(actor, targetSceneId) => tabletopService.removeTokenFromScene(actor.tokenId, targetSceneId)}
-                    onClearActivationRequest={onClearActivationRequest}
-                    onForceMutePlayer={onForceMutePlayer}
-                    onSetResource={(actor, resource, next) => {
-                      if (actor.kind === 'companion') {
-                        const current = actor.stress?.marked ?? 0;
-                        characterService.markCompanionStress(actor.actorId, next - current);
-                        return;
-                      }
-                      if (resource === 'hope') {
-                        characterService.setHope(actor.actorId, next);
-                        return;
-                      }
-                      const current = actor[resource]?.marked ?? 0;
-                      characterService.markSlots(actor.actorId, resource, next - current);
-                    }}
-                    onOpenActor={openActorSheet}
-                    />
+                    <PlayerRoster {...rosterProps} actors={playerActors} />
+                  </RosterGroup>
+                )}
+                {adversaryActors.length > 0 && (
+                  <RosterGroup label="Противники">
+                    <PlayerRoster {...rosterProps} actors={adversaryActors} />
                   </RosterGroup>
                 )}
                 {environmentActors.length > 0 && (
                   <RosterGroup label="Окружение">
-                    <PlayerRoster
-                    actors={environmentActors}
-                    activeAdversaryId={activeAdversaryId}
-                    activeCharacterId={activeCharacterId}
-                    role="gm"
-                    sceneId={sceneId}
-                    onAddActorToScene={(actor, targetSceneId) => tabletopService.placeActorOnScene(
-                      { kind: actor.kind, id: actor.actorId },
-                      targetSceneId,
-                      { hidden: true, placement: 'random' }
-                    )}
-                    onRemoveActorFromScene={(actor, targetSceneId) => tabletopService.removeTokenFromScene(actor.tokenId, targetSceneId)}
-                    onSetActorHidden={(actor, hidden, targetSceneId) => sceneTableService.setTokenHiddenInScene(targetSceneId, actor.tokenId, hidden)}
-                    onOpenActor={openActorSheet}
-                    />
+                    <PlayerRoster {...rosterProps} actors={environmentActors} />
                   </RosterGroup>
                 )}
                 {rosterIsEmpty && (
@@ -199,21 +177,11 @@ export function GmRightPanel({
                 )}
               </div>
               <div className="player-gm-overview__add-bar">
-                {onAddToScene && (
-                  <SceneAddMenu className="player-gm-overview__add-menu" onSelect={onAddToScene} />
-                )}
+                {onAddToScene && <SceneAddMenu className="player-gm-overview__add-menu" onSelect={onAddToScene} />}
               </div>
             </section>
           )}
           {activeView === 'scenes' && <LiveSceneSwitcher sceneTable={sceneTable} />}
-          <section className="player-gm-combat-panel" aria-label="Бой" hidden={activeView !== 'combat'}>
-            <GmCombatTracker
-              activeAdversaryId={activeAdversaryId}
-              emptyState={<EmptyState tone="transparent" size="sm" icon={<Swords size={18} />} title="Бой не подготовлен" />}
-              sceneId={sceneId}
-              onOpenActor={openActorSheet}
-            />
-          </section>
           {activeView === 'actions' && <GmActionsPanel onOpenChronicle={onOpenChronicle} />}
           {activeView === 'media' && (
             <div className="player-context-media">
