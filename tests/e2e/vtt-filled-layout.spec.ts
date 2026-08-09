@@ -48,6 +48,7 @@ test.describe('filled VTT layout regressions', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openFilledGmGame(page);
 
+    const root = page.locator('.player-view--gm');
     const dice = page.locator('.mini-dice-launcher');
     const quickDice = page.locator('.mini-dice-launcher__quick');
     const health = page.getByLabel('Чат игры').getByRole('button', { name: /Открыть диагностику соединения/ });
@@ -93,7 +94,18 @@ test.describe('filled VTT layout regressions', () => {
     expect(desktopTraitBoxes[3].y).toBeGreaterThan(desktopTraitBoxes[0].y + desktopTraitBoxes[0].height);
     const desktopScroll = await sheet.evaluate((element) => ({ client: element.clientHeight, scroll: element.scrollHeight }));
     expect(desktopScroll.scroll).toBeGreaterThan(desktopScroll.client + 400);
+    const rootTopBefore = (await rect(root)).y;
     await sectionRail.getByRole('button', { name: 'Карты' }).click();
+    await page.waitForTimeout(350);
+    expect(await page.evaluate(() => ({
+      document: document.scrollingElement?.scrollTop ?? 0,
+      body: document.body.scrollTop,
+      root: document.querySelector<HTMLElement>('#root')?.scrollTop ?? 0,
+      shell: document.querySelector<HTMLElement>('.superapp-shell')?.scrollTop ?? 0,
+      content: document.querySelector<HTMLElement>('.superapp-content')?.scrollTop ?? 0,
+      game: document.querySelector<HTMLElement>('.player-view')?.scrollTop ?? 0
+    }))).toEqual({ document: 0, body: 0, root: 0, shell: 0, content: 0, game: 0 });
+    expect((await rect(root)).y).toBe(rootTopBefore);
     const domainCards = sheet.locator('.dh-list-item').filter({ hasText: 'Заклинание' });
     await expect(domainCards).toHaveCount(7);
     const scrollTopBeforeLastCard = await sheet.evaluate((element) => element.scrollTop);
@@ -501,6 +513,7 @@ test.describe('filled VTT layout regressions', () => {
     await page.setViewportSize({ width: 1280, height: 860 });
     await openFilledGmGame(page);
 
+    await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Бой', exact: true }).click();
     await expect(page.getByLabel('Инструменты сцены').locator('.player-combat-tracker__entry-actions').getByRole('button', { name: /^Открыть лист / })).toHaveCount(0);
 
     const adversaryCard = page.locator('.player-combat-tracker__entry').first();
@@ -508,11 +521,40 @@ test.describe('filled VTT layout regressions', () => {
     await expect(page.getByLabel('Противник мастера')).toHaveCount(0);
     await adversaryCard.click({ position: { x: 12, y: 14 } });
     await expect(page.getByLabel('Противник мастера')).toBeVisible();
-    await page.getByRole('button', { name: 'К ростеру' }).click();
+    await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Участники' }).click();
+    await expect(page.getByLabel('Противник мастера')).toHaveCount(0);
+    await page.getByLabel('Контекст мастера').getByRole('button', { name: /Лист: / }).click();
+    await expect(page.getByLabel('Противник мастера')).toBeVisible();
+    await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Участники' }).click();
 
     const environmentCard = page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledEnvironmentName });
     await environmentCard.click({ position: { x: 16, y: 24 } });
     await expect(page.getByLabel('Окружение мастера')).toBeVisible();
+  });
+
+  test('opens contextual editors and global tools without routing through the reference', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 860 });
+    await openFilledGmGame(page);
+
+    const context = page.getByLabel('Контекст мастера');
+    await context.getByRole('button', { name: 'Сцены' }).click();
+    await page.getByRole('button', { name: 'Настроить', exact: true }).click();
+
+    let workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await expect(workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Сцены' })).toHaveAttribute('aria-pressed', 'true');
+    await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
+
+    const chat = page.getByLabel('Чат игры');
+    await chat.getByRole('button', { name: 'Ещё', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Заметки' }).click();
+    workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await expect(workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Заметки' })).toHaveAttribute('aria-pressed', 'true');
+    await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
+
+    await chat.getByRole('button', { name: 'Ещё', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Настройки' }).click();
+    workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await expect(workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Настройки' })).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

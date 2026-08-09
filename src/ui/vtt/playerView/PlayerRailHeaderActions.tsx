@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Check, Copy, Ellipsis, Trash2 } from 'lucide-react';
+import { Check, Copy, Ellipsis, NotebookPen, Settings, Trash2 } from 'lucide-react';
 import { useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { feedService, p2pSessionService } from '../../../services/serviceRegistry';
@@ -7,9 +7,9 @@ import { P2PHealthIndicator } from '../../p2p/P2PHealthIndicator';
 import { ActionMenu, ConfirmDialog, IconButton } from '../../components/common';
 import { currentSettingsInviteContext } from './helpers';
 import { playerViewUi$, playerViewUiActions } from './playerViewUiState';
-import type { TableViewRole } from './types';
+import type { SharedToolsTab, TableViewRole } from './types';
 
-export function PlayerRailHeaderActions({ role }: { role: TableViewRole }) {
+export function PlayerRailHeaderActions({ role, onOpenTool }: { role: TableViewRole; onOpenTool?: (tab: SharedToolsTab) => void }) {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [clearChronicleOpen, setClearChronicleOpen] = useState(false);
   const session = useStream(p2pSessionService.session$);
@@ -40,8 +40,20 @@ export function PlayerRailHeaderActions({ role }: { role: TableViewRole }) {
         <P2PHealthIndicator placement="chronicle" role={role} />
         {role === 'gm' && (
           <ActionMenu
-            ariaLabel="Другие действия чата"
+            ariaLabel="Ещё"
             items={[
+              {
+                id: 'notes',
+                label: 'Заметки',
+                icon: <NotebookPen size={15} />,
+                onSelect: () => onOpenTool?.('notes')
+              },
+              {
+                id: 'settings',
+                label: 'Настройки',
+                icon: <Settings size={15} />,
+                onSelect: () => onOpenTool?.('settings')
+              },
               {
                 id: 'clear-chronicle',
                 label: 'Очистить чат',
@@ -51,7 +63,7 @@ export function PlayerRailHeaderActions({ role }: { role: TableViewRole }) {
               }
             ]}
             renderTrigger={(props) => (
-              <IconButton {...props} variant="ghost" size="sm" title="Ещё" aria-label="Другие действия чата">
+              <IconButton {...props} variant="ghost" size="sm" title="Ещё" aria-label="Ещё">
                 <Ellipsis size={15} aria-hidden="true" />
               </IconButton>
             )}

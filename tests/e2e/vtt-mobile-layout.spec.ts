@@ -29,7 +29,7 @@ test.describe('VTT detail composition', () => {
 
     const feed = page.getByLabel('Чат игры');
     const panel = page.getByLabel('Инструменты сцены');
-    const contextTabs = panel.getByLabel('Контекст мастера');
+    const contextTabs = page.getByLabel('Контекст мастера');
 
     await expect(feed).toBeVisible();
     await expect(panel).toBeVisible();

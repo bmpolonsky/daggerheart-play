@@ -55,7 +55,9 @@ async function importCharacterWorkflowFixture(gm: Page, configureCharacter?: (ch
   character.domainCards[2] = {
     ...character.domainCards[2],
     text: `${character.domainCards[2].text} Можно хранить до 3 жетонов.`,
-    tokens: { value: 0, max: 3 }
+    // Old saves may contain a stale persisted maximum even though the card text
+    // now resolves to a larger token pool.
+    tokens: { value: 0, max: 1 }
   };
   character.domainCards[0] = {
     ...character.domainCards[0],
@@ -238,7 +240,8 @@ test.describe('filled-game player character workflows', () => {
       const zones = await openCardSection(player);
       const hand = zones.getByRole('region', { name: 'Рука карт доменов' });
       const tokenCard = cardRow(hand, 'Заклинание 3');
-      await expect(tokenCard.getByRole('group', { name: 'Надежда карты Заклинание 3' })).toBeVisible();
+      const tokenTrack = tokenCard.getByRole('group', { name: 'Надежда карты Заклинание 3' });
+      await expect(tokenTrack).toBeVisible();
       await expect(tokenCard.getByTitle('Настроить трекер для «Заклинание 3»')).toHaveCount(0);
 
       const trackedCard = cardRow(hand, 'Заклинание 4');
@@ -288,23 +291,34 @@ test.describe('filled-game player character workflows', () => {
     }
   });
 
+  test('changes several domain-card tokens from the GM sheet without publishing the card', async ({ browser }) => {
+    const { relay, gm } = await openJoinedFilledTable(browser, 'tokens');
+    try {
+      await gm.getByLabel('Участники сцены').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
+      const zones = await openCardSection(gm);
+      const hand = zones.getByRole('region', { name: 'Рука карт доменов' });
+      const tokenCard = cardRow(hand, 'Заклинание 3');
+      const tokenTrack = tokenCard.getByRole('group', { name: 'Надежда карты Заклинание 3' });
+
+      await tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 3 из 3' }).click();
+      await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 1 из 3' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 2 из 3' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 3 из 3' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(gm.locator('.feed-domain-card').filter({ hasText: 'Заклинание 3' })).toHaveCount(0);
+    } finally {
+      await relay.close();
+    }
+  });
+
   test('keeps trusted player editing explicit, synchronized, auditable, undoable, and usable on mobile', async ({ browser }) => {
     const { relay, gm, player } = await openJoinedFilledTable(browser, 'edit');
     try {
       await gm.getByLabel('Участники сцены').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
       const gmSheet = gm.getByLabel('Персонаж игрока');
-      const gmHero = gmSheet.locator('.player-character-panel__hero');
-      const heroBox = await gmHero.boundingBox();
-      const backBox = await gmSheet.getByRole('button', { name: 'К ростеру' }).boundingBox();
-      const editBox = await gmSheet.getByRole('button', { name: 'Редактировать' }).boundingBox();
-      expect(heroBox).not.toBeNull();
-      expect(backBox).not.toBeNull();
-      expect(editBox).not.toBeNull();
-      expect(backBox!.y).toBeGreaterThanOrEqual(heroBox!.y);
-      expect(editBox!.y).toBeGreaterThanOrEqual(heroBox!.y);
-      expect(backBox!.y + backBox!.height).toBeLessThanOrEqual(heroBox!.y + heroBox!.height);
-      expect(editBox!.y + editBox!.height).toBeLessThanOrEqual(heroBox!.y + heroBox!.height);
-      await gmSheet.getByRole('button', { name: 'Редактировать' }).click();
+      await expect(gmSheet.getByRole('button', { name: 'К ростеру' })).toHaveCount(0);
+      const gmContext = gm.getByLabel('Контекст мастера');
+      await expect(gmContext.getByRole('button', { name: new RegExp(`Лист: ${filledCharacterName}`) })).toHaveAttribute('aria-pressed', 'true');
+      await gm.getByRole('button', { name: 'Редактировать', exact: true }).click();
       const directGmEditor = gm.getByRole('dialog', { name: 'Редактор персонажа' });
       await expect(directGmEditor).toBeVisible();
       await expect(directGmEditor).toContainText(filledCharacterName);

@@ -374,7 +374,6 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   }, []);
   const needsSeatSelection = role === 'player' && playerSeats.length > 0 && !selectedPlayerSeat;
   const openRoster = useCallback(() => {
-    setViewedActor(null);
     setPanelOpen(true);
     setMobileLayer('sheet');
     setRosterRequestId((current) => current + 1);
@@ -511,13 +510,13 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           sceneId={model.scene.id}
           sceneTable={sceneTable}
           onClearActivationRequest={(request) => void p2pSessionService.clearRaisedHand(request)}
-          onClearActor={() => setViewedActor(null)}
           onDomainCardPreview={previewDomainCard}
           onFeaturePreview={previewCharacterFeature}
           onOpenChronicle={() => { setActivityOpen(true); setMobileLayer('feed'); }}
           onAddToScene={role === 'gm' ? openSceneAddTarget : undefined}
           onWealthEdit={editCharacterWealth}
           onEditCharacter={displayedCharacter ? () => setEditingCharacterId(displayedCharacter.id) : undefined}
+          onOpenTool={openTool}
           onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
           onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
           onOpenActor={openActor}

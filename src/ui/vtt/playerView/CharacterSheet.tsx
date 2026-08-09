@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import type { JSX } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import { useMemo, useRef, useState } from "preact/hooks";
 import { ChevronLeft, Crosshair, Heart, MapPlus, PawPrint, Pencil, Shield, Swords, Trash2, Zap } from "lucide-react";
 import { useStream } from "../../../core/hooks/useStream";
@@ -40,6 +40,7 @@ export function CharacterSheet({
   character,
   beastforms = [],
   role,
+  navigation,
   showRuleEffects = false,
   showBackButton = false,
   onBack,
@@ -51,6 +52,7 @@ export function CharacterSheet({
   character: PlayerViewCharacterSummary;
   beastforms?: LibraryBeastform[];
   role: TableViewRole;
+  navigation?: ComponentChildren;
   /** Full rule audit belongs to the library sheet, not the compact table-side panel. */
   showRuleEffects?: boolean;
   showBackButton?: boolean;
@@ -111,8 +113,13 @@ export function CharacterSheet({
   const selectSheetSection = (sectionId: PlayerSheetSectionId) => {
     setActiveSheetSection(sectionId);
     const targetId = PLAYER_SHEET_SECTIONS.find((section) => section.id === sectionId)?.target;
-    if (!targetId) return;
-    sheetRef.current?.querySelector<HTMLElement>(`#${targetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const sheet = sheetRef.current;
+    const target = targetId ? sheet?.querySelector<HTMLElement>(`#${targetId}`) : null;
+    if (!sheet || !target) return;
+    sheet.scrollTo({
+      behavior: 'smooth',
+      top: sheet.scrollTop + target.getBoundingClientRect().top - sheet.getBoundingClientRect().top
+    });
   };
   const trackVisibleSection = (event: Event) => {
     const sheet = event.currentTarget as HTMLElement;
@@ -126,6 +133,7 @@ export function CharacterSheet({
   };
   return (
     <div className="player-character-panel-shell">
+      {navigation}
       <PlayerSheetSectionRail activeSheetSection={activeSheetSection} onSelect={selectSheetSection} />
       <aside ref={sheetRef} className="player-character-panel" aria-label="Персонаж игрока" data-vtt-side-panel onScroll={trackVisibleSection}>
         <header className="player-character-panel__hero" style={heroStyle}>

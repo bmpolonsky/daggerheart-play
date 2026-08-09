@@ -254,28 +254,30 @@ function DomainCardRow({
       title={card.name}
       subtitle={`${card.domainLabel} ${card.level}${status ? ` — ${status}` : ''}`}
       leftAccessory={card.imageUrl ? <AssetImage className="player-domain-card-thumb" src={card.imageUrl} alt="" /> : undefined}
-      detail={card.tokens.max > 0 && (
-        <TrackDots
-          value={card.tokens.value}
-          max={card.tokens.max}
-          tone="hope"
-          label={`Надежда карты ${card.name}`}
-          onSet={(next) => onTokenChange(card.id, next)}
-        />
-      )}
       rightAccessory={(
-        <div className="player-domain-card-row-actions">
-          {(tracker || card.tokens.max <= 0) && (
-            <UsageTrackerControl
-              compact
-              characterId={characterId}
-              targetKind="card"
-              targetId={card.id}
-              targetName={card.name}
-              tracker={tracker}
+        <div className="player-domain-card-row-controls">
+          {card.tokens.max > 0 && (
+            <TrackDots
+              value={card.tokens.value}
+              max={card.tokens.max}
+              tone="hope"
+              label={`Надежда карты ${card.name}`}
+              onSet={(next) => onTokenChange(card.id, next)}
             />
           )}
-          {action}
+          <div className="player-domain-card-row-actions">
+            {(tracker || card.tokens.max <= 0) && (
+              <UsageTrackerControl
+                compact
+                characterId={characterId}
+                targetKind="card"
+                targetId={card.id}
+                targetName={card.name}
+                tracker={tracker}
+              />
+            )}
+            {action}
+          </div>
         </div>
       )}
       onClick={() => onPreview(card.id)}

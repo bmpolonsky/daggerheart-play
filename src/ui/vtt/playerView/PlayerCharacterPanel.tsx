@@ -25,7 +25,6 @@ export function PlayerCharacterPanel({
   sceneId,
   sceneTable,
   onClearActivationRequest,
-  onClearActor,
   onDomainCardPreview,
   onFeaturePreview,
   onOpenChronicle,
@@ -34,6 +33,7 @@ export function PlayerCharacterPanel({
   onForceMutePlayer,
   onWealthEdit,
   onEditCharacter,
+  onOpenTool,
   onOpenActor
 }: {
   activeAdversaryId: string | null;
@@ -48,7 +48,6 @@ export function PlayerCharacterPanel({
   sceneId: string;
   sceneTable: SceneTableState;
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor["activationRequest"]>) => void;
-  onClearActor: () => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onOpenChronicle?: () => void;
@@ -57,6 +56,7 @@ export function PlayerCharacterPanel({
   onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
   onEditCharacter?: () => void;
+  onOpenTool: (tab: 'characters' | 'scenes' | 'combat' | 'handouts') => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
   const characters = useStream(characterService.characters$);
@@ -92,7 +92,6 @@ export function PlayerCharacterPanel({
         sceneId={sceneId}
         sceneTable={sceneTable}
         onClearActivationRequest={onClearActivationRequest}
-        onClearActor={onClearActor}
         onDomainCardPreview={onDomainCardPreview}
         onFeaturePreview={onFeaturePreview}
         onOpenChronicle={onOpenChronicle}
@@ -100,6 +99,7 @@ export function PlayerCharacterPanel({
         onForceMutePlayer={onForceMutePlayer}
         onWealthEdit={onWealthEdit}
         onEditCharacter={onEditCharacter}
+        onOpenTool={onOpenTool}
         onOpenActor={onOpenActor}
       />
     );

@@ -15,7 +15,7 @@ export function PlayerRailTabs({ active, role, onSelect }: {
       <TabButton active={active === 'chronicle'} title="Чат" aria-label="Чат" onClick={() => onSelect('chronicle')}>
         <BookOpenText size={16} aria-hidden="true" />
       </TabButton>
-      <TabButton active={active === 'library'} title="Библиотека игры" aria-label="Библиотека игры" onClick={() => onSelect('library')}>
+      <TabButton active={active === 'library'} title="Справочник" aria-label="Справочник" onClick={() => onSelect('library')}>
         <LibraryBig size={16} aria-hidden="true" />
       </TabButton>
       {role === 'gm' && (

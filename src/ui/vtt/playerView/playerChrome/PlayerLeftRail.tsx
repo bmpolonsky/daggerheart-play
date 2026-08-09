@@ -161,14 +161,14 @@ export function PlayerLeftRail({
           }}
         />
       )}
+      <header className="player-chronicle-header">
+        <PlayerRailTabs active="chronicle" role={role} onSelect={(tab) => {
+          if (tab === 'library') onOpenTool('library');
+          if (tab === 'npc') onOpenTool('generators');
+        }} />
+        <PlayerRailHeaderActions role={role} onOpenTool={onOpenTool} />
+      </header>
       <section className={`player-activity-card ${role === 'gm' ? 'player-activity-card--gm' : ''}`}>
-        <header className="player-chronicle-header">
-          <PlayerRailTabs active="chronicle" role={role} onSelect={(tab) => {
-            if (tab === 'library') onOpenTool('library');
-            if (tab === 'npc') onOpenTool('generators');
-          }} />
-          <PlayerRailHeaderActions role={role} />
-        </header>
         {visibleCountdowns.length > 0 && (
           <div className="player-countdown-strip" aria-label="Отсчеты">
             {visibleCountdowns.map((countdown) => (

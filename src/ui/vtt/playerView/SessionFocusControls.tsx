@@ -29,7 +29,7 @@ export function SessionFocusControls({
       <IconButton
         className={`player-session-panel-toggle player-session-panel-toggle--left ${activityOpen ? 'dh-is-open' : ''}`}
         variant="secondary"
-        tone={activityOpen ? 'gold' : 'neutral'}
+        tone="neutral"
         size="sm"
         type="button"
         title={`${chronicleCommand} — ${connectionLabel}`}
@@ -43,7 +43,7 @@ export function SessionFocusControls({
       <IconButton
         className={`player-session-panel-toggle player-session-panel-toggle--right ${panelOpen ? 'dh-is-open' : ''}`}
         variant="secondary"
-        tone={panelOpen ? 'gold' : 'neutral'}
+        tone="neutral"
         size="sm"
         type="button"
         title={panelOpen ? `Скрыть ${rightPanelLabel}` : `Открыть ${rightPanelLabel}`}

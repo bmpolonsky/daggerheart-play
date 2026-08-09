@@ -58,7 +58,7 @@ test.describe('dark glass visual system smoke', () => {
     await expectInsideViewport(page, feed);
     await expectInsideViewport(page, scene);
     await expectInsideViewport(page, sheet);
-    await expectStableButton(page.getByRole('button', { name: 'Библиотека игры' }));
+    await expectStableButton(page.getByRole('button', { name: 'Справочник' }));
 
     await openGameLibrary(page);
     const modal = page.getByRole('dialog', { name: 'Библиотека игры' });

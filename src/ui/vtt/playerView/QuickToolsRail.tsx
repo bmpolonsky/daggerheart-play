@@ -13,14 +13,14 @@ export function QuickToolsRail({ npc, onNpcChange, onClose, onOpenTool }: {
 }) {
   return (
     <aside className="player-left-rail player-quick-tools-rail" aria-label="Быстрые инструменты">
+      <header className="player-chronicle-header">
+        <PlayerRailTabs active="npc" role="gm" onSelect={(tab) => {
+          if (tab === 'chronicle') onClose();
+          if (tab === 'library') onOpenTool('library');
+        }} />
+        <PlayerRailHeaderActions role="gm" onOpenTool={onOpenTool} />
+      </header>
       <section className="player-activity-card player-quick-tools-card">
-        <header className="player-chronicle-header">
-          <PlayerRailTabs active="npc" role="gm" onSelect={(tab) => {
-            if (tab === 'chronicle') onClose();
-            if (tab === 'library') onOpenTool('library');
-          }} />
-          <PlayerRailHeaderActions role="gm" />
-        </header>
         <div className="player-quick-tools-card__body">
           <SharedToolsGeneratorsTab npc={npc} onNpcChange={onNpcChange} />
         </div>

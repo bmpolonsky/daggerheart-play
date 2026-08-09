@@ -34,6 +34,7 @@ test.describe('combat builder sync', () => {
 
     await addRedOoze(builder);
     await expect(builder.locator('.combat-encounter-panel')).toContainText('1 противников');
+    await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Бой', exact: true }).click();
     const gmAdversary = gm.locator('.player-combat-tracker__entry').filter({ hasText: 'Алая Слизь' });
     await expect(gmAdversary).toBeVisible();
     await expect(gmAdversary.locator('.player-combat-tracker__entry-actions').getByRole('button', { name: /Открыть лист/ })).toHaveCount(0);
@@ -43,7 +44,7 @@ test.describe('combat builder sync', () => {
     await expect(sheetTrigger).toBeFocused();
     await gm.keyboard.press('Enter');
     await expect(gm.getByLabel('Противник мастера')).toBeVisible();
-    await gm.getByRole('button', { name: 'К ростеру' }).click();
+    await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Бой', exact: true }).click();
     await expect(gmAdversary).toBeVisible();
 
     const secondBuilder = await openCombatBuilder(context);
@@ -58,6 +59,7 @@ test.describe('combat builder sync', () => {
     await secondBuilder.getByTitle('Уменьшить / Удалить').first().click();
 
     await expect(builder.locator('.combat-encounter-panel')).toContainText('0 противников');
+    await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Участники' }).click();
     await expect(gm.locator('.player-participant-feed__empty')).toContainText('Сцена пока пуста');
   });
 });

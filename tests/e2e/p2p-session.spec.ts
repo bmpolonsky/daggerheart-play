@@ -123,7 +123,9 @@ test.describe('P2P session workflow', () => {
     await expect(chronicle).toBeVisible();
     await page.getByLabel('Сообщение игрока').fill('Заполненный чат для проверки заголовка');
     await page.getByRole('button', { name: 'Отправить сообщение' }).click();
-    await chronicle.getByRole('button', { name: 'Другие действия чата' }).click();
+    await chronicle.getByRole('button', { name: 'Ещё', exact: true }).click();
+    await expect(page.getByRole('menuitem', { name: 'Заметки' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Настройки' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Очистить чат' })).toBeVisible();
 
     const chronicleHeader = chronicle.locator('.player-chronicle-header');

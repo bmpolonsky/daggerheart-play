@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import type { ComponentChildren } from 'preact';
 import { Eye, EyeOff, MapPlus, Trash2 } from 'lucide-react';
 import { useMemo } from 'preact/hooks';
 import { useStream } from '../../../../core/hooks/useStream';
@@ -9,10 +10,12 @@ import { buildCombatTrackerEntries } from './combatTrackerModel';
 
 export function GmCombatTracker({
   activeAdversaryId,
+  emptyState,
   sceneId,
   onOpenActor
 }: {
   activeAdversaryId: string | null;
+  emptyState?: ComponentChildren;
   sceneId: string;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
@@ -22,7 +25,7 @@ export function GmCombatTracker({
   const targetSceneId = scene?.id ?? null;
   const entries = useMemo(() => buildCombatTrackerEntries(encounter, scene), [encounter, scene]);
 
-  if (entries.length === 0) return null;
+  if (entries.length === 0) return <>{emptyState}</>;
 
   return (
     <section className="player-participant-group" aria-label="Противники">

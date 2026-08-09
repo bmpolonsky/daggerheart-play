@@ -27,6 +27,25 @@ test('domain card token controls stay explicit and separate from card publicatio
   assert.equal(characterService.getCharacter(character.id)?.domainCards.find((card) => card.id === 'token-card')?.tokens.value, 3);
 });
 
+test('domain card token updates heal a stale stored maximum', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  characterService.addDomainCard(character.id, {
+    id: 'stale-token-card',
+    name: 'Stale Token Card',
+    text: 'Можно хранить до 6 жетонов.',
+    inLoadout: true,
+    tokens: { value: 1, max: 1 }
+  });
+
+  characterService.updateDomainCardTokens(character.id, 'stale-token-card', 4);
+
+  assert.deepEqual(
+    characterService.getCharacter(character.id)?.domainCards.find((card) => card.id === 'stale-token-card')?.tokens,
+    { value: 4, max: 6 }
+  );
+});
+
 test('starter domain cards come from library data and can seed empty characters', () => {
   resetAllStores();
   const character = firstCharacter();

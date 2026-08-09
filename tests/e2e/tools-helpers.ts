@@ -4,7 +4,7 @@ export async function openGameLibrary(page: Page): Promise<Locator> {
   const dialog = page.getByRole('dialog', { name: 'Библиотека игры' });
   if (await dialog.count()) return dialog;
 
-  const libraryButton = page.getByRole('button', { name: 'Библиотека игры' });
+  const libraryButton = page.getByRole('button', { name: 'Справочник' });
   if (!await libraryButton.isVisible()) {
     await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
   }

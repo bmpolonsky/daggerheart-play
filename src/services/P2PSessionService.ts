@@ -11,6 +11,7 @@ import { shouldUseServerSession } from '../domain/p2p/serverSession';
 import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
+import { resolveDomainCardTokenMax } from '../domain/rules/domainCards';
 import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
 import type { SyncEventContext, SyncTargetPeer, TableParticipant } from '../domain/tabletop/types';
 import type { Character, CharacterCondition, FeedEntry, PersistedState, RollLogEntry } from '../domain/rules/types';
@@ -1308,20 +1309,22 @@ export class P2PSessionService {
     const character = charactersStore.get().entities[message.actorId];
     if (!character) return false;
     const resources = message.resources;
+    const effective = buildEffectiveCharacterStats(character);
     const nextDomainCards = resources.domainCards
       ? character.domainCards.map((card) => {
           const remote = resources.domainCards?.find((item) => item.id === card.id);
           if (!remote?.tokens) return card;
+          const max = resolveDomainCardTokenMax(card, effective.traits);
           return {
             ...card,
             tokens: {
               ...card.tokens,
-              value: clamp(toSafeInteger(remote.tokens.value, card.tokens.value), 0, card.tokens.max)
+              value: clamp(toSafeInteger(remote.tokens.value, card.tokens.value), 0, max),
+              max
             }
           };
         })
       : character.domainCards;
-    const effective = buildEffectiveCharacterStats(character);
     const updated: Character = syncCharacterDefeatedCondition({
       ...character,
       hope: resources.hope

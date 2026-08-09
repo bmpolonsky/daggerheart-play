@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import type { ComponentChildren } from "preact";
 import { ChevronLeft } from "lucide-react";
 import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import type { EncounterEnvironment } from "../../../domain/rules/types";
@@ -6,21 +7,26 @@ import { diceService, feedService, gameService } from "../../../services/service
 import { parseSheetFeatureText, SheetFeatureSection, SheetHero, SheetLeadBlock, SheetTextSection, type SheetFeatureView } from "./SheetContent";
 import { IconButton } from "../../components/common/IconButton";
 
-export function EnvironmentSheet({ environment, onBack }: { environment: EncounterEnvironment; onBack: () => void }) {
+export function EnvironmentSheet({ environment, navigation, onBack }: { environment: EncounterEnvironment; navigation?: ComponentChildren; onBack?: () => void }) {
   const portraitUrl = environment.imageUrl ?? '';
   const difficulty = environment.difficulty ? `Сложность ${environment.difficulty}` : 'Сложность не указана';
   return (
-    <aside className="player-character-panel" aria-label="Окружение мастера" data-vtt-side-panel>
-      <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
-        <ChevronLeft size={17} aria-hidden="true" />
-      </IconButton>
-      <SheetHero className="player-character-panel__hero--environment" imageUrl={portraitUrl} title={environment.name} meta={[difficulty]} />
-      <SheetLeadBlock text={environmentLeadText(environment)} />
-      <SheetTextSection title="Потенциальные противники" text={environment.potentialAdversaries} />
-      <EnvironmentFeatureSection environment={environment} />
-      <SheetTextSection title="Описание" text={environment.body} />
-      <SheetTextSection title="Заметки" text={environment.notes} />
-    </aside>
+    <div className="player-character-panel-shell">
+      {navigation}
+      <aside className="player-character-panel" aria-label="Окружение мастера" data-vtt-side-panel>
+        {onBack && (
+          <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
+            <ChevronLeft size={17} aria-hidden="true" />
+          </IconButton>
+        )}
+        <SheetHero className="player-character-panel__hero--environment" imageUrl={portraitUrl} title={environment.name} meta={[difficulty]} />
+        <SheetLeadBlock text={environmentLeadText(environment)} />
+        <SheetTextSection title="Потенциальные противники" text={environment.potentialAdversaries} />
+        <EnvironmentFeatureSection environment={environment} />
+        <SheetTextSection title="Описание" text={environment.body} />
+        <SheetTextSection title="Заметки" text={environment.notes} />
+      </aside>
+    </div>
   );
 }
 

@@ -18,6 +18,7 @@ import {
   rollRiskItAll
 } from '../domain/rules/deathMoves';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
+import { resolveDomainCardTokenMax } from '../domain/rules/domainCards';
 import { buildEquipmentAttachmentPlan } from '../domain/rules/equipment';
 import { createCharacter, createDomainCard, createExperience, createInventoryItem, createSheetCard, createWeapon, sanitizeWealth } from '../domain/rules/factories';
 import {
@@ -689,12 +690,17 @@ export class CharacterService {
   }
 
   updateDomainCardTokens(id: string, cardId: string, value: number): void {
-    this.patchCharacter(id, (character) => ({
-      ...character,
-      domainCards: character.domainCards.map((card) => (
-        card.id === cardId ? { ...card, tokens: { ...card.tokens, value: clamp(value, 0, card.tokens?.max ?? 0) } } : card
-      ))
-    }), { audit: false });
+    this.patchCharacter(id, (character) => {
+      const traits = buildEffectiveCharacterStats(character).traits;
+      return {
+        ...character,
+        domainCards: character.domainCards.map((card) => {
+          if (card.id !== cardId) return card;
+          const max = resolveDomainCardTokenMax(card, traits);
+          return { ...card, tokens: { ...card.tokens, value: clamp(value, 0, max), max } };
+        })
+      };
+    }, { audit: false });
   }
 
   configureUsageTracker(

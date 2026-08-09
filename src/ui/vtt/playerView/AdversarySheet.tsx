@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import { ChevronLeft, Heart, Zap } from "lucide-react";
 import type { PlayerViewAdversarySummary } from "../../../domain/tabletop/playerView";
@@ -14,7 +15,7 @@ import { StatusChips } from "./StatusChips";
 import { IconButton } from "../../components/common/IconButton";
 import { ListItem } from "../../components/common/ListItem";
 
-export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdversarySummary; onBack: () => void }) {
+export function AdversarySheet({ adversary, navigation, onBack }: { adversary: PlayerViewAdversarySummary; navigation?: ComponentChildren; onBack?: () => void }) {
   const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
   const runFeatureMacro = (feature: SheetFeatureView, macro: DomainCardTextMacro) => {
     runAdversaryFeatureMacro(adversary, feature, macro);
@@ -39,17 +40,21 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
   };
   return (
     <>
-      <aside className="player-character-panel" aria-label="Противник мастера" data-vtt-side-panel>
-        <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
-          <ChevronLeft size={17} aria-hidden="true" />
-        </IconButton>
-        <SheetHero
-          imageUrl={adversary.portraitUrl}
-          title={adversary.name}
-          subtitle={adversary.subtitle}
-        />
-        <SheetLeadBlock text={adversary.notes} />
-        <SheetSection title="Состояние">
+      <div className="player-character-panel-shell">
+        {navigation}
+        <aside className="player-character-panel" aria-label="Противник мастера" data-vtt-side-panel>
+          {onBack && (
+            <IconButton className="player-character-panel__back" variant="ghost" size="sm" type="button" title="К ростеру" aria-label="К ростеру" onClick={onBack}>
+              <ChevronLeft size={17} aria-hidden="true" />
+            </IconButton>
+          )}
+          <SheetHero
+            imageUrl={adversary.portraitUrl}
+            title={adversary.name}
+            subtitle={adversary.subtitle}
+          />
+          <SheetLeadBlock text={adversary.notes} />
+          <SheetSection title="Состояние">
           <section className="player-track-list">
             <TrackRow
               icon={<Heart size={16} />}
@@ -92,27 +97,28 @@ export function AdversarySheet({ adversary, onBack }: { adversary: PlayerViewAdv
               onRemove={removeStatus}
             />
           </section>
-        </SheetSection>
-        <SheetSection title="Атака">
+          </SheetSection>
+          <SheetSection title="Атака">
           <ListItem
             title={adversary.standardAttack.name}
             subtitle={`${signed(adversary.attackModifier)} / ${adversary.standardAttack.range} / ${adversary.standardAttack.damage} ${compactDamageTypeLabel(adversary.standardAttack.damageType)}`}
             tone="featured"
             onClick={() => setAdversaryAttackConfirmOpen(true)}
           />
-        </SheetSection>
-        <SheetSection title="Опыт" emptyLabel="Опыт не указан">
+          </SheetSection>
+          <SheetSection title="Опыт" emptyLabel="Опыт не указан">
           {adversary.experiences.map((experience) => (
             <ListItem key={experience.id} title={experience.name} value={signed(experience.modifier)} density="compact" />
           ))}
-        </SheetSection>
-        <SheetFeatureSection
-          emptyLabel="Особенности не указаны"
-          features={adversary.features}
-          isInteractive={isInteractiveAdversaryFeatureTextMacro}
-          onMacro={runFeatureMacro}
-        />
-      </aside>
+          </SheetSection>
+          <SheetFeatureSection
+            emptyLabel="Особенности не указаны"
+            features={adversary.features}
+            isInteractive={isInteractiveAdversaryFeatureTextMacro}
+            onMacro={runFeatureMacro}
+          />
+        </aside>
+      </div>
       {adversaryAttackConfirmOpen && (
         <AdversaryAttackConfirm
           adversary={adversary}
