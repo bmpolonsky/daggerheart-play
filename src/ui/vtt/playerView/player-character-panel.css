@@ -1618,6 +1618,13 @@
   align-self: center;
 }
 
+.player-sheet-inventory-row .dh-list-item__title {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 .player-sheet-row--lead {
   margin-top: -2px;
   background: rgba(7, 9, 12, 0.28);
@@ -1698,11 +1705,41 @@
   flex-wrap: wrap;
 }
 
-.player-domain-card-row-controls {
-  min-width: 0;
+.player-domain-card-row {
   display: grid;
-  justify-items: end;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: start;
+}
+
+.player-domain-card-row .dh-list-item__left-accessory {
+  grid-row: 1 / span 2;
+}
+
+.player-domain-card-row .dh-list-item__content,
+.player-domain-card-row .dh-list-item__right-accessory {
+  grid-column: 2;
+}
+
+.player-domain-card-row .dh-list-item__title {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.player-domain-card-row .dh-list-item__right-accessory {
+  width: 100%;
+  justify-content: stretch;
+}
+
+.player-domain-card-row-controls {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 5px;
+  flex-wrap: wrap;
 }
 
 .player-domain-card-more {
@@ -2137,7 +2174,7 @@
     top: 18px;
     right: 18px;
     bottom: 18px;
-    width: min(368px, calc(100vw - 36px));
+    width: min(350px, calc(100vw - 36px));
     border: 0;
     border-radius: 16px;
     background: rgba(7, 9, 12, 0.54);
@@ -2149,7 +2186,7 @@
     top: 18px;
     right: 18px;
     bottom: 18px;
-    width: min(368px, calc(100vw - 36px));
+    width: min(350px, calc(100vw - 36px));
     background: rgba(7, 9, 12, 0.54);
     box-shadow: 0 24px 72px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(22px) saturate(1.12);
@@ -2169,7 +2206,7 @@
 @media (min-width: 921px) and (max-width: 1120px) {
   .player-character-panel,
   .player-character-panel-shell {
-    width: clamp(300px, 30vw, 336px);
+    width: clamp(280px, 29vw, 300px);
   }
 }
 

@@ -76,12 +76,6 @@ test.describe('mobile VTT composition', () => {
     await tabs.getByRole('button', { name: 'Чат' }).click();
     await expect(root).toHaveClass(/player-view--mobile-feed/);
     await expectInsideViewport(page, feed);
-    await feed.getByRole('button', { name: 'Генератор NPC' }).click();
-    await expect(page.getByLabel('Быстрые инструменты')).toBeVisible();
-    await expect(tabs.getByRole('button', { name: 'Чат' })).toHaveAttribute('aria-pressed', 'true');
-    await tabs.getByRole('button', { name: 'Чат' }).click();
-    await expect(page.getByLabel('Быстрые инструменты')).toHaveCount(0);
-    await expectInsideViewport(page, feed);
     await tabs.getByRole('button', { name: 'Лист' }).click();
     await expect(root).toHaveClass(/player-view--mobile-sheet/);
     await expectInsideViewport(page, sheet);

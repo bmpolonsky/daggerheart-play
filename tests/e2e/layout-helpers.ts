@@ -46,12 +46,20 @@ export async function expectNoOverlap(first: Locator, second: Locator, tolerance
 }
 
 export async function expectHiddenSurface(locator: Locator): Promise<void> {
-  await expect(locator).toHaveCSS('opacity', '0');
-  await expect(locator).toHaveCSS('pointer-events', 'none');
   await expect.poll(() => locator.evaluate((element) => {
     const hiddenAncestor = element.closest('[aria-hidden="true"]');
     const inertAncestor = element.closest('[inert]');
-    return Boolean(hiddenAncestor && inertAncestor?.hasAttribute('inert'));
+    let current: Element | null = element;
+    let visuallyHidden = false;
+    let interactionBlocked = false;
+    while (current) {
+      const style = getComputedStyle(current);
+      visuallyHidden ||= style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none';
+      interactionBlocked ||= style.pointerEvents === 'none';
+      if (current === hiddenAncestor) break;
+      current = current.parentElement;
+    }
+    return Boolean(hiddenAncestor && inertAncestor?.hasAttribute('inert') && visuallyHidden && interactionBlocked);
   }), { message: 'hidden surface should be absent from focus and accessibility navigation' }).toBe(true);
 }
 

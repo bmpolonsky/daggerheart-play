@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Minus, Plus, Shield, Trash2, Users } from 'lucide-react';
+import { ExternalLink, Minus, Plus, Shield, Trash2, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { Adversary } from '@combat/lib/api';
 import { buildEncounterSummary, calculateAdversaryCost, type DifficultyMode } from '@combat/lib/mechanics';
@@ -24,6 +24,7 @@ import {
 } from '../../../components/common';
 import { LibraryDetailPanel } from '../library/LibraryDetailPanel';
 import type { LibraryEntry } from '../library/libraryDetailTypes';
+import { openWorkspaceInNewTab } from '../helpers';
 
 const difficultyOptions: Array<{ value: DifficultyMode; label: string }> = [
   { value: 'easy', label: 'Легко' },
@@ -79,6 +80,16 @@ export function SharedToolsCombatTab() {
 
   return (
     <section className="player-tools-section player-tools-section--embedded-combat" aria-label="Бой">
+      <div className="player-combat-workspace-actions">
+        <Button
+          variant="ghost"
+          size="xs"
+          iconBefore={<ExternalLink size={14} aria-hidden="true" />}
+          onClick={() => openWorkspaceInNewTab('combat')}
+        >
+          Развернуть бой
+        </Button>
+      </div>
       <div className={`player-combat-layout ${selectedEntry ? 'player-combat-layout--with-detail' : ''}`}>
         <Surface className="player-combat-catalog" padding="none">
           <header className="player-combat-panel-header">

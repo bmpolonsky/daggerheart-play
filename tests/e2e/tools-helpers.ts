@@ -6,7 +6,12 @@ export async function openGameLibrary(page: Page): Promise<Locator> {
 
   const libraryButton = page.getByRole('button', { name: 'Справочник' });
   if (!await libraryButton.isVisible()) {
-    await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
+    const desktopToggle = page.getByRole('button', { name: /^Открыть чат/ });
+    if (await desktopToggle.isVisible()) {
+      await desktopToggle.click();
+    } else {
+      await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
+    }
   }
   await libraryButton.click();
   return dialog;

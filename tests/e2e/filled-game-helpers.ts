@@ -52,6 +52,7 @@ export async function importPopulatedGame(page: Page): Promise<void> {
 }
 
 export async function importGameDocument(page: Page, document: unknown, fileName = fixtureFileName): Promise<void> {
+  const activityWasOpen = await page.locator('[data-vtt-root]').evaluate((element) => element.classList.contains('player-view--activity-open'));
   await openGameLibrary(page);
   const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
   await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Настройки' }).click();
@@ -64,6 +65,9 @@ export async function importGameDocument(page: Page, document: unknown, fileName
   await expect(workspace.getByText(`Игра импортирована: ${fileName}`)).toBeVisible({ timeout: 15_000 });
   await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
   await expect(page.getByRole('button', { name: filledCharacterName, exact: true }).first()).toBeVisible({ timeout: 15_000 });
+  if (!activityWasOpen && await page.locator('[data-vtt-root].player-view--activity-open').count()) {
+    await page.getByRole('button', { name: 'Скрыть чат' }).click();
+  }
 }
 
 export function createPopulatedGameDocument() {

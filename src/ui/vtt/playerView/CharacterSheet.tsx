@@ -620,6 +620,7 @@ export function CharacterSheet({
         {character.inventory.filter((item) => item.kind === 'consumable').map((item) => {
           return (
             <ListItem
+              className="player-sheet-inventory-row player-sheet-inventory-row--action"
               key={item.id}
               title={item.name}
               subtitle={inventoryQuantityLabel(item)}
@@ -650,6 +651,7 @@ export function CharacterSheet({
           const quantityLabel = inventoryQuantityLabel(item);
           return (
             <ListItem
+              className="player-sheet-inventory-row"
               key={item.id}
               title={item.name}
               subtitle={quantityLabel}

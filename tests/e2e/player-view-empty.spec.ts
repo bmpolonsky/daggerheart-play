@@ -30,7 +30,10 @@ test.describe('Player View empty state', () => {
     const gmLobby = page.getByLabel('Создать сессию мастера');
     await expect(gmLobby.getByText('Добавьте игроков')).toBeVisible();
     await expect(gmLobby.getByLabel('Имя игрока')).toHaveCount(0);
-    await expect(page.getByLabel('Управление сохранениями').getByText('Сохранений пока нет')).toBeVisible();
+    const currentGame = page.getByLabel('Текущая игра');
+    await expect(currentGame).toContainText('Без названия');
+    await expect(currentGame).toContainText('Выберите или создайте игру');
+    await expect(currentGame.getByRole('button', { name: 'Сменить' })).toBeVisible();
     const copyInvite = gmLobby.getByRole('button', { name: 'Копировать ссылку игрока' });
     await expect(copyInvite).toBeEnabled();
     await copyInvite.click();

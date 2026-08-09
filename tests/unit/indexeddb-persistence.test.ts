@@ -82,9 +82,8 @@ test('persistence mirrors the exported game document into IndexedDB with custom 
   try {
     const service = new PersistenceService(documentStore);
     service.persistNow();
-    await Promise.resolve();
+    await waitFor(() => assert.equal(documentStore.state?.manifest.kind, 'daggerheart-play:game'));
 
-    assert.equal(documentStore.state?.manifest.kind, 'daggerheart-play:game');
     assert.deepEqual(documentStore.state, JSON.parse(importExportService.exportGameJson(false)));
     assert.equal(documentStore.state?.files['data/game.json'].name, snapshotPersistedState().game.name);
     assert.deepEqual(documentStore.state?.files['content/custom-ancestries.json'], [{ id: 'custom-ancestry-1', name: 'Custom Ancestry' }]);
@@ -393,7 +392,7 @@ test('persistence keeps multiple local games and switches the active one', async
     gameService.setFear(4);
     sceneTableService.updateScene(sceneTableStore.get().activeSceneId, { backgroundUrl: 'https://example.test/long-game.webp' });
     service.persistNow();
-    await Promise.resolve();
+    await waitFor(() => assert.equal(documentStore.state?.files['data/game.json'].name, 'Длинная игра'));
     const [first] = await service.listStoredGames();
     assert.ok(first);
 
@@ -404,7 +403,7 @@ test('persistence keeps multiple local games and switches the active one', async
     gameService.updateGame({ name: 'Ваншот' });
     gameService.setFear(1);
     service.persistNow();
-    await Promise.resolve();
+    await waitFor(() => assert.equal(documentStore.state?.files['data/game.json'].name, 'Ваншот'));
 
     const games = await service.listStoredGames();
     assert.deepEqual(games.map((game) => game.name), ['Ваншот', 'Длинная игра']);

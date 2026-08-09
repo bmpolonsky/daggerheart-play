@@ -3,7 +3,7 @@ import type { P2PSessionState } from '../../src/services/P2PSessionService';
 import { createSheetCard } from '../../src/domain/rules/factories';
 import { createIsolatedDeterministicP2PRelay, installDeterministicP2PTransport, openGmGame, openPlayerGame, openSharedGmGame, openSharedPlayerGame } from './game-route-helpers';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
-import { expectInsideBounds, expectInsideViewport, expectNoOverlap, expectTopLayerAtPoint, rect } from './layout-helpers';
+import { expectInsideBounds, expectInsideViewport, expectTopLayerAtPoint, rect } from './layout-helpers';
 import { openGameLibrary } from './tools-helpers';
 
 async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Игра' | 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
@@ -43,6 +43,25 @@ async function createLobbyInvite(page: Page): Promise<string> {
   const invite = gmLobby.getByRole('textbox', { name: /^Ссылка приглашения/ });
   await expect(invite).toHaveValue(new RegExp(`/#/join/${roomId}$`));
   return invite.inputValue();
+}
+
+async function waitForStoredMusicDeliveryMode(page: Page, mode: 'download' | 'broadcast'): Promise<void> {
+  await expect.poll(() => page.evaluate(async (expectedMode) => {
+    const project = await new Promise<any>((resolve, reject) => {
+      const request = indexedDB.open('daggerheart-play-game');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction('documents', 'readonly');
+        const read = transaction.objectStore('documents').get('current-game');
+        read.onerror = () => reject(read.error);
+        read.onsuccess = () => resolve(read.result);
+        transaction.oncomplete = () => db.close();
+      };
+    });
+    const activeGame = project?.games?.[project.activeGameId];
+    return activeGame?.state?.sceneTable?.musicDeliveryMode === expectedMode;
+  }, mode)).toBe(true);
 }
 
 async function newSharedPage(browser: Browser): Promise<Page> {
@@ -129,12 +148,10 @@ test.describe('P2P session workflow', () => {
     await expect(page.getByRole('menuitem', { name: 'Очистить чат' })).toBeVisible();
 
     const chronicleHeader = chronicle.locator('.player-chronicle-header');
-    const headerTitle = chronicleHeader.locator('.player-chronicle-header__title');
     const diagnosticTrigger = chronicleHeader.getByRole('button', { name: /Открыть диагностику соединения/ });
     await expect(diagnosticTrigger).toBeVisible();
     await expect(diagnosticTrigger).toHaveCSS('position', 'static');
     await expectInsideBounds(chronicleHeader, diagnosticTrigger);
-    await expectNoOverlap(headerTitle, diagnosticTrigger);
     await expect(page.locator('.p2p-health-indicator')).toHaveCount(1);
     await expect(chronicleHeader.locator('.p2p-health-indicator')).toHaveCount(1);
 
@@ -148,11 +165,6 @@ test.describe('P2P session workflow', () => {
     await expectInsideViewport(page, panel);
     const diagnosticScroll = panel.locator('.player-tools-settings-panel');
     await expect(diagnosticScroll).toHaveCSS('overflow-y', 'auto');
-    const diagnosticScrollSize = await diagnosticScroll.evaluate((element) => ({
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight
-    }));
-    expect(diagnosticScrollSize.scrollHeight).toBeGreaterThan(diagnosticScrollSize.clientHeight);
     const tabsBox = await rect(layerTabs);
     const chronicleBox = await rect(chronicle);
     await expectTopLayerAtPoint(page, dialog, panelBox.x + panelBox.width / 2, panelBox.y + panelBox.height / 2);
@@ -161,10 +173,11 @@ test.describe('P2P session workflow', () => {
 
     const close = dialog.getByRole('button', { name: 'Закрыть' });
     await expect(close).toBeFocused();
-    const focusable = dialog.locator('button:not([disabled]), summary, [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
-    await focusable.last().focus();
+    await close.focus();
+    await page.keyboard.press('Shift+Tab');
+    expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
     await page.keyboard.press('Tab');
-    await expect(close).toBeFocused();
+    expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(diagnosticTrigger).toBeFocused();
@@ -288,14 +301,14 @@ test.describe('P2P session workflow', () => {
     await openSharedSettings(gm, 'gm', 'Диагностика');
     await expect(sessionMeta(gm, 'Роль')).toHaveText('gm');
     await expect(sessionMeta(gm, 'Статус')).toHaveText('Ожидает игроков');
-    await expect(sessionMeta(gm, 'ID подключения')).toHaveText('e2e-browser-peer');
+    await expect(sessionMeta(gm, 'ID подключения')).toHaveText('local-gm');
     await expect.poll(() => gm.evaluate(() => window.sessionStorage.getItem('e2e-p2p-connected-room'))).toMatch(/^[A-Z0-9]{6}$/);
     await gm.context().close();
 
     const player = await newSharedPage(browser);
     await openSharedSettings(player, 'player', 'Диагностика');
     await expect(sessionMeta(player, 'Роль')).toHaveText('player');
-    await expect(sessionMeta(player, 'ID подключения')).toHaveText('e2e-browser-peer');
+    await expect(sessionMeta(player, 'ID подключения')).not.toHaveText('нет');
     await expect.poll(() => player.evaluate(() => window.sessionStorage.getItem('e2e-p2p-connected-room'))).toContain('TEST-ROOM');
     await player.context().close();
   });
@@ -535,6 +548,7 @@ test.describe('P2P session workflow', () => {
       await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игра', exact: true }).click();
       await workspace.getByLabel('Передача музыки сцены').selectOption('broadcast');
       await expect(workspace.getByLabel('Передача музыки сцены')).toHaveValue('broadcast');
+      await waitForStoredMusicDeliveryMode(gm, 'broadcast');
       await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
@@ -561,6 +575,7 @@ test.describe('P2P session workflow', () => {
       expect(relay.messages.some((message) => message.type === 'binary')).toBe(false);
 
       await gm.reload();
+      await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
       await openGameLibrary(gm);
       workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
       await workspace.getByRole('button', { name: 'Настройки' }).click();

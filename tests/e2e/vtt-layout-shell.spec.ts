@@ -34,6 +34,7 @@ test.describe('VTT layout shell contract', () => {
     const feed = page.getByLabel('Чат игры');
     const scene = page.getByLabel('Игровая сцена');
     const panel = page.getByLabel('Инструменты сцены');
+    const panelShell = page.locator('.player-character-panel-shell');
     const dice = page.getByLabel('Бросок костей');
     const leftToggle = page.getByRole('button', { name: 'Скрыть чат' });
     const rightToggle = page.getByRole('button', { name: 'Скрыть панель мастера' });
@@ -56,9 +57,9 @@ test.describe('VTT layout shell contract', () => {
     expect(leftToggleBox.y).toBeLessThan(100);
     expect(rightToggleBox.y).toBeLessThan(100);
     expect(Math.abs(leftToggleBox.y - feedBox.y)).toBeLessThanOrEqual(16);
-    expect(Math.abs(rightToggleBox.y - panelBox.y)).toBeLessThanOrEqual(16);
+    expect(Math.abs(rightToggleBox.y - (await rect(panelShell)).y)).toBeLessThanOrEqual(16);
     expect(Math.abs(leftToggleBox.x - (feedBox.x + feedBox.width) - 8)).toBeLessThanOrEqual(2);
-    expect(Math.abs(panelBox.x - (rightToggleBox.x + rightToggleBox.width) - 8)).toBeLessThanOrEqual(2);
+    expect(Math.abs((await rect(panelShell)).x - (rightToggleBox.x + rightToggleBox.width) - 8)).toBeLessThanOrEqual(2);
     await expectNoOverlap(feed, dice);
     await expectNoOverlap(panel, dice);
     await expectNoOverlap(dice, page.locator('.p2p-health-indicator'));

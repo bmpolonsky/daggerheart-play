@@ -4,6 +4,27 @@ import { openPlayerGame } from './game-route-helpers';
 import { expectInsideHorizontalBounds, expectInsideViewport, expectNoOverlap, rect } from './layout-helpers';
 import { openGameLibrary } from './tools-helpers';
 
+async function waitForStoredSceneFraming(page: import('@playwright/test').Page, expected: { zoom: number; offsetX: number; offsetY: number }): Promise<void> {
+  await expect.poll(() => page.evaluate(async (framing) => {
+    const project = await new Promise<any>((resolve, reject) => {
+      const request = indexedDB.open('daggerheart-play-game');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction('documents', 'readonly');
+        const read = transaction.objectStore('documents').get('current-game');
+        read.onerror = () => reject(read.error);
+        read.onsuccess = () => resolve(read.result);
+        transaction.oncomplete = () => db.close();
+      };
+    });
+    const game = project?.games?.[project.activeGameId];
+    const sceneTable = game?.state?.sceneTable;
+    const stored = sceneTable?.scenes?.[sceneTable.liveSceneId]?.backgroundFraming;
+    return stored?.zoom === framing.zoom && stored?.offsetX === framing.offsetX && stored?.offsetY === framing.offsetY;
+  }, expected)).toBe(true);
+}
+
 test.describe('filled VTT layout regressions', () => {
   test.describe.configure({ timeout: 90_000 });
 
@@ -108,10 +129,8 @@ test.describe('filled VTT layout regressions', () => {
     expect((await rect(root)).y).toBe(rootTopBefore);
     const domainCards = sheet.locator('.dh-list-item').filter({ hasText: 'Заклинание' });
     await expect(domainCards).toHaveCount(7);
-    const scrollTopBeforeLastCard = await sheet.evaluate((element) => element.scrollTop);
-    await domainCards.last().scrollIntoViewIfNeeded();
-    await expect.poll(() => sheet.evaluate((element) => element.scrollTop)).toBeGreaterThan(scrollTopBeforeLastCard);
-    expect(await domainCards.last().evaluate((element) => {
+    await domainCards.last().evaluate((element) => element.scrollIntoView({ block: 'center' }));
+    await expect.poll(() => domainCards.last().evaluate((element) => {
       const card = element.getBoundingClientRect();
       const container = element.closest('[aria-label="Персонаж игрока"]')?.getBoundingClientRect();
       return Boolean(container && card.top >= container.top && card.bottom <= container.bottom);
@@ -452,6 +471,7 @@ test.describe('filled VTT layout regressions', () => {
     await expect(renderedBackground).toHaveCSS('background-repeat', 'no-repeat');
     await expect(renderedBackground).toHaveCSS('transform', /matrix\(1\.5, 0, 0, 1\.5,/);
 
+    await waitForStoredSceneFraming(page, { zoom: 1.5, offsetX: 0.5, offsetY: -0.25 });
     await page.reload();
     await expect(page.locator('[data-vtt-root]')).toBeVisible();
     await expect(page.locator('.player-scene-stage__board > .player-scene-stage__background')).toHaveCSS('background-size', 'contain');

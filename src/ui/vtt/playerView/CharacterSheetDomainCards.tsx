@@ -249,6 +249,7 @@ function DomainCardRow({
 }) {
   return (
     <ListItem
+      className="player-domain-card-row"
       align="start"
       tone={card.inHand ? 'featured' : 'default'}
       title={card.name}

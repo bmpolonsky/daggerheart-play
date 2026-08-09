@@ -259,7 +259,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     commitRoutedUi({ toolsOpen: true, toolsTab: tab });
   }, [commitRoutedUi, desktopLayout, role]);
   const closeTools = useCallback(() => {
-    if (!desktopLayout) setMobileLayer('feed');
+    if (!desktopLayout) setMobileLayer((current) => current === 'tools' ? 'feed' : current);
     commitRoutedUi({ toolsOpen: false });
   }, [commitRoutedUi, desktopLayout]);
   const selectMobileLayer = useCallback((layer: Exclude<PlayerMobileLayer, 'tools'>) => {

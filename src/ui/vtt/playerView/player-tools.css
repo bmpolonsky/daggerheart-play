@@ -2264,10 +2264,19 @@
   min-height: min(680px, calc(100vh - 180px));
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.player-combat-workspace-actions {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 8px;
 }
 
 .player-combat-layout {
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 390px);

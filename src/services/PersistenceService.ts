@@ -15,6 +15,7 @@ import { readActiveSession } from './p2p/P2PSessionPersistence';
 
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
 const AUTO_PERSIST_DELAY_MS = 500;
+const PERSISTENCE_LOCK_NAME = 'daggerheart-play:game-document';
 
 export class PersistenceService {
   private storedGamesStore = new Store<StoredGameSummary[]>([]);
@@ -259,17 +260,25 @@ export class PersistenceService {
     if (!this.documentStore) {
       return;
     }
-    let signature: string | null = null;
+    const baseSignature = this.lastDocumentSignature;
     try {
       await loadBrowserCustomContent();
       const document = createGameDocument(snapshot, readBrowserCustomContent());
-      signature = stableJsonSignature(document);
-      this.ownPersistSignatures.add(signature);
-      await this.documentStore.save(document);
-      this.lastDocumentSignature = signature;
-      void this.refreshStoredGames();
+      const signature = stableJsonSignature(document);
+      await withPersistenceLock(async () => {
+        const current = storedDocumentToGameDocument(await this.documentStore?.load());
+        if (baseSignature !== null && stableJsonSignature(current) !== baseSignature) return;
+        this.ownPersistSignatures.add(signature);
+        try {
+          await this.documentStore?.save(document);
+          this.lastDocumentSignature = signature;
+          void this.refreshStoredGames();
+        } catch (error) {
+          this.ownPersistSignatures.delete(signature);
+          throw error;
+        }
+      });
     } catch (error) {
-      if (signature) this.ownPersistSignatures.delete(signature);
       console.warn('Failed to persist Daggerheart game to IndexedDB.', error);
     }
   }
@@ -304,6 +313,7 @@ export class PersistenceService {
       if (signature === this.lastDocumentSignature) {
         return;
       }
+      this.queuedPersistSnapshot = null;
       this.lastDocumentSignature = signature;
 
       this.isApplyingStoredDocument = true;
@@ -371,6 +381,14 @@ export class PersistenceService {
     hydratePersistedState(gameDocumentToPersistedState(gameDocument));
     this.lastDocumentSignature = stableJsonSignature(gameDocument);
   }
+}
+
+async function withPersistenceLock(work: () => Promise<void>): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    await navigator.locks.request(PERSISTENCE_LOCK_NAME, work);
+    return;
+  }
+  await work();
 }
 
 function stableJsonSignature(value: unknown): string {

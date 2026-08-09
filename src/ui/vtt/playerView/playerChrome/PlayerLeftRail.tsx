@@ -56,6 +56,10 @@ export function PlayerLeftRail({
     ];
   }, [ephemeralFeedItem, model.activity, model.character?.id, role]);
   const visibleActivity = useMemo(() => activity.slice().reverse(), [activity]);
+  const pendingRollRevealIds = useMemo(() => visibleActivity
+    .filter((event) => delaysRollResult(event) && !revealedRollIds.has(feedRollRevealId(event)))
+    .map(feedRollRevealId), [revealedRollIds, visibleActivity]);
+  const pendingRollRevealKey = pendingRollRevealIds.join('|');
   const visibleCountdowns = useMemo(() => encounter.countdowns.filter((countdown) => role === 'gm' || countdown.visibility === 'public'), [encounter.countdowns, role]);
 
   useEffect(() => {
@@ -75,14 +79,12 @@ export function PlayerLeftRail({
   }, [activity]);
 
   useEffect(() => {
-    const timeoutIds = visibleActivity
-      .filter((event) => delaysRollResult(event) && !revealedRollIds.has(feedRollRevealId(event)))
-      .map((event) => window.setTimeout(() => revealRoll(event), PLAYER_ROLL_FEED_REVEAL_DELAY_MS));
+    const timeoutIds = pendingRollRevealIds
+      .map((rollId) => window.setTimeout(() => revealRoll(rollId), PLAYER_ROLL_FEED_REVEAL_DELAY_MS));
     return () => timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
-  }, [revealedRollIds, visibleActivity]);
+  }, [pendingRollRevealKey]);
 
-  const revealRoll = (event: PlayerViewModel['activity'][number]) => {
-    const rollId = feedRollRevealId(event);
+  const revealRoll = (rollId: string) => {
     setRevealedRollIds((current) => {
       if (current.has(rollId)) return current;
       const next = new Set(current);

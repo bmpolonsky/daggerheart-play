@@ -1469,7 +1469,7 @@
   }
 
   .player-session-panel-toggle--right.dh-is-open {
-    right: min(394px, calc(100vw - 10px));
+    right: min(376px, calc(100vw - 10px));
   }
 
   .player-topbar {
@@ -1525,7 +1525,12 @@
   }
 
   .player-session-panel-toggle--right.dh-is-open {
-    right: min(calc(26px + clamp(300px, 30vw, 336px)), calc(100vw - 10px));
+    right: min(calc(26px + clamp(280px, 29vw, 300px)), calc(100vw - 10px));
+  }
+
+  .player-session-panel-toggle--left.dh-is-open,
+  .player-session-panel-toggle--right.dh-is-open {
+    top: 70px;
   }
 
   .player-topbar {

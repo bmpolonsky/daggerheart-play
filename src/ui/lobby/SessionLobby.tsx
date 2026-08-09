@@ -37,9 +37,10 @@ export function SessionLobby({ inviteContext, onEnterGm, onJoinRoom, sceneImageU
   const storedGames = useStream(persistenceService.storedGames$);
   const activeGame = storedGames.find((game) => game.active) ?? storedGames[0] ?? null;
 
-  useEffect(() => {
-    localStorage.setItem(LOBBY_ROLE_KEY, role);
-  }, [role]);
+  const selectRole = (nextRole: LobbyRole) => {
+    localStorage.setItem(LOBBY_ROLE_KEY, nextRole);
+    setRole(nextRole);
+  };
 
   useEffect(() => {
     void persistenceService.refreshStoredGames();
@@ -85,8 +86,8 @@ export function SessionLobby({ inviteContext, onEnterGm, onJoinRoom, sceneImageU
       <div className="role-entry__content">
         <header className="role-entry__topbar">
           <Tabs label="Роль" layout="equal">
-            <TabButton active={role === 'gm'} onClick={() => setRole('gm')}><Crown size={15} aria-hidden="true" /> Мастер</TabButton>
-            <TabButton active={role === 'player'} onClick={() => setRole('player')}><UserRound size={15} aria-hidden="true" /> Игрок</TabButton>
+            <TabButton active={role === 'gm'} onClick={() => selectRole('gm')}><Crown size={15} aria-hidden="true" /> Мастер</TabButton>
+            <TabButton active={role === 'player'} onClick={() => selectRole('player')}><UserRound size={15} aria-hidden="true" /> Игрок</TabButton>
           </Tabs>
           {serverAvailable && (
             <Toolbar className="role-entry__account">

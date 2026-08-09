@@ -57,6 +57,7 @@ export async function createIsolatedDeterministicP2PRelay(
 ): Promise<IsolatedDeterministicP2PRelay> {
   const viewport = options.viewport ?? { width: 1440, height: 900 };
   const messages: DeterministicRelayMessage[] = [];
+  const logicalPeerIds = new Map<string, string>();
   const clients = await Promise.all(peerIds.map(async (peerId) => {
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
@@ -66,12 +67,16 @@ export async function createIsolatedDeterministicP2PRelay(
   for (const client of clients) {
     await client.page.exposeBinding('__DAGGERHEART_E2E_RELAY_SEND__', async (_source, message: DeterministicRelayMessage) => {
       messages.push(message);
+      if (message.type === 'envelope' && message.envelope && typeof message.envelope === 'object') {
+        const sender = (message.envelope as { sender?: { peerId?: unknown } }).sender;
+        if (typeof sender?.peerId === 'string') logicalPeerIds.set(client.peerId, sender.peerId);
+      }
       if (message.type === 'binary' && options.binaryDelayMs) {
         await new Promise((resolve) => setTimeout(resolve, options.binaryDelayMs));
       }
       const recipients = clients.filter((candidate) => (
         candidate.peerId !== client.peerId &&
-        (!('targetPeerId' in message) || !message.targetPeerId || message.targetPeerId === candidate.peerId)
+        (!('targetPeerId' in message) || !message.targetPeerId || message.targetPeerId === candidate.peerId || message.targetPeerId === logicalPeerIds.get(candidate.peerId))
       ));
       await Promise.all(recipients.map(async (recipient) => {
         if (recipient.page.isClosed()) return;
@@ -167,6 +172,11 @@ async function installIsolatedDeterministicP2PTransport(page: Page, peerId: stri
         },
         subscribeBinary(listener: BinaryListener) {
           return subscriptions(binaryListeners, listener);
+        },
+        async publishMediaStream() {},
+        removeMediaStream() {},
+        subscribeMediaStreams() {
+          return () => undefined;
         },
         onPeerJoin(listener: (peerId: string) => void) {
           return subscriptions(peerJoinListeners, listener);

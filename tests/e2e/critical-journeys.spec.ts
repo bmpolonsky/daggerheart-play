@@ -40,7 +40,7 @@ async function waitForStoredMarker(page: Page, marker: string, present = true): 
         transaction.oncomplete = () => db.close();
       };
     });
-    return JSON.stringify(project).includes(marker) === present;
+    return JSON.stringify(project ?? null).includes(marker) === present;
   }, { marker, present })).toBe(true);
 }
 
