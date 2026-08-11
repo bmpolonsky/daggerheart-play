@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { LibraryRuleEntry } from '../../../../domain/content/types';
 import type { ContentLibraryView } from '../../../../services/ContentService';
+import { useStream } from '../../../../core/hooks/useStream';
+import { encounterService, sceneTableService } from '../../../../services/serviceRegistry';
 import { ListDetailLayout } from '../../../components/common';
 import { LibraryDetailPanel } from './LibraryDetailPanel';
 import { buildLibraryEntries } from './libraryEntries';
@@ -25,9 +27,11 @@ export function LibraryResults({
   targetRule?: LibraryRuleEntry | null;
   targetCharacterId?: string | null;
 }) {
+  const encounter = useStream(encounterService.encounter$);
+  const sceneTable = useStream(sceneTableService.sceneTable$);
   const entries = useMemo(
     () => buildLibraryEntries(libraryView, targetCharacterId, targetRule),
-    [libraryView, targetCharacterId, targetRule]
+    [encounter, libraryView, sceneTable, targetCharacterId, targetRule]
   );
   const [selectedId, setSelectedId] = useState('');
   const [actionMessage, setActionMessage] = useState('');

@@ -21,18 +21,32 @@ import { renderRulesText } from '../sheetText';
 import type { TableViewRole } from '../types';
 import { readFileAsDataUrl } from './readFileAsDataUrl';
 
-export function SharedToolsHandoutsTab({ game, role }: { game: GameState; role: TableViewRole }) {
+export function SharedToolsHandoutsTab({ game, role, initialHandoutId, onHandoutChange }: {
+  game: GameState;
+  role: TableViewRole;
+  initialHandoutId?: string | null;
+  onHandoutChange?: (handoutId: string) => void;
+}) {
   const visibleHandouts = role === 'gm' ? game.handouts : game.handouts.filter((handout) => handout.visibleToPlayers);
-  const [selectedHandoutId, setSelectedHandoutId] = useState(visibleHandouts[0]?.id ?? '');
+  const [selectedHandoutId, setSelectedHandoutId] = useState(initialHandoutId ?? visibleHandouts[0]?.id ?? '');
   const selectedHandout = visibleHandouts.find((handout) => handout.id === selectedHandoutId) ?? visibleHandouts[0] ?? null;
   useEffect(() => {
+    if (initialHandoutId && visibleHandouts.some((handout) => handout.id === initialHandoutId)) {
+      setSelectedHandoutId(initialHandoutId);
+      return;
+    }
     if (selectedHandoutId && visibleHandouts.some((handout) => handout.id === selectedHandoutId)) return;
     setSelectedHandoutId(visibleHandouts[0]?.id ?? '');
-  }, [selectedHandoutId, visibleHandouts]);
+  }, [initialHandoutId, selectedHandoutId, visibleHandouts]);
+
+  const selectHandout = (handoutId: string) => {
+    setSelectedHandoutId(handoutId);
+    onHandoutChange?.(handoutId);
+  };
 
   const addHandout = () => {
     const handout = gameService.addHandout({ title: `Раздатка ${game.handouts.length + 1}`, visibleToPlayers: false });
-    setSelectedHandoutId(handout.id);
+    selectHandout(handout.id);
   };
 
   return (
@@ -60,7 +74,7 @@ export function SharedToolsHandoutsTab({ game, role }: { game: GameState; role: 
                 ) : undefined}
                 lines={2}
                 align="start"
-                onClick={() => setSelectedHandoutId(handout.id)}
+                onClick={() => selectHandout(handout.id)}
               />
             ))}
           </nav>

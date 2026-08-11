@@ -1,20 +1,18 @@
 import type { SubmitPlayerActionRequestInput } from '../../../services/PlayerActionRequestService';
 import type { PlayerActivationQueueItem } from '../../../services/PlayerActivationQueueService';
 import type { PlayerPresence } from '../../../services/PlayerPresenceService';
+import type { MediaCallState } from '../../../services/MediaCallService';
 import type { Adversary, CharactersState, DamageType, EncounterEnvironment, RollLogEntry, TraitId } from '../../../domain/rules/types';
 import type { TableParticipant } from '../../../domain/tabletop/types';
 import type { PlayerViewModel, PlayerViewToken } from '../../../domain/tabletop/playerView';
-import { defaultCharacterPortraitUrl } from '../../../domain/tabletop/defaultArt';
 import { inferBasePathFromWorkspacePath } from '../../../domain/p2p/sessionLinks';
 import { publicAssetUrl } from '../../../domain/content/publicAssets';
-import { adversaryTypeLabel, classLabel } from '../../../domain/rules/constants';
 import { routeNavigation } from '../../../app/routing';
 import { buildEffectiveCharacterStats } from '../../../domain/rules/effects';
-import type { PlayerRosterActor, SharedToolsTab, TableViewRole } from './types';
+import type { ConnectedPlayerRow, PlayerRosterActor, SceneActorGroups, SharedToolsTab, TableViewRole } from './types';
 
 export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: CharactersState | null = null, adversaries: Record<string, Adversary> | null = null, environments: Record<string, EncounterEnvironment> | null = null): PlayerRosterActor[] {
   const seen = new Set<string>();
-  const placed = new Set(tokens.map((token) => `${token.kind}:${token.actorId}`));
   const actors: PlayerRosterActor[] = tokens.filter((token) => {
     const key = `${token.kind}:${token.actorId}`;
     if (seen.has(key)) return false;
@@ -30,77 +28,6 @@ export function buildPlayerRosterActors(tokens: PlayerViewToken[], characters: C
     isOnScene: true,
     hidden: token.hidden
   }));
-  if (characters) {
-    characters.order.forEach((id) => {
-      const key = `character:${id}`;
-      const character = characters.entities[id];
-      if (!character) return;
-      if (!seen.has(key)) {
-        seen.add(key);
-        actors.push({
-          tokenId: key,
-          actorId: id,
-          kind: 'character',
-          name: character.name,
-          subtitle: `${classLabel(character.className)} ${character.level}`,
-          imageUrl: defaultCharacterPortraitUrl(character),
-          isOnScene: placed.has(key),
-          hidden: false
-        });
-      }
-      const companionKey = `companion:${id}`;
-      if (character.companion && !seen.has(companionKey)) {
-        seen.add(companionKey);
-        actors.push({
-          tokenId: companionKey,
-          actorId: id,
-          kind: 'companion',
-          name: character.companion.name,
-          subtitle: `Уклонение ${character.companion.evasion}`,
-          imageUrl: character.companion.imageUrl ?? '',
-          isOnScene: placed.has(companionKey),
-          hidden: false,
-          ownerName: character.name,
-          evasion: character.companion.evasion,
-          stress: { ...character.companion.stress }
-        });
-      }
-    });
-  }
-  if (adversaries) {
-    Object.values(adversaries).forEach((adversary) => {
-      const key = `adversary:${adversary.id}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      actors.push({
-        tokenId: key,
-        actorId: adversary.id,
-        kind: 'adversary',
-        name: adversary.name,
-        subtitle: `Ранг ${adversary.tier} / ${adversaryTypeLabel(adversary.type)}`,
-        imageUrl: adversary.imageUrl ?? '',
-        isOnScene: placed.has(key),
-        hidden: false
-      });
-    });
-  }
-  if (environments) {
-    Object.values(environments).forEach((environment) => {
-      const key = `environment:${environment.id}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      actors.push({
-        tokenId: key,
-        actorId: environment.id,
-        kind: 'environment',
-        name: environment.name,
-        subtitle: environment.difficulty ? `Сложность ${environment.difficulty}` : 'Окружение',
-        imageUrl: environment.imageUrl ?? '',
-        isOnScene: placed.has(key),
-        hidden: false
-      });
-    });
-  }
   const enriched = actors.map((actor) => {
     if (actor.kind === 'environment') {
       const environment = environments?.[actor.actorId];
@@ -162,7 +89,7 @@ export function buildSessionRosterActors(input: {
     input.role === 'gm' ? input.characters : null,
     input.role === 'gm' ? input.adversaries : null,
     input.role === 'gm' ? input.environments ?? null : null
-  ).map((actor) => withPlayerPresence(actor, input.presence));
+  );
 
   if (input.role !== 'gm') {
     actors = input.playerCharacterId
@@ -170,31 +97,46 @@ export function buildSessionRosterActors(input: {
       : [];
     return actors;
   }
-  return sortRosterByActivation(actors.map((actor) => withActivationRequest(actor, input.activationQueue)), input.activationQueue);
+  return actors;
 }
 
-function withPlayerPresence(actor: PlayerRosterActor, presence: Record<string, PlayerPresence>): PlayerRosterActor {
-  if (actor.kind !== 'character') return actor;
-  const actorPresence = presence[actor.actorId];
-  return actorPresence ? { ...actor, presence: actorPresence } : actor;
+export function buildConnectedPlayerRows(
+  characters: CharactersState,
+  presence: Record<string, PlayerPresence>,
+  call: MediaCallState,
+  queue: PlayerActivationQueueItem[]
+): ConnectedPlayerRow[] {
+  return Object.values(presence)
+    .filter((player) => player.connected)
+    .map((player) => {
+      const callParticipant = Object.values(call.remoteParticipants).find((participant) => (
+        participant.participantId === player.requesterId || participant.peerId === player.peerId
+      ));
+      return {
+        id: player.requesterId || player.peerId,
+        actorId: player.actorId,
+        playerName: player.playerName || player.actorName || 'Игрок',
+        characterName: characters.entities[player.actorId]?.name ?? player.actorName,
+        peerId: player.peerId,
+        inCall: Boolean(callParticipant?.connected),
+        micMuted: callParticipant?.micMuted ?? player.voiceMuted,
+        cameraOff: callParticipant?.cameraOff ?? true,
+        activationRequest: queue.find((request) => (
+          request.requesterId === player.requesterId ||
+          request.requesterId === player.peerId ||
+          request.actorId === player.actorId
+        ))
+      };
+    })
+    .sort((left, right) => Number(Boolean(right.activationRequest)) - Number(Boolean(left.activationRequest)) || left.playerName.localeCompare(right.playerName, 'ru'));
 }
 
-function withActivationRequest(actor: PlayerRosterActor, queue: PlayerActivationQueueItem[]): PlayerRosterActor {
-  if (actor.kind !== 'character') return actor;
-  const request = queue.find((item) => item.actorId === actor.actorId);
-  return request ? { ...actor, activationRequest: request } : actor;
-}
-
-function sortRosterByActivation(actors: PlayerRosterActor[], queue: PlayerActivationQueueItem[]): PlayerRosterActor[] {
-  const orderByActor = new Map(queue.map((request, index) => [request.actorId, index]));
-  const companions = actors.filter((actor) => actor.kind === 'companion');
-  const sorted = actors.filter((actor) => actor.kind !== 'companion').sort((left, right) => {
-    const leftOrder = left.activationRequest ? orderByActor.get(left.actorId) ?? 0 : Number.POSITIVE_INFINITY;
-    const rightOrder = right.activationRequest ? orderByActor.get(right.actorId) ?? 0 : Number.POSITIVE_INFINITY;
-    if (!Number.isFinite(leftOrder) && !Number.isFinite(rightOrder)) return 0;
-    return leftOrder - rightOrder;
-  });
-  return placeCompanionsAfterOwners([...sorted, ...companions]);
+export function groupSceneRosterActors(actors: PlayerRosterActor[]): SceneActorGroups {
+  return {
+    heroes: actors.filter((actor) => actor.kind === 'character' || actor.kind === 'companion'),
+    adversaries: actors.filter((actor) => actor.kind === 'adversary'),
+    environments: actors.filter((actor) => actor.kind === 'environment')
+  };
 }
 
 function placeCompanionsAfterOwners(actors: PlayerRosterActor[]): PlayerRosterActor[] {

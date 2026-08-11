@@ -54,6 +54,7 @@ export function buildLibraryEntries(
 }
 
 function adversaryEntry(item: LibraryAdversary): LibraryEntry {
+  const prepared = contentService.isAdversaryPrepared(item.id);
   const attackRange = formatRange(item.attackRange);
   const damageType = formatDamageType(item.damageType);
   const stats = [
@@ -97,8 +98,9 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
       : undefined,
     actions: [
       {
-        label: 'Добавить в столкновение',
-        onClick: () => contentService.addAdversaryToEncounter(item.id) ? `${item.name} добавлен в список столкновения` : null
+        label: prepared ? 'Подготовлено' : 'Подготовить',
+        disabled: prepared,
+        onClick: () => contentService.addAdversaryToEncounter(item.id) ? `${item.name} подготовлен` : null
       }
     ]
   };
@@ -142,6 +144,7 @@ function ruleEntry(item: LibraryRuleEntry): LibraryEntry {
 }
 
 function environmentEntry(item: LibraryEnvironment): LibraryEntry {
+  const prepared = contentService.isEnvironmentPrepared(item.id);
   const stats = [`Ранг ${item.tier}`, `Сложность ${item.difficulty}`];
   const sections = compactSections([
     ['Кратко', item.summary],
@@ -163,8 +166,9 @@ function environmentEntry(item: LibraryEnvironment): LibraryEntry {
       : undefined,
     actions: [
       {
-        label: 'Добавить в столкновение',
-        onClick: () => contentService.addEnvironmentToEncounter(item.id) ? `${item.name} добавлено в столкновение` : null
+        label: prepared ? 'Подготовлено' : 'Подготовить',
+        disabled: prepared,
+        onClick: () => contentService.addEnvironmentToEncounter(item.id) ? `${item.name} подготовлено` : null
       },
       {
         label: 'Создать сцену',

@@ -1702,7 +1702,11 @@ export class P2PSessionService {
     if (event.type === 'peer-left') {
       this.sceneAudioBroadcastService?.removeRemotePeer(event.peerId);
       this.mediaCallService?.removeRemotePeer(event.peerId);
+      const disconnectedRequesterIds = Object.values(this.playerPresenceService.presence$.get())
+        .filter((presence) => presence.peerId === event.peerId)
+        .map((presence) => presence.requesterId);
       this.playerPresenceService.markDisconnectedByPeer(event.peerId);
+      disconnectedRequesterIds.forEach((requesterId) => this.playerActivationQueueService.removeRequester(requesterId));
       this.sceneTableService.markParticipantDisconnectedByPeer(event.peerId);
       const playerLostGm = event.role === 'gm' && !this.activeRoomConnection?.gmPeerId();
       this.patchSession((state) => ({

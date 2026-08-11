@@ -8,6 +8,7 @@ export type RoutedPlayerViewState = {
   libraryCollection: ContentCollectionKey | null;
   libraryEntrySlug: string | null;
   settingsSection: string | null;
+  handoutId: string | null;
 };
 
 const LIBRARY_PATH_PREFIX = '/library';
@@ -80,7 +81,8 @@ export function parseRoutedPlayerViewState(pathname: string, role: TableViewRole
       toolsTab: 'library',
       libraryCollection: collectionFromSlug(subsection),
       libraryEntrySlug: subsection === COLLECTION_SLUGS.rules ? entrySlug ?? null : null,
-      settingsSection: null
+      settingsSection: null,
+      handoutId: null
     };
   }
   if (section === 'custom') {
@@ -89,7 +91,8 @@ export function parseRoutedPlayerViewState(pathname: string, role: TableViewRole
       toolsTab: 'library',
       libraryCollection: 'adversaries',
       libraryEntrySlug: null,
-      settingsSection: null
+      settingsSection: null,
+      handoutId: null
     };
   }
   if (section === 'settings') {
@@ -98,7 +101,8 @@ export function parseRoutedPlayerViewState(pathname: string, role: TableViewRole
       toolsTab: 'settings',
       libraryCollection: null,
       libraryEntrySlug: null,
-      settingsSection: SETTINGS_BY_SLUG[subsection ?? ''] ?? null
+      settingsSection: SETTINGS_BY_SLUG[subsection ?? ''] ?? null,
+      handoutId: null
     };
   }
 
@@ -107,7 +111,8 @@ export function parseRoutedPlayerViewState(pathname: string, role: TableViewRole
     toolsTab: normalizeSharedToolsTab(section, role),
     libraryCollection: null,
     libraryEntrySlug: null,
-    settingsSection: null
+    settingsSection: null,
+    handoutId: section === 'handouts' ? subsection ?? null : null
   };
 }
 
@@ -119,6 +124,7 @@ export function buildRoutedPlayerViewLocation(
     libraryCollection?: ContentCollectionKey | null;
     libraryEntrySlug?: string | null;
     settingsSection?: string | null;
+    handoutId?: string | null;
   }
 ): { pathname: string; search: string; hash: string; routePath: string; url: string } {
   const routePath = next.toolsOpen ? pathForToolsTab(normalizeSharedToolsTab(next.toolsTab, role), next) : '/game';
@@ -131,11 +137,12 @@ function emptyRoutedPlayerViewState(role: TableViewRole): RoutedPlayerViewState 
     toolsTab: defaultSharedToolsTab(role),
     libraryCollection: null,
     libraryEntrySlug: null,
-    settingsSection: null
+    settingsSection: null,
+    handoutId: null
   };
 }
 
-function pathForToolsTab(tab: SharedToolsTab, next: { libraryCollection?: ContentCollectionKey | null; libraryEntrySlug?: string | null; settingsSection?: string | null }): string {
+function pathForToolsTab(tab: SharedToolsTab, next: { libraryCollection?: ContentCollectionKey | null; libraryEntrySlug?: string | null; settingsSection?: string | null; handoutId?: string | null }): string {
   if (tab === 'library') {
     const collectionSlug = next.libraryCollection ? COLLECTION_SLUGS[next.libraryCollection] : '';
     if (!collectionSlug) return `${LIBRARY_PATH_PREFIX}/compendium`;
@@ -148,6 +155,7 @@ function pathForToolsTab(tab: SharedToolsTab, next: { libraryCollection?: Conten
     const sectionSlug = next.settingsSection ? SETTINGS_SLUGS[next.settingsSection] : '';
     return sectionSlug ? `${LIBRARY_PATH_PREFIX}/settings/${sectionSlug}` : `${LIBRARY_PATH_PREFIX}/settings`;
   }
+  if (tab === 'handouts' && next.handoutId) return `${LIBRARY_PATH_PREFIX}/handouts/${encodeURIComponent(next.handoutId)}`;
   return `${LIBRARY_PATH_PREFIX}/${tab}`;
 }
 

@@ -508,7 +508,7 @@ test.describe('P2P session workflow', () => {
       await expect(musicPicker.locator('xpath=..').getByText('session-tone.wav', { exact: true })).toBeVisible();
       await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
-      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Музыка' }).click();
       const gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
       await expect(gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' })).toHaveCount(0);
       await gmMusic.getByRole('button', { name: 'Играть' }).click();
@@ -551,7 +551,7 @@ test.describe('P2P session workflow', () => {
       await waitForStoredMusicDeliveryMode(gm, 'broadcast');
       await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
-      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Музыка' }).click();
       let gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
       await expect(gmMusic.getByRole('group', { name: 'Способ доставки музыки игрокам' })).toHaveCount(0);
       const tabAudio = gm.getByRole('region', { name: 'Звук вкладки' });
@@ -583,7 +583,7 @@ test.describe('P2P session workflow', () => {
       await expect(workspace.getByLabel('Передача музыки сцены')).toHaveValue('broadcast');
       await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
-      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Материалы' }).click();
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Музыка' }).click();
       gmMusic = gm.getByRole('region', { name: 'Музыка сцены' });
       await expect(gmMusic).toBeVisible();
       await gm.evaluate(() => {

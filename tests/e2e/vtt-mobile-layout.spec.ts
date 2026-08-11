@@ -34,8 +34,8 @@ test.describe('VTT detail composition', () => {
     await expect(feed).toBeVisible();
     await expect(panel).toBeVisible();
     await expect(contextTabs).toBeVisible();
-    await contextTabs.getByRole('button', { name: 'Материалы' }).click();
-    await expect(panel.getByRole('region', { name: 'Раздатка' })).toBeVisible();
+    await contextTabs.getByRole('button', { name: 'Музыка' }).click();
+    await expect(panel.getByRole('region', { name: 'Музыка сцены' })).toBeVisible();
     await expectNoOverlap(feed, panel);
   });
 });

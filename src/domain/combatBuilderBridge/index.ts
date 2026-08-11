@@ -86,7 +86,7 @@ export function buildCoreAdversariesFromCombatBuilder(snapshot: CombatBuilderEnc
     if (!entry.adversary || count === 0) return [];
 
     const instances = normalizeInstances(entry, count);
-    return instances.map((instance, index) => mapCombatAdversary(entry.adversary, instance, count > 1 ? index + 1 : null));
+    return instances.map((instance, index) => mapCombatAdversary(entry.adversary, instance, index === 0 ? null : index + 1));
   });
 
   return {
@@ -229,6 +229,7 @@ function coreAdversaryGroupKey(adversary: Adversary): string {
     mainBody: adversary.mainBody,
     imageUrl: adversary.imageUrl
   });
+  if (adversary.preparedTemplateId) return `template:${adversary.preparedTemplateId}:${statBlockSignature}`;
   if (adversary.sourceId !== undefined) return `source:${String(adversary.sourceId)}:${statBlockSignature}`;
   if (adversary.sourceSlug) return `slug:${adversary.sourceSlug}:${statBlockSignature}`;
   return `instance:${adversary.id}`;

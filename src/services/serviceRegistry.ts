@@ -21,6 +21,7 @@ import { PersistenceService } from './PersistenceService';
 import { PlayerActionRequestService } from './PlayerActionRequestService';
 import { PlayerActivationQueueService } from './PlayerActivationQueueService';
 import { PlayerPresenceService } from './PlayerPresenceService';
+import { PreparedActorService } from './PreparedActorService';
 import { RollLogService } from './RollLogService';
 import { SceneTableService } from './SceneTableService';
 import { SceneAudioBroadcastService } from './SceneAudioBroadcastService';
@@ -44,6 +45,7 @@ export const playerActionRequestService = new PlayerActionRequestService(diceSer
 export const playerActivationQueueService = new PlayerActivationQueueService();
 export const playerPresenceService = new PlayerPresenceService();
 export const sceneTableService = new SceneTableService();
+export const preparedActorService = new PreparedActorService(encounterService, sceneTableService);
 export const sceneAudioBroadcastService = new SceneAudioBroadcastService();
 export const syncService = new SyncService();
 export const mediaCallService = new MediaCallService(syncService);
@@ -85,7 +87,8 @@ export const tabletopService = new TabletopService({
   encounterService,
   feedService,
   rollLogService,
-  sceneTableService
+  sceneTableService,
+  preparedActorService
 });
 export const uiService = new UiService();
 

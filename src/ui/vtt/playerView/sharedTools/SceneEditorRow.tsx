@@ -12,7 +12,7 @@ import {
   normalizeSceneBackgroundFraming,
   sceneBackgroundTransform
 } from '../../../../domain/tabletop/sceneBackground';
-import { assetService, characterService, encounterService, gameService, sceneTableService } from '../../../../services/serviceRegistry';
+import { assetService, characterService, encounterService, gameService, preparedActorService, sceneTableService } from '../../../../services/serviceRegistry';
 import {
   Button,
   Checkbox,
@@ -122,7 +122,7 @@ export function SceneEditorRow({
               </Button>
             )}
             {!isLive && <Button variant="primary" size="sm" iconBefore={<Eye size={15} />} onClick={publishScene}>Показать игрокам</Button>}
-            <Button size="sm" iconBefore={<Copy size={14} />} onClick={() => sceneTableService.duplicateScene(scene.id)}>Копия</Button>
+            <Button size="sm" iconBefore={<Copy size={14} />} onClick={() => preparedActorService.duplicateScene(scene.id)}>Копия</Button>
             <IconButton variant="danger" size="sm" type="button" onClick={() => setDeleteOpen(true)} disabled={!canDelete} title={canDelete ? 'Удалить сцену' : 'Нельзя удалить последнюю сцену'} aria-label="Удалить сцену">
               <Trash2 size={14} aria-hidden="true" />
             </IconButton>
@@ -275,7 +275,7 @@ export function SceneEditorRow({
           onCancel={() => setDeleteOpen(false)}
           onConfirm={() => {
             setDeleteOpen(false);
-            sceneTableService.deleteScene(scene.id);
+            preparedActorService.deleteScene(scene.id);
           }}
         />
       )}

@@ -38,7 +38,8 @@ test('combat builder bridge maps encounter entries into core adversaries', () =>
 
   assert.equal(result.adversaries.length, 2);
   assert.equal(result.battlePointBudget, 4);
-  assert.equal(result.adversaries[0].name, 'Лучник 1');
+  assert.equal(result.adversaries[0].name, 'Лучник');
+  assert.equal(result.adversaries[1].name, 'Лучник 2');
   assert.equal(result.adversaries[0].type, 'Ranged');
   assert.equal(result.adversaries[0].standardAttack.damageFormula, '1d8+2');
   assert.deepEqual(result.adversaries[0].thresholds, { major: 6, severe: 12 });
@@ -141,6 +142,27 @@ test('combat builder bridge groups core adversary instances by source', () => {
     { id: first.id, currentHp: 1, currentStress: 0 },
     { id: second.id, currentHp: 0, currentStress: 1 }
   ]);
+});
+
+test('combat builder bridge groups custom runtime instances by prepared template', () => {
+  const first = createAdversaryFromLibrary(mapRawAdversary({ name: 'Самодельный страж', hp: 4 }));
+  const second = createAdversaryFromLibrary(mapRawAdversary({ name: 'Самодельный страж', hp: 4 }));
+  first.sourceId = undefined;
+  first.sourceSlug = undefined;
+  first.preparedTemplateId = 'template-custom';
+  second.sourceId = undefined;
+  second.sourceSlug = undefined;
+  second.preparedTemplateId = 'template-custom';
+
+  const snapshot = buildCombatBuilderEncounterFromCoreEncounter({
+    ...createEncounterState(),
+    adversaries: { [first.id]: first, [second.id]: second },
+    order: [first.id, second.id],
+    updatedAt: '2026-08-09T00:00:00.000Z'
+  });
+
+  assert.equal(snapshot.entries.length, 1);
+  assert.equal(snapshot.entries[0]?.count, 2);
 });
 
 test('combat builder bridge keeps adversary raw fields stable across round trips', () => {

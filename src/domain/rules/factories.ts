@@ -328,6 +328,7 @@ export function createAdversary(input?: Partial<Adversary>): Adversary {
   const conditions = syncAdversaryDefeatedCondition(input?.conditions ?? [], hp);
   return {
     id: input?.id ?? createId('adv'),
+    preparedTemplateId: input?.preparedTemplateId,
     sourceId: input?.sourceId,
     sourceSlug: input?.sourceSlug,
     sourceName: input?.sourceName,
@@ -383,6 +384,7 @@ export function createEncounterEnvironment(input?: Partial<EncounterEnvironment>
   const now = nowIso();
   return {
     id: input?.id ?? createId('env'),
+    preparedTemplateId: input?.preparedTemplateId,
     sourceId: input?.sourceId,
     sourceSlug: input?.sourceSlug,
     sourceName: input?.sourceName,

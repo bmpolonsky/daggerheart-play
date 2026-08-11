@@ -369,6 +369,8 @@ export interface AdversaryAttack {
 
 export interface Adversary {
   id: string;
+  /** Prepared source used to create this independent scene instance. */
+  preparedTemplateId?: string;
   sourceId?: string | number;
   sourceSlug?: string;
   sourceName?: string;
@@ -406,6 +408,8 @@ export interface Countdown {
 
 export interface EncounterEnvironment {
   id: string;
+  /** Prepared source used to create this independent scene instance. */
+  preparedTemplateId?: string;
   sourceId?: string | number;
   sourceSlug?: string;
   sourceName?: string;

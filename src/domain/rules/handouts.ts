@@ -9,6 +9,11 @@ export interface PresentedHandoutOverlay {
   hasImage: boolean;
 }
 
+export interface PreparedHandoutRow {
+  handout: GameHandout;
+  status: 'draft' | 'visible' | 'presented';
+}
+
 type PresentationState = Pick<GameState, 'handouts' | 'presentedHandoutId'>;
 
 export function selectPresentedHandout(state: PresentationState): GameHandout | null {
@@ -32,4 +37,23 @@ export function buildPresentedHandoutOverlay(state: PresentationState): Presente
     hasBody: body.length > 0,
     hasImage: imageUrl !== null
   };
+}
+
+export function buildPreparedHandoutRows(
+  handouts: GameHandout[],
+  presentedHandoutId: string | null,
+  query = ''
+): PreparedHandoutRow[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase('ru');
+  return handouts.flatMap((handout) => {
+    if (normalizedQuery && !`${handout.title} ${handout.body}`.toLocaleLowerCase('ru').includes(normalizedQuery)) return [];
+    return [{
+      handout,
+      status: handout.id === presentedHandoutId && handout.visibleToPlayers
+        ? 'presented'
+        : handout.visibleToPlayers
+          ? 'visible'
+          : 'draft'
+    }];
+  });
 }

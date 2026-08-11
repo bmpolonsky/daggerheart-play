@@ -43,6 +43,8 @@ export function SharedToolsModal({
   onSettingsSectionChange,
   routedLibraryEntrySlug,
   routedSettingsSection,
+  routedHandoutId,
+  onHandoutChange,
   onTabChange
 }: {
   role: TableViewRole;
@@ -54,6 +56,8 @@ export function SharedToolsModal({
   onSettingsSectionChange?: (section: SettingsSectionId) => void;
   routedLibraryEntrySlug?: string | null;
   routedSettingsSection?: string | null;
+  routedHandoutId?: string | null;
+  onHandoutChange?: (handoutId: string) => void;
   onTabChange: (tab: SharedToolsTab) => void;
 }) {
   const tabs: SharedToolsTab[] = sharedToolsTabsForRole(role).filter((item) => item !== 'generators');
@@ -196,7 +200,7 @@ export function SharedToolsModal({
             <SharedToolsNotesTabHost />
           )}
           {activeTab === 'handouts' && (
-            <SharedToolsHandoutsTabHost role={role} />
+            <SharedToolsHandoutsTabHost role={role} handoutId={routedHandoutId} onHandoutChange={onHandoutChange} />
           )}
           {activeTab === 'settings' && (
             <SharedToolsSettingsTabHost activeSection={normalizedSettingsSection} role={role} />
@@ -273,9 +277,9 @@ function SharedToolsNotesTabHost() {
   return <SharedToolsNotesTab game={game} />;
 }
 
-function SharedToolsHandoutsTabHost({ role }: { role: TableViewRole }) {
+function SharedToolsHandoutsTabHost({ role, handoutId, onHandoutChange }: { role: TableViewRole; handoutId?: string | null; onHandoutChange?: (handoutId: string) => void }) {
   const game = useStream(gameService.game$);
-  return <SharedToolsHandoutsTab game={game} role={role} />;
+  return <SharedToolsHandoutsTab game={game} role={role} initialHandoutId={handoutId} onHandoutChange={onHandoutChange} />;
 }
 
 function SharedToolsSettingsTabHost({

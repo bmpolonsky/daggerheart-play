@@ -13,6 +13,7 @@ import type { ActorRef, TableScene, TokenState } from '../domain/tabletop/types'
 import { DEFAULT_SCENE_HEIGHT, DEFAULT_SCENE_WIDTH, measureRange, moveTokenWithinWorld, syncSceneTokens, tokenIdFor } from '../domain/tabletop/logic';
 import type { TokenFlagPatch } from '../domain/tabletop/logic';
 import type { ActionRollRequest } from './DiceService';
+import type { PreparedActorService } from './PreparedActorService';
 
 export interface TabletopServiceDependencies {
   gameService: GameService;
@@ -22,6 +23,7 @@ export interface TabletopServiceDependencies {
   feedService: FeedService;
   rollLogService: RollLogService;
   sceneTableService: SceneTableService;
+  preparedActorService: PreparedActorService;
 }
 
 export interface TableActorView {
@@ -224,8 +226,11 @@ export class TabletopService {
   }
 
   removeTokenFromScene(tokenOrId: TokenState | string, sceneId?: string): boolean {
-    const tokenId = typeof tokenOrId === 'string' ? tokenOrId : tokenOrId.id;
-    return sceneId ? this.dependencies.sceneTableService.removeTokenFromSceneInScene(sceneId, tokenId) : this.dependencies.sceneTableService.removeTokenFromScene(tokenId);
+    const targetSceneId = sceneId ?? this.dependencies.sceneTableService.sceneTable$.get().activeSceneId;
+    const token = typeof tokenOrId === 'string'
+      ? this.dependencies.sceneTableService.sceneTable$.get().scenes[targetSceneId]?.tokens.find((item) => item.id === tokenOrId)
+      : tokenOrId;
+    return token ? this.dependencies.preparedActorService.removeFromScene(token, targetSceneId) : false;
   }
 
   deleteCharacter(characterId: string): void {

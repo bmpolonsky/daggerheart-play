@@ -45,7 +45,7 @@ async function waitForStoredEncounterSize(page: Page, size: number): Promise<voi
 }
 
 test.describe('combat builder sync', () => {
-  test('uses the core encounter as the shared source for builders and the unified GM roster', async ({ context }) => {
+  test('uses active-scene runtime actors as the shared source for builders and the GM roster', async ({ context }) => {
     const builder = await openCombatBuilder(context);
 
     await addRedOoze(builder);
@@ -55,7 +55,7 @@ test.describe('combat builder sync', () => {
     const gm = await openGmTable(context);
     const gmAdversary = gm.locator('.player-roster__item').filter({ hasText: 'Алая Слизь' });
     await expect(gmAdversary).toBeVisible();
-    await expect(gmAdversary.getByRole('button', { name: 'Добавить Алая Слизь на сцену' })).toBeVisible();
+    await expect(gmAdversary.getByRole('button', { name: /Показать Алая Слизь игрокам/ })).toBeVisible();
 
     const secondBuilder = await openCombatBuilder(context);
     await expect(secondBuilder.locator('.combat-encounter-panel')).toContainText('Алая Слизь');
@@ -71,6 +71,6 @@ test.describe('combat builder sync', () => {
     await waitForStoredEncounterSize(secondBuilder, 0);
 
     await expect(builder.locator('.combat-encounter-panel')).toContainText('0 противников');
-    await expect(gm.locator('.player-participant-feed__empty')).toContainText('Сцена пока пуста');
+    await expect(gm.getByLabel('Противники')).toContainText('На сцене нет противников');
   });
 });

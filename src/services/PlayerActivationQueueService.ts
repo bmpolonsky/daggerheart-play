@@ -87,6 +87,10 @@ export class PlayerActivationQueueService {
     this.localStore.set({ raised: false, actorId: null });
   }
 
+  removeRequester(requesterId: string): void {
+    this.queueStore.update((queue) => queue.filter((item) => item.requesterId !== requesterId));
+  }
+
   private upsert(request: PlayerActivationQueueItem): PlayerActivationQueueItem {
     this.queueStore.update((queue) => {
       const existingIndex = queue.findIndex((item) => activationKey(item.actorId, item.requesterId) === activationKey(request.actorId, request.requesterId));

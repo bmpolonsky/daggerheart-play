@@ -81,7 +81,8 @@ test('app routing treats library paths as player view state', () => {
     toolsTab: 'library',
     libraryCollection: 'domainCards',
     libraryEntrySlug: null,
-    settingsSection: null
+    settingsSection: null,
+    handoutId: null
   });
 
   assert.deepEqual(parseRoutedPlayerViewState('/library/compendium/rules/agility', 'player'), {
@@ -89,7 +90,8 @@ test('app routing treats library paths as player view state', () => {
     toolsTab: 'library',
     libraryCollection: 'rules',
     libraryEntrySlug: 'agility',
-    settingsSection: null
+    settingsSection: null,
+    handoutId: null
   });
 
   assert.deepEqual(parseRoutedPlayerViewState('/library/settings/diagnostics', 'gm'), {
@@ -97,7 +99,8 @@ test('app routing treats library paths as player view state', () => {
     toolsTab: 'settings',
     libraryCollection: null,
     libraryEntrySlug: null,
-    settingsSection: 'diagnostics'
+    settingsSection: 'diagnostics',
+    handoutId: null
   });
 });
 
@@ -108,11 +111,28 @@ test('player shared tools expose the owned-character area without GM-only tabs',
     toolsTab: 'characters',
     libraryCollection: null,
     libraryEntrySlug: null,
-    settingsSection: null
+    settingsSection: null,
+    handoutId: null
   });
   assert.equal(sharedToolsTabsForRole('player').includes('scenes'), false);
   assert.equal(sharedToolsTabsForRole('player').includes('combat'), false);
   assert.equal(sharedToolsTabsForRole('player').includes('notes'), false);
+});
+
+test('handout routes preserve the selected editor through Back and Forward state', () => {
+  assert.deepEqual(parseRoutedPlayerViewState('/library/handouts/handout%3Aclue', 'gm'), {
+    toolsOpen: true,
+    toolsTab: 'handouts',
+    libraryCollection: null,
+    libraryEntrySlug: null,
+    settingsSection: null,
+    handoutId: 'handout:clue'
+  });
+  assert.equal(buildRoutedPlayerViewLocation('gm', {
+    toolsOpen: true,
+    toolsTab: 'handouts',
+    handoutId: 'handout:clue'
+  }).hash, '#/library/handouts/handout%3Aclue');
 });
 
 test('app routing builds slash-based library hash URLs without query params', () => {

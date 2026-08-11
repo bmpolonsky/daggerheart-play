@@ -1,5 +1,6 @@
 export type LibraryDetailAction = {
   label: string;
+  disabled?: boolean;
   onClick: () => string | null;
 };
 

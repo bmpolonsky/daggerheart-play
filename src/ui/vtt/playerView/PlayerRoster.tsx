@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Eye, EyeOff, Hand, MapPlus, Mic, MicOff, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, MapPlus, Trash2 } from 'lucide-react';
 import { Avatar } from '../../components/common/Avatar';
 import { IconButton } from '../../components/common/IconButton';
 import { ListItem } from '../../components/common/ListItem';
@@ -16,8 +16,6 @@ export function PlayerRoster({
   onAddActorToScene,
   onRemoveActorFromScene,
   onSetActorHidden,
-  onClearActivationRequest,
-  onForceMutePlayer,
   onSetResource,
   onOpenActor
 }: {
@@ -29,8 +27,6 @@ export function PlayerRoster({
   onAddActorToScene: (actor: PlayerRosterActor, sceneId: string) => void;
   onRemoveActorFromScene?: (actor: PlayerRosterActor, sceneId: string) => void;
   onSetActorHidden?: (actor: PlayerRosterActor, hidden: boolean, sceneId: string) => void;
-  onClearActivationRequest?: (request: NonNullable<PlayerRosterActor['activationRequest']>) => void;
-  onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onSetResource?: (actor: PlayerRosterActor, resource: 'hope' | 'hp' | 'stress', next: number) => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
 }) {
@@ -43,9 +39,6 @@ export function PlayerRoster({
         const active = actor.kind === 'character' || actor.kind === 'companion'
           ? actor.actorId === activeCharacterId
           : actor.actorId === activeAdversaryId;
-        const activationRequest = actor.activationRequest;
-        const voiceLive = Boolean(actor.presence?.voiceLive && !actor.presence.voiceMuted);
-        const voiceConnected = Boolean(actor.presence?.connected);
         const subtitle = actor.kind === 'character' || actor.kind === 'companion'
           ? actor.subtitle
           : actor.kind === 'environment'
@@ -57,7 +50,7 @@ export function PlayerRoster({
           : { kind: actor.kind, actorId: actor.actorId };
         return (
           <div
-            className={`player-roster__item ${actor.kind === 'companion' ? 'player-roster__item--companion' : ''} ${active || Boolean(activationRequest) ? 'dh-is-selected' : ''}`}
+            className={`player-roster__item ${actor.kind === 'companion' ? 'player-roster__item--companion' : ''} ${active ? 'dh-is-selected' : ''}`}
             key={`${actor.kind}:${actor.actorId}`}
             onClick={(event) => {
               if (!opensSheet || (event.target as HTMLElement).closest('button, .player-roster__tracks')) return;
@@ -65,21 +58,11 @@ export function PlayerRoster({
             }}
           >
             <ListItem
-              className={`player-roster__row ${locked ? 'dh-is-locked' : ''} ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
+              className={`player-roster__row ${locked ? 'dh-is-locked' : ''}`}
               title={actor.name}
               subtitle={subtitle}
               align="center"
-              leftAccessory={(
-                <>
-                  {actor.kind === 'character' && role === 'gm' && (
-                    <i
-                      className={`player-roster__presence ${actor.presence?.connected ? 'dh-is-online' : 'dh-is-offline'}`}
-                      aria-label={actor.presence?.connected ? 'Игрок подключен' : 'Игрок не подключен'}
-                    />
-                  )}
-                  <Avatar src={actor.imageUrl ? cssImageUrl(actor.imageUrl) : undefined} fallback={initials(actor.name)} size="sm" />
-                </>
-              )}
+              leftAccessory={<Avatar src={actor.imageUrl ? cssImageUrl(actor.imageUrl) : undefined} fallback={initials(actor.name)} size="sm" />}
               disabled={locked}
               tooltip={opensSheet ? actor.name : 'Детали скрыты от игроков'}
               onClick={opensSheet ? () => onOpenActor(viewedActor) : undefined}
@@ -95,40 +78,6 @@ export function PlayerRoster({
                         onChange={(next) => onSetResource?.(actor, 'stress', next)}
                       />
                     </div>
-                  )}
-                  {actor.kind === 'character' && (
-                    <IconButton
-                      aria-label={`Микрофон ${actor.name}`}
-                      className="player-roster__mic"
-                      variant="ghost"
-                      tone={voiceLive ? 'green' : voiceConnected ? 'blue' : 'neutral'}
-                      size="xs"
-                      disabled={!voiceConnected}
-                      title={voiceConnected ? 'Заглушить микрофон игрока' : 'Игрок не подключен'}
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onForceMutePlayer?.(actor);
-                      }}
-                    >
-                      {voiceLive ? <Mic size={13} aria-hidden="true" /> : <MicOff size={13} aria-hidden="true" />}
-                    </IconButton>
-                  )}
-                  {activationRequest && (
-                    <IconButton
-                      aria-label={`Дать активацию ${actor.name}`}
-                      className="player-roster__activation"
-                      variant="primary"
-                      size="xs"
-                      title="Дать активацию и убрать из очереди"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onClearActivationRequest?.(activationRequest);
-                      }}
-                    >
-                      <Hand size={13} aria-hidden="true" />
-                    </IconButton>
                   )}
                   {(actor.kind === 'environment' || actor.kind === 'adversary') && actor.isOnScene && (
                     <IconButton

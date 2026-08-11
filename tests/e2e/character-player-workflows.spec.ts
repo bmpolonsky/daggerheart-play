@@ -133,6 +133,38 @@ async function openGmCharacterEditor(gm: Page): Promise<Locator> {
 test.describe('filled-game player character workflows', () => {
   test.describe.configure({ timeout: 120_000 });
 
+  test('keeps connected off-scene players in the people list and focuses a raised hand from the dock', async ({ browser }) => {
+    const { relay, gm, player } = await openJoinedFilledTable(browser, 'hand');
+    try {
+      const heroes = gm.getByLabel('Инструменты сцены').getByLabel('Герои');
+      await heroes.getByRole('button', { name: new RegExp(`Убрать ${filledCharacterName} со сцены`) }).click();
+      await expect(heroes.locator('.player-roster__item').filter({ hasText: filledCharacterName })).toHaveCount(0);
+      await expect(player.getByLabel('Персонаж игрока')).toContainText(filledCharacterName);
+
+      const players = gm.getByLabel('Инструменты сцены').getByLabel('Игроки');
+      await expect(players).toContainText('Игрок 1');
+      await expect(players).toContainText(filledCharacterName);
+      await player.getByRole('button', { name: 'Поднять руку' }).click();
+
+      const dockRequest = gm.getByRole('button', { name: 'Открыть участников: поднятых рук 1' });
+      await expect(dockRequest).toBeVisible({ timeout: 15_000 });
+      await gm.getByRole('button', { name: 'Свернуть игроков' }).click();
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Подготовлено' }).click();
+      await dockRequest.click();
+
+      await expect(gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Участники' })).toHaveAttribute('aria-pressed', 'true');
+      const focusedPlayer = gm.locator('[data-focused-player="true"]');
+      await expect(focusedPlayer).toBeVisible();
+      await expect(focusedPlayer).toBeFocused();
+      await expect(focusedPlayer).toContainText('Игрок 1');
+      const sceneTools = gm.getByLabel('Инструменты сцены');
+      await expect(sceneTools).not.toContainText('Игрок не подключен');
+      await expect(sceneTools.getByRole('button', { name: /Микрофон/ })).toHaveCount(0);
+    } finally {
+      await relay.close();
+    }
+  });
+
   test('moves all seven cards between Hand and Vault with replacement and recall cost', async ({ browser }) => {
     const { relay, gm, player } = await openJoinedFilledTable(browser, 'cards');
     try {
@@ -411,23 +443,12 @@ test.describe('filled-game player character workflows', () => {
     try {
       const gmRoster = gm.getByLabel('Участники сцены');
       const gmRosterCompanion = gmRoster.locator('.player-roster__item--companion');
-      await expect(gmRosterCompanion).toContainText('Искра');
-      await expect(gmRosterCompanion).toContainText('Уклонение 10');
-      await expect(gmRosterCompanion).toContainText('0/3');
-      await expect(gmRosterCompanion.getByRole('button', { name: 'Добавить Искра на сцену' })).toBeVisible();
-      const gmRosterOwnerBox = await gmRoster.locator('.player-roster__item:not(.player-roster__item--companion)').filter({ hasText: filledCharacterName }).boundingBox();
-      const gmRosterCompanionBox = await gmRosterCompanion.boundingBox();
-      expect(gmRosterOwnerBox).not.toBeNull();
-      expect(gmRosterCompanionBox).not.toBeNull();
-      expect(Math.abs(gmRosterCompanionBox!.x - gmRosterOwnerBox!.x)).toBeLessThanOrEqual(1);
-      expect(Math.abs(gmRosterCompanionBox!.width - gmRosterOwnerBox!.width)).toBeLessThanOrEqual(1);
-      expect(gmRosterCompanionBox!.y).toBeGreaterThan(gmRosterOwnerBox!.y);
-      const gmRosterCompanionIdentityBox = await gmRosterCompanion.locator('.dh-list-item__content').boundingBox();
-      const gmRosterCompanionStressBox = await gmRosterCompanion.locator('.player-roster__companion-stress').boundingBox();
-      expect(gmRosterCompanionIdentityBox).not.toBeNull();
-      expect(gmRosterCompanionStressBox).not.toBeNull();
-      expect(Math.abs(gmRosterCompanionStressBox!.y - gmRosterCompanionIdentityBox!.y)).toBeLessThan(gmRosterCompanionIdentityBox!.height);
-      expect(gmRosterCompanionBox!.height).toBeLessThanOrEqual(64);
+      await expect(gmRosterCompanion).toHaveCount(0);
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Подготовлено' }).click();
+      const preparedCompanion = gm.getByRole('region', { name: 'Подготовлено' }).locator('.player-prepared__companion').filter({ hasText: 'Искра' });
+      await expect(preparedCompanion).toContainText('Спутник');
+      await expect(preparedCompanion.getByRole('button', { name: 'Добавить Искра на сцену' })).toBeVisible();
+      await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Участники' }).click();
 
       const playerSheet = player.getByLabel('Персонаж игрока');
       const companion = playerSheet.getByLabel('Компаньон следопыта');

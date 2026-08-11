@@ -24,6 +24,24 @@ export type PlayerRosterActor = {
   presence?: PlayerPresence;
 };
 
+export type ConnectedPlayerRow = {
+  id: string;
+  actorId: string;
+  playerName: string;
+  characterName: string;
+  peerId: string;
+  inCall: boolean;
+  micMuted: boolean;
+  cameraOff: boolean;
+  activationRequest?: PlayerActivationQueueItem;
+};
+
+export type SceneActorGroups = {
+  heroes: PlayerRosterActor[];
+  adversaries: PlayerRosterActor[];
+  environments: PlayerRosterActor[];
+};
+
 export type PlayerViewedActor = { kind: 'character' | 'adversary' | 'environment'; actorId: string };
 export type PlayerMobileLayer = 'feed' | 'scene' | 'sheet' | 'tools';
 export type PlayerRollType = 'action' | 'reaction';

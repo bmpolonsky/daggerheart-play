@@ -4,8 +4,8 @@ import { useStream } from "../../../core/hooks/useStream";
 import { buildPlayerTokens, type PlayerViewAdversarySummary, type PlayerViewCharacterSummary, type PlayerViewEmptyCharacterState } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
-import { characterService, contentService, encounterService, playerActivationQueueService, playerPresenceService } from "../../../services/serviceRegistry";
-import { buildSessionRosterActors } from "./helpers";
+import { characterService, contentService, encounterService, mediaCallService, playerActivationQueueService, playerPresenceService } from "../../../services/serviceRegistry";
+import { buildConnectedPlayerRows, buildSessionRosterActors } from "./helpers";
 import type { PlayerRosterActor, PlayerViewedActor, TableViewRole } from "./types";
 import type { PlayerViewDomainCard } from "./domainCards/types";
 import { GmRightPanel } from "./GmRightPanel";
@@ -29,8 +29,11 @@ export function PlayerCharacterPanel({
   onFeaturePreview,
   onOpenChronicle,
   onAddToScene,
+  onCreateCharacter,
+  onCreateHandout,
+  onOpenHandout,
+  onOpenPlayersSettings,
   onEmptyAction,
-  onForceMutePlayer,
   onWealthEdit,
   onEditCharacter,
   onOpenTool,
@@ -52,8 +55,11 @@ export function PlayerCharacterPanel({
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onOpenChronicle?: () => void;
   onAddToScene?: (target: SceneAddTarget) => void;
+  onCreateCharacter?: () => void;
+  onCreateHandout?: () => void;
+  onOpenHandout?: (handoutId: string) => void;
+  onOpenPlayersSettings?: () => void;
   onEmptyAction?: () => void;
-  onForceMutePlayer?: (actor: PlayerRosterActor) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
   onEditCharacter?: () => void;
   onOpenTool: (tab: 'characters' | 'scenes' | 'combat' | 'handouts') => void;
@@ -64,6 +70,7 @@ export function PlayerCharacterPanel({
   const encounter = useStream(encounterService.encounter$);
   const activationQueue = useStream(playerActivationQueueService.queue$);
   const playerPresence = useStream(playerPresenceService.presence$);
+  const call = useStream(mediaCallService.call$);
   const scene = sceneTable.scenes[sceneId] ?? sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
   const tokens = useMemo(() => scene ? buildPlayerTokens(scene.tokens, characters.entities, encounter, role) : [], [characters.entities, encounter, role, scene, scene?.tokens]);
   const actors = useMemo(() => role === 'gm'
@@ -77,6 +84,10 @@ export function PlayerCharacterPanel({
       presence: playerPresence
     })
     : [], [activationQueue, characters, encounter.adversaries, encounter.environments, playerPresence, role, tokens]);
+  const connectedPlayers = useMemo(
+    () => role === 'gm' ? buildConnectedPlayerRows(characters, playerPresence, call, activationQueue) : [],
+    [activationQueue, call, characters, playerPresence, role]
+  );
 
   if (role === "gm") {
     return (
@@ -86,6 +97,7 @@ export function PlayerCharacterPanel({
         adversary={adversary}
         environment={environment}
         actors={actors}
+        connectedPlayers={connectedPlayers}
         beastforms={beastforms}
         character={character}
         rosterRequestId={rosterRequestId}
@@ -96,7 +108,10 @@ export function PlayerCharacterPanel({
         onFeaturePreview={onFeaturePreview}
         onOpenChronicle={onOpenChronicle}
         onAddToScene={onAddToScene}
-        onForceMutePlayer={onForceMutePlayer}
+        onCreateCharacter={onCreateCharacter}
+        onCreateHandout={onCreateHandout}
+        onOpenHandout={onOpenHandout}
+        onOpenPlayersSettings={onOpenPlayersSettings}
         onWealthEdit={onWealthEdit}
         onEditCharacter={onEditCharacter}
         onOpenTool={onOpenTool}

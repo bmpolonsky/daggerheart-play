@@ -74,7 +74,7 @@ export function LibraryDetailPanel({
                 </Button>
               )}
               {entry.actions.map((action) => (
-                <Button size="sm" variant="secondary" type="button" key={action.label} onClick={() => {
+                <Button size="sm" variant="secondary" type="button" key={action.label} disabled={action.disabled} onClick={() => {
                   const message = action.onClick();
                   if (message) onAction(message);
                 }}>{action.label}</Button>

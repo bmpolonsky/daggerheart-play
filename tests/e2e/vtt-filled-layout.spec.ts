@@ -388,7 +388,7 @@ test.describe('filled VTT layout regressions', () => {
     const detail = workspace.getByLabel('Полная запись компендиума');
     const detailBody = detail.locator('.player-library-detail__body');
     const footer = detail.locator('.player-library-detail__footer');
-    await expect(detail.getByRole('button', { name: 'Добавить в столкновение' })).toBeVisible();
+    await expect(detail.getByRole('button', { name: 'Подготовить' })).toBeVisible();
     await expect(detail.getByRole('button', { name: 'Создать сцену' })).toBeVisible();
     await detailBody.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
     await expect.poll(() => detailBody.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);

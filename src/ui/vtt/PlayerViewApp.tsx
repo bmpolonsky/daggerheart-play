@@ -69,7 +69,10 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const sceneTable = useStream(sceneTableService.sceneTable$);
   const rollLog = useStream(rollLogService.rollLog$);
   const feed = useStream(feedService.feed$);
-  const liveScene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.activeSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
+  const liveScene = sceneTable.scenes[sceneTable.liveSceneId] ?? sceneTable.scenes[sceneTable.sceneOrder[0]];
+  const viewedScene = role === 'gm'
+    ? sceneTable.scenes[sceneTable.activeSceneId] ?? liveScene
+    : liveScene ?? sceneTable.scenes[sceneTable.activeSceneId];
   const [selectedPlayerSeatId, setSelectedPlayerSeatId] = useState(() => sessionRoomId ? readStoredPlayerSeatId(sessionRoomId) : null);
   const playerSeats = useMemo(() => Object.values(sceneTable.participants).filter((participant) => participant.role === 'player'), [sceneTable.participants]);
   const selectedPlayerSeat = playerSeats.find((seat) => seat.id === selectedPlayerSeatId) ?? null;
@@ -85,7 +88,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const quickToolsOpen = role === 'gm' && routedUi.toolsOpen && routedUi.toolsTab === 'generators';
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
-  const assetUrls = useLiveSceneAssetUrls(liveScene, sceneTable.assets, role, sceneTable.musicDeliveryMode);
+  const assetUrls = useLiveSceneAssetUrls(viewedScene, sceneTable.assets, role, sceneTable.musicDeliveryMode);
   const viewedCharacterId = viewedActor?.kind === 'character' ? viewedActor.actorId : null;
   const viewedAdversaryId = viewedActor?.kind === 'adversary' ? viewedActor.actorId : null;
   const viewedEnvironmentId = viewedActor?.kind === 'environment' ? viewedActor.actorId : null;
@@ -129,7 +132,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       game,
       characters,
       encounter,
-      liveScene,
+      liveScene: viewedScene,
       assets: sceneTable.assets,
       assetUrls,
       rollLog,
@@ -137,7 +140,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       playerCharacterId,
       role
     }),
-    [assetUrls, game, characters, encounter, feed, liveScene, playerCharacterId, role, rollLog, sceneTable.assets]
+    [assetUrls, game, characters, encounter, feed, viewedScene, playerCharacterId, role, rollLog, sceneTable.assets]
   );
   const displayedCharacter = useMemo(() => {
     if (role === 'player') return model.character;
@@ -227,7 +230,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     setSelectedPlayerSeatId(seatId);
     if (sessionRoomId) writeStoredPlayerSeatId(sessionRoomId, seatId);
   }, [sessionRoomId]);
-  const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab; libraryCollection?: typeof content.selectedCollection | null; libraryEntrySlug?: string | null; settingsSection?: string | null }) => {
+  const commitRoutedUi = useCallback((next: { toolsOpen: boolean; toolsTab?: SharedToolsTab; libraryCollection?: typeof content.selectedCollection | null; libraryEntrySlug?: string | null; settingsSection?: string | null; handoutId?: string | null }) => {
     if (typeof window === 'undefined') return;
     const navigation = buildRoutedPlayerViewLocation(role, next);
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -272,9 +275,10 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       toolsTab: tab,
       libraryCollection: tab === 'library' ? content.selectedCollection : null,
       libraryEntrySlug: tab === 'library' ? routedUi.libraryEntrySlug : null,
-      settingsSection: tab === 'settings' ? routedUi.settingsSection : null
+      settingsSection: tab === 'settings' ? routedUi.settingsSection : null,
+      handoutId: tab === 'handouts' ? routedUi.handoutId : null
     });
-  }, [commitRoutedUi, content.selectedCollection, routedUi.libraryEntrySlug, routedUi.settingsSection]);
+  }, [commitRoutedUi, content.selectedCollection, routedUi.handoutId, routedUi.libraryEntrySlug, routedUi.settingsSection]);
   const changeLibraryCollection = useCallback((collection: typeof content.selectedCollection) => {
     contentService.setSelectedCollection(collection);
     commitRoutedUi({ toolsOpen: true, toolsTab: 'library', libraryCollection: collection, libraryEntrySlug: null });
@@ -290,6 +294,13 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const changeSettingsSection = useCallback((section: string) => {
     commitRoutedUi({ toolsOpen: true, toolsTab: 'settings', settingsSection: section });
   }, [commitRoutedUi]);
+  const openHandoutEditor = useCallback((handoutId: string) => {
+    commitRoutedUi({ toolsOpen: true, toolsTab: 'handouts', handoutId });
+  }, [commitRoutedUi]);
+  const createHandout = useCallback(() => {
+    const handout = gameService.addHandout({ title: `Раздатка ${game.handouts.length + 1}`, visibleToPlayers: false });
+    openHandoutEditor(handout.id);
+  }, [game.handouts.length, openHandoutEditor]);
   const openSceneAddTarget = useCallback((target: SceneAddTarget) => {
     const destination = target === 'character'
       ? { toolsTab: 'characters' as const }
@@ -319,8 +330,10 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       } else {
         sceneTableService.assignLocalPlayerCharacter(character.id);
       }
+    } else {
+      openActor({ kind: 'character', actorId: character.id });
     }
-  }, [role, selectedPlayerName, selectedPlayerSeatId]);
+  }, [openActor, role, selectedPlayerName, selectedPlayerSeatId]);
   const previewDomainCard = useCallback((character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => {
     playerViewUiActions.setEphemeralFeedItem(buildDomainCardPreviewFeedItem({
       id: `ephemeral-card-${character.id}`,
@@ -514,11 +527,14 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onFeaturePreview={previewCharacterFeature}
           onOpenChronicle={() => { setActivityOpen(true); setMobileLayer('feed'); }}
           onAddToScene={role === 'gm' ? openSceneAddTarget : undefined}
+          onCreateCharacter={role === 'gm' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
+          onCreateHandout={role === 'gm' ? createHandout : undefined}
+          onOpenHandout={role === 'gm' ? openHandoutEditor : undefined}
+          onOpenPlayersSettings={role === 'gm' ? () => changeSettingsSection('players') : undefined}
           onWealthEdit={editCharacterWealth}
           onEditCharacter={displayedCharacter ? () => setEditingCharacterId(displayedCharacter.id) : undefined}
           onOpenTool={openTool}
           onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
-          onForceMutePlayer={(actor) => void p2pSessionService.forceMutePlayer({ actorId: actor.actorId, peerId: actor.presence?.peerId })}
           onOpenActor={openActor}
         />
       </div>
@@ -531,13 +547,15 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onClose={closeTools}
           onLibraryCollectionChange={changeLibraryCollection}
           onLibraryRuleChange={changeLibraryRule}
+          onHandoutChange={openHandoutEditor}
           onSettingsSectionChange={changeSettingsSection}
           onTabChange={changeToolsTab}
           routedLibraryEntrySlug={routedUi.libraryEntrySlug}
+          routedHandoutId={routedUi.handoutId}
           routedSettingsSection={routedUi.settingsSection}
         />
       )}
-      {playerCharacterBuilderOpen && role === 'player' && (
+      {playerCharacterBuilderOpen && (
         <CharacterBuilderModal
           content={content.generic}
           classes={content.classes}

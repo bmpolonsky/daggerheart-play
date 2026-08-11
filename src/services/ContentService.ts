@@ -2,7 +2,8 @@ import { nowIso } from '../core/utils/date';
 import { reloadBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
 import { contentStore } from '../stores/contentStore';
 import { readRawCustomCardCollections } from '../domain/content/customCardLibrary';
-import { encounterStore } from '../stores/gameStores';
+import { encounterStore, sceneTableStore } from '../stores/gameStores';
+import { contentSourceMatches, isPreparedAdversary, isPreparedEnvironment } from '../domain/tabletop/preparedActors';
 import { mapGenericItem, mapRawAdversary, createAdversaryFromLibrary, createEnvironmentFromLibrary, mapRawBeastformItem, mapRawClassItem, mapRawEnvironmentItem, mapRawEquipmentItem, mapRawRuleItem } from '../domain/content/mappers';
 import {
   contentSearchDocuments,
@@ -201,6 +202,7 @@ export class ContentService {
   addAdversaryToEncounter(libraryAdversaryId: string): boolean {
     const item = contentStore.get().adversaries.find((adversary) => adversary.id === libraryAdversaryId);
     if (!item) return false;
+    if (this.isAdversaryPrepared(libraryAdversaryId)) return false;
 
     const adversary = createAdversaryFromLibrary(item);
     encounterStore.update((state) => ({
@@ -216,6 +218,7 @@ export class ContentService {
   addEnvironmentToEncounter(libraryEnvironmentId: string): boolean {
     const item = contentStore.get().environments.find((environment) => environment.id === libraryEnvironmentId);
     if (!item) return false;
+    if (this.isEnvironmentPrepared(libraryEnvironmentId)) return false;
 
     const environment = createEnvironmentFromLibrary(item);
     encounterStore.update((state) => ({
@@ -224,6 +227,22 @@ export class ContentService {
       updatedAt: nowIso()
     }));
     return true;
+  }
+
+  isAdversaryPrepared(libraryAdversaryId: string): boolean {
+    const item = contentStore.get().adversaries.find((adversary) => adversary.id === libraryAdversaryId);
+    if (!item) return false;
+    return Object.values(encounterStore.get().adversaries).some((adversary) => (
+      isPreparedAdversary(adversary, sceneTableStore.get()) && contentSourceMatches(adversary, { sourceId: item.sourceId, sourceSlug: item.slug })
+    ));
+  }
+
+  isEnvironmentPrepared(libraryEnvironmentId: string): boolean {
+    const item = contentStore.get().environments.find((environment) => environment.id === libraryEnvironmentId);
+    if (!item) return false;
+    return Object.values(encounterStore.get().environments).some((environment) => (
+      isPreparedEnvironment(environment, sceneTableStore.get()) && contentSourceMatches(environment, { sourceId: item.sourceId, sourceSlug: item.slug })
+    ));
   }
 
   buildLibraryView(state: ContentState): ContentLibraryView {

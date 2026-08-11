@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { buildPresentedHandoutOverlay, selectPresentedHandout } from "../../src/domain/rules/handouts";
+import { buildPreparedHandoutRows, buildPresentedHandoutOverlay, selectPresentedHandout } from "../../src/domain/rules/handouts";
 import { createGameHandout, createGameState, createInventoryItem } from "../../src/domain/rules/factories";
 import { ActorStatus } from "../../src/domain/rules/statuses";
 import { buildCharacterSummary, buildPlayerViewModel } from "../../src/domain/tabletop/playerView";
@@ -53,6 +53,20 @@ test('handout presentation selector exposes only player-visible live handouts', 
 
   game.presentedHandoutId = 'missing';
   assert.equal(buildPresentedHandoutOverlay(game), null);
+});
+
+test('prepared handout rows filter title and body and expose delivery status', () => {
+  const draft = createGameHandout({ id: 'draft', title: 'Письмо', body: 'След ведёт к башне' });
+  const visible = createGameHandout({ id: 'visible', title: 'Карта', body: 'Старый тракт', visibleToPlayers: true });
+  const presented = createGameHandout({ id: 'presented', title: 'Печать', body: 'Королевская улика', visibleToPlayers: true });
+
+  assert.deepEqual(buildPreparedHandoutRows([draft, visible, presented], presented.id).map(({ handout, status }) => [handout.id, status]), [
+    ['draft', 'draft'],
+    ['visible', 'visible'],
+    ['presented', 'presented']
+  ]);
+  assert.deepEqual(buildPreparedHandoutRows([draft, visible, presented], presented.id, 'башне').map(({ handout }) => handout.id), ['draft']);
+  assert.deepEqual(buildPreparedHandoutRows([draft, visible, presented], presented.id, 'КАРТА').map(({ handout }) => handout.id), ['visible']);
 });
 
 test('character summaries clean legacy Markdown before sheet, preview, or inventory rendering', () => {

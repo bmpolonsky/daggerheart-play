@@ -43,7 +43,18 @@ test.describe('Player View empty state', () => {
     await openGmGame(page);
     await expect(page.locator('.player-token')).toHaveCount(0);
     await expect(page.getByLabel('Чат игры')).toContainText('Чат пока пуст');
-    await expect(page.getByLabel('Инструменты сцены')).toContainText('Сцена пока пуста');
+    const sceneTools = page.getByLabel('Инструменты сцены');
+    await expect(sceneTools.getByLabel('Игроки')).toContainText('Никто не подключён');
+    await expect(sceneTools.getByLabel('Герои')).toContainText('На сцене нет героев');
+    await expect(sceneTools.getByLabel('Противники')).toContainText('На сцене нет противников');
+    await expect(sceneTools.getByLabel('Окружение')).toContainText('Окружение не добавлено');
+    await expect(sceneTools.getByRole('button', { name: 'Настроить', exact: true })).toHaveCount(0);
+
+    await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Подготовлено' }).click();
+    const prepared = page.getByRole('region', { name: 'Подготовлено' });
+    await expect(prepared.getByText('Пока ничего не подготовлено.')).toHaveCount(4);
+    await prepared.getByLabel('Поиск подготовленных ресурсов').fill('нет совпадений');
+    await expect(prepared.getByText('Ничего не найдено.')).toHaveCount(4);
 
     await openGameLibrary(page);
     const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });

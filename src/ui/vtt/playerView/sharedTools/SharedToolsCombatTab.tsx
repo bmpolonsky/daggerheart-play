@@ -1,13 +1,12 @@
 /** @jsxImportSource preact */
 import { ExternalLink, Minus, Plus, Shield, Trash2, Users } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import type { Adversary } from '@combat/lib/api';
 import { buildEncounterSummary, calculateAdversaryCost, type DifficultyMode } from '@combat/lib/mechanics';
 import { adversariesService } from '@combat/services/adversariesService';
 import { encounterService } from '@combat/services/encounterService';
 import type { EncounterBattleEntry } from '@combat/stores/encounter';
 import { useStream } from '../../../../core/hooks/useStream';
-import { sceneTableService } from '../../../../services/serviceRegistry';
 import {
   AssetImage,
   Badge,
@@ -44,10 +43,8 @@ export function SharedToolsCombatTab() {
 
   const adversariesState = useStream(adversariesService.adversaries$);
   const encounter = useStream(encounterService.encounter$);
-  const sceneTable = useStream(sceneTableService.sceneTable$);
   const [selectedAdversaryId, setSelectedAdversaryId] = useState<number | null>(null);
   const [detailMessage, setDetailMessage] = useState('');
-  const [playerCountManuallyAdjusted, setPlayerCountManuallyAdjusted] = useState(false);
   const [clearEncounterOpen, setClearEncounterOpen] = useState(false);
   const { filteredItems, roleOptions } = adversariesService.buildBrowserView();
   const tierOptions = useMemo(
@@ -64,19 +61,8 @@ export function SharedToolsCombatTab() {
     ? Math.min(100, Math.round((summary.totalCost / summary.finalBudget) * 100))
     : 0;
   const activeModifiers = summary.modifiers.filter((modifier) => modifier.active);
-  const activeScene = sceneTable.scenes[sceneTable.activeSceneId];
-  const scenePlayerCount = Math.min(8, new Set(
-    (activeScene?.tokens ?? [])
-      .filter((token) => token.actor.kind === 'character')
-      .map((token) => token.actor.id)
-  ).size);
   const selectedAdversary = adversariesState.items.find((item) => item.id === selectedAdversaryId) ?? null;
   const selectedEntry = selectedAdversary ? combatAdversaryEntry(selectedAdversary) : null;
-
-  useEffect(() => {
-    if (playerCountManuallyAdjusted || scenePlayerCount < 1 || scenePlayerCount === encounter.playerCount) return;
-    encounterService.setPlayerCount(scenePlayerCount);
-  }, [encounter.playerCount, playerCountManuallyAdjusted, scenePlayerCount]);
 
   return (
     <section className="player-tools-section player-tools-section--embedded-combat" aria-label="Бой">
@@ -192,10 +178,7 @@ export function SharedToolsCombatTab() {
                   size="xs"
                   variant="ghost"
                   aria-label="Уменьшить количество героев"
-                  onClick={() => {
-                    setPlayerCountManuallyAdjusted(true);
-                    encounterService.setPlayerCount(encounter.playerCount - 1);
-                  }}
+                  onClick={() => encounterService.setPlayerCount(encounter.playerCount - 1)}
                 >
                   <Minus size={13} />
                 </IconButton>
@@ -204,10 +187,7 @@ export function SharedToolsCombatTab() {
                   size="xs"
                   variant="ghost"
                   aria-label="Увеличить количество героев"
-                  onClick={() => {
-                    setPlayerCountManuallyAdjusted(true);
-                    encounterService.setPlayerCount(encounter.playerCount + 1);
-                  }}
+                  onClick={() => encounterService.setPlayerCount(encounter.playerCount + 1)}
                 >
                   <Plus size={13} />
                 </IconButton>

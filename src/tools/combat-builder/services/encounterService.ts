@@ -14,7 +14,9 @@ import {
 } from "../../../domain/combatBuilderBridge";
 import type { EncounterDifficultyMode } from "../../../domain/rules/types";
 import { nowIso } from "../../../core/utils/date";
-import { encounterStore as coreEncounterStore } from "../../../stores/gameStores";
+import { encounterStore as coreEncounterStore, sceneTableStore } from "../../../stores/gameStores";
+import { createTokenState, randomAvailableTokenPosition } from "../../../domain/tabletop/factories";
+import { actorReferenceCount, nextSceneInstanceName } from "../../../domain/tabletop/preparedActors";
 
 type BuilderEncounterSettings = {
   playerCount: number;
@@ -167,22 +169,37 @@ export class EncounterService {
   readonly encounter$ = encounterStore.toStream();
   private bootstrapped = false;
   private unsubscribeCoreEncounter: (() => void) | null = null;
+  private unsubscribeSceneTable: (() => void) | null = null;
+  private committing = false;
 
   ensureHydrated() {
     if (this.bootstrapped) return;
     this.bootstrapped = true;
     this.applyCoreEncounter();
     this.unsubscribeCoreEncounter = coreEncounterStore.subscribe(() => this.applyCoreEncounter());
+    this.unsubscribeSceneTable = sceneTableStore.subscribe(() => this.applyCoreEncounter());
   }
 
   dispose() {
     this.unsubscribeCoreEncounter?.();
     this.unsubscribeCoreEncounter = null;
+    this.unsubscribeSceneTable?.();
+    this.unsubscribeSceneTable = null;
     this.bootstrapped = false;
   }
 
   private applyCoreEncounter() {
-    const snapshot = buildCombatBuilderEncounterFromCoreEncounter(coreEncounterStore.get());
+    if (this.committing) return;
+    const core = coreEncounterStore.get();
+    const sceneTable = sceneTableStore.get();
+    const scene = sceneTable.scenes[sceneTable.activeSceneId];
+    const actorIds = new Set((scene?.tokens ?? []).filter((token) => token.actor.kind === 'adversary').map((token) => token.actor.id));
+    const adversaries = Object.fromEntries(Object.entries(core.adversaries).filter(([id]) => actorIds.has(id)));
+    const snapshot = buildCombatBuilderEncounterFromCoreEncounter({
+      ...core,
+      adversaries,
+      order: core.order.filter((id) => actorIds.has(id))
+    });
     const settings = builderSettingsFromSnapshot(snapshot);
     encounterStore.update((state) => ({
       ...state,
@@ -195,23 +212,83 @@ export class EncounterService {
     const settings = builderSettingsFromSnapshot(snapshot);
     const entries = normalizeEntries(snapshot.entries);
     const result = buildCoreAdversariesFromCombatBuilder({ ...snapshot, entries });
-    const adversaries = Object.fromEntries(result.adversaries.map((adversary) => [adversary.id, adversary]));
-    const order = result.adversaries.map((adversary) => adversary.id);
+    const sceneTable = sceneTableStore.get();
+    const scene = sceneTable.scenes[sceneTable.activeSceneId];
+    if (!scene) return;
+    const previousSceneIds = new Set(scene.tokens.filter((token) => token.actor.kind === 'adversary').map((token) => token.actor.id));
+    const desiredIds = new Set(result.adversaries.map((adversary) => adversary.id));
+    const coreBefore = coreEncounterStore.get();
+    const usedNames = new Set(scene.tokens.flatMap((token) => (
+      token.actor.kind === 'adversary' && desiredIds.has(token.actor.id)
+        ? [coreBefore.adversaries[token.actor.id]?.name ?? '']
+        : []
+    )));
 
-    coreEncounterStore.update((state) => ({
-      ...state,
-      adversaries,
-      order,
-      activeAdversaryId: order.includes(state.activeAdversaryId ?? "")
-        ? state.activeAdversaryId
-        : order[0] ?? null,
-      playerCount: settings.playerCount,
-      difficultyMode: settings.difficultyMode,
-      isDamageBoosted: settings.isDamageBoosted,
-      isLowerTierUsed: settings.isLowerTierUsed,
-      battlePointBudget: finalBudget(entries, settings),
-      updatedAt: nowIso(),
-    }));
+    this.committing = true;
+    try {
+      coreEncounterStore.update((state) => {
+        const adversaries = { ...state.adversaries };
+        for (const id of previousSceneIds) {
+          if (!desiredIds.has(id) && actorReferenceCount(sceneTable, 'adversary', id) <= 1) delete adversaries[id];
+        }
+        for (const mapped of result.adversaries) {
+          const previous = state.adversaries[mapped.id];
+          const sourceEntry = entries.find((entry) => entry.instances.some((instance) => instance.id === mapped.id));
+          const preparedTemplateId = previous?.preparedTemplateId ?? sourceEntry?.instances
+            .map((instance) => state.adversaries[instance.id]?.preparedTemplateId)
+            .find(Boolean);
+          const name = previous?.name ?? nextSceneInstanceName(mapped.sourceName?.trim() || mapped.name, usedNames);
+          usedNames.add(name);
+          adversaries[mapped.id] = {
+            ...mapped,
+            name,
+            preparedTemplateId,
+            conditions: previous?.conditions ?? mapped.conditions,
+            notes: previous?.notes ?? mapped.notes,
+            createdAt: previous?.createdAt ?? mapped.createdAt
+          };
+        }
+        const addedIds = result.adversaries.map((adversary) => adversary.id).filter((id) => !state.order.includes(id));
+        const order = [...state.order.filter((id) => adversaries[id]), ...addedIds];
+        return {
+          ...state,
+          adversaries,
+          order,
+          activeAdversaryId: state.activeAdversaryId && adversaries[state.activeAdversaryId]
+            ? state.activeAdversaryId
+            : result.adversaries[0]?.id ?? null,
+          playerCount: settings.playerCount,
+          difficultyMode: settings.difficultyMode,
+          isDamageBoosted: settings.isDamageBoosted,
+          isLowerTierUsed: settings.isLowerTierUsed,
+          battlePointBudget: finalBudget(entries, settings),
+          updatedAt: nowIso()
+        };
+      });
+      sceneTableStore.update((state) => {
+        const current = state.scenes[state.activeSceneId];
+        if (!current) return state;
+        const keptTokens = current.tokens.filter((token) => token.actor.kind !== 'adversary' || desiredIds.has(token.actor.id));
+        const existingIds = new Set(keptTokens.map((token) => token.actor.kind === 'adversary' ? token.actor.id : ''));
+        const tokens = [...keptTokens];
+        for (const id of desiredIds) {
+          if (existingIds.has(id)) continue;
+          tokens.push(createTokenState({ kind: 'adversary', id }, {
+            ...randomAvailableTokenPosition(tokens),
+            hidden: true
+          }));
+        }
+        return {
+          ...state,
+          scenes: { ...state.scenes, [current.id]: { ...current, tokens, updatedAt: nowIso() } },
+          selectedTokenId: tokens.some((token) => token.id === state.selectedTokenId) ? state.selectedTokenId : null,
+          updatedAt: nowIso()
+        };
+      });
+    } finally {
+      this.committing = false;
+    }
+    this.applyCoreEncounter();
   }
 
   addAdversary(adversary: Adversary) {

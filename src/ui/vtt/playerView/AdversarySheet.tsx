@@ -12,10 +12,11 @@ import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
 import { SheetFeatureSection, SheetHero, SheetLeadBlock, type SheetFeatureView } from "./SheetContent";
 import { StatusChips } from "./StatusChips";
+import { Badge } from "../../components/common/Badge";
 import { IconButton } from "../../components/common/IconButton";
 import { ListItem } from "../../components/common/ListItem";
 
-export function AdversarySheet({ adversary, navigation, onBack }: { adversary: PlayerViewAdversarySummary; navigation?: ComponentChildren; onBack?: () => void }) {
+export function AdversarySheet({ adversary, navigation, onBack, readOnly = false }: { adversary: PlayerViewAdversarySummary; navigation?: ComponentChildren; onBack?: () => void; readOnly?: boolean }) {
   const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
   const runFeatureMacro = (feature: SheetFeatureView, macro: DomainCardTextMacro) => {
     runAdversaryFeatureMacro(adversary, feature, macro);
@@ -53,6 +54,7 @@ export function AdversarySheet({ adversary, navigation, onBack }: { adversary: P
             title={adversary.name}
             subtitle={adversary.subtitle}
           />
+          {readOnly && <Badge tone="gold">Подготовленный шаблон</Badge>}
           <SheetLeadBlock text={adversary.notes} />
           <SheetSection title="Состояние">
           <section className="player-track-list">
@@ -61,14 +63,14 @@ export function AdversarySheet({ adversary, navigation, onBack }: { adversary: P
               label="Раны"
               value={adversary.hp.marked}
               max={adversary.hp.max}
-              onSet={(next) => encounterService.updateAdversarySlots(adversary.id, 'hp', { marked: next })}
+              onSet={readOnly ? undefined : (next) => encounterService.updateAdversarySlots(adversary.id, 'hp', { marked: next })}
             />
             <TrackRow
               icon={<Zap size={16} />}
               label="Стресс"
               value={adversary.stress.marked}
               max={adversary.stress.max}
-              onSet={(next) => encounterService.updateAdversarySlots(adversary.id, 'stress', { marked: next })}
+              onSet={readOnly ? undefined : (next) => encounterService.updateAdversarySlots(adversary.id, 'stress', { marked: next })}
             />
             {adversary.hordePerHp && <ListItem title="Раны на противника" value={String(adversary.hordePerHp)} density="compact" />}
           </section>
@@ -90,12 +92,13 @@ export function AdversarySheet({ adversary, navigation, onBack }: { adversary: P
             <header>
               <span>Состояния</span>
             </header>
-            <StatusChips
+            {!readOnly && <StatusChips
               conditions={adversary.conditions}
               options={CORE_STATUS_TAGS}
               onAdd={addStatus}
               onRemove={removeStatus}
-            />
+            />}
+            {readOnly && adversary.conditions.length > 0 && <span>{adversary.conditions.map((condition) => condition.name).join(', ')}</span>}
           </section>
           </SheetSection>
           <SheetSection title="Атака">
@@ -103,7 +106,7 @@ export function AdversarySheet({ adversary, navigation, onBack }: { adversary: P
             title={adversary.standardAttack.name}
             subtitle={`${signed(adversary.attackModifier)} / ${adversary.standardAttack.range} / ${adversary.standardAttack.damage} ${compactDamageTypeLabel(adversary.standardAttack.damageType)}`}
             tone="featured"
-            onClick={() => setAdversaryAttackConfirmOpen(true)}
+            onClick={readOnly ? undefined : () => setAdversaryAttackConfirmOpen(true)}
           />
           </SheetSection>
           <SheetSection title="Опыт" emptyLabel="Опыт не указан">
@@ -114,8 +117,8 @@ export function AdversarySheet({ adversary, navigation, onBack }: { adversary: P
           <SheetFeatureSection
             emptyLabel="Особенности не указаны"
             features={adversary.features}
-            isInteractive={isInteractiveAdversaryFeatureTextMacro}
-            onMacro={runFeatureMacro}
+            isInteractive={readOnly ? undefined : isInteractiveAdversaryFeatureTextMacro}
+            onMacro={readOnly ? undefined : runFeatureMacro}
           />
         </aside>
       </div>
