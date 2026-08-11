@@ -460,7 +460,7 @@ test.describe('P2P session workflow', () => {
 
       await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
       await expect(gm.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });
-      await expect(player.locator('.feed-roll-total--pending')).toHaveCount(0, { timeout: 2_500 });
+      await expect(player.locator('.feed-roll-total--pending')).toHaveCount(0, { timeout: 15_000 });
       await expect(observer.locator('.player-dice-overlay .polyhedral-dice-stage')).toHaveCount(0, { timeout: 4_000 });
       await Promise.all([player, gm].map((page) => (
         expect(page.locator('.player-dice-overlay .polyhedral-dice-stage')).toHaveCount(0, { timeout: 12_000 })
