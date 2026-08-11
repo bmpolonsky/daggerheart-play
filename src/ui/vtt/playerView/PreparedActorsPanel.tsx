@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import type { ComponentChildren } from 'preact';
-import { Check, Copy, Ellipsis, Eye, EyeOff, Image, Mountain, PackageCheck, PackageMinus, Pencil, Plus, Shield, Trash2, UserRound } from 'lucide-react';
+import { Check, Copy, Ellipsis, Eye, EyeOff, Image, Minus, Mountain, PackageCheck, PackageMinus, Pencil, Plus, Shield, Trash2, UserRound } from 'lucide-react';
 import { useState } from 'preact/hooks';
 import type { PreparedActorsView } from '../../../domain/tabletop/preparedActors';
 import type { PreparedHandoutRow } from '../../../domain/rules/handouts';
@@ -63,7 +63,10 @@ export function PreparedActorsPanel({ view, handouts, query, onQueryChange, onOp
             subtitle={`Ранг ${adversary.tier} / ${adversaryTypeLabel(adversary.type)}`}
             leftAccessory={<Avatar src={adversary.imageUrl ? cssImageUrl(adversary.imageUrl) : undefined} fallback={initials(adversary.name)} size="sm" />}
             rightAccessory={<div className="player-prepared__actions">
-              {activeSceneInstances > 0 && <Badge tone="gold" size="xs">{activeSceneInstances}</Badge>}
+              {activeSceneInstances > 0 && <>
+                <IconButton size="xs" variant="ghost" title="Убрать последний экземпляр со сцены" aria-label={`Убрать последнего ${adversary.name} со сцены`} onClick={() => preparedActorService.removeLastAdversaryInstance(adversary.id)}><Minus size={13} aria-hidden="true" /></IconButton>
+                <Badge tone="gold" size="xs">{activeSceneInstances}</Badge>
+              </>}
               <IconButton size="xs" variant="primary" title="Добавить экземпляр на сцену" aria-label={`Добавить ${adversary.name} на сцену`} onClick={() => preparedActorService.instantiateAdversary(adversary.id)}><Plus size={13} /></IconButton>
               <ActionMenu
                 ariaLabel={`Действия: ${adversary.name}`}

@@ -51,6 +51,21 @@ export class PreparedActorService {
     return null;
   }
 
+  removeLastAdversaryInstance(templateId: string, sceneId = sceneTableStore.get().activeSceneId): boolean {
+    const scene = sceneTableStore.get().scenes[sceneId];
+    const adversaries = encounterStore.get().adversaries;
+    if (!scene) return false;
+    for (let index = scene.tokens.length - 1; index >= 0; index -= 1) {
+      const token = scene.tokens[index];
+      if (token.actor.kind !== 'adversary') continue;
+      const adversary = adversaries[token.actor.id];
+      if (adversary?.preparedTemplateId === templateId || adversary?.id === templateId) {
+        return this.removeFromScene(token, sceneId);
+      }
+    }
+    return false;
+  }
+
   instantiateEnvironment(templateId: string, sceneId = sceneTableStore.get().activeSceneId): EncounterEnvironment | null {
     const state = encounterStore.get();
     const template = state.environments[templateId];

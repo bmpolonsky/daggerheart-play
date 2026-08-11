@@ -87,6 +87,11 @@ test('adversary templates create independent hidden instances with reset state a
   const replacement = preparedActorService.instantiateAdversary(template.id);
   assert.equal(replacement?.name, 'Скелет 2');
   assert.equal(preparedActorService.buildView().adversaries[0]?.activeSceneInstances, 3);
+  assert.equal(preparedActorService.removeLastAdversaryInstance(template.id), true);
+  assert.equal(encounterStore.get().adversaries[replacement?.id ?? ''], undefined);
+  assert.ok(encounterStore.get().adversaries[first.id]);
+  assert.ok(encounterStore.get().adversaries[third.id]);
+  assert.equal(preparedActorService.buildView().adversaries[0]?.activeSceneInstances, 2);
 });
 
 test('environment templates allow one independent instance per template and scene', () => {

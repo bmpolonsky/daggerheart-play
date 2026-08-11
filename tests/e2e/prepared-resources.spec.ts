@@ -32,6 +32,8 @@ test.describe('prepared resources', () => {
     await expect(row).toContainText('1');
     await add.click();
     await expect(row).toContainText('2');
+    await row.getByRole('button', { name: `Убрать последнего ${title} со сцены` }).click();
+    await expect(row).toContainText('1');
     await expect(prepared).toBeVisible();
 
     await row.getByRole('button', { name: title, exact: true }).click();
