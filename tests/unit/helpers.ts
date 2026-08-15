@@ -13,7 +13,6 @@ import { PlayerPresenceService } from "../../src/services/PlayerPresenceService"
 import { FeedService } from "../../src/services/FeedService";
 import { SceneTableService } from "../../src/services/SceneTableService";
 import { AssetService } from "../../src/services/AssetService";
-import type { CloudBackupService } from "../../src/services/CloudBackupService";
 import type { GameDocumentStore } from "../../src/core/persistence/gameDocumentStore";
 import { createGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState, type GameDocument } from "../../src/domain/game/gameDocument";
 import type { PersistedState } from "../../src/domain/rules/types";
@@ -353,7 +352,7 @@ async function binaryPayloadToArrayBuffer(data: P2PBinaryPayload): Promise<Array
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 }
 
-export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService; hybrid?: boolean; cloudBackupService?: CloudBackupService; transportFactory?: (transportOptions: ScriptedP2PTransportOptions, context?: P2PTransportFactoryContext) => P2PTransportAdapter } = {}): P2PSessionService {
+export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dice?: boolean; assetService?: AssetService; sceneTableService?: SceneTableService; syncService?: SyncService; mediaCallService?: MediaCallService; characterService?: typeof characterService; hybrid?: boolean; transportFactory?: (transportOptions: ScriptedP2PTransportOptions, context?: P2PTransportFactoryContext) => P2PTransportAdapter } = {}): P2PSessionService {
   return new P2PSessionService(
     options.syncService ?? new SyncService(),
     new PlayerActionRequestService(),
@@ -372,8 +371,7 @@ export function createTestP2PSession(network: ScriptedP2PNetwork, options: { dic
     }),
     { heartbeatMs: 100, gmTimeoutMs: 400 },
     options.mediaCallService,
-    options.characterService,
-    options.cloudBackupService
+    options.characterService
   );
 }
 

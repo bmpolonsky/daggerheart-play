@@ -36,11 +36,16 @@ function sessionMeta(page: Page, label: string) {
 async function createLobbyInvite(page: Page): Promise<string> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
-  const gmLobby = page.getByLabel('Создать сессию мастера');
+  const gmLobby = page.getByLabel('Рабочее пространство мастера');
   await gmLobby.getByRole('button', { name: 'Добавить', exact: true }).click();
   await expect(gmLobby.getByLabel('Имя игрока')).toHaveValue('Игрок 1');
-  const roomId = await gmLobby.getByRole('textbox', { name: /^Код комнаты/ }).inputValue();
-  const invite = gmLobby.getByRole('textbox', { name: /^Ссылка приглашения/ });
+  await gmLobby.getByRole('button', { name: 'Открыть игру' }).click();
+  await openCurrentSettings(page, 'Подключение');
+  const settings = page.getByRole('dialog', { name: 'Библиотека игры' });
+  await settings.getByRole('button', { name: 'Открыть комнату' }).click();
+  const invite = settings.getByRole('textbox', { name: /^Ссылка приглашения/ });
+  const roomId = (await invite.inputValue()).split('/').pop() ?? '';
+  expect(roomId).not.toBe('');
   await expect(invite).toHaveValue(new RegExp(`/#/join/${roomId}$`));
   return invite.inputValue();
 }
@@ -126,6 +131,13 @@ async function seedConnectedDiagnostics(page: Page, peerIds: string[]): Promise<
   }, connectedDiagnosticsFixture(peerIds));
 }
 
+async function openGameDiagnostics(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: /Сетевая игра:/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Сетевая игра' });
+  await dialog.getByRole('button', { name: 'Диагностика', exact: true }).click();
+  return dialog;
+}
+
 test.describe('P2P session workflow', () => {
   test('mobile diagnostics live in Chronicle and portal above every active VTT layer', async ({ page }) => {
     test.setTimeout(90_000);
@@ -148,22 +160,23 @@ test.describe('P2P session workflow', () => {
     await expect(page.getByRole('menuitem', { name: 'Очистить чат' })).toBeVisible();
 
     const chronicleHeader = chronicle.locator('.player-chronicle-header');
-    const diagnosticTrigger = chronicleHeader.getByRole('button', { name: /Открыть диагностику соединения/ });
-    await expect(diagnosticTrigger).toBeVisible();
-    await expect(diagnosticTrigger).toHaveCSS('position', 'static');
-    await expectInsideBounds(chronicleHeader, diagnosticTrigger);
+    const networkTrigger = chronicleHeader.getByRole('button', { name: /Сетевая игра:/ });
+    await expect(networkTrigger).toBeVisible();
+    await expect(networkTrigger).toHaveCSS('position', 'static');
+    await expectInsideBounds(chronicleHeader, networkTrigger);
     await expect(page.locator('.p2p-health-indicator')).toHaveCount(1);
     await expect(chronicleHeader.locator('.p2p-health-indicator')).toHaveCount(1);
 
-    await diagnosticTrigger.click();
-    const dialog = page.getByRole('dialog', { name: 'Диагностика соединения' });
+    await networkTrigger.click();
+    const dialog = page.getByRole('dialog', { name: 'Сетевая игра' });
+    await dialog.getByRole('button', { name: 'Диагностика', exact: true }).click();
     const panel = dialog.locator('.p2p-health-dialog');
     await expect(dialog).toBeVisible();
     expect(await dialog.evaluate((element) => element.parentElement === document.body)).toBe(true);
 
     const panelBox = await rect(panel);
     await expectInsideViewport(page, panel);
-    const diagnosticScroll = panel.locator('.player-tools-settings-panel');
+    const diagnosticScroll = panel.locator('.player-tools-diagnostics');
     await expect(diagnosticScroll).toHaveCSS('overflow-y', 'auto');
     const tabsBox = await rect(layerTabs);
     const chronicleBox = await rect(chronicle);
@@ -172,7 +185,6 @@ test.describe('P2P session workflow', () => {
     await expectTopLayerAtPoint(page, dialog, chronicleBox.x + 8, chronicleBox.y + chronicleBox.height / 2);
 
     const close = dialog.getByRole('button', { name: 'Закрыть' });
-    await expect(close).toBeFocused();
     await close.focus();
     await page.keyboard.press('Shift+Tab');
     expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
@@ -180,26 +192,26 @@ test.describe('P2P session workflow', () => {
     expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    await expect(diagnosticTrigger).toBeFocused();
+    await expect(networkTrigger).toBeFocused();
 
-    await diagnosticTrigger.click();
-    const backdropDialog = page.getByRole('dialog', { name: 'Диагностика соединения' });
+    await networkTrigger.click();
+    const backdropDialog = page.getByRole('dialog', { name: 'Сетевая игра' });
     await backdropDialog.click({ position: { x: 2, y: 2 } });
     await expect(backdropDialog).toHaveCount(0);
-    await expect(diagnosticTrigger).toBeFocused();
+    await expect(networkTrigger).toBeFocused();
 
-    await diagnosticTrigger.click();
-    const closeDialog = page.getByRole('dialog', { name: 'Диагностика соединения' });
+    await networkTrigger.click();
+    const closeDialog = page.getByRole('dialog', { name: 'Сетевая игра' });
     await closeDialog.getByRole('button', { name: 'Закрыть' }).click();
     await expect(closeDialog).toHaveCount(0);
-    await expect(diagnosticTrigger).toBeFocused();
+    await expect(networkTrigger).toBeFocused();
     await layerTabs.getByRole('button', { name: 'Сцена' }).click();
     await expect(root).toHaveClass(/player-view--mobile-scene/);
-    await expect(page.getByRole('button', { name: /Открыть диагностику соединения/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Сетевая игра:/ })).toHaveCount(0);
     await expect(chronicleTab.locator('.player-connection-status-dot')).toBeVisible();
     await layerTabs.getByRole('button', { name: 'Лист' }).click();
     await expect(root).toHaveClass(/player-view--mobile-sheet/);
-    await expect(page.getByRole('button', { name: /Открыть диагностику соединения/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Сетевая игра:/ })).toHaveCount(0);
     await expect(chronicleTab.locator('.player-connection-status-dot')).toBeVisible();
   });
 
@@ -208,8 +220,7 @@ test.describe('P2P session workflow', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    await page.getByRole('button', { name: /Открыть диагностику соединения/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Диагностика соединения' });
+    const dialog = await openGameDiagnostics(page);
     const cards = dialog.locator('.player-tools-peer-card');
     await expect(cards).toHaveCount(2);
     await expect(dialog.locator('dd[aria-label="Логических подключений"]')).toHaveText('2');
@@ -234,9 +245,7 @@ test.describe('P2P session workflow', () => {
     await page.setViewportSize({ width: 320, height: 568 });
     await openGmGame(page);
     await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
-    await page.getByLabel('Чат игры').getByRole('button', { name: /Открыть диагностику соединения/ }).click();
-
-    const dialog = page.getByRole('dialog', { name: 'Диагностика соединения' });
+    const dialog = await openGameDiagnostics(page);
     const panel = dialog.locator('.p2p-health-dialog');
     const diagnostics = dialog.locator('.player-tools-diagnostics');
     await expectInsideViewport(page, panel);
@@ -255,8 +264,7 @@ test.describe('P2P session workflow', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
 
-    await page.getByRole('button', { name: /Открыть диагностику соединения/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Диагностика соединения' });
+    const dialog = await openGameDiagnostics(page);
     const panel = dialog.locator('.p2p-health-dialog');
 
     await expect(dialog).toBeVisible();
@@ -296,9 +304,17 @@ test.describe('P2P session workflow', () => {
     await player.context().close();
   });
 
-  test('automatic GM and player bootstrap use the configured transport without external relays', async ({ browser }) => {
+  test('GM opens the room explicitly while an invited player reconnects automatically', async ({ browser }) => {
     const gm = await newSharedPage(browser);
-    await openSharedSettings(gm, 'gm', 'Диагностика');
+    await installDeterministicP2PTransport(gm);
+    await gm.goto('/#/game');
+    await expect(gm.getByRole('button', { name: /Сетевая игра: Не подключено/ })).toBeVisible();
+    await gm.getByRole('button', { name: /Сетевая игра:/ }).click();
+    const networkDialog = gm.getByRole('dialog', { name: 'Сетевая игра' });
+    await networkDialog.getByRole('button', { name: 'Открыть комнату' }).click();
+    await expect(networkDialog.getByRole('textbox', { name: 'Ссылка приглашения' })).toBeVisible();
+    await networkDialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    await openCurrentSettings(gm, 'Диагностика');
     await expect(sessionMeta(gm, 'Роль')).toHaveText('gm');
     await expect(sessionMeta(gm, 'Статус')).toHaveText('Ожидает игроков');
     await expect(sessionMeta(gm, 'ID подключения')).toHaveText('local-gm');
@@ -495,7 +511,7 @@ test.describe('P2P session workflow', () => {
       });
       await openSharedGmGame(gm, roomId);
       await openSharedPlayerGame(player, roomId);
-      await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
+      await expect(gm.getByRole('button', { name: /Сетевая игра: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
 
       await openGameLibrary(gm);
       const workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
@@ -569,13 +585,13 @@ test.describe('P2P session workflow', () => {
       await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
 
       await openSharedPlayerGame(player, roomId);
-      await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
+      await expect(gm.getByRole('button', { name: /Сетевая игра: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
       await gmMusic.getByRole('button', { name: 'Играть' }).click();
       await expect(player.locator('audio[data-scene-audio-status]')).not.toHaveAttribute('src', /^blob:/, { timeout: 4_000 });
       expect(relay.messages.some((message) => message.type === 'binary')).toBe(false);
 
       await gm.reload();
-      await expect(gm.getByRole('button', { name: /Открыть диагностику соединения: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
+      await expect(gm.getByRole('button', { name: /Сетевая игра: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });
       await openGameLibrary(gm);
       workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
       await workspace.getByRole('button', { name: 'Настройки' }).click();
@@ -614,10 +630,13 @@ test.describe('P2P session workflow', () => {
 
     const inviteLink = await createLobbyInvite(gm);
     await gm.getByRole('button', { name: 'Открыть игру' }).click();
-    const copyInvite = gm.getByRole('button', { name: 'Копировать приглашение' });
+    await gm.getByRole('button', { name: /Сетевая игра:/ }).click();
+    const networkDialog = gm.getByRole('dialog', { name: 'Сетевая игра' });
+    const copyInvite = networkDialog.getByRole('button', { name: 'Копировать приглашение' });
     await expect(copyInvite).toBeEnabled();
     await copyInvite.click();
-    await expect(gm.getByRole('button', { name: 'Ссылка скопирована' })).toBeVisible();
+    await expect(networkDialog.getByRole('button', { name: 'Ссылка скопирована' })).toBeVisible();
+    await networkDialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await openCurrentSettings(gm, 'Диагностика');
     await player.goto(inviteLink);
     await expect(player.getByText('Список получен от мастера.')).toBeVisible({ timeout: 30_000 });

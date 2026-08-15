@@ -1,0 +1,32 @@
+.shell {
+  width: min(440px, calc(100vw - 32px));
+}
+
+.content {
+  display: grid;
+  gap: 14px;
+}
+
+.provider,
+.email,
+.account {
+  display: grid;
+  gap: 10px;
+}
+
+.divider {
+  color: var(--dh-paper-faint);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.accountButton {
+  max-width: min(240px, 38vw);
+}
+
+.accountButton span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

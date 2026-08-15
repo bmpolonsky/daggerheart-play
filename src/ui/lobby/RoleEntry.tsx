@@ -21,6 +21,7 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
     return (
       <PlayerJoinLobby
         roomId={sessionParams.roomId}
+        connectionMode={sessionParams.connectionMode}
         sceneImageUrl={sceneImageUrl}
         onBackToLobby={() => onSelectRole('entry')}
         onEnterPlayerRoom={() => onSelectRole('game')}

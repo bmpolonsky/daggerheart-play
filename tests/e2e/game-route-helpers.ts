@@ -2,6 +2,12 @@ import { expect, type Browser, type BrowserContext, type Page } from '@playwrigh
 
 export async function installDeterministicP2PTransport(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    const stored = JSON.parse(window.localStorage.getItem('daggerheart-play') || '{"version":1}') as { p2p?: Record<string, unknown> };
+    window.localStorage.setItem('daggerheart-play', JSON.stringify({
+      ...stored,
+      version: 1,
+      p2p: { ...stored.p2p, connectionMode: 'p2p' }
+    }));
     const noopSubscription = () => () => undefined;
     (window as typeof window & { __DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__?: () => unknown }).__DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__ = () => ({
       id: 'e2e-local',
@@ -200,11 +206,20 @@ export async function openSharedGmGame(page: Page, roomId = 'E2EROOM'): Promise<
     window.sessionStorage.setItem('e2e-active-session-seeded', 'gm');
     window.localStorage.setItem('daggerheart-play', JSON.stringify({
       version: 1,
-      p2p: { activeSession: { version: 1, role: 'gm', roomId: activeRoomId, participantName: 'Мастер', updatedAt: new Date().toISOString() } }
+      p2p: {
+        inviteDraft: { roomId: activeRoomId },
+        activeSession: { version: 1, role: 'gm', roomId: activeRoomId, participantName: 'Мастер', updatedAt: new Date().toISOString() }
+      }
     }));
   }, roomId);
   await page.goto('/#/game');
   await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: /Сетевая игра:/ }).click();
+  const networkDialog = page.getByRole('dialog', { name: 'Сетевая игра' });
+  const openRoom = networkDialog.getByRole('button', { name: 'Открыть комнату' });
+  if (await openRoom.isVisible()) await openRoom.click();
+  await expect(networkDialog.getByRole('textbox', { name: 'Ссылка приглашения' })).toBeVisible({ timeout: 15_000 });
+  await networkDialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
 }
 
 export async function openSharedPlayerGame(page: Page, roomId = 'E2EROOM'): Promise<void> {

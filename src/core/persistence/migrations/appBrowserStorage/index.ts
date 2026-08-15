@@ -59,7 +59,8 @@ function parseLocalStorageState(value: unknown): AppLocalStorageState | null {
     p2p: p2p ? {
       activeSession: toStoredP2PSession(p2p.activeSession) ?? (p2p.activeSession === null ? null : undefined),
       inviteDraft: toStoredP2PInviteDraft(p2p.inviteDraft) ?? (p2p.inviteDraft === null ? null : undefined),
-      callNames: isStringRecord(p2p.callNames) ? p2p.callNames : undefined
+      callNames: isStringRecord(p2p.callNames) ? p2p.callNames : undefined,
+      connectionMode: p2p.connectionMode === 'p2p' || p2p.connectionMode === 'server' ? p2p.connectionMode : undefined
     } : undefined,
     preferences: preferences ? {
       privateRolls: typeof preferences.privateRolls === 'boolean' ? preferences.privateRolls : undefined
@@ -75,6 +76,7 @@ function parseSessionStorageState(value: unknown): AppSessionStorageState | null
   return {
     version: APP_BROWSER_STORAGE_VERSION,
     p2p: p2p ? {
+      resumeRoomId: typeof p2p.resumeRoomId === 'string' ? p2p.resumeRoomId : undefined,
       roomCodeRefreshBlockedUntil: typeof p2p.roomCodeRefreshBlockedUntil === 'number' ? p2p.roomCodeRefreshBlockedUntil : undefined,
       seats: isStringRecord(p2p.seats) ? p2p.seats : undefined
     } : undefined

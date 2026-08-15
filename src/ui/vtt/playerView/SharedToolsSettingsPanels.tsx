@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
 import { P2P_NETWORK_STRATEGY_LABELS, p2pNetworkSettings$ } from '../../../domain/p2p/networkSettings';
+import { sessionConnectionMode$, writeSessionConnectionMode } from '../../../domain/p2p/sessionConnectionMode';
+import { serverSessionAvailable } from '../../../domain/p2p/serverSession';
+import { readSupabaseSessionConfig } from '../../../domain/p2p/supabaseSession';
 import type { P2PMediaConnectionDiagnostic, P2PMediaRtpDiagnostic, P2PTransportPeerDiagnostic, P2PTransportPeerRouteDiagnostic, P2PTransportRouteDiagnostic, P2PTransportStrategy } from '../../../services/p2p/P2PTransportAdapter';
 import type { P2PSessionState } from '../../../services/P2PSessionService';
 import type { Character, GameState } from '../../../domain/rules/types';
@@ -15,6 +18,8 @@ import {
   sceneTableService
 } from '../../../services/serviceRegistry';
 import { toastService } from '../../../services/ToastService';
+import { initializeSupabaseMasterAuth, supabaseMasterAuth$ } from '../../../services/supabaseClient';
+import { MasterSignInDialog } from '../../auth/MasterSignInDialog';
 import {
   currentSettingsInviteContext,
   p2pStatusLabel
@@ -25,6 +30,7 @@ import { Card } from '../../components/common/Card';
 import { Checkbox } from '../../components/common/Checkbox';
 import { SelectControl, SelectField, TextControl, TextField } from '../../components/common/Field';
 import { IconButton } from '../../components/common/IconButton';
+import { SegmentedControl } from '../../components/common/SegmentedControl';
 import type { TableViewRole } from './types';
 
 export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
@@ -131,9 +137,15 @@ export function SharedToolsConnectionSettingsPanel({
     roomId: p2pActiveRoomId,
     status: p2pStatus
   } = useStream(p2pSessionService.session$);
+  const masterAuth = useStream(supabaseMasterAuth$);
+  const connectionMode = useStream(sessionConnectionMode$);
   const [playerRoomId, setPlayerRoomId] = useState(() => initialPlayerRoomId());
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const supabaseConfig = role === 'gm' ? readSupabaseSessionConfig() : null;
+  const serverAvailable = serverSessionAvailable() && Boolean(supabaseConfig);
+  const selectedConnectionMode = serverAvailable ? connectionMode : 'p2p';
   const settingsInviteContext = currentSettingsInviteContext();
-  const displayedInviteLink = role === 'gm' ? p2pSessionService.previewInviteUrl(settingsInviteContext) : '';
+  const displayedInviteLink = role === 'gm' && p2pConnected ? p2pSessionService.previewInviteUrl(settingsInviteContext) : '';
   const syncRoomId = role === 'gm' ? p2pSessionService.getGmRoomId() : playerRoomId;
   const canDisconnectP2P = p2pConnected && role !== 'gm';
   const hasConnectedPlayers = role !== 'gm' || p2pPeers.length > 0;
@@ -143,11 +155,15 @@ export function SharedToolsConnectionSettingsPanel({
     if (role !== 'player' || !p2pActiveRoomId) return;
     setPlayerRoomId(p2pActiveRoomId);
   }, [p2pActiveRoomId, role]);
+  useEffect(() => {
+    if (supabaseConfig) void initializeSupabaseMasterAuth(supabaseConfig);
+  }, [supabaseConfig?.url, supabaseConfig?.publishableKey]);
 
   const createInvite = async () => {
     try {
       await p2pSessionService.createGmInviteFromDraft({
         participantName: game.gmName,
+        connectionMode: selectedConnectionMode,
         ...currentSettingsInviteContext()
       });
     } catch {
@@ -167,29 +183,52 @@ export function SharedToolsConnectionSettingsPanel({
 
   const reconnect = async () => {
     if (!syncRoomId) return;
+    const reconnectMode = p2pSessionService.session$.get().transportMode === 'hybrid' ? 'server' : 'p2p';
     await p2pSessionService.stop({ forgetSession: false });
     if (role === 'gm') {
-      await p2pSessionService.startGmRoom({ roomId: syncRoomId, participantName: game.gmName });
+      await p2pSessionService.startGmRoom({ roomId: syncRoomId, participantName: game.gmName, connectionMode: reconnectMode });
       return;
     }
-    await p2pSessionService.startPlayerRoom({ roomId: playerRoomId || syncRoomId });
+    await p2pSessionService.startPlayerRoom({ roomId: playerRoomId || syncRoomId, connectionMode: reconnectMode });
   };
 
   return (
     <section className="player-tools-settings-panel">
-      {p2pMessage && <p className="player-tools-status" role="status">{p2pMessage}</p>}
+      {p2pStatus !== 'disconnected' && p2pMessage && <p className="player-tools-status" role="status">{p2pMessage}</p>}
       {role === 'gm' && (
         <div className="player-tools-invite">
-          <strong>Ссылка-приглашение</strong>
+          <strong>{p2pConnected ? 'Ссылка-приглашение' : 'Открыть доступ игрокам'}</strong>
+          {!p2pConnected && serverAvailable && (
+            <SegmentedControl
+              label="Способ подключения"
+              layout="equal"
+              value={connectionMode}
+              options={[
+                { value: 'server', label: 'Через сервер' },
+                { value: 'p2p', label: 'Напрямую P2P' }
+              ]}
+              onChange={writeSessionConnectionMode}
+            />
+          )}
           <div className="player-tools-actions">
-            <Button variant="primary" size="sm" type="button" onClick={() => void createInvite()}>
-              Создать ссылку
-            </Button>
-            <Button size="sm" type="button" disabled={!displayedInviteLink} onClick={() => void copyInvite()}>
-              Скопировать
-            </Button>
+            {!p2pConnected && (
+              selectedConnectionMode === 'server' && supabaseConfig && masterAuth.status !== 'signedIn' ? (
+                <Button variant="primary" size="sm" type="button" disabled={masterAuth.status === 'loading'} onClick={() => setAuthDialogOpen(true)}>
+                  Войти и открыть комнату
+                </Button>
+              ) : (
+                <Button variant="primary" size="sm" type="button" disabled={p2pStatus === 'connecting'} onClick={() => void createInvite()}>
+                  Открыть комнату
+                </Button>
+              )
+            )}
+            {p2pConnected && (
+              <Button size="sm" type="button" disabled={!displayedInviteLink} onClick={() => void copyInvite()}>
+                Скопировать
+              </Button>
+            )}
           </div>
-          <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteLink} placeholder="Ссылка появится после открытия комнаты" />
+          {p2pConnected && <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteLink} />}
         </div>
       )}
       {role === 'player' && (
@@ -226,9 +265,14 @@ export function SharedToolsConnectionSettingsPanel({
             Переподключиться
           </Button>
         )}
-        {role === 'gm' && (
+        {role === 'gm' && p2pConnected && (
           <Button type="button" disabled={!canPublishSnapshot} title={!hasConnectedPlayers ? 'Сначала должен подключиться игрок.' : undefined} onClick={() => void p2pSessionService.publishSnapshot({ requirePeers: true })}>
             Обновить игроков
+          </Button>
+        )}
+        {role === 'gm' && p2pConnected && (
+          <Button type="button" variant="ghost" onClick={() => void p2pSessionService.stop()}>
+            Закрыть комнату
           </Button>
         )}
         {role === 'player' && (
@@ -241,6 +285,7 @@ export function SharedToolsConnectionSettingsPanel({
           </Button>
         )}
       </div>
+      {authDialogOpen && supabaseConfig && <MasterSignInDialog config={supabaseConfig} onClose={() => setAuthDialogOpen(false)} />}
     </section>
   );
 }

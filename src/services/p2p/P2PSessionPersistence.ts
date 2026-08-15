@@ -10,6 +10,7 @@ export interface PersistedP2PSession {
   participantName: string;
   participantId?: string;
   actorIds?: string[];
+  connectionMode?: 'p2p' | 'server';
   updatedAt: string;
 }
 
@@ -30,11 +31,23 @@ export function readActiveSession(): PersistedP2PSession | null {
   return session;
 }
 
+export function shouldResumeActiveSession(role: P2PSessionRole): boolean {
+  const active = readActiveSession();
+  const resumeRoomId = sessionAppStorageStore.getState().p2p?.resumeRoomId;
+  return active?.role === role && Boolean(resumeRoomId && resumeRoomId === active.roomId);
+}
+
 export function forgetActiveSession(): void {
   localAppStorageStore.update((state) => ({
     p2p: {
       ...state.p2p,
       activeSession: null
+    }
+  }));
+  sessionAppStorageStore.update((state) => ({
+    p2p: {
+      ...state.p2p,
+      resumeRoomId: undefined
     }
   }));
 }
@@ -45,6 +58,7 @@ export function persistActiveSession(input: {
   participantName?: string;
   participantId?: string;
   actorIds?: string[];
+  connectionMode?: 'p2p' | 'server';
 }): void {
   localAppStorageStore.update((state) => ({
     p2p: {
@@ -56,8 +70,15 @@ export function persistActiveSession(input: {
         participantName: input.participantName?.trim() || (input.role === 'gm' ? 'Мастер' : 'Игрок'),
         ...(input.participantId?.trim() ? { participantId: input.participantId.trim() } : {}),
         ...(input.actorIds ? { actorIds: input.actorIds.filter(Boolean) } : {}),
+        ...(input.connectionMode ? { connectionMode: input.connectionMode } : {}),
         updatedAt: nowIso()
       } satisfies PersistedP2PSession
+    }
+  }));
+  sessionAppStorageStore.update((state) => ({
+    p2p: {
+      ...state.p2p,
+      resumeRoomId: input.roomId
     }
   }));
 }

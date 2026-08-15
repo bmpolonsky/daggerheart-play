@@ -4,5 +4,5 @@
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo"
   },
-  "include": ["worker", "db", "src/vite-env.d.ts", "src/domain/p2p/serverSession.ts", "src/services/p2p/P2PTransportAdapter.ts"]
+  "include": ["worker"]
 }

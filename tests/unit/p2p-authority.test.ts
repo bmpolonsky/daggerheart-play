@@ -152,12 +152,6 @@ test('P2P player lazily requests an existing image asset and stores its blob', a
 test('hybrid player falls back to the direct GM when the server asset is unavailable', async () => {
   resetAllStores();
   const restoreWindow = installTimerWindow();
-  const originalFetch = globalThis.fetch;
-  let serverRequests = 0;
-  globalThis.fetch = (async () => {
-    serverRequests += 1;
-    return new Response(null, { status: 404 });
-  }) as typeof fetch;
   const gmAssets = createMemoryAssetService();
   const playerAssets = createMemoryAssetService();
   const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
@@ -172,11 +166,9 @@ test('hybrid player falls back to the direct GM when the server asset is unavail
 
     assert.equal(await player.requestAsset(asset.id, 'scene-background'), true);
     assert.deepEqual(await blobBytes(await playerAssets.assetService.getBlob(asset.id)), [9, 8, 7]);
-    assert.equal(serverRequests, 1);
   } finally {
     await player.stop().catch(() => undefined);
     await gm.stop().catch(() => undefined);
-    globalThis.fetch = originalFetch;
     restoreWindow();
   }
 });

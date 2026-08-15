@@ -6,6 +6,8 @@ import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
 import { buildPlayerInviteRoomCode, buildPlayerInviteUrl, createShortRoomCode, normalizeSessionRoomId } from '../domain/p2p/sessionLinks';
 import { readP2PNetworkSettings, trysteroOptionsForNetworkSettings } from '../domain/p2p/networkSettings';
+import { readSessionConnectionMode } from '../domain/p2p/sessionConnectionMode';
+import type { SessionConnectionMode } from '../domain/p2p/serverSession';
 import { turnConfigProvider } from './TurnCredentialService';
 import { shouldUseServerSession } from '../domain/p2p/serverSession';
 import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
@@ -26,7 +28,7 @@ import type { AssetService } from './AssetService';
 import type { DiceService } from './DiceService';
 import type { FeedService } from './FeedService';
 import type { CharacterService } from './CharacterService';
-import type { CloudBackupService } from './CloudBackupService';
+import type { SupabaseAssetService } from './SupabaseAssetService';
 import type {
   AssetRequestReason,
   PlayerCharacterResourcePatch,
@@ -57,6 +59,8 @@ import {
 } from './p2p/P2PSessionPersistence';
 import { P2PRoomConnection, type P2PRoomConnectionConfig, type P2PRoomConnectionEvent } from './p2p/P2PRoomConnection';
 import type { P2PMediaConnectionDiagnostic, P2PSessionTransportMode, P2PTransportAdapter, P2PTransportFactoryContext, P2PTransportPeerDiagnostic, P2PTransportRosterEntry, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent } from './p2p/P2PTransportAdapter';
+import { applyBrowserCustomContent, readBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
+import type { GameCustomContent } from '../domain/game/gameDocument';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { P2PAssetTransferService } from './P2PAssetTransferService';
 
@@ -87,6 +91,7 @@ export interface P2PSessionStartInput {
   participantName?: string;
   participantId?: string;
   actorIds?: string[];
+  connectionMode?: SessionConnectionMode;
 }
 
 export interface P2PSessionInvite {
@@ -100,6 +105,7 @@ export interface P2PStoredSessionSummary {
   participantName: string;
   participantId?: string;
   actorIds?: string[];
+  connectionMode?: SessionConnectionMode;
 }
 
 export interface P2PInviteDraftState {
@@ -133,7 +139,6 @@ interface PersistedPendingPlayerCharacterUpdate extends PendingPlayerCharacterUp
 }
 
 const AUTO_SNAPSHOT_DELAY_MS = 350;
-const CLOUD_BACKUP_INTERVAL_MS = 30_000;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
 const SERVER_HEARTBEAT_MS = 15_000;
 const SERVER_PEER_TIMEOUT_MS = 45_000;
@@ -164,7 +169,6 @@ export class P2PSessionService {
   readonly invite$ = this.inviteStore.toStream();
 
   private snapshotTimer: number | undefined;
-  private cloudBackupTimer: number | undefined;
   private productRecoveryTimer: number | undefined;
   private roomCodeRefreshTimer: number | undefined;
   private activeRoomConnection: P2PRoomConnection | null = null;
@@ -186,10 +190,10 @@ export class P2PSessionService {
   private playerActorContext: PlayerActorContext = {};
   private localParticipantId: string | null = null;
   private actorOwnerVerifiedPeers = new Map<string, string>();
-  private cloudBackupErrorShown = false;
   private gmWakeLock: WakeLockSentinel | null = null;
   private hasDirectGmSnapshot = false;
   private playerRollAckTimer: number | undefined;
+  private serverAssetUploadTimer: number | undefined;
 
   constructor(
     private syncService: SyncService,
@@ -206,7 +210,7 @@ export class P2PSessionService {
     private roomConnectionConfig: P2PRoomConnectionConfig = {},
     private mediaCallService?: MediaCallService,
     private characterService?: CharacterService,
-    private cloudBackupService?: CloudBackupService
+    private supabaseAssetService?: SupabaseAssetService
   ) {
     this.assetTransferService = new P2PAssetTransferService(
       syncService,
@@ -248,6 +252,7 @@ export class P2PSessionService {
     return buildPlayerInviteUrl({
       ...context,
       roomId,
+      connectionMode: this.isActiveGmRoom(roomId) ? this.activeConnectionMode() : readSessionConnectionMode(),
       networkSettings: this.isActiveGmRoom(roomId) ? undefined : readP2PNetworkSettings()
     });
   }
@@ -287,7 +292,7 @@ export class P2PSessionService {
     for (const actorId of this.pendingPlayerCharacterUpdates.keys()) {
       if (actorId !== next.actorId) this.pendingPlayerCharacterUpdates.delete(actorId);
     }
-    this.persistActiveSession('player', session.roomId, next.actorName, next.participantId, [next.actorId]);
+    this.persistActiveSession('player', session.roomId, next.actorName, next.participantId, [next.actorId], this.activeConnectionMode());
     void this.restorePendingPlayerCharacterUpdates(session.roomId, next.participantId, [next.actorId]).then(() => {
       if (session.connected) void this.republishPendingPlayerCharacterUpdates();
     });
@@ -306,7 +311,8 @@ export class P2PSessionService {
       roomId: normalizeSessionRoomId(saved.roomId, ''),
       participantName: saved.participantName,
       ...(saved.participantId ? { participantId: saved.participantId } : {}),
-      ...(saved.actorIds ? { actorIds: saved.actorIds } : {})
+      ...(saved.actorIds ? { actorIds: saved.actorIds } : {}),
+      ...(saved.connectionMode ? { connectionMode: saved.connectionMode } : {})
     };
   }
 
@@ -315,16 +321,18 @@ export class P2PSessionService {
     return saved?.roomId === roomId ? saved : null;
   }
 
-  async createGmInviteFromDraft(input: P2PInviteContext & { participantName?: string }): Promise<P2PSessionInvite> {
+  async createGmInviteFromDraft(input: P2PInviteContext & { participantName?: string; connectionMode?: SessionConnectionMode }): Promise<P2PSessionInvite> {
     const draft = this.inviteStore.get();
     try {
       const active = this.sessionStore.get();
       const hasActiveGmRoom = active.role === 'gm' && (active.connected || active.status === 'connecting') && Boolean(active.roomId);
+      const connectionMode = hasActiveGmRoom ? this.activeConnectionMode() : input.connectionMode ?? readSessionConnectionMode();
       const roomId = hasActiveGmRoom ? active.roomId : buildPlayerInviteRoomCode(draft.roomId, readP2PNetworkSettings());
       if (!hasActiveGmRoom) {
         await this.startGmRoom({
           roomId,
-          participantName: input.participantName
+          participantName: input.participantName,
+          connectionMode
         });
       }
       const invite: P2PSessionInvite = {
@@ -333,6 +341,7 @@ export class P2PSessionService {
           origin: input.origin,
           basePath: input.basePath,
           roomId,
+          connectionMode,
           networkSettings: hasActiveGmRoom ? undefined : readP2PNetworkSettings()
         })
       };
@@ -375,7 +384,8 @@ export class P2PSessionService {
 
   async startGmRoom(input: P2PSessionStartInput): Promise<void> {
     const roomId = buildPlayerInviteRoomCode(input.roomId, readP2PNetworkSettings());
-    await this.startRoom('gm', roomId, () => this.openGmRoom({ ...input, roomId }));
+    const connectionMode = input.connectionMode ?? readSessionConnectionMode();
+    await this.startRoom('gm', roomId, () => this.openGmRoom({ ...input, roomId, connectionMode }));
   }
 
   private async openGmRoom(input: P2PSessionStartInput): Promise<void> {
@@ -384,7 +394,7 @@ export class P2PSessionService {
     const participant = this.createParticipant('gm', input.participantName, {
       id: input.participantId
     });
-    const transport = this.createTransport(participant);
+    const transport = this.createTransport(participant, input.connectionMode);
     this.localParticipantId = participant.id;
     this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
@@ -484,6 +494,7 @@ export class P2PSessionService {
     }));
     this.subscriptions.add(this.assetTransferService.subscribeGm());
     subscribeToSyncedGameStores(() => this.scheduleSnapshot()).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
+    this.subscriptions.add(subscribeCustomContentChanges('all', () => this.scheduleSnapshot()));
     this.sessionStore.update((state) => {
       const peers = this.activeRoomConnection?.peers() ?? [];
       return {
@@ -504,8 +515,8 @@ export class P2PSessionService {
       };
     });
     this.startGmActivityGuard();
-    void this.saveCloudBackup();
-    this.persistActiveSession('gm', roomId, input.participantName, participant.id, participant.actorIds);
+    this.scheduleSupabaseAssetUpload();
+    this.persistActiveSession('gm', roomId, input.participantName, participant.id, participant.actorIds, input.connectionMode);
   }
 
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
@@ -529,7 +540,7 @@ export class P2PSessionService {
     });
     const roomId = normalizeSessionRoomId(input.roomId);
     await this.restorePendingPlayerCharacterUpdates(roomId, participant.id, input.actorIds);
-    const transport = this.createTransport(participant);
+    const transport = this.createTransport(participant, input.connectionMode);
     this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
       name: participant.name,
@@ -638,7 +649,7 @@ export class P2PSessionService {
       message: state.lastSnapshotAt ? 'Соединение установлено.' : 'Получаем данные игры.'
     }));
     this.startPlayerProductRecoveryPolling();
-    this.persistActiveSession('player', roomId, input.participantName, participant.id, participant.actorIds);
+    this.persistActiveSession('player', roomId, input.participantName, participant.id, participant.actorIds, input.connectionMode ?? this.activeConnectionMode());
   }
 
   private async startRoom(role: P2PSessionRole, roomId: string, start: () => Promise<void>): Promise<void> {
@@ -684,15 +695,10 @@ export class P2PSessionService {
     if (options.forgetSession !== false && stoppedSession.role === 'player' && stoppedSession.roomId && stoppedParticipantId) {
       await this.removePersistedPendingPlayerCharacterUpdate(stoppedSession.roomId, stoppedParticipantId);
     }
-    if (this.cloudBackupTimer && stoppedSession.role === 'gm' && stoppedSession.transportMode === 'hybrid') {
-      window.clearTimeout(this.cloudBackupTimer);
-      this.cloudBackupTimer = undefined;
-      await this.saveCloudBackup();
-    }
     window.clearTimeout(this.snapshotTimer);
     this.snapshotTimer = undefined;
-    window.clearTimeout(this.cloudBackupTimer);
-    this.cloudBackupTimer = undefined;
+    window.clearTimeout(this.serverAssetUploadTimer);
+    this.serverAssetUploadTimer = undefined;
     window.clearTimeout(this.playerRollAckTimer);
     this.playerRollAckTimer = undefined;
     this.stopPlayerProductRecoveryPolling();
@@ -749,7 +755,8 @@ export class P2PSessionService {
       roomId,
       participantName: participantName?.trim() || saved.participantName,
       participantId: saved.participantId,
-      actorIds: saved.actorIds
+      actorIds: saved.actorIds,
+      connectionMode: saved.connectionMode
     };
     if (role === 'gm') {
       await this.startGmRoom(input);
@@ -764,7 +771,7 @@ export class P2PSessionService {
     window.clearTimeout(this.snapshotTimer);
     this.snapshotTimer = undefined;
     const session = this.sessionStore.get();
-    const savesToServer = session.role === 'gm' && session.transportMode === 'hybrid' && Boolean(this.cloudBackupService);
+    const savesToServer = session.role === 'gm' && session.transportMode === 'hybrid';
     if (session.role === 'gm' && session.peers.length === 0 && !savesToServer) {
       if (options.requirePeers) {
         this.patchSession({ message: 'Некому отправлять обновление: подключенных игроков нет.' });
@@ -773,7 +780,7 @@ export class P2PSessionService {
     }
     const snapshot = snapshotPersistedState();
     const ok = await this.syncService.publishSnapshot(snapshot, options.targetPeer);
-    if (savesToServer) this.scheduleCloudBackup();
+    if (savesToServer) this.scheduleSupabaseAssetUpload();
     if (ok || savesToServer) {
       this.patchSession({
         lastSnapshotAt: nowIso(),
@@ -783,48 +790,34 @@ export class P2PSessionService {
     return ok || savesToServer;
   }
 
-  private scheduleCloudBackup(): void {
-    if (this.cloudBackupTimer) return;
-    this.cloudBackupTimer = window.setTimeout(() => {
-      this.cloudBackupTimer = undefined;
-      void this.saveCloudBackup();
-    }, CLOUD_BACKUP_INTERVAL_MS);
+  private async uploadSupabaseAssets(): Promise<void> {
+    if (!this.supabaseAssetService) return;
+    const worldId = gameStore.get().id;
+    for (const { asset, blob } of await this.assetService.exportAssetFiles()) {
+      await this.supabaseAssetService.upload(worldId, asset.id, blob);
+    }
   }
 
-  private async saveCloudBackup(): Promise<boolean> {
-    if (this.sessionStore.get().transportMode !== 'hybrid' || !this.cloudBackupService) return false;
-    try {
-      await this.cloudBackupService.save(gameStore.get().id);
-      this.cloudBackupErrorShown = false;
-      return true;
-    } catch (error) {
-      if (!this.cloudBackupErrorShown) {
-        toastService.show(error instanceof Error ? error.message : 'Не удалось обновить резервную копию.', 'error');
-        this.cloudBackupErrorShown = true;
-      }
-      return false;
-    }
+  private scheduleSupabaseAssetUpload(): void {
+    if (!this.supabaseAssetService || this.sessionStore.get().transportMode !== 'hybrid') return;
+    window.clearTimeout(this.serverAssetUploadTimer);
+    this.serverAssetUploadTimer = window.setTimeout(() => {
+      this.serverAssetUploadTimer = undefined;
+      void this.uploadSupabaseAssets().catch((error) => {
+        toastService.show(error instanceof Error ? error.message : 'Не удалось загрузить файлы сцены.', 'error');
+      });
+    }, 0);
   }
 
   async requestAsset(assetId: string, reason: AssetRequestReason = 'scene-background'): Promise<boolean> {
     const session = this.sessionStore.get();
     if (session.transportMode === 'hybrid') {
       const asset = this.sceneTableService.sceneTable$.get().assets[assetId];
-      if (session.role === 'player' && session.connected && session.roomId && asset) {
-        for (let attempt = 0; attempt < 10; attempt += 1) {
-          try {
-            const response = await fetch(`/api/rooms/${encodeURIComponent(session.roomId)}/assets/${encodeURIComponent(assetId)}`, {
-              credentials: 'same-origin',
-              cache: 'no-store'
-            });
-            if (response.ok) {
-              await this.assetService.putAssetBlob(asset, await response.blob());
-              return true;
-            }
-          } catch {}
-          const gmPeerId = this.activeRoomConnection?.gmPeerId();
-          if (gmPeerId && this.activeRoomConnection?.directPeerIds().includes(gmPeerId)) break;
-          if (attempt < 9) await new Promise((resolve) => window.setTimeout(resolve, 500));
+      if (session.role === 'player' && asset && this.supabaseAssetService) {
+        const blob = await this.supabaseAssetService.download(session.roomId, gameStore.get().id, assetId);
+        if (blob) {
+          await this.assetService.putAssetBlob(asset, blob);
+          return true;
         }
       }
     }
@@ -1598,7 +1591,7 @@ export class P2PSessionService {
 
   private scheduleSnapshot(): void {
     const session = this.session$.get();
-    const savesToServer = session.transportMode === 'hybrid' && Boolean(this.cloudBackupService);
+    const savesToServer = session.transportMode === 'hybrid';
     if (session.role !== 'gm' || (session.peers.length === 0 && !savesToServer)) {
       return;
     }
@@ -1628,11 +1621,13 @@ export class P2PSessionService {
     this.productRecoveryTimer = undefined;
   }
 
-  private createTransport(participant: TableParticipant): P2PRoomConnection {
-    const useServer = shouldUseServerSession(participant.role === 'gm' ? 'gm' : 'player');
+  private createTransport(participant: TableParticipant, connectionMode?: SessionConnectionMode): P2PRoomConnection {
+    const useServer = shouldUseServerSession(participant.role === 'gm' ? 'gm' : 'player', undefined, connectionMode);
     const options: TrysteroP2PTransportOptions = {
       ...trysteroOptionsForNetworkSettings(readP2PNetworkSettings()),
-      turnConfigProvider: turnConfigProvider(participant.id, useServer)
+      turnConfigProvider: useServer
+        ? turnConfigProvider(participant.id, participant.role === 'gm' ? 'gm' : 'player')
+        : undefined
     };
     const connectionConfig = useServer
       ? { ...this.roomConnectionConfig, heartbeatMs: SERVER_HEARTBEAT_MS, gmTimeoutMs: SERVER_PEER_TIMEOUT_MS }
@@ -1644,7 +1639,10 @@ export class P2PSessionService {
         participantId: participant.id,
         displayName: participant.name,
         worldId: gameStore.get().id,
-        ...(participant.role === 'gm' ? { initialSnapshot: snapshotPersistedState() } : {})
+        connectionMode,
+        ...(participant.role === 'gm' ? { initialSnapshot: snapshotPersistedState() } : {}),
+        readCustomContent: readBrowserCustomContent,
+        applyCustomContent: (content) => applyBrowserCustomContent(content as GameCustomContent)
       }
     );
     const connection = new P2PRoomConnection(adapter, connectionConfig);
@@ -1658,15 +1656,21 @@ export class P2PSessionService {
     roomId: string,
     participantName?: string,
     participantId?: string,
-    actorIds?: string[]
+    actorIds?: string[],
+    connectionMode?: SessionConnectionMode
   ): void {
     persistActiveSession({
       role,
       roomId: buildPlayerInviteRoomCode(roomId, readP2PNetworkSettings()),
       participantName,
       participantId,
-      actorIds
+      actorIds,
+      connectionMode
     });
+  }
+
+  private activeConnectionMode(): SessionConnectionMode {
+    return this.sessionStore.get().transportMode === 'hybrid' ? 'server' : 'p2p';
   }
 
   private isActiveGmRoom(roomId: string): boolean {

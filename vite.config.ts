@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const workspaceRoot = fileURLToPath(new URL('.', import.meta.url));
 const appRelease = execSync('git rev-parse --short HEAD', { cwd: workspaceRoot, encoding: 'utf8' }).trim();
-const sitesBuild = process.env.VITE_SESSION_MODE === 'server';
+const sitesBuild = process.env.SITES_BUILD === '1';
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',

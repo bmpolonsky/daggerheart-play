@@ -27,9 +27,7 @@ export default defineConfig({
       fileName: () => 'index.js'
     },
     rollupOptions: {
-      output: {
-        inlineDynamicImports: true
-      }
+      output: { inlineDynamicImports: true }
     }
   }
 });

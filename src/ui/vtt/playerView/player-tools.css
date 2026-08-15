@@ -2155,6 +2155,26 @@
   font-size: 0.76rem;
 }
 
+.player-tools-master-sign-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.player-tools-email-sign-in {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .player-tools-email-sign-in {
+    grid-template-columns: 1fr;
+  }
+}
+
 .player-tools-modal__external-action.dh-tab {
   flex: 0 0 auto;
   gap: 7px;

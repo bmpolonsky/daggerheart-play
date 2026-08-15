@@ -15,6 +15,7 @@ export interface StoredP2PSession {
   participantName: string;
   participantId?: string;
   actorIds?: string[];
+  connectionMode?: 'p2p' | 'server';
   updatedAt: string;
 }
 
@@ -28,6 +29,7 @@ export interface AppLocalStorageState {
     activeSession?: StoredP2PSession | null;
     inviteDraft?: StoredP2PInviteDraft | null;
     callNames?: Record<string, string>;
+    connectionMode?: 'p2p' | 'server';
   };
   preferences?: {
     privateRolls?: boolean;
@@ -37,6 +39,7 @@ export interface AppLocalStorageState {
 export interface AppSessionStorageState {
   version: typeof APP_BROWSER_STORAGE_VERSION;
   p2p?: {
+    resumeRoomId?: string;
     roomCodeRefreshBlockedUntil?: number;
     seats?: Record<string, string>;
   };

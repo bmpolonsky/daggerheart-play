@@ -9,7 +9,7 @@ import type {
   P2PWireEnvelope,
   P2PTargetPeer
 } from './P2PTransportAdapter';
-import { ServerRelayError, ServerRelayTransport } from '../ServerRelayTransport';
+import { RelayTransportError } from './RelayTransportError';
 
 const DIRECT_RETRY_MS = 5_000;
 const SERVER_FALLBACK_DELAY_MS = 350;
@@ -25,7 +25,7 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   sessionMode: 'p2p' | 'hybrid' = 'hybrid';
   peerId: string;
 
-  private server: ServerRelayTransport;
+  private server: P2PTransportAdapter;
   private roster = new Map<string, P2PTransportRosterEntry>();
   private directPeers = new Set<string>();
   private visiblePeers = new Set<string>();
@@ -44,11 +44,25 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   private connected = false;
   private directOnly = false;
 
-  constructor(private direct: P2PTransportAdapter, context: P2PTransportFactoryContext) {
+  constructor(
+    private direct: P2PTransportAdapter,
+    context: P2PTransportFactoryContext,
+    options: {
+      server: P2PTransportAdapter;
+      serverFirst?: boolean;
+      fallbackToDirect?: boolean;
+    }
+  ) {
     this.peerId = context.participantId;
     this.direct.peerId = this.peerId;
-    this.server = new ServerRelayTransport(context);
+    this.server = options.server;
+    this.server.peerId = this.peerId;
+    this.serverFirst = options.serverFirst ?? false;
+    this.fallbackToDirect = options.fallbackToDirect ?? true;
   }
+
+  private readonly serverFirst: boolean;
+  private readonly fallbackToDirect: boolean;
 
   async connect(roomId: string): Promise<void> {
     await this.disconnect();
@@ -60,7 +74,7 @@ export class HybridSessionTransport implements P2PTransportAdapter {
     try {
       await this.server.connect(roomId);
     } catch (error) {
-      if (!(error instanceof ServerRelayError) || error.code !== 'room_not_found') throw error;
+      if (!this.fallbackToDirect || !(error instanceof RelayTransportError) || error.code !== 'room_not_found') throw error;
       this.directOnly = true;
       this.sessionMode = 'p2p';
       await this.direct.connect(roomId);
@@ -88,6 +102,21 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   async send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void> {
     if (this.directOnly) {
       await this.direct.send(envelope, targetPeer);
+      return;
+    }
+    if (this.serverFirst) {
+      try {
+        await this.server.send(envelope, targetPeer);
+        if (envelope.channel === 'control') {
+          await this.direct.send(envelope, targetPeer).catch(() => undefined);
+        }
+      } catch (error) {
+        if (this.directPeers.size === 0) throw error;
+        this.directOnly = true;
+        this.sessionMode = 'p2p';
+        this.emitDiagnostics();
+        await this.direct.send(envelope, targetPeer);
+      }
       return;
     }
     const controlType = envelope.channel === 'control' && envelope.payload && typeof envelope.payload === 'object'
@@ -247,7 +276,7 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   }
 
   private handleServerEnvelope(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext): void {
-    if (envelope.channel === 'data') this.deliver(envelope, context);
+    if (this.serverFirst || envelope.channel === 'data') this.deliver(envelope, context);
   }
 
   private async sendToPeer(envelope: P2PWireEnvelope, peerId: string): Promise<void> {

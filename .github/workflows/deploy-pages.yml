@@ -124,6 +124,9 @@ jobs:
           VITE_BASE_PATH: ${{ github.event.repository.name == format('{0}.github.io', github.repository_owner) && '/' || format('/{0}/', github.event.repository.name) }}
           VITE_TRYSTERO_SUPABASE_URL: ${{ vars.VITE_TRYSTERO_SUPABASE_URL }}
           VITE_TRYSTERO_SUPABASE_ANON_KEY: ${{ vars.VITE_TRYSTERO_SUPABASE_ANON_KEY }}
+          # Pages remains the stable direct-P2P release while the Supabase
+          # transport is exercised on the Sites canary.
+          VITE_SESSION_MODE: p2p
           CONTENT_SOURCE: https://daggerheart.su
           CONTENT_LANG: ru
           CONTENT_CACHE_TTL_HOURS: "0"

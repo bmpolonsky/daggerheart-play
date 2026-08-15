@@ -38,6 +38,7 @@ type MiniDiceLauncherProps = {
   selectedActorKind?: MiniDiceSelectedActorKind;
   role: 'player' | 'gm';
   callState: MediaCallState;
+  callAvailable?: boolean;
   activationRaised?: boolean;
   activationRequestCount?: number;
   canRequestActivation?: boolean;
@@ -50,7 +51,7 @@ type MiniDiceLauncherProps = {
   onDualityRoll?: (roll: { rollType: PlayerRollType; trait?: TraitId | null; options: MiniDualityRollOptions; publication?: RollPublication }) => void;
 };
 
-export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, callState, activationRaised = false, activationRequestCount = 0, canRequestActivation = false, rollPending = false, rollDisabled = false, onActivationToggle, onCallJoin, onRosterOpen, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
+export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, callState, callAvailable = true, activationRaised = false, activationRequestCount = 0, canRequestActivation = false, rollPending = false, rollDisabled = false, onActivationToggle, onCallJoin, onRosterOpen, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
   const launcherMode = resolveMiniDiceLauncherMode({ role, selectedActorKind });
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -151,7 +152,7 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, ca
     resetAdvantage();
   };
   const callAttention = callState.status === 'permission-denied' || callState.status === 'error' || callState.status === 'unsupported';
-  const callTitle = callState.active ? 'Звонок подключён' : 'Подключиться к звонку';
+  const callTitle = !callAvailable ? 'Сначала откройте сетевую комнату' : callState.active ? 'Звонок подключён' : 'Подключиться к звонку';
   const rosterTitle = activationRequestCount > 0
     ? `Открыть участников: поднятых рук ${activationRequestCount}`
     : 'Открыть участников';
@@ -168,6 +169,7 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, ca
           tone={callAttention ? 'danger' : callState.active ? 'green' : 'neutral'}
           size="sm"
           type="button"
+          disabled={!callAvailable}
           title={callTitle}
           aria-label={callTitle}
           onClick={onCallJoin}

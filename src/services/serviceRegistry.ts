@@ -4,7 +4,6 @@ import { GameService } from './GameService';
 import { GmLobbyService } from './GmLobbyService';
 import { ContentService } from './ContentService';
 import { CharacterService } from './CharacterService';
-import { CloudBackupService } from './CloudBackupService';
 import { DiceService } from './DiceService';
 import { EncounterService } from './EncounterService';
 import { FeedService } from './FeedService';
@@ -16,6 +15,9 @@ import type { P2PTransportFactoryContext } from './p2p/P2PTransportAdapter';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { HybridSessionTransport } from './p2p/HybridSessionTransport';
 import { shouldUseServerSession } from '../domain/p2p/serverSession';
+import { readSupabaseSessionConfig } from '../domain/p2p/supabaseSession';
+import { SupabaseRelayTransport } from './SupabaseRelayTransport';
+import { SupabaseAssetService } from './SupabaseAssetService';
 import type { TrysteroP2PTransportOptions } from './TrysteroSyncTransport';
 import { PersistenceService } from './PersistenceService';
 import { PlayerActionRequestService } from './PlayerActionRequestService';
@@ -32,7 +34,6 @@ import { UiService } from './UiService';
 export const assetService = new AssetService();
 export const persistenceService = new PersistenceService(undefined, assetService);
 export const importExportService = new ImportExportService(assetService, persistenceService);
-export const cloudBackupService = new CloudBackupService(importExportService, assetService);
 export const audioService = new AudioService();
 export const gameService = new GameService();
 export const characterService = new CharacterService();
@@ -57,12 +58,21 @@ const sessionTransportFactory = (
   context?: P2PTransportFactoryContext
 ): P2PTransportAdapter => {
   if (e2eP2PTransportFactory) return e2eP2PTransportFactory();
-  if (context && shouldUseServerSession(context.role)) {
-    return new HybridSessionTransport(createConfiguredP2PTransport(options), context);
+  if (context && shouldUseServerSession(context.role, undefined, context.connectionMode)) {
+    const config = readSupabaseSessionConfig();
+    if (config) {
+      return new HybridSessionTransport(createConfiguredP2PTransport(options), context, {
+        server: new SupabaseRelayTransport(context, config),
+        serverFirst: true,
+        fallbackToDirect: context.role === 'player' && context.connectionMode === undefined
+      });
+    }
   }
   return createConfiguredP2PTransport(options);
 };
-export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, sessionTransportFactory, undefined, mediaCallService, characterService, cloudBackupService);
+const supabaseSessionConfig = readSupabaseSessionConfig();
+const supabaseAssetService = supabaseSessionConfig ? new SupabaseAssetService(supabaseSessionConfig) : undefined;
+export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, sessionTransportFactory, undefined, mediaCallService, characterService, supabaseAssetService);
 export const gmLobbyService = new GmLobbyService(p2pSessionService);
 characterService.setDeathMoveRequestHandler((character, transition) => {
   if (p2pSessionService.isConnectedPlayerSession()) return;

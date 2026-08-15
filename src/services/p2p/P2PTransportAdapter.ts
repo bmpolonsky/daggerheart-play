@@ -90,7 +90,10 @@ export interface P2PTransportFactoryContext {
   participantId: string;
   displayName: string;
   worldId: string;
+  connectionMode?: 'p2p' | 'server';
   initialSnapshot?: unknown;
+  readCustomContent?: () => unknown;
+  applyCustomContent?: (content: unknown) => void;
 }
 
 export type P2PBinaryPayload = Blob | ArrayBuffer | ArrayBufferView;

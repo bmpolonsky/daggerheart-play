@@ -7,7 +7,8 @@ import {
   persistActiveSession,
   persistInviteDraft,
   persistRoomCodeRefreshBlockedUntil,
-  readActiveSession
+  readActiveSession,
+  shouldResumeActiveSession
 } from '../../src/services/p2p/P2PSessionPersistence';
 import { readStoredCallName, readStoredPlayerSeatId, writeStoredCallName, writeStoredPlayerSeatId } from '../../src/domain/p2p/sessionLinks';
 
@@ -145,12 +146,15 @@ test('P2P helpers write only through the single app storage key', () => {
     assert.equal(readActiveSession()?.roomId, 'ROOM3');
     assert.equal(readActiveSession()?.participantId, 'seat-player');
     assert.deepEqual(readActiveSession()?.actorIds, ['hero-player']);
+    assert.equal(shouldResumeActiveSession('player'), true);
+    assert.equal(shouldResumeActiveSession('gm'), false);
     assert.equal(initialInviteDraftState().roomId, 'ROOM4');
     assert.equal(readStoredPlayerSeatId('ROOM3'), 'seat-3');
     assert.equal(readStoredCallName('ROOM3'), 'Caller 3');
 
     forgetActiveSession();
     assert.equal(readActiveSession(), null);
+    assert.equal(shouldResumeActiveSession('player'), false);
   } finally {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
     localAppStorageStore.reload();

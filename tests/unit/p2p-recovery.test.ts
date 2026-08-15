@@ -376,8 +376,8 @@ test('P2P player marks a silent GM disconnect as degraded and recovers when GM r
   const reopenedGm = createTestP2PSession(network);
 
   try {
-    await gm.startGmRoom({ roomId: 'reopen-room', participantName: 'GM' });
-    await player.startPlayerRoom({ roomId: 'reopen-room', participantName: 'Player' });
+    await gm.startGmRoom({ roomId: 'reopen-room', participantName: 'GM', connectionMode: 'p2p' });
+    await player.startPlayerRoom({ roomId: 'reopen-room', participantName: 'Player', connectionMode: 'p2p' });
 
     await waitFor(() => {
       assert.equal(player.session$.get().status, 'connected');
@@ -394,7 +394,7 @@ test('P2P player marks a silent GM disconnect as degraded and recovers when GM r
       assert.equal(player.session$.get().message, 'Восстанавливаем соединение.');
     }, 2_000);
 
-    await reopenedGm.startGmRoom({ roomId: 'reopen-room', participantName: 'GM' });
+    await reopenedGm.startGmRoom({ roomId: 'reopen-room', participantName: 'GM', connectionMode: 'p2p' });
     await waitFor(() => {
       assert.equal(player.session$.get().status, 'connected');
       assert.equal(player.session$.get().lastSnapshotAt !== null, true);

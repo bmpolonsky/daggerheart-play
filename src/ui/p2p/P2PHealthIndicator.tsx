@@ -1,32 +1,71 @@
 /** @jsxImportSource preact */
 import { createPortal } from 'preact/compat';
 import { useMemo, useRef, useState } from 'preact/hooks';
-import { Activity, X } from 'lucide-react';
+import { Activity, Globe, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
-import { p2pSessionService } from '../../services/serviceRegistry';
+import { gameService, p2pSessionService } from '../../services/serviceRegistry';
 import type { P2PSessionState } from '../../services/P2PSessionService';
 import type { P2PTransportPeerDiagnostic } from '../../services/p2p/P2PTransportAdapter';
 import { Button, Dialog, IconButton } from '../components/common';
-import { SharedToolsDiagnosticsSettingsPanel } from '../vtt/playerView/SharedToolsSettingsPanels';
+import { SharedToolsConnectionSettingsPanel, SharedToolsDiagnosticsSettingsPanel } from '../vtt/playerView/SharedToolsSettingsPanels';
 import type { TableViewRole } from '../vtt/playerView/types';
 import '../vtt/playerView/player-tools.css';
 import './p2p-health-indicator.css';
 
-export function P2PHealthIndicator({ placement = 'floating', role }: { placement?: 'chronicle' | 'floating'; role: TableViewRole }) {
+export function P2PHealthIndicator({
+  placement = 'floating',
+  role,
+  roomControls = false
+}: {
+  placement?: 'chronicle' | 'floating';
+  role: TableViewRole;
+  roomControls?: boolean;
+}) {
   const session = useStream(p2pSessionService.session$);
+  const game = useStream(gameService.game$);
   const [open, setOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const openerRef = useRef<HTMLButtonElement | null>(null);
   const summary = useMemo(() => buildP2PHealthSummary(session), [session]);
-  const diagnosticLabel = `Открыть диагностику соединения: ${summary.detail ? `${summary.label}. ${summary.detail}` : summary.label}`;
+  const statusLabel = summary.detail ? `${summary.label}. ${summary.detail}` : summary.label;
+  const buttonLabel = roomControls
+    ? `Сетевая игра: ${statusLabel}`
+    : `Открыть диагностику соединения: ${statusLabel}`;
   const openDialog = (event: { currentTarget: EventTarget | null }) => {
     openerRef.current = event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null;
     setOpen(true);
   };
   const closeDialog = () => {
     setOpen(false);
+    setDiagnosticsOpen(false);
     window.requestAnimationFrame(() => openerRef.current?.focus());
   };
-  const dialog = open && (
+  const roomDialog = open && roomControls && (
+    <Dialog
+      aria-label="Сетевая игра"
+      className="p2p-health-dialog"
+      title={<strong>Сетевая игра</strong>}
+      actions={(
+        <IconButton variant="ghost" size="sm" type="button" title="Закрыть" aria-label="Закрыть" onClick={closeDialog}>
+          <X size={16} aria-hidden="true" />
+        </IconButton>
+      )}
+      onClose={closeDialog}
+    >
+      <SharedToolsConnectionSettingsPanel game={game} role={role} />
+      <Button
+        size="sm"
+        type="button"
+        variant="ghost"
+        iconBefore={<Activity size={14} aria-hidden="true" />}
+        onClick={() => setDiagnosticsOpen((current) => !current)}
+      >
+        {diagnosticsOpen ? 'Скрыть диагностику' : 'Диагностика'}
+      </Button>
+      {diagnosticsOpen && <SharedToolsDiagnosticsSettingsPanel role={role} compact />}
+    </Dialog>
+  );
+  const diagnosticsDialog = open && !roomControls && (
     <Dialog
       aria-label="Диагностика соединения"
       className="p2p-health-dialog"
@@ -41,6 +80,7 @@ export function P2PHealthIndicator({ placement = 'floating', role }: { placement
       <SharedToolsDiagnosticsSettingsPanel role={role} compact />
     </Dialog>
   );
+  const dialog = roomDialog || diagnosticsDialog;
 
   return (
     <>
@@ -51,10 +91,10 @@ export function P2PHealthIndicator({ placement = 'floating', role }: { placement
           size="sm"
           type="button"
           title={`${summary.label}${summary.detail ? ` — ${summary.detail}` : ''}`}
-          aria-label={diagnosticLabel}
+          aria-label={buttonLabel}
           onClick={openDialog}
         >
-          <Activity size={15} aria-hidden="true" />
+          {roomControls ? <Globe size={15} aria-hidden="true" /> : <Activity size={15} aria-hidden="true" />}
         </IconButton>
       ) : (
         <Button
@@ -63,9 +103,9 @@ export function P2PHealthIndicator({ placement = 'floating', role }: { placement
           size="xs"
           type="button"
           variant="ghost"
-          title="Открыть диагностику соединения"
-          aria-label={diagnosticLabel}
-          iconBefore={<Activity size={13} aria-hidden="true" />}
+          title={roomControls ? 'Сетевая игра' : 'Открыть диагностику соединения'}
+          aria-label={buttonLabel}
+          iconBefore={roomControls ? <Globe size={13} aria-hidden="true" /> : <Activity size={13} aria-hidden="true" />}
           onClick={openDialog}
         >
           <span className="p2p-health-indicator__label">{summary.label}</span>

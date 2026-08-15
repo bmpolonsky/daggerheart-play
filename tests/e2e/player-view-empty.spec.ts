@@ -27,18 +27,14 @@ test.describe('Player View empty state', () => {
     });
     await page.goto('/');
 
-    const gmLobby = page.getByLabel('Создать сессию мастера');
+    const gmLobby = page.getByLabel('Рабочее пространство мастера');
     await expect(gmLobby.getByText('Добавьте игроков')).toBeVisible();
     await expect(gmLobby.getByLabel('Имя игрока')).toHaveCount(0);
     const currentGame = page.getByLabel('Текущая игра');
     await expect(currentGame).toContainText('Без названия');
     await expect(currentGame).toContainText('Выберите или создайте игру');
     await expect(currentGame.getByRole('button', { name: 'Сменить' })).toBeVisible();
-    const copyInvite = gmLobby.getByRole('button', { name: 'Копировать ссылку игрока' });
-    await expect(copyInvite).toBeEnabled();
-    await copyInvite.click();
-    await expect(page.getByText('Ссылка скопирована.')).toBeVisible();
-    await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem('e2e-copied-invite'))).toContain('/#/join/');
+    await expect(gmLobby.getByRole('button', { name: 'Копировать ссылку игрока' })).toHaveCount(0);
 
     await openGmGame(page);
     await expect(page.locator('.player-token')).toHaveCount(0);

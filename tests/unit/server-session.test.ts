@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import { isMasterLeaseActive, isPlayerEnvelopeAllowed, normalizeServerRoomId, setMasterServerAuthenticated, shouldUseServerSession } from '../../src/domain/p2p/serverSession';
+import { isMasterLeaseActive, isPlayerEnvelopeAllowed, normalizeServerRoomId, shouldUseServerSession } from '../../src/domain/p2p/serverSession';
 import type { P2PWireEnvelope } from '../../src/services/p2p/P2PTransportAdapter';
 
 describe('server session policy', () => {
@@ -18,16 +18,14 @@ describe('server session policy', () => {
     assert.equal(isPlayerEnvelopeAllowed(envelope('control', { type: 'webrtc-signal', signal: {} })), false);
   });
 
-  it('selects hybrid only for players and authenticated masters in a server build', () => {
-    const sites = { VITE_SESSION_MODE: 'server' } as Partial<ImportMetaEnv>;
+  it('uses Supabase only when the build enables server sessions', () => {
+    const server = { VITE_SESSION_MODE: 'server' } as Partial<ImportMetaEnv>;
     const pages = {} as Partial<ImportMetaEnv>;
-    setMasterServerAuthenticated(false);
-    assert.equal(shouldUseServerSession('gm', sites), false);
-    assert.equal(shouldUseServerSession('player', sites), true);
+    assert.equal(shouldUseServerSession('gm', server), true);
+    assert.equal(shouldUseServerSession('player', server), true);
+    assert.equal(shouldUseServerSession('gm', server, 'p2p'), false);
+    assert.equal(shouldUseServerSession('player', server, 'server'), true);
     assert.equal(shouldUseServerSession('player', pages), false);
-    setMasterServerAuthenticated(true);
-    assert.equal(shouldUseServerSession('gm', sites), true);
-    setMasterServerAuthenticated(false);
   });
 });
 

@@ -61,6 +61,7 @@ export function PlayerActionDock({
       selectedActorKind={displayedActor?.kind === 'environment' ? null : displayedActor?.kind ?? null}
       role={role}
       callState={callState}
+      callAvailable={p2pSession.connected}
       activationRaised={Boolean(displayedCharacter?.id && localActivation.raised && localActivation.actorId === displayedCharacter.id)}
       activationRequestCount={role === 'gm' ? activationQueue.length : 0}
       canRequestActivation={Boolean(role === 'player' && p2pSession.connected && displayedCharacter?.id)}

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { mediaCallService, p2pSessionService } from '../../../services/serviceRegistry';
+import { shouldResumeActiveSession } from '../../../services/p2p/P2PSessionPersistence';
 import type { TableViewRole } from './types';
 
 interface PlayerSessionRuntimeProps {
@@ -34,16 +35,10 @@ export function PlayerSessionRuntime({
     }
 
     if (role === 'gm') {
-      if ((p2pSession.connected || p2pSession.status === 'connecting') && p2pSession.role === 'gm') {
-        autoP2PRestoreKey.current = null;
-        return;
-      }
-      const key = `gm:auto-open:${gameGmName}`;
-      if (autoP2PRestoreKey.current === key) return;
+      const key = `gm:restore:${gameGmName}`;
+      if (autoP2PRestoreKey.current === key || !shouldResumeActiveSession('gm')) return;
       autoP2PRestoreKey.current = key;
-      void p2pSessionService.ensureGmRoom(gameGmName).catch(() => {
-        autoP2PRestoreKey.current = null;
-      });
+      void p2pSessionService.restoreActiveSession('gm', gameGmName).catch(() => undefined);
       return;
     }
 

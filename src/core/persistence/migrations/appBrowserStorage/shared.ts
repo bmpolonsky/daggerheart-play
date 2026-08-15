@@ -27,6 +27,9 @@ export function toStoredP2PSession(value: unknown): StoredP2PSession | null {
     ...(Array.isArray(value.actorIds) && value.actorIds.every((item) => typeof item === 'string')
       ? { actorIds: value.actorIds }
       : {}),
+    ...(value.connectionMode === 'p2p' || value.connectionMode === 'server'
+      ? { connectionMode: value.connectionMode }
+      : {}),
     updatedAt: value.updatedAt
   };
 }

@@ -64,10 +64,7 @@ test.describe('VTT layout shell contract', () => {
     await expectNoOverlap(panel, dice);
     await expectNoOverlap(dice, page.locator('.p2p-health-indicator'));
 
-    const copyInvite = page.getByRole('button', { name: 'Копировать приглашение' });
-    await expect(copyInvite).toBeEnabled();
-    await copyInvite.click();
-    await expect(page.getByRole('button', { name: 'Ссылка скопирована' })).toBeVisible();
+    await expect(page.getByLabel('Чат игры').getByRole('button', { name: /Сетевая игра:/ })).toBeVisible();
 
     await leftToggle.click();
     await rightToggle.click();

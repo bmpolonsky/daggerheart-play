@@ -1,19 +1,24 @@
 import { localAppStorageStore, sessionAppStorageStore } from '../../core/persistence/appBrowserStorage';
 import type { P2PNetworkSettings } from './networkSettings';
+import type { SessionConnectionMode } from './serverSession';
 
 export interface PlayerInviteUrlInput {
   origin: string;
   basePath?: string;
   roomId: string;
   networkSettings?: P2PNetworkSettings;
+  connectionMode?: SessionConnectionMode;
 }
 
 export interface PlayerSessionParams {
   roomId: string;
+  connectionMode?: SessionConnectionMode;
 }
 
 export function createShortRoomCode(): string {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => (value % 36).toString(36)).join('').toUpperCase();
 }
 
 export function createFallbackRoomId(): string {
@@ -27,7 +32,8 @@ export function normalizeSessionRoomId(roomId: string, fallback = createFallback
 export function buildPlayerInviteUrl(input: PlayerInviteUrlInput): string {
   const roomId = buildPlayerInviteRoomCode(input.roomId, input.networkSettings);
   const invite = new URL(baseRootPath(input.basePath), input.origin);
-  invite.hash = `/join/${encodeURIComponent(roomId)}`;
+  const inviteCode = input.connectionMode === 'server' ? `S${roomId}` : roomId;
+  invite.hash = `/join/${encodeURIComponent(inviteCode)}`;
   return invite.toString();
 }
 
@@ -54,9 +60,11 @@ export function parsePlayerSessionLocation(pathname: string, basePath = '', hash
 }
 
 export function parsePlayerInviteRoomCode(value: string): PlayerSessionParams | null {
-  const roomId = normalizeLogicalRoomId(value, '');
+  const raw = normalizeSessionRoomId(value, '');
+  const connectionMode: SessionConnectionMode = /^S[A-Z0-9]{6}$/.test(raw) ? 'server' : 'p2p';
+  const roomId = normalizeLogicalRoomId(raw, '');
   if (!roomId) return null;
-  return { roomId };
+  return { roomId, connectionMode };
 }
 
 export function parseCallSessionLocation(pathname: string, basePath = '', hash = ''): PlayerSessionParams | null {

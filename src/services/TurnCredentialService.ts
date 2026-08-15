@@ -1,20 +1,25 @@
-import { readServerParticipantToken } from './ServerRelayTransport';
+import type { SupabaseSessionConfig } from '../domain/p2p/supabaseSession';
+import { readSupabaseSessionConfig } from '../domain/p2p/supabaseSession';
+import { readSupabaseAccessToken } from './supabaseClient';
 
-const PAGES_TURN_ENDPOINT = 'https://daggerheart-play.bmpolonsky.chatgpt.site/api/turn-credentials';
 const CACHE_MS = 10 * 60 * 60_000;
-const TURN_FETCH_TIMEOUT_MS = 2_500;
+const TURN_FETCH_TIMEOUT_MS = 5_000;
 const cachedCredentials = new Map<string, { expiresAt: number; promise: Promise<RTCIceServer[]> }>();
 
-export function turnConfigProvider(participantId: string, serverMode: boolean): (roomId: string) => Promise<RTCIceServer[]> {
+export function turnConfigProvider(
+  participantId: string,
+  role: 'gm' | 'player',
+  config = readSupabaseSessionConfig(),
+  fetcher: typeof fetch = fetch,
+  tokenReader: typeof readSupabaseAccessToken = readSupabaseAccessToken
+): (roomId: string) => Promise<RTCIceServer[]> {
   return async (roomId) => {
-    const cacheKey = `${serverMode ? 'server' : 'pages'}:${roomId}:${participantId}`;
+    if (!config) return [];
+    const cacheKey = `${config.url}:${roomId}:${participantId}`;
     const cached = cachedCredentials.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.promise;
-    const promise = fetchTurnConfig(roomId, participantId, serverMode)
+    const promise = fetchTurnConfig(roomId, participantId, role, config, fetcher, tokenReader)
       .catch(() => [])
-      .then((iceServers) => serverMode && iceServers.length === 0
-        ? fetchTurnConfig(roomId, participantId, false)
-        : iceServers)
       .then((iceServers) => {
         if (iceServers.length === 0) cachedCredentials.delete(cacheKey);
         return iceServers;
@@ -28,24 +33,28 @@ export function turnConfigProvider(participantId: string, serverMode: boolean): 
   };
 }
 
-async function fetchTurnConfig(roomId: string, participantId: string, serverMode: boolean): Promise<RTCIceServer[]> {
+async function fetchTurnConfig(
+  roomId: string,
+  participantId: string,
+  role: 'gm' | 'player',
+  config: SupabaseSessionConfig,
+  fetcher: typeof fetch,
+  tokenReader: typeof readSupabaseAccessToken
+): Promise<RTCIceServer[]> {
+  const accessToken = await tokenReader(config, role === 'gm' ? 'master' : 'player');
+  if (!accessToken) return [];
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), TURN_FETCH_TIMEOUT_MS);
-  const headers = new Headers({ accept: 'application/json' });
-  if (serverMode) {
-    const participantToken = readServerParticipantToken(roomId, participantId);
-    if (participantToken) {
-      headers.set('authorization', `Bearer ${participantToken}`);
-      headers.set('x-daggerheart-peer-id', participantId);
-    }
-  }
-  const endpoint = serverMode
-    ? `/api/rooms/${encodeURIComponent(roomId)}/turn-credentials`
-    : `${PAGES_TURN_ENDPOINT}?room=${encodeURIComponent(roomId)}`;
   try {
-    const response = await fetch(endpoint, {
-      credentials: serverMode ? 'same-origin' : 'omit',
-      headers,
+    const response = await fetcher(`${config.url}/functions/v1/turn-credentials`, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        apikey: config.publishableKey,
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ roomId, peerId: participantId }),
       signal: controller.signal
     });
     if (!response.ok) return [];

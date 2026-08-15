@@ -72,7 +72,7 @@ test.describe('filled VTT layout regressions', () => {
     const root = page.locator('.player-view--gm');
     const dice = page.locator('.mini-dice-launcher');
     const quickDice = page.locator('.mini-dice-launcher__quick');
-    const health = page.getByLabel('Чат игры').getByRole('button', { name: /Открыть диагностику соединения/ });
+    const health = page.getByLabel('Чат игры').getByRole('button', { name: /Сетевая игра:/ });
     const diceBox = await rect(dice);
     const quickDiceBox = await rect(quickDice);
     expect(Math.abs(diceBox.x + diceBox.width / 2 - 720)).toBeLessThanOrEqual(1);
@@ -142,7 +142,7 @@ test.describe('filled VTT layout regressions', () => {
     await page.reload();
 
     const mobileDice = page.locator('.mini-dice-launcher');
-    const mobileHealth = page.getByLabel('Чат игры').getByRole('button', { name: /Открыть диагностику соединения/ });
+    const mobileHealth = page.getByLabel('Чат игры').getByRole('button', { name: /Сетевая игра:/ });
     await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Сцена' }).click();
     await expect(mobileDice).toBeVisible();
     await expect(mobileHealth).toBeHidden();
