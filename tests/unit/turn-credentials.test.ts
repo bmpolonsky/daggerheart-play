@@ -35,6 +35,56 @@ test('requests TURN from the authenticated Supabase Edge Function', async () => 
   }]);
 });
 
+test('registers a P2P participant while requesting TURN with the guest session', async () => {
+  let requestedRole = '';
+  let requestBody: unknown;
+  const fetcher = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    requestBody = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ iceServers: [{ urls: 'turn:example.test' }] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    });
+  }) as typeof fetch;
+
+  const iceServers = await turnConfigProvider(
+    'gm-p2p',
+    'gm',
+    config,
+    fetcher,
+    async (_config, role) => {
+      requestedRole = role;
+      return 'guest-jwt';
+    },
+    'p2p'
+  )('P2PROOM');
+
+  assert.equal(requestedRole, 'player');
+  assert.deepEqual(requestBody, {
+    roomId: 'P2PROOM',
+    peerId: 'gm-p2p',
+    sessionMode: 'p2p',
+    roomRole: 'gm'
+  });
+  assert.deepEqual(iceServers, [{ urls: 'turn:example.test' }]);
+});
+
+test('does not reuse a server credential claim as a P2P room registration', async () => {
+  let requests = 0;
+  const fetcher = (async () => {
+    requests += 1;
+    return new Response(JSON.stringify({ iceServers: [{ urls: 'turn:example.test' }] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    });
+  }) as typeof fetch;
+  const tokenReader = async () => 'test-jwt';
+
+  await turnConfigProvider('mode-switch-peer', 'gm', config, fetcher, tokenReader)('MODEROOM');
+  await turnConfigProvider('mode-switch-peer', 'gm', config, fetcher, tokenReader, 'p2p')('MODEROOM');
+
+  assert.equal(requests, 2);
+});
+
 test('does not call the Edge Function before Supabase authentication', async () => {
   let requests = 0;
   const fetcher = (async () => {

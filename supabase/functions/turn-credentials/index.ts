@@ -16,10 +16,17 @@ Deno.serve(async (request) => {
 
   const authorization = request.headers.get('authorization') ?? '';
   if (!authorization.startsWith('Bearer ')) return json({ error: 'not_authenticated' }, 401, corsHeaders);
-  const input = await request.json().catch(() => null) as { roomId?: unknown; peerId?: unknown } | null;
+  const input = await request.json().catch(() => null) as {
+    roomId?: unknown;
+    peerId?: unknown;
+    sessionMode?: unknown;
+    roomRole?: unknown;
+  } | null;
   const roomId = typeof input?.roomId === 'string' ? input.roomId.trim().toUpperCase() : '';
   const peerId = typeof input?.peerId === 'string' ? input.peerId.trim() : '';
-  if (!/^[A-Z0-9_-]{4,24}$/.test(roomId) || !peerId || peerId.length > 160) {
+  const sessionMode = input?.sessionMode === 'p2p' ? 'p2p' : 'server';
+  const roomRole = input?.roomRole === 'gm' || input?.roomRole === 'player' ? input.roomRole : null;
+  if (!/^[A-Z0-9_-]{4,24}$/.test(roomId) || !peerId || peerId.length > 160 || sessionMode === 'p2p' && !roomRole) {
     return json({ error: 'invalid_request' }, 400, corsHeaders);
   }
 
@@ -31,10 +38,16 @@ Deno.serve(async (request) => {
       auth: { persistSession: false, autoRefreshToken: false }
     }
   );
-  const { data: allowed, error: membershipError } = await client.rpc('dh_claim_turn_credentials', {
-    p_room_id: roomId,
-    p_peer_id: peerId
-  });
+  const { data: allowed, error: membershipError } = sessionMode === 'p2p'
+    ? await client.rpc('dh_claim_p2p_turn_credentials', {
+        p_room_id: roomId,
+        p_peer_id: peerId,
+        p_role: roomRole
+      })
+    : await client.rpc('dh_claim_turn_credentials', {
+        p_room_id: roomId,
+        p_peer_id: peerId
+      });
   if (membershipError || allowed !== true) return json({ error: 'room_access_denied' }, 403, corsHeaders);
 
   const keyId = Deno.env.get('TURN_KEY_ID')?.trim();

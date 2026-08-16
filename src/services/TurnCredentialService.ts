@@ -11,14 +11,15 @@ export function turnConfigProvider(
   role: 'gm' | 'player',
   config = readSupabaseSessionConfig(),
   fetcher: typeof fetch = fetch,
-  tokenReader: typeof readSupabaseAccessToken = readSupabaseAccessToken
+  tokenReader: typeof readSupabaseAccessToken = readSupabaseAccessToken,
+  sessionMode: 'server' | 'p2p' = 'server'
 ): (roomId: string) => Promise<RTCIceServer[]> {
   return async (roomId) => {
     if (!config) return [];
-    const cacheKey = `${config.url}:${roomId}:${participantId}`;
+    const cacheKey = `${config.url}:${sessionMode}:${roomId}:${participantId}`;
     const cached = cachedCredentials.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.promise;
-    const promise = fetchTurnConfig(roomId, participantId, role, config, fetcher, tokenReader)
+    const promise = fetchTurnConfig(roomId, participantId, role, sessionMode, config, fetcher, tokenReader)
       .catch(() => [])
       .then((iceServers) => {
         if (iceServers.length === 0) cachedCredentials.delete(cacheKey);
@@ -33,15 +34,23 @@ export function turnConfigProvider(
   };
 }
 
+export function p2pTurnConfigProvider(
+  participantId: string,
+  role: 'gm' | 'player'
+): (roomId: string) => Promise<RTCIceServer[]> {
+  return turnConfigProvider(participantId, role, undefined, undefined, undefined, 'p2p');
+}
+
 async function fetchTurnConfig(
   roomId: string,
   participantId: string,
   role: 'gm' | 'player',
+  sessionMode: 'server' | 'p2p',
   config: SupabaseSessionConfig,
   fetcher: typeof fetch,
   tokenReader: typeof readSupabaseAccessToken
 ): Promise<RTCIceServer[]> {
-  const accessToken = await tokenReader(config, role === 'gm' ? 'master' : 'player');
+  const accessToken = await tokenReader(config, sessionMode === 'p2p' ? 'player' : role === 'gm' ? 'master' : 'player');
   if (!accessToken) return [];
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), TURN_FETCH_TIMEOUT_MS);
@@ -54,7 +63,11 @@ async function fetchTurnConfig(
         authorization: `Bearer ${accessToken}`,
         'content-type': 'application/json'
       },
-      body: JSON.stringify({ roomId, peerId: participantId }),
+      body: JSON.stringify({
+        roomId,
+        peerId: participantId,
+        ...(sessionMode === 'p2p' ? { sessionMode, roomRole: role } : {})
+      }),
       signal: controller.signal
     });
     if (!response.ok) return [];

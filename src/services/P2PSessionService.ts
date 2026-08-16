@@ -8,7 +8,9 @@ import { buildPlayerInviteRoomCode, buildPlayerInviteUrl, createShortRoomCode, n
 import { readP2PNetworkSettings, trysteroOptionsForNetworkSettings } from '../domain/p2p/networkSettings';
 import { readSessionConnectionMode } from '../domain/p2p/sessionConnectionMode';
 import type { SessionConnectionMode } from '../domain/p2p/serverSession';
-import { turnConfigProvider } from './TurnCredentialService';
+import { p2pTurnConfigProvider, turnConfigProvider } from './TurnCredentialService';
+import { ensureSupabaseGuestSignedIn } from './supabaseClient';
+import { readSupabaseSessionConfig } from '../domain/p2p/supabaseSession';
 import { shouldUseServerSession } from '../domain/p2p/serverSession';
 import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
@@ -66,6 +68,8 @@ import { P2PAssetTransferService } from './P2PAssetTransferService';
 
 export type P2PSessionRole = 'gm' | 'player';
 export type P2PConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'degraded' | 'error';
+
+const P2P_TURN_AUTH_TIMEOUT_MS = 2_500;
 
 export interface P2PSessionState {
   connected: boolean;
@@ -394,7 +398,8 @@ export class P2PSessionService {
     const participant = this.createParticipant('gm', input.participantName, {
       id: input.participantId
     });
-    const transport = this.createTransport(participant, input.connectionMode);
+    const p2pTurnReady = await this.prepareP2PTurn(input.connectionMode);
+    const transport = this.createTransport(participant, input.connectionMode, p2pTurnReady);
     this.localParticipantId = participant.id;
     this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
@@ -540,7 +545,8 @@ export class P2PSessionService {
     });
     const roomId = normalizeSessionRoomId(input.roomId);
     await this.restorePendingPlayerCharacterUpdates(roomId, participant.id, input.actorIds);
-    const transport = this.createTransport(participant, input.connectionMode);
+    const p2pTurnReady = await this.prepareP2PTurn(input.connectionMode);
+    const transport = this.createTransport(participant, input.connectionMode, p2pTurnReady);
     this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
       name: participant.name,
@@ -1621,13 +1627,19 @@ export class P2PSessionService {
     this.productRecoveryTimer = undefined;
   }
 
-  private createTransport(participant: TableParticipant, connectionMode?: SessionConnectionMode): P2PRoomConnection {
+  private createTransport(
+    participant: TableParticipant,
+    connectionMode?: SessionConnectionMode,
+    p2pTurnReady = false
+  ): P2PRoomConnection {
     const useServer = shouldUseServerSession(participant.role === 'gm' ? 'gm' : 'player', undefined, connectionMode);
     const options: TrysteroP2PTransportOptions = {
       ...trysteroOptionsForNetworkSettings(readP2PNetworkSettings()),
       turnConfigProvider: useServer
         ? turnConfigProvider(participant.id, participant.role === 'gm' ? 'gm' : 'player')
-        : undefined
+        : p2pTurnReady
+          ? p2pTurnConfigProvider(participant.id, participant.role === 'gm' ? 'gm' : 'player')
+          : undefined
     };
     const connectionConfig = useServer
       ? { ...this.roomConnectionConfig, heartbeatMs: SERVER_HEARTBEAT_MS, gmTimeoutMs: SERVER_PEER_TIMEOUT_MS }
@@ -1649,6 +1661,18 @@ export class P2PSessionService {
     this.activeRoomConnection = connection;
     this.subscriptions.add(connection.subscribeRoomEvents((event) => this.handleRoomConnectionEvent(event)));
     return connection;
+  }
+
+  private async prepareP2PTurn(connectionMode?: SessionConnectionMode): Promise<boolean> {
+    if (shouldUseServerSession('player', undefined, connectionMode)) return false;
+    const config = readSupabaseSessionConfig();
+    if (!config) return false;
+    return await new Promise<boolean>((resolve) => {
+      const timeout = globalThis.setTimeout(() => resolve(false), P2P_TURN_AUTH_TIMEOUT_MS);
+      void ensureSupabaseGuestSignedIn(config)
+        .then(() => resolve(true), () => resolve(false))
+        .finally(() => globalThis.clearTimeout(timeout));
+    });
   }
 
   private persistActiveSession(
