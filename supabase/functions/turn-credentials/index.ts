@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.108.2';
 const TURN_CREDENTIAL_TTL_SECONDS = 12 * 60 * 60;
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://bmpolonsky.github.io',
+  'https://daggerheart-play.bmpolonsky.chatgpt.site',
   'http://localhost:5173',
   'http://127.0.0.1:5173'
 ];

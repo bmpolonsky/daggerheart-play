@@ -60,7 +60,7 @@ import {
   readActiveSession
 } from './p2p/P2PSessionPersistence';
 import { P2PRoomConnection, type P2PRoomConnectionConfig, type P2PRoomConnectionEvent } from './p2p/P2PRoomConnection';
-import type { P2PMediaConnectionDiagnostic, P2PSessionTransportMode, P2PTransportAdapter, P2PTransportFactoryContext, P2PTransportPeerDiagnostic, P2PTransportRosterEntry, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent } from './p2p/P2PTransportAdapter';
+import type { P2PMediaConnectionDiagnostic, P2PSessionTransportMode, P2PTransportAdapter, P2PTransportFactoryContext, P2PTransportPeerDiagnostic, P2PTransportRouteDiagnostic, P2PTransportRouteSwitchEvent } from './p2p/P2PTransportAdapter';
 import { applyBrowserCustomContent, readBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
 import type { GameCustomContent } from '../domain/game/gameDocument';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
@@ -526,7 +526,17 @@ export class P2PSessionService {
 
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
     const roomId = buildPlayerInviteRoomCode(input.roomId, readP2PNetworkSettings());
-    await this.startRoom('player', roomId, () => this.openPlayerRoom({ ...input, roomId }));
+    const storedSession = this.storedSessionForRoom(roomId);
+    const connectionMode = input.connectionMode
+      ?? storedSession?.connectionMode
+      ?? readSessionConnectionMode();
+    await this.startRoom('player', roomId, () => this.openPlayerRoom({
+      ...input,
+      roomId,
+      connectionMode,
+      participantId: input.participantId ?? storedSession?.participantId,
+      participantName: input.participantName ?? storedSession?.participantName
+    }));
   }
 
   private async openPlayerRoom(input: P2PSessionStartInput): Promise<void> {
@@ -1797,7 +1807,6 @@ export class P2PSessionService {
       return;
     }
     if (event.type === 'roster-updated') {
-      this.applyTransportRoster(event.roster);
       this.patchSession({ peers: event.peers, routes, routePeers, transportMode, directPeers });
       return;
     }
@@ -1809,18 +1818,6 @@ export class P2PSessionService {
     if (event.type === 'error') {
       this.patchSession({ status: 'error', message: event.message, routes, routePeers, transportMode, directPeers });
     }
-  }
-
-  private applyTransportRoster(roster: P2PTransportRosterEntry[]): void {
-    roster.forEach((entry) => {
-      this.sceneTableService.upsertParticipantPresence({
-        id: entry.peerId,
-        name: entry.displayName,
-        role: entry.role,
-        peerId: entry.peerId,
-        connected: true
-      });
-    });
   }
 
   private playerTransportStatus(lastSnapshotAt: string | null): P2PConnectionStatus {

@@ -62,7 +62,7 @@ interface MultiRouteAck {
   sentAt: number;
 }
 
-const DEFAULT_CANDIDATES: P2PTransportStrategy[] = ['nostr', 'mqtt', 'torrent'];
+const DEFAULT_CANDIDATES: P2PTransportStrategy[] = ['nostr', 'torrent'];
 const SUPABASE_CANDIDATES: P2PTransportStrategy[] = ['supabase', ...DEFAULT_CANDIDATES];
 const DEFAULT_ACK_TIMEOUT_MS = 4000;
 

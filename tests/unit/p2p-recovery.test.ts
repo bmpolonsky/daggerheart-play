@@ -101,35 +101,10 @@ test('P2P player polling recovers when player opens room before GM and peer-join
   }
 });
 
-test('P2P auto bootstrap connects through MQTT when Nostr is unavailable', async () => {
+test('P2P auto bootstrap connects through Torrent when Nostr is unavailable', async () => {
   resetAllStores();
   const restoreWindow = installTimerWindow();
   const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0, disabledStrategies: ['nostr'] });
-  const gm = createTestP2PSession(network, { dice: true });
-  const player = createTestP2PSession(network);
-
-  try {
-    writeP2PNetworkSettings({ strategy: 'auto' });
-    await gm.startGmRoom({ roomId: 'mqtt-room', participantName: 'GM' });
-    await player.startPlayerRoom({ roomId: 'mqtt-room', participantName: 'Player' });
-
-    await waitFor(() => {
-      assert.equal(player.session$.get().lastSnapshotAt !== null, true);
-      assert.equal(player.session$.get().routes.find((route) => route.strategy === 'nostr')?.status, 'failed');
-      assert.equal(player.session$.get().routes.find((route) => route.strategy === 'mqtt')?.activePeers.length, 1);
-    }, 15_000);
-  } finally {
-    await player.stop().catch(() => undefined);
-    await gm.stop().catch(() => undefined);
-    writeP2PNetworkSettings({ strategy: 'auto' });
-    restoreWindow();
-  }
-});
-
-test('P2P auto bootstrap connects through Torrent when Nostr and MQTT are unavailable', async () => {
-  resetAllStores();
-  const restoreWindow = installTimerWindow();
-  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0, disabledStrategies: ['nostr', 'mqtt'] });
   const gm = createTestP2PSession(network, { dice: true });
   const player = createTestP2PSession(network);
 
@@ -141,7 +116,6 @@ test('P2P auto bootstrap connects through Torrent when Nostr and MQTT are unavai
     await waitFor(() => {
       assert.equal(player.session$.get().lastSnapshotAt !== null, true);
       assert.equal(player.session$.get().routes.find((route) => route.strategy === 'nostr')?.status, 'failed');
-      assert.equal(player.session$.get().routes.find((route) => route.strategy === 'mqtt')?.status, 'failed');
       assert.equal(player.session$.get().routes.find((route) => route.strategy === 'torrent')?.activePeers.length, 1);
     }, 15_000);
   } finally {
@@ -454,6 +428,38 @@ test('P2P active session normalizes prefixed room code for restore', async () =>
     await restoredGm.stop().catch(() => undefined);
     await gm.stop().catch(() => undefined);
     writeP2PNetworkSettings({ strategy: 'auto' });
+    restoreWindow();
+  }
+});
+
+test('P2P player keeps the saved room mode when restarted without an explicit mode', async () => {
+  resetAllStores();
+  const restoreWindow = installPersistentStorageWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const connectionModes: Array<string | undefined> = [];
+  const participantIds: Array<string | undefined> = [];
+  const player = createTestP2PSession(network, {
+    transportFactory: (options, context) => {
+      connectionModes.push(context?.connectionMode);
+      participantIds.push(context?.participantId);
+      return network.createTransport(options);
+    }
+  });
+
+  try {
+    await player.startPlayerRoom({
+      roomId: 'P2P-SAVED-MODE',
+      participantId: 'saved-player',
+      participantName: 'Player',
+      connectionMode: 'p2p'
+    });
+    await player.stop({ forgetSession: false });
+    await player.startPlayerRoom({ roomId: 'P2P-SAVED-MODE', participantName: 'Player' });
+
+    assert.deepEqual(connectionModes, ['p2p', 'p2p']);
+    assert.deepEqual(participantIds, ['saved-player', 'saved-player']);
+  } finally {
+    await player.stop().catch(() => undefined);
     restoreWindow();
   }
 });

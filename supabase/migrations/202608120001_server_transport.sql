@@ -732,8 +732,9 @@ create policy dh_assets_owner_insert on storage.objects for insert to authentica
     and (storage.foldername(name))[1] = auth.uid()::text
     and coalesce((auth.jwt()->>'is_anonymous')::boolean, false) = false
     and exists (
-      select 1 from public.dh_worlds
-      where owner_id = auth.uid() and id = (storage.foldername(name))[2]
+      select 1 from public.dh_worlds world
+      where world.owner_id = auth.uid()
+        and world.id = (storage.foldername(storage.objects.name))[2]
     )
   );
 
@@ -749,8 +750,9 @@ create policy dh_assets_owner_update on storage.objects for update to authentica
     and (storage.foldername(name))[1] = auth.uid()::text
     and coalesce((auth.jwt()->>'is_anonymous')::boolean, false) = false
     and exists (
-      select 1 from public.dh_worlds
-      where owner_id = auth.uid() and id = (storage.foldername(name))[2]
+      select 1 from public.dh_worlds world
+      where world.owner_id = auth.uid()
+        and world.id = (storage.foldername(storage.objects.name))[2]
     )
   );
 

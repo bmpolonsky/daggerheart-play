@@ -42,12 +42,12 @@ test('P2P network settings include Supabase env without exposing a manual Supaba
 });
 
 test('auto P2P candidates prefer Supabase only when configured', () => {
-  assert.deepEqual(resolveTrysteroCandidates({ mode: 'auto' }), ['nostr', 'mqtt', 'torrent']);
+  assert.deepEqual(resolveTrysteroCandidates({ mode: 'auto' }), ['nostr', 'torrent']);
   assert.deepEqual(resolveTrysteroCandidates({
     mode: 'auto',
     supabaseUrl: 'https://example.supabase.co',
     supabaseAnonKey: 'anon-key'
-  }), ['supabase', 'nostr', 'mqtt', 'torrent']);
+  }), ['supabase', 'nostr', 'torrent']);
   assert.deepEqual(resolveTrysteroCandidates({ mode: 'mqtt' }), ['mqtt']);
 });
 
