@@ -77,7 +77,7 @@ export function P2PHealthIndicator({
       )}
       onClose={closeDialog}
     >
-      <SharedToolsDiagnosticsSettingsPanel role={role} compact />
+      <SharedToolsDiagnosticsSettingsPanel role={role} />
     </Dialog>
   );
   const dialog = roomDialog || diagnosticsDialog;

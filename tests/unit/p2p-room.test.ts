@@ -114,6 +114,31 @@ test('P2P room connection tracks peers and heartbeats independently from product
   }
 });
 
+test('P2P room distinguishes an explicit GM shutdown from a transient loss', async () => {
+  const restoreWindow = installTimerWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const gmRoom = new P2PRoomConnection(network.createTransport({}), { heartbeatMs: 20, gmTimeoutMs: 80 });
+  const playerRoom = new P2PRoomConnection(network.createTransport({}), { heartbeatMs: 20, gmTimeoutMs: 80 });
+  const playerEvents: string[] = [];
+  playerRoom.subscribeRoomEvents((event) => playerEvents.push(event.type));
+
+  try {
+    await gmRoom.connect('closed-room', {
+      id: 'gm', name: 'GM', role: 'gm', actorIds: [], connected: true, updatedAt: '2026-05-26T00:00:00.000Z'
+    });
+    await playerRoom.connect('closed-room', {
+      id: 'player', name: 'Player', role: 'player', actorIds: [], connected: true, updatedAt: '2026-05-26T00:00:00.000Z'
+    });
+    await gmRoom.disconnect();
+    await waitFor(() => assert.equal(playerEvents.includes('gm-closed'), true), 1000);
+    assert.equal(playerEvents.includes('gm-lost'), false);
+  } finally {
+    await playerRoom.disconnect().catch(() => undefined);
+    await gmRoom.disconnect().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
 test('P2P room uses participant ids and lets the creator publish the room roster', async () => {
   const restoreWindow = installTimerWindow();
   const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });

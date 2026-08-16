@@ -54,7 +54,7 @@ export function PlayerSessionRuntime({
       return;
     }
     const key = `player:room:${sessionRoomId}`;
-    if (autoP2PRestoreKey.current === key && session.status === 'connecting') return;
+    if (autoP2PRestoreKey.current === key) return;
     autoP2PRestoreKey.current = key;
     void p2pSessionService.startPlayerRoom({
       roomId: sessionRoomId,

@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { parsePlayerSessionLocation } from '../../domain/p2p/sessionLinks';
+import { normalizeSessionRoomId, parsePlayerSessionLocation } from '../../domain/p2p/sessionLinks';
 import { publicAssetUrl } from '../../domain/content/publicAssets';
 import { DEFAULT_LOBBY_SCENE_IMAGE } from '../../domain/tabletop/defaultArt';
 import type { NavigableRouteId } from '../../app/routing';
@@ -21,7 +21,6 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
     return (
       <PlayerJoinLobby
         roomId={sessionParams.roomId}
-        connectionMode={sessionParams.connectionMode}
         sceneImageUrl={sceneImageUrl}
         onBackToLobby={() => onSelectRole('entry')}
         onEnterPlayerRoom={() => onSelectRole('game')}
@@ -31,12 +30,18 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
 
   return (
     <SessionLobby
+      initialPlayerRoomId={playerRoomIdFromSearch()}
       inviteContext={lobbyInviteContext(basePath)}
       sceneImageUrl={sceneImageUrl}
       onEnterGm={() => onSelectRole('game')}
       onJoinRoom={(roomId) => onSelectRole('join', '', '', roomId)}
     />
   );
+}
+
+function playerRoomIdFromSearch(): string {
+  if (typeof window === 'undefined') return '';
+  return normalizeSessionRoomId(new URLSearchParams(window.location.search).get('room') ?? '', '');
 }
 
 function lobbyInviteContext(basePath: string) {

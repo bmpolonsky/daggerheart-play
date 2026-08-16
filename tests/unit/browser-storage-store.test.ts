@@ -116,6 +116,32 @@ test('session app storage migrates old cooldown and seat keys into one key', () 
   }
 });
 
+test('old four-character invite drafts are replaced with six-character codes', () => {
+  const originalWindow = globalThis.window;
+  const localStorage = new MemoryStorage();
+  const sessionStorage = new MemoryStorage();
+  Object.defineProperty(globalThis, 'window', {
+    value: { localStorage, sessionStorage },
+    configurable: true
+  });
+
+  try {
+    localStorage.setItem(APP_BROWSER_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      p2p: { inviteDraft: { roomId: 'H9DC' } }
+    }));
+    localAppStorageStore.reload();
+
+    const roomId = initialInviteDraftState().roomId;
+    assert.match(roomId, /^[A-Z0-9]{6}$/);
+    assert.equal(localAppStorageStore.getState().p2p?.inviteDraft?.roomId, roomId);
+  } finally {
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+    localAppStorageStore.reload();
+    sessionAppStorageStore.reload();
+  }
+});
+
 test('P2P helpers write only through the single app storage key', () => {
   const originalWindow = globalThis.window;
   const localStorage = new MemoryStorage();

@@ -67,15 +67,16 @@
   align-self: center;
   justify-self: center;
   grid-template-rows: auto;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .p2p-health-dialog .player-tools-settings-panel {
   min-height: 0;
-  max-height: min(600px, calc(100dvh - 116px));
+  max-height: none;
   background: transparent;
   padding: 0;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  overflow: visible;
 }
 
 @media (max-width: 720px) {

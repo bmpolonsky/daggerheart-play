@@ -216,7 +216,7 @@ export async function openSharedGmGame(page: Page, roomId = 'E2EROOM'): Promise<
   await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: /Сетевая игра:/ }).click();
   const networkDialog = page.getByRole('dialog', { name: 'Сетевая игра' });
-  const openRoom = networkDialog.getByRole('button', { name: 'Открыть комнату' });
+  const openRoom = networkDialog.getByRole('button', { name: 'Запустить сетевую игру' });
   if (await openRoom.isVisible()) await openRoom.click();
   await expect(networkDialog.getByRole('textbox', { name: 'Ссылка приглашения' })).toBeVisible({ timeout: 15_000 });
   await networkDialog.getByRole('button', { name: 'Закрыть', exact: true }).click();

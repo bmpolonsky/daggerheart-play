@@ -9,6 +9,7 @@ export type P2PRoomConnectionEvent =
   | { type: 'ready'; role: P2PWireRole; roomId: string; peerId: string; peers: string[] }
   | { type: 'peer-joined'; peerId: string; role: P2PWireRole | null; peers: string[] }
   | { type: 'peer-left'; peerId: string; role: P2PWireRole | null; peers: string[] }
+  | { type: 'gm-closed'; peers: string[] }
   | { type: 'gm-lost'; peers: string[] }
   | { type: 'gm-restored'; peerId: string; peers: string[] }
   | { type: 'diagnostics-updated'; peers: string[] }
@@ -19,6 +20,8 @@ export type P2PRoomConnectionEvent =
 export interface P2PRoomConnectionConfig {
   heartbeatMs?: number;
   gmTimeoutMs?: number;
+  serverHeartbeatMs?: number;
+  serverGmTimeoutMs?: number;
 }
 
 const DEFAULT_HEARTBEAT_MS = 5000;
@@ -282,7 +285,7 @@ export class P2PRoomConnection implements SyncTransport {
     }
     const type = (payload as { type?: unknown }).type;
     if (type === 'goodbye') {
-      this.removePeer(peerId);
+      this.removePeer(peerId, true);
       return;
     }
     if (this.role === 'gm' && envelope.sender.role === 'player' && (type === 'hello' || type === 'player-ping')) {
@@ -353,7 +356,7 @@ export class P2PRoomConnection implements SyncTransport {
     return true;
   }
 
-  private removePeer(peerId: string): void {
+  private removePeer(peerId: string, closed = false): void {
     const role = this.peerRoles.get(peerId) ?? null;
     if (!this.peerIds.delete(peerId)) {
       return;
@@ -367,7 +370,7 @@ export class P2PRoomConnection implements SyncTransport {
     if (this.role === 'player' && (role === 'gm' || this.peerIds.size === 0) && this.status !== 'degraded') {
       this.status = 'degraded';
       this.hasGmSignal = false;
-      this.emitRoomEvent({ type: 'gm-lost', peers: this.peers() });
+      this.emitRoomEvent({ type: closed ? 'gm-closed' : 'gm-lost', peers: this.peers() });
     }
   }
 
@@ -403,7 +406,7 @@ export class P2PRoomConnection implements SyncTransport {
     this.stopHeartbeat();
     this.heartbeatTimer = window.setInterval(() => {
       void this.tick();
-    }, this.config.heartbeatMs ?? DEFAULT_HEARTBEAT_MS);
+    }, this.heartbeatMs());
   }
 
   private stopHeartbeat(): void {
@@ -419,18 +422,30 @@ export class P2PRoomConnection implements SyncTransport {
     if (this.role === 'player') {
       await this.sendControl({ type: 'player-ping' }).catch(() => undefined);
       const lastGmActivityAt = this.lastGmSignalAt || this.startedAt;
-      if (this.status !== 'degraded' && lastGmActivityAt > 0 && now - lastGmActivityAt > (this.config.gmTimeoutMs ?? DEFAULT_GM_TIMEOUT_MS)) {
+      if (this.status !== 'degraded' && lastGmActivityAt > 0 && now - lastGmActivityAt > this.gmTimeoutMs()) {
         this.status = 'degraded';
         this.emitRoomEvent({ type: 'gm-lost', peers: this.peers() });
       }
       return;
     }
-    const staleAfterMs = this.config.gmTimeoutMs ?? DEFAULT_GM_TIMEOUT_MS;
+    const staleAfterMs = this.gmTimeoutMs();
     this.peerSignals.forEach((lastSeenAt, peerId) => {
       if (now - lastSeenAt > staleAfterMs) {
         this.removePeer(peerId);
       }
     });
+  }
+
+  private heartbeatMs(): number {
+    return this.sessionMode() === 'hybrid'
+      ? this.config.serverHeartbeatMs ?? this.config.heartbeatMs ?? DEFAULT_HEARTBEAT_MS
+      : this.config.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
+  }
+
+  private gmTimeoutMs(): number {
+    return this.sessionMode() === 'hybrid'
+      ? this.config.serverGmTimeoutMs ?? this.config.gmTimeoutMs ?? DEFAULT_GM_TIMEOUT_MS
+      : this.config.gmTimeoutMs ?? DEFAULT_GM_TIMEOUT_MS;
   }
 
   private helloPayload(): { type: 'hello'; displayName: string } {

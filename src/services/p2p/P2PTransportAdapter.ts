@@ -1,6 +1,6 @@
 export type P2PWireRole = 'gm' | 'player';
 export type P2PTargetPeer = string | undefined;
-export type P2PTransportStrategy = 'supabase' | 'nostr' | 'mqtt' | 'torrent';
+export type P2PTransportStrategy = 'supabase' | 'nostr' | 'torrent';
 export type P2PTransportMode = 'auto' | P2PTransportStrategy;
 export type P2PSessionTransportMode = 'p2p' | 'hybrid';
 

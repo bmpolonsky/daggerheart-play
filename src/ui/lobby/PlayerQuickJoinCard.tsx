@@ -6,11 +6,12 @@ import { toastService } from '../../services/ToastService';
 import { Button, SectionHeader, Surface, TextControl } from '../components/common';
 
 interface PlayerQuickJoinCardProps {
+  initialRoomId?: string;
   onJoinRoom: (roomId: string) => void;
 }
 
-export function PlayerQuickJoinCard({ onJoinRoom }: PlayerQuickJoinCardProps) {
-  const [joinRoomId, setJoinRoomId] = useState('');
+export function PlayerQuickJoinCard({ initialRoomId = '', onJoinRoom }: PlayerQuickJoinCardProps) {
+  const [joinRoomId, setJoinRoomId] = useState(initialRoomId);
 
   const normalizedRoomId = (): string => {
     const normalized = normalizeSessionRoomId(joinRoomId, '');

@@ -42,7 +42,7 @@ async function createLobbyInvite(page: Page): Promise<string> {
   await gmLobby.getByRole('button', { name: 'Открыть игру' }).click();
   await openCurrentSettings(page, 'Подключение');
   const settings = page.getByRole('dialog', { name: 'Библиотека игры' });
-  await settings.getByRole('button', { name: 'Открыть комнату' }).click();
+  await settings.getByRole('button', { name: 'Запустить сетевую игру' }).click();
   const invite = settings.getByRole('textbox', { name: /^Ссылка приглашения/ });
   const roomId = (await invite.inputValue()).split('/').pop() ?? '';
   expect(roomId).not.toBe('');
@@ -86,10 +86,10 @@ async function selectGeneratedFile(input: Locator, file: { name: string; mimeTyp
   }, { name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64') });
 }
 
-const diagnosticStrategies = ['supabase', 'nostr', 'mqtt', 'torrent'] as const;
+const diagnosticStrategies = ['supabase', 'nostr', 'torrent'] as const;
 
 function connectedDiagnosticsFixture(peerIds: string[]): P2PSessionState {
-  const activeStrategies = ['supabase', 'mqtt', 'nostr', 'torrent'] as const;
+  const activeStrategies = diagnosticStrategies;
   return {
     connected: true,
     status: 'connected',
@@ -229,10 +229,10 @@ test.describe('P2P session workflow', () => {
     const betaCard = cards.nth(1);
     await expect(alphaCard.getByRole('heading')).toHaveText('Игрок peer-alpha');
     await expect(betaCard.getByRole('heading')).toHaveText('Игрок peer-beta');
-    await expect(alphaCard.locator('.player-tools-peer-route')).toHaveCount(4);
-    await expect(betaCard.locator('.player-tools-peer-route')).toHaveCount(4);
+    await expect(alphaCard.locator('.player-tools-peer-route')).toHaveCount(3);
+    await expect(betaCard.locator('.player-tools-peer-route')).toHaveCount(3);
     await expect(alphaCard.locator('summary[aria-label="Supabase: активен"]')).toHaveCount(1);
-    await expect(betaCard.locator('summary[aria-label="MQTT: активен"]')).toHaveCount(1);
+    await expect(betaCard.locator('summary[aria-label="Nostr: активен"]')).toHaveCount(1);
     await expect(betaCard.locator('summary[aria-label="Supabase: потерян"]')).toHaveCount(1);
 
     await alphaCard.locator('summary[aria-label="Supabase: активен"]').click();
@@ -311,7 +311,7 @@ test.describe('P2P session workflow', () => {
     await expect(gm.getByRole('button', { name: /Сетевая игра: Не подключено/ })).toBeVisible();
     await gm.getByRole('button', { name: /Сетевая игра:/ }).click();
     const networkDialog = gm.getByRole('dialog', { name: 'Сетевая игра' });
-    await networkDialog.getByRole('button', { name: 'Открыть комнату' }).click();
+    await networkDialog.getByRole('button', { name: 'Запустить сетевую игру' }).click();
     await expect(networkDialog.getByRole('textbox', { name: 'Ссылка приглашения' })).toBeVisible();
     await networkDialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await openCurrentSettings(gm, 'Диагностика');
@@ -639,7 +639,7 @@ test.describe('P2P session workflow', () => {
     await networkDialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await openCurrentSettings(gm, 'Диагностика');
     await player.goto(inviteLink);
-    await expect(player.getByText('Список получен от мастера.')).toBeVisible({ timeout: 30_000 });
+    await expect(player.getByText('Данные игры получены.')).toBeVisible({ timeout: 30_000 });
     const seatButton = player.getByRole('button', { name: /Игрок 1/ });
     await expect(seatButton).toBeVisible();
     await seatButton.click();

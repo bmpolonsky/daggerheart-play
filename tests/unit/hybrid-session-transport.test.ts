@@ -23,6 +23,24 @@ describe('HybridSessionTransport', () => {
     await transport.disconnect();
   });
 
+  it('keeps targeted control messages for direct-only peers off the server', async () => {
+    const direct = new FakeTransport();
+    const server = new FakeTransport();
+    const transport = new HybridSessionTransport(direct, context(), {
+      server,
+      serverFirst: true,
+      fallbackToDirect: false
+    });
+    await transport.connect('ABC123');
+    direct.join('player-peer');
+
+    await transport.send({ ...envelope('gm-peer'), channel: 'control', payload: { type: 'gm-pong' } }, 'player-peer');
+
+    assert.equal(server.sent, 0);
+    assert.equal(direct.sent, 1);
+    await transport.disconnect();
+  });
+
   it('falls back to an established direct route when the server fails after connect', async () => {
     const direct = new FakeTransport();
     const server = new FakeTransport();
@@ -128,6 +146,15 @@ describe('HybridSessionTransport', () => {
     const direct = new FakeTransport();
     const server = new FakeTransport();
     server.connectError = new RelayTransportError('Комната не найдена.', 'room_not_found', 404);
+    const transport = new HybridSessionTransport(direct, { ...context(), role: 'player', participantId: 'player-peer', initialSnapshot: undefined }, { server });
+    await transport.connect('ABC123');
+    assert.deepEqual(direct.connectedRooms, ['ABC123']);
+  });
+
+  it('falls back to direct P2P when the previous server room is offline', async () => {
+    const direct = new FakeTransport();
+    const server = new FakeTransport();
+    server.connectError = new RelayTransportError('Мастер не в сети.', 'master_offline', 409);
     const transport = new HybridSessionTransport(direct, { ...context(), role: 'player', participantId: 'player-peer', initialSnapshot: undefined }, { server });
     await transport.connect('ABC123');
     assert.deepEqual(direct.connectedRooms, ['ABC123']);

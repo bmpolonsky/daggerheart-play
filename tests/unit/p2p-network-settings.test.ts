@@ -48,7 +48,7 @@ test('auto P2P candidates prefer Supabase only when configured', () => {
     supabaseUrl: 'https://example.supabase.co',
     supabaseAnonKey: 'anon-key'
   }), ['supabase', 'nostr', 'torrent']);
-  assert.deepEqual(resolveTrysteroCandidates({ mode: 'mqtt' }), ['mqtt']);
+  assert.deepEqual(resolveTrysteroCandidates({ mode: 'torrent' }), ['torrent']);
 });
 
 test('Trystero applies one future TURN configuration to every signaling strategy', () => {
@@ -71,9 +71,9 @@ test('Trystero applies one future TURN configuration to every signaling strategy
 test('auto P2P bootstrap resolves after the first ready route while others keep probing', async () => {
   const transport = new MultiStrategyP2PTransport({
     mode: 'auto',
-    candidates: ['supabase', 'mqtt'],
+    candidates: ['supabase', 'torrent'],
     createTransport: (options) => {
-      const strategy = options.strategy && options.strategy !== 'auto' ? options.strategy : 'mqtt';
+      const strategy = options.strategy && options.strategy !== 'auto' ? options.strategy : 'torrent';
       return strategy === 'supabase'
         ? new TestP2PTransport('supabase', 'hang')
         : new TestP2PTransport(strategy, 'ready');
@@ -86,7 +86,7 @@ test('auto P2P bootstrap resolves after the first ready route while others keep 
   ]);
 
   assert.equal(transport.getRouteDiagnostics().find((route) => route.strategy === 'supabase')?.status, 'probing');
-  assert.equal(transport.getRouteDiagnostics().find((route) => route.strategy === 'mqtt')?.status, 'ready');
+  assert.equal(transport.getRouteDiagnostics().find((route) => route.strategy === 'torrent')?.status, 'ready');
 });
 
 test('auto P2P disconnect cleans up a route that resolves after it became stale', async () => {
@@ -94,11 +94,11 @@ test('auto P2P disconnect cleans up a route that resolves after it became stale'
   const supabase = new TestP2PTransport('supabase', 'deferred', (resolve) => {
     resolveSupabase = resolve;
   });
-  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const torrent = new TestP2PTransport('torrent', 'ready');
   const transport = new MultiStrategyP2PTransport({
     mode: 'auto',
-    candidates: ['supabase', 'mqtt'],
-    createTransport: (options) => options.strategy === 'supabase' ? supabase : mqtt
+    candidates: ['supabase', 'torrent'],
+    createTransport: (options) => options.strategy === 'supabase' ? supabase : torrent
   });
 
   await transport.connect('stale-route-room');
@@ -107,16 +107,16 @@ test('auto P2P disconnect cleans up a route that resolves after it became stale'
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(supabase.disconnects, 3);
-  assert.equal(mqtt.disconnects, 2);
+  assert.equal(torrent.disconnects, 2);
   assert.equal(transport.getRouteDiagnostics().find((route) => route.strategy === 'supabase')?.status, 'probing');
 });
 
 test('auto P2P exposes verified physical source separately from claimed logical peer id', async () => {
-  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const torrent = new TestP2PTransport('torrent', 'ready');
   const transport = new MultiStrategyP2PTransport({
     mode: 'auto',
-    candidates: ['mqtt'],
-    createTransport: () => mqtt
+    candidates: ['torrent'],
+    createTransport: () => torrent
   });
   const receivedSources: Array<string | undefined> = [];
   transport.subscribe((_envelope, context) => {
@@ -146,25 +146,25 @@ test('auto P2P exposes verified physical source separately from claimed logical 
     }
   });
 
-  mqtt.emit(envelope('from-owner'), 'physical-owner');
-  mqtt.emit(envelope('from-rogue'), 'physical-rogue');
+  torrent.emit(envelope('from-owner'), 'physical-owner');
+  torrent.emit(envelope('from-rogue'), 'physical-rogue');
 
   assert.deepEqual(receivedSources, [
     'logical-owner',
-    'mqtt:physical-owner',
+    'torrent:physical-owner',
     'logical-owner',
-    'mqtt:physical-rogue'
+    'torrent:physical-rogue'
   ]);
   assert.deepEqual(transport.getPeerDiagnostics().map((peer) => peer.peerId), ['logical-owner']);
 });
 
 test('auto P2P accepts replacement media after an active route switch and ignores the stale route', async () => {
-  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const torrent = new TestP2PTransport('torrent', 'ready');
   const nostr = new TestP2PTransport('nostr', 'ready');
   const transport = new MultiStrategyP2PTransport({
     mode: 'auto',
-    candidates: ['mqtt', 'nostr'],
-    createTransport: (options) => options.strategy === 'nostr' ? nostr : mqtt
+    candidates: ['torrent', 'nostr'],
+    createTransport: (options) => options.strategy === 'nostr' ? nostr : torrent
   });
   const received: MediaStream[] = [];
   transport.subscribeMediaStreams((stream) => received.push(stream));
@@ -183,22 +183,22 @@ test('auto P2P accepts replacement media after an active route switch and ignore
   const replacementStream = { id: 'stable-stream-id' } as MediaStream;
 
   await transport.connect('media-route-room');
-  mqtt.emit(envelope('mqtt-active'), 'physical-mqtt');
-  mqtt.emitMediaStream(firstStream, 'physical-mqtt', { kind: 'call' });
+  torrent.emit(envelope('torrent-active'), 'physical-torrent');
+  torrent.emitMediaStream(firstStream, 'physical-torrent', { kind: 'call' });
   nostr.emit(envelope('nostr-active'), 'physical-nostr');
   nostr.emitMediaStream(replacementStream, 'physical-nostr', { kind: 'call' });
-  mqtt.emitMediaStream(firstStream, 'physical-mqtt', { kind: 'call' });
+  torrent.emitMediaStream(firstStream, 'physical-torrent', { kind: 'call' });
 
   assert.deepEqual(received, [firstStream, replacementStream]);
 });
 
 test('auto P2P accepts replacement media after the active physical route leaves', async () => {
-  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const torrent = new TestP2PTransport('torrent', 'ready');
   const nostr = new TestP2PTransport('nostr', 'ready');
   const transport = new MultiStrategyP2PTransport({
     mode: 'auto',
-    candidates: ['mqtt', 'nostr'],
-    createTransport: (options) => options.strategy === 'nostr' ? nostr : mqtt
+    candidates: ['torrent', 'nostr'],
+    createTransport: (options) => options.strategy === 'nostr' ? nostr : torrent
   });
   const received: MediaStream[] = [];
   transport.subscribeMediaStreams((stream) => received.push(stream));
@@ -213,27 +213,27 @@ test('auto P2P accepts replacement media after the active physical route leaves'
     sentAt: '2026-05-26T00:00:00.000Z',
     payload: { type: 'media-route-probe', id }
   });
-  const mqttStream = { id: 'stable-stream-id' } as MediaStream;
+  const torrentStream = { id: 'stable-stream-id' } as MediaStream;
   const nostrStream = { id: 'stable-stream-id' } as MediaStream;
-  const mqttReplacement = { id: 'stable-stream-id' } as MediaStream;
+  const torrentReplacement = { id: 'stable-stream-id' } as MediaStream;
 
   await transport.connect('media-route-leave-room');
-  mqtt.emit(envelope('mqtt-active'), 'physical-mqtt');
-  mqtt.emitMediaStream(mqttStream, 'physical-mqtt', { kind: 'call' });
+  torrent.emit(envelope('torrent-active'), 'physical-torrent');
+  torrent.emitMediaStream(torrentStream, 'physical-torrent', { kind: 'call' });
   nostr.emit(envelope('nostr-active'), 'physical-nostr');
   nostr.emitMediaStream(nostrStream, 'physical-nostr', { kind: 'call' });
   nostr.emitPeerLeave('physical-nostr');
-  mqtt.emitMediaStream(mqttReplacement, 'physical-mqtt', { kind: 'call' });
+  torrent.emitMediaStream(torrentReplacement, 'physical-torrent', { kind: 'call' });
 
-  assert.deepEqual(received, [mqttStream, nostrStream, mqttReplacement]);
+  assert.deepEqual(received, [torrentStream, nostrStream, torrentReplacement]);
 });
 
 test('auto P2P emits an existing remote stream again when a new media track appears', async () => {
-  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const torrent = new TestP2PTransport('torrent', 'ready');
   const transport = new MultiStrategyP2PTransport({
     mode: 'auto',
-    candidates: ['mqtt'],
-    createTransport: () => mqtt
+    candidates: ['torrent'],
+    createTransport: () => torrent
   });
   const received: MediaStream[] = [];
   const tracks = [{ kind: 'video', id: 'video-1' }];
@@ -244,30 +244,30 @@ test('auto P2P emits an existing remote stream again when a new media track appe
 
   transport.subscribeMediaStreams((nextStream) => received.push(nextStream));
   await transport.connect('media-track-room');
-  mqtt.emit({
+  torrent.emit({
     version: 2,
-    id: 'mqtt-active',
+    id: 'torrent-active',
     channel: 'data',
     sender: { peerId: 'logical-owner', role: 'player' },
     sentAt: '2026-05-26T00:00:00.000Z',
     payload: { type: 'media-route-probe' }
-  }, 'physical-mqtt');
+  }, 'physical-torrent');
 
-  mqtt.emitMediaStream(stream, 'physical-mqtt', { kind: 'call' });
+  torrent.emitMediaStream(stream, 'physical-torrent', { kind: 'call' });
   tracks.push({ kind: 'audio', id: 'audio-1' });
-  mqtt.emitMediaStream(stream, 'physical-mqtt', { kind: 'call' });
-  mqtt.emitMediaStream(stream, 'physical-mqtt', { kind: 'call' });
+  torrent.emitMediaStream(stream, 'physical-torrent', { kind: 'call' });
+  torrent.emitMediaStream(stream, 'physical-torrent', { kind: 'call' });
 
   assert.deepEqual(received, [stream, stream]);
 });
 
 test('auto P2P media diagnostics keep healthy routes when another route fails', async () => {
-  const mqtt = new TestP2PTransport('mqtt', 'ready');
+  const torrent = new TestP2PTransport('torrent', 'ready');
   const nostr = new TestP2PTransport('nostr', 'ready');
   const healthyDiagnostic: P2PMediaConnectionDiagnostic = {
-    peerId: 'physical-mqtt',
-    physicalPeerId: 'physical-mqtt',
-    strategy: 'mqtt',
+    peerId: 'physical-torrent',
+    physicalPeerId: 'physical-torrent',
+    strategy: 'torrent',
     connectionState: 'connected',
     iceConnectionState: 'connected',
     localCandidateType: 'host',
@@ -275,14 +275,14 @@ test('auto P2P media diagnostics keep healthy routes when another route fails', 
     protocol: 'udp',
     rtp: []
   };
-  mqtt.getMediaDiagnostics = async () => [healthyDiagnostic];
+  torrent.getMediaDiagnostics = async () => [healthyDiagnostic];
   nostr.getMediaDiagnostics = async () => {
     throw new Error('closed peer connection');
   };
   const transport = new MultiStrategyP2PTransport({
     mode: 'auto',
-    candidates: ['mqtt', 'nostr'],
-    createTransport: (options) => options.strategy === 'nostr' ? nostr : mqtt
+    candidates: ['torrent', 'nostr'],
+    createTransport: (options) => options.strategy === 'nostr' ? nostr : torrent
   });
 
   await transport.connect('media-diagnostics-room');

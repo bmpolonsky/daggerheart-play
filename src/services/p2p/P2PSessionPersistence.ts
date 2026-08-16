@@ -16,8 +16,13 @@ export interface PersistedP2PSession {
 
 export function initialInviteDraftState(): P2PInviteDraftState {
   const persisted = localAppStorageStore.getState().p2p?.inviteDraft;
+  const persistedRoomId = persisted?.roomId ? normalizeSessionRoomId(persisted.roomId, '') : '';
+  const roomId = /^[A-Z0-9]{4}$/.test(persistedRoomId) ? createShortRoomCode() : persistedRoomId || createShortRoomCode();
+  if (persistedRoomId && roomId !== persistedRoomId) {
+    persistInviteDraft({ roomId });
+  }
   return {
-    roomId: persisted?.roomId ? normalizeSessionRoomId(persisted.roomId, createShortRoomCode()) : createShortRoomCode(),
+    roomId,
     inviteUrl: '',
     roomCodeRefreshBlockedUntil: readSessionNumber()
   };

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { MonitorPlay } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
-import type { SessionConnectionMode } from '../../domain/p2p/serverSession';
 import type { Character } from '../../domain/rules/types';
 import type { TableParticipant } from '../../domain/tabletop/types';
 import { characterService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
@@ -12,13 +11,12 @@ import { P2PHealthIndicator } from '../p2p/P2PHealthIndicator';
 
 interface PlayerJoinLobbyProps {
   roomId: string;
-  connectionMode?: SessionConnectionMode;
   sceneImageUrl: string;
   onBackToLobby: () => void;
   onEnterPlayerRoom: (roomId: string, seatId: string) => void;
 }
 
-export function PlayerJoinLobby({ connectionMode, onBackToLobby, onEnterPlayerRoom, roomId, sceneImageUrl }: PlayerJoinLobbyProps) {
+export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, sceneImageUrl }: PlayerJoinLobbyProps) {
   const { entities: characterEntities } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
   const session = useStream(p2pSessionService.session$);
@@ -33,9 +31,9 @@ export function PlayerJoinLobby({ connectionMode, onBackToLobby, onEnterPlayerRo
   const joining = session.status === 'connecting' && session.role === 'player' && session.roomId === roomId;
   const waitingForSnapshot = connectedToRoom && !session.lastSnapshotAt;
   const joinStatus = hasSnapshot
-    ? 'Список получен от мастера.'
+    ? 'Данные игры получены.'
     : snapshotWaitExpired
-      ? 'Мастера в комнате пока не видно. Откройте игру мастера с этим кодом или смените комнату.'
+      ? 'Соединение пока не установлено. Проверьте код комнаты или попробуйте позже.'
       : session.message;
 
   useEffect(() => {
@@ -44,12 +42,11 @@ export function PlayerJoinLobby({ connectionMode, onBackToLobby, onEnterPlayerRo
     connectKey.current = key;
     void p2pSessionService.startPlayerRoom({
       roomId,
-      connectionMode,
       participantName: selectedSeat?.name.trim() || undefined
     }).finally(() => {
       connectKey.current = null;
     });
-  }, [connectedToRoom, connectionMode, joining, roomId, selectedSeat?.name]);
+  }, [connectedToRoom, joining, roomId, selectedSeat?.name]);
 
   useEffect(() => {
     if (!hasSnapshot) {
@@ -102,7 +99,7 @@ export function PlayerJoinLobby({ connectionMode, onBackToLobby, onEnterPlayerRo
                 );
               })}
               {visiblePlayerSeats.length === 0 && (
-                <EmptyState size="sm" title={joining || connectedToRoom ? 'Ждем список игроков от мастера' : session.message} />
+                <EmptyState size="sm" title={joining || connectedToRoom ? 'Получаем список игроков' : session.message} />
               )}
             </div>
             {selectedSeat && (

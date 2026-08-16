@@ -16,6 +16,7 @@ export interface LobbyInviteContext {
 }
 
 interface SessionLobbyProps {
+  initialPlayerRoomId?: string;
   inviteContext: LobbyInviteContext;
   sceneImageUrl: string;
   onEnterGm: () => void;
@@ -25,9 +26,9 @@ interface SessionLobbyProps {
 type LobbyRole = 'gm' | 'player';
 const LOBBY_ROLE_KEY = 'daggerheart:lobby-role';
 
-export function SessionLobby({ inviteContext, onEnterGm, onJoinRoom, sceneImageUrl }: SessionLobbyProps) {
+export function SessionLobby({ initialPlayerRoomId = '', inviteContext, onEnterGm, onJoinRoom, sceneImageUrl }: SessionLobbyProps) {
   const supabaseConfig = readSupabaseSessionConfig();
-  const [role, setRole] = useState<LobbyRole>(() => readLobbyRole());
+  const [role, setRole] = useState<LobbyRole>(() => initialPlayerRoomId ? 'player' : readLobbyRole());
   const [gamesOpen, setGamesOpen] = useState(false);
   const storedGames = useStream(persistenceService.storedGames$);
   const activeGame = storedGames.find((game) => game.active) ?? storedGames[0] ?? null;
@@ -70,7 +71,7 @@ export function SessionLobby({ inviteContext, onEnterGm, onJoinRoom, sceneImageU
             </Surface>
             <GmLobbyCard onEnterGm={onEnterGm} />
           </div>
-        ) : <div className="role-entry__player-flow"><PlayerQuickJoinCard onJoinRoom={onJoinRoom} /></div>}
+        ) : <div className="role-entry__player-flow"><PlayerQuickJoinCard initialRoomId={initialPlayerRoomId} onJoinRoom={onJoinRoom} /></div>}
       </div>
       {gamesOpen && (
         <Dialog

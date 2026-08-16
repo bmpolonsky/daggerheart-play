@@ -1,5 +1,4 @@
 import type { DataPayload, JsonValue, MessageAction, Room } from 'trystero';
-import { stripPrefixedShortRoomCode } from '../domain/p2p/sessionLinks';
 import type { P2PBinaryPayload, P2PBinaryProgressHandler, P2PMediaConnectionDiagnostic, P2PMediaRtpDiagnostic, P2PTargetPeer, P2PTransportAdapter, P2PTransportMessageContext, P2PTransportMode, P2PTransportStrategy, P2PWireEnvelope } from './p2p/P2PTransportAdapter';
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 
@@ -241,9 +240,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
 }
 
 export function resolveTrysteroRoom(roomId: string, fallbackStrategy: P2PTransportStrategy): { roomId: string; strategy: P2PTransportStrategy } {
-  const normalized = roomId.trim().toUpperCase();
-  const stripped = stripPrefixedShortRoomCode(normalized);
-  return { roomId: stripped === normalized ? roomId : stripped, strategy: fallbackStrategy };
+  return { roomId, strategy: fallbackStrategy };
 }
 
 export function trysteroConfigForStrategy(strategy: P2PTransportStrategy, options: TrysteroP2PTransportOptions = {}): TrysteroJoinConfig {
@@ -275,9 +272,6 @@ async function importTrysteroStrategy(strategy: P2PTransportStrategy): Promise<{
   }
   if (strategy === 'torrent') {
     return await import('@trystero-p2p/torrent') as unknown as { joinRoom: TrysteroJoinRoom; selfId: string };
-  }
-  if (strategy === 'mqtt') {
-    return await import('@trystero-p2p/mqtt') as unknown as { joinRoom: TrysteroJoinRoom; selfId: string };
   }
   return await import('trystero') as unknown as { joinRoom: TrysteroJoinRoom; selfId: string };
 }

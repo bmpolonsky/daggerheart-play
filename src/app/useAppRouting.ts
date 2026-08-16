@@ -10,14 +10,14 @@ import {
 } from './routing';
 
 type OpenWorkspaceEvent = CustomEvent<{ workspace: WorkspaceId }>;
-type NavigateRouteEvent = CustomEvent<{ route: NavigableRouteId; roomId?: string }>;
+type NavigateRouteEvent = CustomEvent<{ route: NavigableRouteId; roomId?: string; search?: string }>;
 
 export function useAppRouting() {
   const [activeRoute, setActiveRoute] = useState(routeFromLocation);
   const [activeLocation, setActiveLocation] = useState(locationSignature);
 
-  const navigateToRoute = (routeId: NavigableRouteId, _hash = '', _search = '', roomId?: string) => {
-    const navigation = routeNavigation(routeId, '', '', roomId);
+  const navigateToRoute = (routeId: NavigableRouteId, _hash = '', search = '', roomId?: string) => {
+    const navigation = routeNavigation(routeId, '', search, roomId);
     if (
       window.location.pathname !== navigation.pathname ||
       window.location.search !== navigation.search ||
@@ -43,7 +43,7 @@ export function useAppRouting() {
     const handleNavigateRoute = (event: Event) => {
       const detail = (event as NavigateRouteEvent).detail;
       if (!detail) return;
-      navigateToRoute(detail.route, '', '', detail.roomId);
+      navigateToRoute(detail.route, '', detail.search, detail.roomId);
     };
 
     window.addEventListener('popstate', handlePopState);

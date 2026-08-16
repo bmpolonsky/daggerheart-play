@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Plus, Trash2 } from 'lucide-react';
+import { Copy, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../../../domain/p2p/sessionLinks';
@@ -197,38 +197,50 @@ export function SharedToolsConnectionSettingsPanel({
       {p2pStatus !== 'disconnected' && p2pMessage && <p className="player-tools-status" role="status">{p2pMessage}</p>}
       {role === 'gm' && (
         <div className="player-tools-invite">
-          <strong>{p2pConnected ? 'Ссылка-приглашение' : 'Открыть доступ игрокам'}</strong>
           {!p2pConnected && serverAvailable && (
             <SegmentedControl
               label="Способ подключения"
               layout="equal"
               value={connectionMode}
               options={[
-                { value: 'server', label: 'Через сервер' },
+                { value: 'server', label: 'Через облако' },
                 { value: 'p2p', label: 'Напрямую P2P' }
               ]}
               onChange={writeSessionConnectionMode}
             />
           )}
-          <div className="player-tools-actions">
-            {!p2pConnected && (
-              selectedConnectionMode === 'server' && supabaseConfig && masterAuth.status !== 'signedIn' ? (
-                <Button variant="primary" size="sm" type="button" disabled={masterAuth.status === 'loading'} onClick={() => setAuthDialogOpen(true)}>
-                  Войти и открыть комнату
-                </Button>
-              ) : (
-                <Button variant="primary" size="sm" type="button" disabled={p2pStatus === 'connecting'} onClick={() => void createInvite()}>
-                  Открыть комнату
-                </Button>
-              )
-            )}
-            {p2pConnected && (
-              <Button size="sm" type="button" disabled={!displayedInviteLink} onClick={() => void copyInvite()}>
-                Скопировать
+          {!p2pConnected && selectedConnectionMode === 'server' && supabaseConfig && masterAuth.status !== 'signedIn' ? (
+            <div className="player-tools-master-sign-in">
+              <span>Для игры через облако войдите в аккаунт.</span>
+              <Button size="sm" type="button" disabled={masterAuth.status === 'loading'} onClick={() => setAuthDialogOpen(true)}>
+                Войти
               </Button>
-            )}
-          </div>
-          {p2pConnected && <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteLink} />}
+            </div>
+          ) : !p2pConnected ? (
+            <div className="player-tools-actions">
+              <Button variant="primary" size="sm" type="button" disabled={p2pStatus === 'connecting'} onClick={() => void createInvite()}>
+                Запустить сетевую игру
+              </Button>
+            </div>
+          ) : null}
+          {p2pConnected && (
+            <>
+              <strong>Ссылка-приглашение</strong>
+              <div className="player-tools-invite-link">
+                <TextControl readOnly aria-label="Ссылка приглашения" value={displayedInviteLink} />
+                <IconButton
+                  size="md"
+                  type="button"
+                  disabled={!displayedInviteLink}
+                  aria-label="Скопировать ссылку"
+                  title="Скопировать ссылку"
+                  onClick={() => void copyInvite()}
+                >
+                  <Copy size={18} aria-hidden="true" />
+                </IconButton>
+              </div>
+            </>
+          )}
         </div>
       )}
       {role === 'player' && (
@@ -272,14 +284,14 @@ export function SharedToolsConnectionSettingsPanel({
         )}
         {role === 'gm' && p2pConnected && (
           <Button type="button" variant="ghost" onClick={() => void p2pSessionService.stop()}>
-            Закрыть комнату
+            Остановить сетевую игру
           </Button>
         )}
         {role === 'player' && (
           <Button
             type="button"
             disabled={!canDisconnectP2P}
-            onClick={() => void p2pSessionService.stop()}
+            onClick={() => void p2pSessionService.leavePlayerRoom()}
           >
             Отключиться
           </Button>
@@ -360,21 +372,23 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
 
   return (
     <section className={`player-tools-settings-panel player-tools-diagnostics ${compact ? 'player-tools-diagnostics--compact' : ''}`}>
-      <dl className="player-tools-sync__meta">
-        <div><dt>Комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>
-        <div><dt>Статус</dt><dd aria-label="Статус">{displayedP2PStatus}</dd></div>
-        <div><dt>Логических подключений</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
-        <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
-      </dl>
-      <div className="player-tools-peer-list" aria-label={usesServer ? 'Серверное и прямое соединение' : 'Маршруты соединений'}>
+      {!compact && (
+        <dl className="player-tools-sync__meta">
+          <div><dt>Комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>
+          <div><dt>Статус</dt><dd aria-label="Статус">{displayedP2PStatus}</dd></div>
+          <div><dt>Логических подключений</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
+          <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
+        </dl>
+      )}
+      <div className="player-tools-peer-list" aria-label={usesServer ? 'Облачное и прямое соединение' : 'Маршруты соединений'}>
         {usesServer && (
           <Card
             className="player-tools-peer-card"
-            title="Связь с игрой мастера"
-            subtitle="Прямое соединение с резервным серверным каналом"
+            title="Соединение с игрой"
+            subtitle="Облачное и прямое соединение"
             actions={<Badge tone={p2pConnected ? 'success' : 'neutral'}>{p2pConnected ? 'подключено' : 'ожидание'}</Badge>}
           >
-            <small>Комната доступна игрокам, пока игра мастера открыта.</small>
+            <small>Подключение доступно, пока запущена сетевая игра.</small>
           </Card>
         )}
         {visibleRoutePeers.map((peer) => (
@@ -409,7 +423,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
         <summary>Технические данные</summary>
         <div className="player-tools-scene-framing__controls player-tools-technical-report__content">
           <dl className="player-tools-sync__meta">
-            <div><dt>Режим</dt><dd aria-label="Режим">{usesServer ? 'Hybrid · Server + P2P' : P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
+            <div><dt>Режим</dt><dd aria-label="Режим">{usesServer ? 'Облако + P2P' : P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
             <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
             <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
           </dl>
@@ -590,11 +604,10 @@ function e2eP2PDiagnosticsFixture(): P2PSessionState | null {
   return (window as typeof window & { __DAGGERHEART_E2E_P2P_DIAGNOSTICS__?: P2PSessionState }).__DAGGERHEART_E2E_P2P_DIAGNOSTICS__ ?? null;
 }
 
-const P2P_ROUTE_COLUMNS: P2PTransportStrategy[] = ['supabase', 'nostr', 'mqtt', 'torrent'];
+const P2P_ROUTE_COLUMNS: P2PTransportStrategy[] = ['supabase', 'nostr', 'torrent'];
 const P2P_ROUTE_LABELS: Record<P2PTransportStrategy, string> = {
   supabase: 'Supabase',
   nostr: 'Nostr',
-  mqtt: 'MQTT',
   torrent: 'Torrent'
 };
 
@@ -622,7 +635,7 @@ function participantPeerNames(participants: Record<string, TableParticipant>): M
 
 function fallbackPeerName(peerId: string, localRole: TableViewRole): string {
   if (localRole === 'player') {
-    return 'Мастер';
+    return peerId.startsWith('player-') ? `Игрок ${shortPeerId(peerId)}` : 'Мастер';
   }
   return `Игрок ${shortPeerId(peerId)}`;
 }

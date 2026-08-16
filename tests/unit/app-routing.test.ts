@@ -42,6 +42,17 @@ test('all transports use the same reload-safe hash routes', () => {
   });
 });
 
+test('a disconnected player returns to the entry route with the room code in the query', () => {
+  assert.deepEqual(routeNavigation('entry', '', 'room=D8MX4M'), {
+    hash: '',
+    pathname: '/',
+    route: 'entry',
+    routePath: '/',
+    search: '?room=D8MX4M',
+    url: '/?room=D8MX4M'
+  });
+});
+
 test('hash routes survive a reload because the logical path comes from the fragment', () => {
   assert.equal(routePathFromLocation({ pathname: '/', search: '', hash: '#/library/settings/connection' }), '/library/settings/connection');
   assert.equal(routePathFromLocation({ pathname: '/daggerheart-play/', search: '', hash: '#/join/D8MX4M' }, '/daggerheart-play'), '/join/D8MX4M');

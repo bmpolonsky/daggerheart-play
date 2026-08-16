@@ -210,8 +210,8 @@ test('P2P auto route does not prefer a degraded strategy while probes continue',
     network.setStrategyEnabled('nostr', false);
 
     await waitFor(() => {
-      assert.equal(player.session$.get().routePeers[0]?.activeStrategy, 'mqtt');
-      assert.equal(gm.session$.get().routePeers[0]?.activeStrategy, 'mqtt');
+      assert.equal(player.session$.get().routePeers[0]?.activeStrategy, 'torrent');
+      assert.equal(gm.session$.get().routePeers[0]?.activeStrategy, 'torrent');
     }, 15_000);
   } finally {
     await player.stop().catch(() => undefined);
@@ -243,7 +243,7 @@ test('P2P auto route retries data through another strategy when active route sen
 
     await waitFor(() => {
       assert.equal(network.deliveredSnapshots >= deliveredBeforeFailover + 2, true);
-      assert.equal(gm.session$.get().routes.find((route) => route.strategy === 'mqtt')?.activePeers.length, 1);
+      assert.equal(gm.session$.get().routes.find((route) => route.strategy === 'torrent')?.activePeers.length, 1);
     }, 15_000);
   } finally {
     await player.stop().catch(() => undefined);
@@ -432,7 +432,7 @@ test('P2P active session normalizes prefixed room code for restore', async () =>
   }
 });
 
-test('P2P player keeps the saved room mode when restarted without an explicit mode', async () => {
+test('player rediscovers the room transport instead of restoring a saved mode', async () => {
   resetAllStores();
   const restoreWindow = installPersistentStorageWindow();
   const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
@@ -456,7 +456,7 @@ test('P2P player keeps the saved room mode when restarted without an explicit mo
     await player.stop({ forgetSession: false });
     await player.startPlayerRoom({ roomId: 'P2P-SAVED-MODE', participantName: 'Player' });
 
-    assert.deepEqual(connectionModes, ['p2p', 'p2p']);
+    assert.deepEqual(connectionModes, [undefined, undefined]);
     assert.deepEqual(participantIds, ['saved-player', 'saved-player']);
   } finally {
     await player.stop().catch(() => undefined);
@@ -485,7 +485,7 @@ test('P2P player stays connected when a fresh GM replaces a stale GM peer', asyn
       assert.equal(player.session$.get().connected, true);
       assert.equal(player.session$.get().status, 'connected');
       assert.equal(player.session$.get().peers.length, 1);
-      assert.notEqual(player.session$.get().message, 'Соединение с мастером прервалось.');
+      assert.notEqual(player.session$.get().message, 'Соединение прервано.');
     });
   } finally {
     await reopenedGm.stop().catch(() => undefined);

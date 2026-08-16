@@ -74,7 +74,9 @@ export class HybridSessionTransport implements P2PTransportAdapter {
     try {
       await this.server.connect(roomId);
     } catch (error) {
-      if (!this.fallbackToDirect || !(error instanceof RelayTransportError) || error.code !== 'room_not_found') throw error;
+      const serverRoomUnavailable = error instanceof RelayTransportError
+        && (error.code === 'room_not_found' || error.code === 'master_offline');
+      if (!this.fallbackToDirect || !serverRoomUnavailable) throw error;
       this.directOnly = true;
       this.sessionMode = 'p2p';
       await this.direct.connect(roomId);
@@ -105,11 +107,16 @@ export class HybridSessionTransport implements P2PTransportAdapter {
       return;
     }
     if (this.serverFirst) {
+      if (envelope.channel === 'control') {
+        const serverCanReachTarget = !targetPeer || (!this.directPeers.has(targetPeer) && this.roster.has(targetPeer));
+        await Promise.allSettled([
+          this.direct.send(envelope, targetPeer),
+          ...(serverCanReachTarget ? [this.server.send(envelope, targetPeer)] : [])
+        ]);
+        return;
+      }
       try {
         await this.server.send(envelope, targetPeer);
-        if (envelope.channel === 'control') {
-          await this.direct.send(envelope, targetPeer).catch(() => undefined);
-        }
       } catch (error) {
         if (this.directPeers.size === 0) throw error;
         this.directOnly = true;

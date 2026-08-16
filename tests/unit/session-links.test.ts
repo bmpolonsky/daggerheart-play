@@ -10,9 +10,9 @@ test('P2P invite links use reload-safe hash paths and unprefixed room codes', ()
     roomId: ' 7K2Q '
   });
   assert.equal(invite, 'https://example.test/table/#/join/7K2Q');
-  assert.deepEqual(parsePlayerSessionLocation('/table/', '/table', '#/join/7K2Q'), { roomId: '7K2Q', connectionMode: 'p2p' });
-  assert.deepEqual(parsePlayerSessionLocation('/table/join/7K2Q', '/table'), { roomId: '7K2Q', connectionMode: 'p2p' });
-  assert.deepEqual(parsePlayerSessionLocation('/table/join/7k2q', '/table'), { roomId: '7K2Q', connectionMode: 'p2p' });
+  assert.deepEqual(parsePlayerSessionLocation('/table/', '/table', '#/join/7K2Q'), { roomId: '7K2Q' });
+  assert.deepEqual(parsePlayerSessionLocation('/table/join/7K2Q', '/table'), { roomId: '7K2Q' });
+  assert.deepEqual(parsePlayerSessionLocation('/table/join/7k2q', '/table'), { roomId: '7K2Q' });
   assert.equal(parsePlayerSessionLocation('/table/player/7K2Q', '/table'), null);
   assert.equal(buildCallInviteUrl({ origin: 'https://example.test', basePath: '/table', roomId: ' 7K2Q ' }), 'https://example.test/table/#/calls/7K2Q');
   assert.deepEqual(parseCallSessionLocation('/table/', '/table', '#/calls/7k2q'), { roomId: '7K2Q' });
@@ -25,7 +25,7 @@ test('P2P invite links use reload-safe hash paths and unprefixed room codes', ()
   assert.equal(inferBasePathFromWorkspacePath('/table/calls/7K2Q'), '/table');
 });
 
-test('server invites use S while P2P and legacy route prefixes remain direct', () => {
+test('all transports use the same unprefixed room code', () => {
   const nostrInvite = buildPlayerInviteUrl({
     origin: 'https://example.test',
     basePath: '/table',
@@ -45,41 +45,26 @@ test('server invites use S while P2P and legacy route prefixes remain direct', (
     }
   });
   assert.equal(invite, 'https://example.test/table/#/join/7K2QAB');
-  assert.deepEqual(parsePlayerSessionLocation('/table/join/T7K2QAB', '/table'), { roomId: '7K2QAB', connectionMode: 'p2p' });
-  assert.deepEqual(parsePlayerInviteRoomCode('N7K2QAB'), {
-    roomId: '7K2QAB',
-    connectionMode: 'p2p'
-  });
-  assert.deepEqual(parsePlayerInviteRoomCode('M7K2QAB'), { roomId: '7K2QAB', connectionMode: 'p2p' });
-  assert.deepEqual(parsePlayerInviteRoomCode('S7K2QAB'), { roomId: '7K2QAB', connectionMode: 'server' });
+  assert.deepEqual(parsePlayerInviteRoomCode('7K2QAB'), { roomId: '7K2QAB' });
   assert.equal(buildPlayerInviteUrl({
     origin: 'https://example.test',
     basePath: '/table',
     roomId: '7K2QAB',
     connectionMode: 'server'
-  }), 'https://example.test/table/#/join/S7K2QAB');
+  }), 'https://example.test/table/#/join/7K2QAB');
   assert.equal(buildPlayerInviteUrl({
     origin: 'https://example.test',
     basePath: '/table',
     roomId: 'T7K2QAB',
     networkSettings: { strategy: 'auto' }
-  }), 'https://example.test/table/#/join/7K2QAB');
-  assert.equal(buildCallInviteUrl({ origin: 'https://example.test', basePath: '/table', roomId: 'N7K2QAB' }), 'https://example.test/table/#/calls/7K2QAB');
-  assert.deepEqual(parsePlayerInviteRoomCode('7K2QAB'), { roomId: '7K2QAB', connectionMode: 'p2p' });
-  assert.deepEqual(parsePlayerInviteRoomCode('ROOM123'), { roomId: 'OOM123', connectionMode: 'p2p' });
-  assert.deepEqual(resolveTrysteroRoom('T7K2QAB', 'nostr'), { roomId: '7K2QAB', strategy: 'nostr' });
-  assert.deepEqual(resolveTrysteroRoom('M7K2QAB', 'nostr'), { roomId: '7K2QAB', strategy: 'nostr' });
-  assert.deepEqual(resolveTrysteroRoom('N7K2QAB', 'torrent'), { roomId: '7K2QAB', strategy: 'torrent' });
-  assert.deepEqual(resolveTrysteroRoom('S7K2QAB', 'torrent'), { roomId: '7K2QAB', strategy: 'torrent' });
+  }), 'https://example.test/table/#/join/T7K2QAB');
+  assert.equal(buildCallInviteUrl({ origin: 'https://example.test', basePath: '/table', roomId: 'N7K2QAB' }), 'https://example.test/table/#/calls/N7K2QAB');
+  assert.deepEqual(parsePlayerInviteRoomCode('ROOM123'), { roomId: 'ROOM123' });
   assert.deepEqual(resolveTrysteroRoom('7K2QAB', 'torrent'), { roomId: '7K2QAB', strategy: 'torrent' });
-  assert.deepEqual(resolveTrysteroRoom('ROOM123', 'torrent'), { roomId: 'OOM123', strategy: 'torrent' });
+  assert.deepEqual(resolveTrysteroRoom('ROOM123', 'torrent'), { roomId: 'ROOM123', strategy: 'torrent' });
 });
 
-test('P2P room codes can be rebased when signaling changes at runtime', () => {
-  assert.equal(rebasePlayerInviteRoomCode('T7K2QAB', { strategy: 'nostr' as never }), '7K2QAB');
-  assert.equal(rebasePlayerInviteRoomCode('N7K2QAB', { strategy: 'torrent' as never }), '7K2QAB');
-  assert.equal(rebasePlayerInviteRoomCode('T7K2QAB', { strategy: 'auto' }), '7K2QAB');
-  assert.equal(rebasePlayerInviteRoomCode('T7K2QAB', { strategy: 'mqtt' as never }), '7K2QAB');
+test('P2P room codes stay stable when signaling changes at runtime', () => {
   assert.equal(rebasePlayerInviteRoomCode('7K2QAB', { strategy: 'torrent' as never }), '7K2QAB');
   assert.equal(rebasePlayerInviteRoomCode('CUSTOM-ROOM', { strategy: 'torrent' as never }), 'CUSTOM-ROOM');
 });

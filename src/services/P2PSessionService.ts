@@ -160,7 +160,7 @@ export class P2PSessionService {
     lastSnapshotAt: null,
     latestRollAnimationId: null,
     lastRequestAt: null,
-    message: 'Связь с сервером мастера не подключена.',
+    message: 'Сетевая игра не запущена.',
     routes: [],
     routePeers: [],
     transportMode: 'p2p',
@@ -419,7 +419,7 @@ export class P2PSessionService {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Игрок запрашивает данные игры.' });
       void this.publishSnapshot({ targetPeer: context?.sourcePeerId });
     }));
-    this.patchSession({ status: 'connecting', role: 'gm', roomId, message: 'Открываем комнату.' });
+    this.patchSession({ status: 'connecting', role: 'gm', roomId, message: 'Запускаем сетевую игру.' });
     await this.syncService.connectAuthority(roomId, participant);
     this.subscriptions.add(this.syncService.subscribePlayerRequests((request) => {
       this.playerActionRequestService.receiveRemote(request as PlayerActionRequest);
@@ -516,7 +516,7 @@ export class P2PSessionService {
         directPeers: transport.directPeerIds(),
         lastSnapshotAt: state.role === 'gm' && state.roomId === roomId ? state.lastSnapshotAt : null,
         lastRequestAt: state.role === 'gm' && state.roomId === roomId ? state.lastRequestAt : null,
-        message: peers.length > 0 ? 'Игрок подключился.' : 'Комната мастера открыта.'
+        message: peers.length > 0 ? 'Игрок подключился.' : 'Сетевая игра запущена.'
       };
     });
     this.startGmActivityGuard();
@@ -527,16 +527,26 @@ export class P2PSessionService {
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
     const roomId = buildPlayerInviteRoomCode(input.roomId, readP2PNetworkSettings());
     const storedSession = this.storedSessionForRoom(roomId);
-    const connectionMode = input.connectionMode
-      ?? storedSession?.connectionMode
-      ?? readSessionConnectionMode();
     await this.startRoom('player', roomId, () => this.openPlayerRoom({
       ...input,
       roomId,
-      connectionMode,
+      connectionMode: undefined,
       participantId: input.participantId ?? storedSession?.participantId,
       participantName: input.participantName ?? storedSession?.participantName
     }));
+  }
+
+  async leavePlayerRoom(message?: string): Promise<void> {
+    const session = this.sessionStore.get();
+    const roomId = session.role === 'player' ? session.roomId : '';
+    if (roomId && typeof window.dispatchEvent === 'function') {
+      const search = new URLSearchParams({ room: roomId }).toString();
+      window.dispatchEvent(new CustomEvent('daggerheart-play:navigate-route', {
+        detail: { route: 'entry', search }
+      }));
+    }
+    if (message) toastService.show(message, 'warning');
+    await this.stop().catch(() => undefined);
   }
 
   private async openPlayerRoom(input: P2PSessionStartInput): Promise<void> {
@@ -747,7 +757,7 @@ export class P2PSessionService {
       lastSnapshotAt: null,
       latestRollAnimationId: null,
       lastRequestAt: null,
-      message: 'Связь с сервером мастера отключена.',
+      message: 'Сетевая игра остановлена.',
       routes: [],
       routePeers: [],
       transportMode: 'p2p',
@@ -779,7 +789,7 @@ export class P2PSessionService {
     } else {
       await this.startPlayerRoom(input);
     }
-    this.patchSession({ message: 'Связь с игрой мастера восстановлена после перезагрузки.' });
+    this.patchSession({ message: 'Соединение восстановлено.' });
     return true;
   }
 
@@ -800,7 +810,7 @@ export class P2PSessionService {
     if (ok || savesToServer) {
       this.patchSession({
         lastSnapshotAt: nowIso(),
-        message: session.peers.length > 0 ? 'Данные игры отправлены игрокам.' : 'Изменения отправлены на сервер.'
+        message: session.peers.length > 0 ? 'Данные игры отправлены игрокам.' : 'Изменения сохранены в облаке.'
       });
     }
     return ok || savesToServer;
@@ -1652,7 +1662,11 @@ export class P2PSessionService {
           : undefined
     };
     const connectionConfig = useServer
-      ? { ...this.roomConnectionConfig, heartbeatMs: SERVER_HEARTBEAT_MS, gmTimeoutMs: SERVER_PEER_TIMEOUT_MS }
+      ? {
+          ...this.roomConnectionConfig,
+          serverHeartbeatMs: SERVER_HEARTBEAT_MS,
+          serverGmTimeoutMs: SERVER_PEER_TIMEOUT_MS
+        }
       : this.roomConnectionConfig;
     const adapter = this.transportFactory(
       options,
@@ -1733,7 +1747,7 @@ export class P2PSessionService {
         transportMode,
         directPeers,
         status: session.role === 'gm' || isGmRestored ? 'connected' : session.status,
-        message: session.role === 'gm' ? 'Игрок подключился.' : isGmRestored ? 'Соединение с мастером восстановлено.' : session.message
+        message: session.role === 'gm' ? 'Игрок подключился.' : isGmRestored ? 'Соединение восстановлено.' : session.message
       });
       return;
     }
@@ -1759,10 +1773,16 @@ export class P2PSessionService {
           state.role === 'gm'
             ? 'Игрок отключился.'
             : playerLostGm || event.peers.length === 0
-              ? 'Соединение с мастером прервалось.'
+              ? 'Соединение прервано.'
               : state.message
       }));
       return;
+    }
+    if (event.type === 'gm-closed') {
+      if (this.sessionStore.get().role === 'player') {
+        void this.leavePlayerRoom('Сетевая игра завершена.');
+        return;
+      }
     }
     if (event.type === 'gm-lost') {
       this.patchSession({
@@ -1785,7 +1805,7 @@ export class P2PSessionService {
         transportMode,
         directPeers,
         status: 'connected',
-        message: 'Соединение с мастером восстановлено.'
+        message: 'Соединение восстановлено.'
       });
       void this.requestSnapshotFromGm('peer-reconnect');
       void this.republishPendingRequests();
@@ -1816,6 +1836,11 @@ export class P2PSessionService {
       return;
     }
     if (event.type === 'error') {
+      const session = this.sessionStore.get();
+      if (session.role === 'player' && (event.message.includes('master_offline') || event.message.includes('room_not_found'))) {
+        void this.leavePlayerRoom('Сетевая игра завершена.');
+        return;
+      }
       this.patchSession({ status: 'error', message: event.message, routes, routePeers, transportMode, directPeers });
     }
   }
@@ -2016,7 +2041,7 @@ export class P2PSessionService {
     try {
       await this.syncService.publishSnapshotRequest(reason, this.activeRoomConnection?.gmPeerId() ?? undefined);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось запросить данные у мастера.';
+      const message = error instanceof Error ? error.message : 'Не удалось получить данные игры.';
       this.patchSession({ status: 'degraded', message });
     }
   }

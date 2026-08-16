@@ -32,8 +32,7 @@ export function normalizeSessionRoomId(roomId: string, fallback = createFallback
 export function buildPlayerInviteUrl(input: PlayerInviteUrlInput): string {
   const roomId = buildPlayerInviteRoomCode(input.roomId, input.networkSettings);
   const invite = new URL(baseRootPath(input.basePath), input.origin);
-  const inviteCode = input.connectionMode === 'server' ? `S${roomId}` : roomId;
-  invite.hash = `/join/${encodeURIComponent(inviteCode)}`;
+  invite.hash = `/join/${encodeURIComponent(roomId)}`;
   return invite.toString();
 }
 
@@ -60,11 +59,9 @@ export function parsePlayerSessionLocation(pathname: string, basePath = '', hash
 }
 
 export function parsePlayerInviteRoomCode(value: string): PlayerSessionParams | null {
-  const raw = normalizeSessionRoomId(value, '');
-  const connectionMode: SessionConnectionMode = /^S[A-Z0-9]{6}$/.test(raw) ? 'server' : 'p2p';
-  const roomId = normalizeLogicalRoomId(raw, '');
+  const roomId = normalizeLogicalRoomId(value, '');
   if (!roomId) return null;
-  return { roomId, connectionMode };
+  return { roomId };
 }
 
 export function parseCallSessionLocation(pathname: string, basePath = '', hash = ''): PlayerSessionParams | null {
@@ -140,13 +137,5 @@ function sessionRoutePath(pathname: string, basePath: string, hash: string): str
 }
 
 export function normalizeLogicalRoomId(roomId: string, fallback = createFallbackRoomId()): string {
-  const normalizedRoomId = normalizeSessionRoomId(roomId, fallback);
-  return stripPrefixedShortRoomCode(normalizedRoomId);
-}
-
-export function stripPrefixedShortRoomCode(roomId: string): string {
-  if (/^[A-Z0-9]{7}$/.test(roomId)) {
-    return roomId.slice(1);
-  }
-  return roomId;
+  return normalizeSessionRoomId(roomId, fallback);
 }

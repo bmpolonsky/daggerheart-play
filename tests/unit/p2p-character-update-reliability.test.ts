@@ -84,7 +84,7 @@ test('pending character update remains until matching ACK and is retried after G
     internals.handleRoomConnectionEvent({
       type: 'route-switched',
       peers: ['gm-peer'],
-      switch: { peerId: 'gm-peer', from: 'nostr', to: 'mqtt', reason: 'ack-timeout', envelopeId: 'envelope-1' }
+      switch: { peerId: 'gm-peer', from: 'nostr', to: 'torrent', reason: 'ack-timeout', envelopeId: 'envelope-1' }
     });
     await waitFor(() => assert.equal(sync.characterUpdates.length, 2));
     assert.equal(sync.characterUpdates[1], message);
