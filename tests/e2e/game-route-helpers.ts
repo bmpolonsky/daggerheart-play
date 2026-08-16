@@ -207,6 +207,7 @@ export async function openSharedGmGame(page: Page, roomId = 'E2EROOM'): Promise<
     window.localStorage.setItem('daggerheart-play', JSON.stringify({
       version: 1,
       p2p: {
+        connectionMode: 'p2p',
         inviteDraft: { roomId: activeRoomId },
         activeSession: { version: 1, role: 'gm', roomId: activeRoomId, participantName: 'Мастер', updatedAt: new Date().toISOString() }
       }
@@ -228,7 +229,10 @@ export async function openSharedPlayerGame(page: Page, roomId = 'E2EROOM'): Prom
     window.sessionStorage.setItem('e2e-active-session-seeded', 'player');
     window.localStorage.setItem('daggerheart-play', JSON.stringify({
       version: 1,
-      p2p: { activeSession: { version: 1, role: 'player', roomId: activeRoomId, participantName: 'Игрок', updatedAt: new Date().toISOString() } }
+      p2p: {
+        connectionMode: 'p2p',
+        activeSession: { version: 1, role: 'player', roomId: activeRoomId, participantName: 'Игрок', updatedAt: new Date().toISOString() }
+      }
     }));
   }, roomId);
   await page.goto('/#/game');

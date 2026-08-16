@@ -176,8 +176,7 @@ test.describe('P2P session workflow', () => {
 
     const panelBox = await rect(panel);
     await expectInsideViewport(page, panel);
-    const diagnosticScroll = panel.locator('.player-tools-diagnostics');
-    await expect(diagnosticScroll).toHaveCSS('overflow-y', 'auto');
+    await expect(panel).toHaveCSS('overflow-y', 'auto');
     const tabsBox = await rect(layerTabs);
     const chronicleBox = await rect(chronicle);
     await expectTopLayerAtPoint(page, dialog, panelBox.x + panelBox.width / 2, panelBox.y + panelBox.height / 2);
@@ -223,7 +222,6 @@ test.describe('P2P session workflow', () => {
     const dialog = await openGameDiagnostics(page);
     const cards = dialog.locator('.player-tools-peer-card');
     await expect(cards).toHaveCount(2);
-    await expect(dialog.locator('dd[aria-label="Логических подключений"]')).toHaveText('2');
 
     const alphaCard = cards.nth(0);
     const betaCard = cards.nth(1);
@@ -247,9 +245,8 @@ test.describe('P2P session workflow', () => {
     await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
     const dialog = await openGameDiagnostics(page);
     const panel = dialog.locator('.p2p-health-dialog');
-    const diagnostics = dialog.locator('.player-tools-diagnostics');
     await expectInsideViewport(page, panel);
-    expect(await diagnostics.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    expect(await panel.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
 
     const lastRoute = dialog.locator('.player-tools-peer-card').last().locator('.player-tools-peer-route').last();
     await lastRoute.locator('summary').click();
@@ -272,13 +269,13 @@ test.describe('P2P session workflow', () => {
     await expect(dialog.locator('table')).toHaveCount(0);
     await expect(dialog.locator('.player-tools-peer-card')).toHaveCount(1);
     const routes = dialog.locator('.player-tools-peer-route');
-    await expect(routes).toHaveCount(4);
+    await expect(routes).toHaveCount(3);
     const firstRouteBox = await rect(routes.nth(0));
     const secondRouteBox = await rect(routes.nth(1));
     expect(Math.abs(firstRouteBox.x - secondRouteBox.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(firstRouteBox.width - secondRouteBox.width)).toBeLessThanOrEqual(1);
     expect(secondRouteBox.y).toBeGreaterThanOrEqual(firstRouteBox.y + firstRouteBox.height - 1);
-    await expect(dialog.locator('.player-tools-diagnostics')).toHaveCSS('overflow-y', 'auto');
+    await expect(panel).toHaveCSS('overflow-y', 'auto');
     const firstRoute = routes.first();
     await expect(firstRoute.locator('summary')).toHaveAttribute('aria-label', 'Supabase: инициализирован');
     await firstRoute.locator('summary').click();

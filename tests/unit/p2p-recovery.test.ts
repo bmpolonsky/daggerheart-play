@@ -386,7 +386,13 @@ test('P2P session coalesces duplicate same-room starts', async () => {
   resetAllStores();
   const restoreWindow = installTimerWindow();
   const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
-  const player = createTestP2PSession(network);
+  let transportStarts = 0;
+  const player = createTestP2PSession(network, {
+    transportFactory: (options) => {
+      transportStarts += 1;
+      return network.createTransport({ ...options, strategy: 'torrent' });
+    }
+  });
 
   try {
     await Promise.all([
@@ -394,7 +400,8 @@ test('P2P session coalesces duplicate same-room starts', async () => {
       player.startPlayerRoom({ roomId: 'DUPLICATE-ROOM', participantName: 'Player' })
     ]);
 
-    assert.equal(network.connects, 3);
+    assert.equal(transportStarts, 1);
+    assert.equal(network.connects, 1);
     assert.equal(player.session$.get().role, 'player');
     assert.equal(player.session$.get().roomId, 'DUPLICATE-ROOM');
     assert.equal(player.session$.get().connected, true);
@@ -460,6 +467,33 @@ test('player rediscovers the room transport instead of restoring a saved mode', 
     assert.deepEqual(participantIds, ['saved-player', 'saved-player']);
   } finally {
     await player.stop().catch(() => undefined);
+    restoreWindow();
+  }
+});
+
+test('player does not inherit a saved GM participant identity for the same room', async () => {
+  resetAllStores();
+  const restoreWindow = installPersistentStorageWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const identities: Array<{ role?: string; participantId?: string }> = [];
+  const session = createTestP2PSession(network, {
+    transportFactory: (options, context) => {
+      identities.push({ role: context?.role, participantId: context?.participantId });
+      return network.createTransport(options);
+    }
+  });
+
+  try {
+    await session.startGmRoom({ roomId: 'SAME-BROWSER-ROOM', participantName: 'GM' });
+    await session.stop({ forgetSession: false });
+    await session.startPlayerRoom({ roomId: 'SAME-BROWSER-ROOM', participantName: 'Player' });
+
+    const playerIdentity = identities.at(-1);
+    assert.equal(playerIdentity?.role, 'player');
+    assert.notEqual(playerIdentity?.participantId, 'local-gm');
+    assert.match(playerIdentity?.participantId ?? '', /^player-/);
+  } finally {
+    await session.stop().catch(() => undefined);
     restoreWindow();
   }
 });

@@ -54,7 +54,10 @@ export function CallRoomApp({ basePath }: CallRoomAppProps) {
   const [leftCall, setLeftCall] = useState(false);
   const autoJoinKey = useRef<string | null>(null);
   const chronicleRef = useRef<HTMLDivElement>(null);
-  const storedSession = useMemo(() => roomId ? p2pSessionService.storedSessionForRoom(roomId) : null, [roomId]);
+  const storedSession = useMemo(
+    () => roomId ? p2pSessionService.storedSessionForRoom(roomId, session.role ?? undefined) : null,
+    [roomId, session.role]
+  );
   const healthRole = session.role ?? storedSession?.role ?? 'player';
   const p2pHealth = useMemo(() => buildP2PHealthSummary(session), [session]);
   const role: TableViewRole = healthRole === 'gm' ? 'gm' : 'player';

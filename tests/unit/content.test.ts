@@ -1,5 +1,7 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
+import { customAdversaryToRaw, normalizeRawCustomAdversary } from "../../src/tools/combat-builder/lib/customAdversaries";
+import { fetchTemplateCollection } from "../../src/tools/card-creator/lib/api";
 import { ContentService } from "../../src/services/ContentService";
 import { applyBrowserCustomContent } from "../../src/core/persistence/browserProjectContent";
 import { createContentState } from "../../src/stores/contentStore";
@@ -62,6 +64,33 @@ test('content mappers preserve uploaded image data URLs', () => {
   const imageUrl = 'data:image/webp;base64,AQID';
 
   assert.equal(mapRawAdversary({ name: 'Кастомный противник', image_url: imageUrl }).imageUrl, imageUrl);
+});
+
+test('custom adversary images survive persistence and reload', () => {
+  const imageUrl = 'data:image/webp;base64,AQID';
+  const loaded = normalizeRawCustomAdversary({ id: -1, name: 'Кастомный противник', image_url: imageUrl }, new Set(), { keepId: true });
+
+  assert.ok(loaded);
+  assert.equal(loaded.image, imageUrl);
+
+  const reloaded = normalizeRawCustomAdversary(customAdversaryToRaw(loaded), new Set(), { keepId: true });
+  assert.equal(reloaded?.image, imageUrl);
+});
+
+test('card template images preserve uploaded image URLs', async () => {
+  const originalFetch = globalThis.fetch;
+  const imageUrl = 'data:image/webp;base64,AQID';
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    result: 'ok',
+    data: [{ id: 1, slug: 'uploaded-card', name: 'Загруженная карта', image_url: imageUrl }]
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
+
+  try {
+    const collection = await fetchTemplateCollection();
+    assert.equal(collection.templateGroups.every((group) => group.items[0]?.image === imageUrl), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('content library query searches all compendium sections outside UI', () => {

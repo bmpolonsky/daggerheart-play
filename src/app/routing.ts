@@ -1,4 +1,4 @@
-import type { SessionTransportMode } from '../domain/p2p/serverSession';
+import type { SessionConnectionMode } from '../domain/p2p/serverSession';
 
 export type WorkspaceId = 'play' | 'combat' | 'cards';
 export type RouteId = 'entry' | 'game' | 'join' | 'call' | 'combat' | 'cards';
@@ -101,7 +101,7 @@ export function routeNavigation(
   legacyHash = '',
   search = '',
   roomId?: string,
-  _transportMode?: SessionTransportMode
+  _transportMode?: SessionConnectionMode
 ) {
   const route = canonicalRouteIdForNavigation(routeId, roomId);
   let routePath = pathForRoute(route, roomId);

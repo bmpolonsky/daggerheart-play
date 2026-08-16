@@ -7,7 +7,7 @@
     "dev": "vite",
     "predev": "node scripts/cache-daggerheart-data.mjs",
     "build": "tsc -b && vite build",
-    "build:sites": "node scripts/prepare-sites-assets.mjs --clean && SITES_BUILD=1 VITE_SESSION_MODE=server npm run build && node scripts/prepare-sites-assets.mjs && vite build --config vite.worker.config.ts",
+    "build:sites": "node scripts/prepare-sites-assets.mjs --clean && SITES_BUILD=1 npm run build && node scripts/prepare-sites-assets.mjs && vite build --config vite.worker.config.ts",
     "content:review": "node scripts/cache-daggerheart-data.mjs --refresh --review",
     "prebuild": "node scripts/cache-daggerheart-data.mjs",
     "postbuild": "node scripts/prepare-client-fallback.mjs",

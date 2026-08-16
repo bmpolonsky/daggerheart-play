@@ -1,6 +1,6 @@
 import type { P2PWireEnvelope } from '../../services/p2p/P2PTransportAdapter';
+import { readSupabaseSessionConfig } from './supabaseSession';
 
-export type SessionTransportMode = 'p2p' | 'server';
 export type SessionConnectionMode = 'p2p' | 'server';
 
 const PLAYER_EVENT_KINDS = new Set([
@@ -20,12 +20,8 @@ const PLAYER_EVENT_KINDS = new Set([
   'snapshotRequest'
 ]);
 
-export function sessionTransportMode(env: Partial<ImportMetaEnv> = import.meta.env): SessionTransportMode {
-  return env.VITE_SESSION_MODE === 'server' ? 'server' : 'p2p';
-}
-
-export function serverSessionAvailable(env?: Partial<ImportMetaEnv>): boolean {
-  return sessionTransportMode(env) === 'server';
+export function serverSessionAvailable(env: Partial<ImportMetaEnv> = import.meta.env): boolean {
+  return readSupabaseSessionConfig(env) !== null;
 }
 
 export function shouldUseServerSession(

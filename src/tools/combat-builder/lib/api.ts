@@ -93,7 +93,7 @@ function resolveImage(imageUrl?: string | null) {
     return null;
   }
 
-  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+  if (/^(?:https?:|blob:|data:)/i.test(imageUrl)) {
     return imageUrl;
   }
 

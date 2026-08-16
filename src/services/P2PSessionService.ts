@@ -320,9 +320,9 @@ export class P2PSessionService {
     };
   }
 
-  storedSessionForRoom(roomId: string): P2PStoredSessionSummary | null {
+  storedSessionForRoom(roomId: string, role?: P2PSessionRole): P2PStoredSessionSummary | null {
     const saved = this.storedSession();
-    return saved?.roomId === roomId ? saved : null;
+    return saved?.roomId === roomId && (!role || saved.role === role) ? saved : null;
   }
 
   async createGmInviteFromDraft(input: P2PInviteContext & { participantName?: string; connectionMode?: SessionConnectionMode }): Promise<P2PSessionInvite> {
@@ -526,13 +526,13 @@ export class P2PSessionService {
 
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
     const roomId = buildPlayerInviteRoomCode(input.roomId, readP2PNetworkSettings());
-    const storedSession = this.storedSessionForRoom(roomId);
+    const storedPlayerSession = this.storedSessionForRoom(roomId, 'player');
     await this.startRoom('player', roomId, () => this.openPlayerRoom({
       ...input,
       roomId,
       connectionMode: undefined,
-      participantId: input.participantId ?? storedSession?.participantId,
-      participantName: input.participantName ?? storedSession?.participantName
+      participantId: input.participantId ?? storedPlayerSession?.participantId,
+      participantName: input.participantName ?? storedPlayerSession?.participantName
     }));
   }
 

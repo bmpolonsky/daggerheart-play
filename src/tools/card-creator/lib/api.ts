@@ -99,7 +99,7 @@ function resolveImage(imageUrl?: string | null) {
     imageUrl = "/image/wip.webp";
   }
 
-  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+  if (/^(?:https?:|blob:|data:)/i.test(imageUrl)) {
     return imageUrl;
   }
 

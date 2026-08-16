@@ -18,14 +18,17 @@ describe('server session policy', () => {
     assert.equal(isPlayerEnvelopeAllowed(envelope('control', { type: 'webrtc-signal', signal: {} })), false);
   });
 
-  it('uses Supabase only when the build enables server sessions', () => {
-    const server = { VITE_SESSION_MODE: 'server' } as Partial<ImportMetaEnv>;
-    const pages = {} as Partial<ImportMetaEnv>;
+  it('offers Supabase when its public client config is present', () => {
+    const server = {
+      VITE_DAGGERHEART_SUPABASE_URL: 'https://project.supabase.co',
+      VITE_DAGGERHEART_SUPABASE_PUBLISHABLE_KEY: 'publishable-key'
+    } as Partial<ImportMetaEnv>;
+    const p2pOnly = {} as Partial<ImportMetaEnv>;
     assert.equal(shouldUseServerSession('gm', server), true);
     assert.equal(shouldUseServerSession('player', server), true);
     assert.equal(shouldUseServerSession('gm', server, 'p2p'), false);
     assert.equal(shouldUseServerSession('player', server, 'server'), true);
-    assert.equal(shouldUseServerSession('player', pages), false);
+    assert.equal(shouldUseServerSession('player', p2pOnly), false);
   });
 });
 
