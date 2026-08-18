@@ -1,6 +1,7 @@
 import type { SupabaseSessionConfig } from '../domain/p2p/supabaseSession';
 import { readSupabaseSessionConfig } from '../domain/p2p/supabaseSession';
 import { readSupabaseAccessToken } from './supabaseClient';
+import { reportOperationalError } from '../core/observability/sentry';
 
 const CACHE_MS = 10 * 60 * 60_000;
 const TURN_FETCH_TIMEOUT_MS = 5_000;
@@ -20,7 +21,15 @@ export function turnConfigProvider(
     const cached = cachedCredentials.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.promise;
     const promise = fetchTurnConfig(roomId, participantId, role, sessionMode, config, fetcher, tokenReader)
-      .catch(() => [])
+      .catch((error) => {
+        reportOperationalError(error, {
+          area: 'network',
+          operation: 'fetch-turn-credentials',
+          tags: { provider: 'supabase-edge', role, sessionMode },
+          details: { roomId, participantId }
+        });
+        return [];
+      })
       .then((iceServers) => {
         if (iceServers.length === 0) cachedCredentials.delete(cacheKey);
         return iceServers;
@@ -70,7 +79,7 @@ async function fetchTurnConfig(
       }),
       signal: controller.signal
     });
-    if (!response.ok) return [];
+    if (!response.ok) throw new Error(`turn_credentials_http_${response.status}`);
     const body = await response.json() as { iceServers?: unknown };
     return validIceServers(body.iceServers);
   } finally {

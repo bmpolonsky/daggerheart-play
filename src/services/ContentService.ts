@@ -41,6 +41,7 @@ import type {
   RawEquipmentItem,
   RawRuleItem
 } from '../domain/content/types';
+import { reportOperationalError } from '../core/observability/sentry';
 
 type GenericCollectionKey = Exclude<ContentCollectionKey, 'adversaries' | 'classes' | 'rules' | 'environments' | 'beastforms' | 'equipment'>;
 
@@ -162,6 +163,12 @@ export class ContentService {
       }));
     } catch (error) {
       if (requestId !== this.currentRequestId) return;
+      reportOperationalError(error, {
+        area: 'content',
+        operation: 'load-library',
+        tags: { preferLiveApi },
+        details: { language: this.contentLanguage }
+      });
       contentStore.update((state) => ({
         ...state,
         error: error instanceof Error ? error.message : 'Не удалось загрузить справочники'

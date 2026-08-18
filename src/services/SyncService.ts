@@ -8,6 +8,7 @@ import { hydratePersistedState, isPersistedState, snapshotPersistedState } from 
 import { isPlayerActivationQueueMessage, type PlayerActivationQueueMessage } from './PlayerActivationQueueService';
 import { isPlayerPresence, isPlayerVoiceControlMessage, type PlayerPresence, type PlayerVoiceControlMessage } from './PlayerPresenceService';
 import { isCallPresenceMessage, type CallPresenceMessage } from './MediaCallService';
+import { reportOperationalError } from '../core/observability/sentry';
 
 export type SyncServiceMode = 'authority' | 'readonly';
 type SyncEventKind = SyncEvent['kind'];
@@ -249,7 +250,12 @@ export class SyncService {
   async connectAuthority(roomId: string, participant: TableParticipant): Promise<void> {
     this.participant = participant;
     this.mode = 'authority';
-    await this.transport.connect(roomId, participant);
+    try {
+      await this.transport.connect(roomId, participant);
+    } catch (error) {
+      this.reportNetworkError(error, 'connect', { roomId, participantId: participant.id });
+      throw error;
+    }
   }
 
   async connectReadOnly(
@@ -273,6 +279,7 @@ export class SyncService {
     } catch (error) {
       this.unsubscribeSnapshot?.();
       this.unsubscribeSnapshot = null;
+      this.reportNetworkError(error, 'connect', { roomId, participantId: participant.id });
       throw error;
     }
   }
@@ -280,7 +287,12 @@ export class SyncService {
   async disconnect(): Promise<void> {
     this.unsubscribeSnapshot?.();
     this.unsubscribeSnapshot = null;
-    await this.transport.disconnect();
+    try {
+      await this.transport.disconnect();
+    } catch (error) {
+      this.reportNetworkError(error, 'disconnect');
+      throw error;
+    }
     this.participant = null;
     this.mode = 'authority';
   }
@@ -430,13 +442,38 @@ export class SyncService {
     if (this.mode === 'readonly') {
       return false;
     }
-    await this.transport.publish(this.createEvent('snapshot', snapshot), targetPeer);
+    try {
+      await this.transport.publish(this.createEvent('snapshot', snapshot), targetPeer);
+    } catch (error) {
+      this.reportNetworkError(error, 'publish', { eventKind: 'snapshot', targetPeer });
+      throw error;
+    }
     return true;
   }
 
   private async publishChannel<T>(channel: SyncChannel<T>, value: T, targetPeer?: SyncTargetPeer): Promise<boolean> {
-    await this.transport.publish(this.createEvent(channel.kind, value), targetPeer);
+    try {
+      await this.transport.publish(this.createEvent(channel.kind, value), targetPeer);
+    } catch (error) {
+      this.reportNetworkError(error, 'publish', { eventKind: channel.kind, targetPeer });
+      throw error;
+    }
     return true;
+  }
+
+  private reportNetworkError(error: unknown, operation: string, details: Record<string, string | undefined> = {}): void {
+    reportOperationalError(error, {
+      area: 'network',
+      operation,
+      tags: {
+        transport: this.transport.id,
+        syncMode: this.mode
+      },
+      details: {
+        participantId: this.participant?.id,
+        ...details
+      }
+    });
   }
 
   private subscribeChannel<T>(channel: SyncChannel<T>, listener: (value: T, event: SyncEvent, context?: SyncEventContext) => void): () => void {

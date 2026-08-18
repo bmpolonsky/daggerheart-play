@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SupabaseSessionConfig } from '../domain/p2p/supabaseSession';
 import { getSupabaseAuthClient, getSupabaseClient } from './supabaseClient';
+import { reportOperationalError } from '../core/observability/sentry';
 
 const ASSET_BUCKET = 'world-assets';
 
@@ -35,11 +36,17 @@ export class SupabaseAssetService {
       .eq('id', roomId)
       .eq('world_id', worldId)
       .maybeSingle();
-    if (roomError || !rooms?.owner_id) return null;
+    if (roomError || !rooms?.owner_id) {
+      if (roomError) this.report(roomError, 'resolve-asset-owner', roomId, worldId, assetId);
+      return null;
+    }
     const { data, error } = await this.dataClient().storage
       .from(ASSET_BUCKET)
       .download(assetPath(rooms.owner_id, worldId, assetId));
-    if (error) return null;
+    if (error) {
+      this.report(error, 'download-asset', roomId, worldId, assetId);
+      return null;
+    }
     return data;
   }
 
@@ -61,12 +68,30 @@ export class SupabaseAssetService {
         upsert: true,
         contentType: blob.type || 'application/octet-stream'
       });
-    if (error) throw new Error(`Не удалось загрузить файл сцены на сервер: ${error.message}`);
+    if (error) {
+      this.report(error, 'upload-asset', undefined, worldId, assetId, blob);
+      throw new Error(`Не удалось загрузить файл сцены на сервер: ${error.message}`);
+    }
     this.uploaded.add(signature);
   }
 
   private uploadClient(): SupabaseClient {
     return this.client ?? getSupabaseAuthClient(this.config);
+  }
+
+  private report(error: unknown, operation: string, roomId?: string, worldId?: string, assetId?: string, blob?: Blob): void {
+    reportOperationalError(error, {
+      area: 'storage',
+      operation,
+      tags: { provider: 'supabase' },
+      details: {
+        roomId,
+        worldId,
+        assetId,
+        bytes: blob?.size,
+        contentType: blob?.type || undefined
+      }
+    });
   }
 }
 

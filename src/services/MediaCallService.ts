@@ -4,6 +4,7 @@ import { nowIso } from '../core/utils/date';
 import { hasBooleanFields, hasStringFields, isRecord } from '../core/utils/guards';
 import type { SyncTransport } from '../domain/tabletop/types';
 import type { SyncService } from './SyncService';
+import { reportOperationalError } from '../core/observability/sentry';
 
 export type CallParticipantRole = 'gm' | 'player' | 'guest';
 export type CallStatus = 'idle' | 'connecting' | 'connected' | 'permission-denied' | 'unsupported' | 'error';
@@ -412,6 +413,20 @@ export class MediaCallService {
       return true;
     } catch (error) {
       const denied = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
+      if (!denied) {
+        const state = this.call$.get();
+        reportOperationalError(error, {
+          area: 'media',
+          operation: 'enable-call-devices',
+          tags: { role: state.role },
+          details: {
+            roomId: state.roomId || undefined,
+            participantId: state.localParticipantId,
+            audioRequested: constraints.audio,
+            videoRequested: constraints.video
+          }
+        });
+      }
       this.callStore.update((state) => ({
         ...state,
         status: denied ? 'permission-denied' : 'error',

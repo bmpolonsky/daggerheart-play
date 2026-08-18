@@ -22,6 +22,7 @@ import type {
 import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 import { RelayTransportError } from './p2p/RelayTransportError';
 import { ensureSupabaseGuestSignedIn, getSupabaseAuthClient, getSupabaseClient, setSupabaseDataRole } from './supabaseClient';
+import { reportOperationalError } from '../core/observability/sentry';
 
 const HEARTBEAT_MS = 15_000;
 const STATE_DELIVERY_DEBOUNCE_MS = 30;
@@ -233,7 +234,12 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
         event: '*', schema: 'public', table: 'dh_room_members',
         filter: `room_id=eq.${this.roomId}`
       }, () => void this.refreshRoster());
-    await subscribeChannel(stateChannel);
+    try {
+      await subscribeChannel(stateChannel);
+    } catch (error) {
+      this.report(error, 'subscribe-realtime');
+      throw error;
+    }
     this.channels.push(stateChannel);
   }
 
@@ -263,7 +269,11 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
       .select('key,value,revision')
       .eq('owner_id', this.ownerId)
       .eq('world_id', this.worldId);
-    if (error) throw this.relayError(error.message);
+    if (error) {
+      const failure = this.relayError(error.message);
+      this.report(failure, 'refresh-state');
+      throw failure;
+    }
     this.mergeState((data ?? []) as StateRow[]);
   }
 
@@ -274,7 +284,11 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
       .eq('incarnation', this.incarnation)
       .gt('sequence', this.cursor)
       .order('sequence');
-    if (error) throw this.relayError(error.message);
+    if (error) {
+      const failure = this.relayError(error.message);
+      this.report(failure, 'refresh-events');
+      throw failure;
+    }
     (data as unknown as RoomEventRow[] | null)?.forEach((row) => this.handleEventRow(row));
   }
 
@@ -284,6 +298,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
       .eq('room_id', this.roomId)
       .eq('incarnation', this.incarnation);
     if (error) {
+      this.report(error, 'refresh-roster');
       this.emitError(error.message);
       return;
     }
@@ -402,14 +417,39 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
         p_peer_id: this.peerId
       })
         .then(() => this.refreshRoster())
-        .catch((error) => this.emitError(error instanceof Error ? error.message : 'Supabase heartbeat failed'));
+        .catch((error) => {
+          this.report(error, 'heartbeat');
+          this.emitError(error instanceof Error ? error.message : 'Supabase heartbeat failed');
+        });
     }, HEARTBEAT_MS) as unknown as number;
   }
 
   private async rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
     const { data, error } = await this.client.rpc(name, args);
-    if (error) throw this.relayError(error.message);
+    if (error) {
+      const failure = this.relayError(error.message);
+      if (failure.code !== 'room_not_found' && failure.code !== 'master_offline') this.report(failure, name);
+      throw failure;
+    }
     return data as T;
+  }
+
+  private report(error: unknown, operation: string): void {
+    reportOperationalError(error, {
+      area: 'network',
+      operation,
+      tags: {
+        provider: 'supabase',
+        role: this.context.role,
+        errorCode: error instanceof RelayTransportError ? error.code : undefined
+      },
+      details: {
+        roomId: this.roomId || undefined,
+        worldId: this.worldId || this.context.worldId,
+        participantId: this.peerId,
+        incarnation: this.incarnation || undefined
+      }
+    });
   }
 
   private relayError(message: string): RelayTransportError {

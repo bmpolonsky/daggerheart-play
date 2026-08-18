@@ -65,6 +65,7 @@ import { applyBrowserCustomContent, readBrowserCustomContent, subscribeCustomCon
 import type { GameCustomContent } from '../domain/game/gameDocument';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { P2PAssetTransferService } from './P2PAssetTransferService';
+import { reportOperationalError } from '../core/observability/sentry';
 
 export type P2PSessionRole = 'gm' | 'player';
 export type P2PConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'degraded' | 'error';
@@ -701,6 +702,22 @@ export class P2PSessionService {
     this.startInFlight = { role, roomId, promise };
     try {
       await promise;
+    } catch (error) {
+      const session = this.sessionStore.get();
+      reportOperationalError(error, {
+        area: 'network',
+        operation: 'start-room',
+        tags: {
+          role,
+          requestedMode: readSessionConnectionMode(),
+          resolvedMode: session.transportMode
+        },
+        details: {
+          roomId,
+          participantId: session.peerId || undefined
+        }
+      });
+      throw error;
     } finally {
       if (this.startInFlight?.promise === promise) {
         this.startInFlight = null;

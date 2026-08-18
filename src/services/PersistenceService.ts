@@ -12,6 +12,7 @@ import type { StoredGameSummary } from '../core/persistence/gameDocumentStore';
 import type { AssetService } from './AssetService';
 import { Store } from '../core/store/Store';
 import { readActiveSession } from './p2p/P2PSessionPersistence';
+import { reportOperationalError } from '../core/observability/sentry';
 
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
 const AUTO_PERSIST_DELAY_MS = 500;
@@ -251,6 +252,7 @@ export class PersistenceService {
       this.persistNow();
       return true;
     } catch (error) {
+      reportOperationalError(error, { area: 'persistence', operation: 'hydrate-indexed-db' });
       console.warn('Failed to hydrate Daggerheart state from IndexedDB.', error);
       return false;
     }
@@ -279,6 +281,11 @@ export class PersistenceService {
         }
       });
     } catch (error) {
+      reportOperationalError(error, {
+        area: 'persistence',
+        operation: 'persist-game-document',
+        details: { schemaVersion: snapshot.schemaVersion }
+      });
       console.warn('Failed to persist Daggerheart game to IndexedDB.', error);
     }
   }
@@ -338,6 +345,7 @@ export class PersistenceService {
     try {
       await this.documentStore.delete();
     } catch (error) {
+      reportOperationalError(error, { area: 'persistence', operation: 'delete-game-document' });
       console.warn('Failed to delete Daggerheart game from IndexedDB.', error);
     }
   }

@@ -17,7 +17,10 @@ export default defineConfig({
   },
   plugins: [preact(), tailwindcss()],
   build: {
-    outDir: sitesBuild ? 'dist/client' : 'dist'
+    outDir: sitesBuild ? 'dist/client' : 'dist',
+    // Pages is public already, so public source maps are the lowest-maintenance
+    // way to make production Sentry stacks point back to TypeScript sources.
+    sourcemap: Boolean(process.env.SENTRY_DSN)
   },
   resolve: {
     alias: {

@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Store } from '../core/store/Store';
 import type { SupabaseSessionConfig } from '../domain/p2p/supabaseSession';
+import { reportOperationalError } from '../core/observability/sentry';
 
 export interface SupabaseMasterAuthState {
   status: 'loading' | 'signedOut' | 'signedIn' | 'error';
@@ -47,7 +48,11 @@ export async function ensureSupabaseGuestSignedIn(config: SupabaseSessionConfig)
   if (current.data.user?.is_anonymous && !current.error) return;
   await guestClient!.auth.signOut({ scope: 'local' });
   const { data, error } = await guestClient!.auth.signInAnonymously();
-  if (error || !data.user?.is_anonymous) throw error ?? new Error('anonymous_sign_in_failed');
+  if (error || !data.user?.is_anonymous) {
+    const failure = error ?? new Error('anonymous_sign_in_failed');
+    reportOperationalError(failure, { area: 'auth', operation: 'sign-in-anonymous', tags: { provider: 'supabase' } });
+    throw failure;
+  }
 }
 
 export async function supabaseMasterSignedIn(config: SupabaseSessionConfig): Promise<boolean> {
@@ -58,6 +63,7 @@ export async function supabaseMasterSignedIn(config: SupabaseSessionConfig): Pro
 export async function initializeSupabaseMasterAuth(config: SupabaseSessionConfig): Promise<SupabaseMasterAuthState> {
   const { data, error } = await getSupabaseAuthClient(config).auth.getSession();
   if (error) {
+    reportOperationalError(error, { area: 'auth', operation: 'read-master-session', tags: { provider: 'supabase' } });
     const state: SupabaseMasterAuthState = { status: 'error', email: '' };
     masterAuthStore.set(state);
     return state;
@@ -72,7 +78,10 @@ export async function signInSupabaseMaster(config: SupabaseSessionConfig, redire
     provider: 'google',
     options: { redirectTo }
   });
-  if (error) throw error;
+  if (error) {
+    reportOperationalError(error, { area: 'auth', operation: 'sign-in-google', tags: { provider: 'supabase' } });
+    throw error;
+  }
 }
 
 export async function signInSupabaseMasterByEmail(
@@ -84,12 +93,18 @@ export async function signInSupabaseMasterByEmail(
     email: email.trim(),
     options: { emailRedirectTo: redirectTo }
   });
-  if (error) throw error;
+  if (error) {
+    reportOperationalError(error, { area: 'auth', operation: 'sign-in-email', tags: { provider: 'supabase' } });
+    throw error;
+  }
 }
 
 export async function signOutSupabaseMaster(config: SupabaseSessionConfig): Promise<void> {
   const { error } = await getSupabaseAuthClient(config).auth.signOut();
-  if (error) throw error;
+  if (error) {
+    reportOperationalError(error, { area: 'auth', operation: 'sign-out-master', tags: { provider: 'supabase' } });
+    throw error;
+  }
 }
 
 function ensureClients(config: SupabaseSessionConfig): void {
