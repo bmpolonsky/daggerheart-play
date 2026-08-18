@@ -12,6 +12,11 @@ on:
     - cron: "17 3 * * 1"
   workflow_dispatch:
     inputs:
+      refresh-content:
+        description: "Refresh Daggerheart content for review"
+        required: false
+        type: boolean
+        default: false
       refresh-assets:
         description: "Refresh cached image and font assets"
         required: false
@@ -92,13 +97,13 @@ jobs:
           CONTENT_CACHE_TTL_HOURS: "0"
           # Code pushes build against the last reviewed cache. External content
           # is refreshed only in dedicated scheduled or manual review runs.
-          CONTENT_REFRESH: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '1' || '0' }}
+          CONTENT_REFRESH: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs['refresh-content'])) && '1' || '0' }}
           CONTENT_REFRESH_ASSETS: ${{ github.event_name == 'workflow_dispatch' && inputs['refresh-assets'] && '1' || '0' }}
           CONTENT_ASSET_CONCURRENCY: "8"
-          CONTENT_REFRESH_REPORT: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'content-refresh-report.md' || '' }}
+          CONTENT_REFRESH_REPORT: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs['refresh-content'])) && 'content-refresh-report.md' || '' }}
 
       - name: Publish content refresh review
-        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs['refresh-content']))
         run: |
           if [ -f content-refresh-report.md ]; then
             cat content-refresh-report.md >> "$GITHUB_STEP_SUMMARY"
@@ -107,7 +112,7 @@ jobs:
           fi
 
       - name: Upload content refresh review
-        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs['refresh-content']))
         uses: actions/upload-artifact@v4
         with:
           name: content-refresh-review
@@ -134,7 +139,7 @@ jobs:
           CONTENT_ASSET_CONCURRENCY: "8"
 
       - name: Save Daggerheart content cache
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.daggerheart-content-cache.outputs.cache-matched-key == ''
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs['refresh-content']) || steps.daggerheart-content-cache.outputs.cache-matched-key == ''
         uses: actions/cache/save@v4
         with:
           path: |
