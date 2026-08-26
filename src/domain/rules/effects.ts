@@ -1,5 +1,6 @@
 import { clamp } from '../../core/utils/clamp';
 import { effectiveHopeMax } from './deathMoves';
+import { equipmentFeatureModifiers } from './equipmentFeatureModifiers';
 import { automaticFeatureRuleEffects, type FeatureRuleEffect, type FeatureStatDeltaEffect } from './featureEffects';
 import type { Character, CharacterSheetCard, HopeTrack, Thresholds, TrackSlots, TraitId } from './types';
 
@@ -63,6 +64,22 @@ export function buildEffectiveCharacterStats(character: Character): EffectiveCha
 
 export function collectCharacterEffects(character: Character): CharacterEffect[] {
   const effects: CharacterEffect[] = [];
+
+  const armorModifiers = equipmentFeatureModifiers(character.armor.feature || character.armor.featureText || '');
+  if (armorModifiers.evasionModifier || armorModifiers.armorScoreModifier || Object.keys(armorModifiers.traitModifiers).length > 0) {
+    effects.push({
+      id: `armor:${character.armor.sourceSlug ?? character.armor.name}`,
+      sourceId: String(character.armor.sourceId ?? character.armor.sourceSlug ?? character.armor.name),
+      sourceName: `Броня: ${character.armor.name}`,
+      rules: [],
+      modifiers: {
+        ...cloneModifiers(EMPTY_MODIFIERS),
+        evasion: armorModifiers.evasionModifier,
+        armorScore: armorModifiers.armorScoreModifier,
+        traits: armorModifiers.traitModifiers
+      }
+    });
+  }
 
   for (const card of character.sheetCards ?? []) {
     if (!isPermanentFeatureSheetCard(card)) continue;

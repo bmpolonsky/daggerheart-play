@@ -5,6 +5,7 @@ import { buildCharacterSummary } from "../../src/domain/tabletop/playerView";
 import { resetAllStores } from "../../src/stores/gameStores";
 import { characterService } from "../../src/services/serviceRegistry";
 import { mapRawBeastformItem } from "../../src/domain/content/mappers";
+import { equipmentFeatureModifiers } from "../../src/domain/rules/equipmentFeatureModifiers";
 import { firstCharacter } from "./helpers";
 
 test('domain-card prose never becomes a permanent character stat effect', () => {
@@ -96,6 +97,53 @@ test('permanent SRD sheet card effects are derived from ancestry and subclass fe
   assert.equal(effective.traits.knowledge, character.traits.knowledge + 1);
   assert.equal(effective.thresholds.major, character.thresholds.major + 4);
   assert.equal(effective.thresholds.severe, character.thresholds.severe + 8);
+});
+
+test('equipped armor modifiers are effective without changing base stats', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  character.armor = {
+    ...character.armor,
+    name: 'Стеганый Доспех',
+    sourceSlug: 'gambeson-armor',
+    feature: 'Гибкое: +1 к [Уклонению](/rule/evasion)'
+  };
+
+  assert.equal(buildEffectiveCharacterStats(character).evasion, character.evasion + 1);
+
+  character.armor = {
+    ...character.armor,
+    name: 'Латный Доспех',
+    sourceSlug: 'full-plate-armor',
+    feature: 'Очень тяжёлое: −2 к Уклонению; −1 к Проворности'
+  };
+  const plateStats = buildEffectiveCharacterStats(character);
+  assert.equal(plateStats.evasion, character.evasion - 2);
+  assert.equal(plateStats.traits.agility, character.traits.agility - 1);
+
+  character.armor = {
+    ...character.armor,
+    name: 'Кольчуга Спасителя',
+    sourceSlug: 'savior-chainmail',
+    feature: 'Сложное: −1 ко всем Характеристикам и Уклонению'
+  };
+  const saviorStats = buildEffectiveCharacterStats(character);
+  assert.equal(saviorStats.evasion, character.evasion - 1);
+  assert.equal(saviorStats.traits.knowledge, character.traits.knowledge - 1);
+
+  character.armor = { ...character.armor, name: 'Кожаный Доспех', sourceSlug: 'leather-armor', feature: '' };
+  assert.equal(buildEffectiveCharacterStats(character).evasion, character.evasion);
+
+  character.armor = { ...character.armor, feature: '', featureText: '+1 к Уклонению' };
+  assert.equal(buildEffectiveCharacterStats(character).evasion, character.evasion + 1);
+});
+
+test('conditional armor-slot bonuses do not become permanent armor modifiers', () => {
+  assert.deepEqual(
+    equipmentFeatureModifiers('Отметьте Ячейку Брони, чтобы получить +2 к Уклонению до конца хода'),
+    { armorScoreModifier: 0, evasionModifier: 0, traitModifiers: {} }
+  );
+  assert.equal(equipmentFeatureModifiers('+2 к Показателю Брони').armorScoreModifier, 2);
 });
 
 test('safe passive grammar also applies to a custom pasted feature', () => {

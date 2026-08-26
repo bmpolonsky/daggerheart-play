@@ -1,5 +1,6 @@
 import { Sparkles, X } from 'lucide-react';
 import { useState } from 'preact/hooks';
+import { clamp } from '../../core/utils/clamp';
 import type { ContentState, LibraryEquipmentItem } from '../../domain/content/types';
 import {
   buildCharacterBuilderChoicePreview,
@@ -76,6 +77,7 @@ export function CharacterBuilderModal({
   const progress = Math.round(((currentStepIndex + 1) / steps.length) * 100);
   const blockingIssues = builder.issues.filter((issue) => issue.severity === 'blocking');
   const warningIssues = builder.issues.filter((issue) => issue.severity === 'warning');
+  const effectiveArmorEvasion = clamp((builderResult.draft.evasion ?? 0) + (selectedArmor?.evasionModifier ?? 0), 0, 99);
   const createFromWizard = () => {
     if (!builder.canCreate) return;
     onCreate(builderResult.draft);
@@ -409,8 +411,8 @@ export function CharacterBuilderModal({
                     <span>{selectedAncestry?.name ?? 'родословная'} / {selectedCommunity?.name ?? 'сообщество'}</span>
                     <span>Карты: {selectedCards.map((card) => card.name).join(' / ') || 'не выбраны'}</span>
                     <span>Оружие: {builderResult.draft.weapons?.map((weapon) => weapon.name).join(' / ')}</span>
-                    <span>Броня: {builderResult.draft.armor?.name} — уклонение {builderResult.draft.evasion}</span>
-                    <span>{BUILDER_TRAIT_IDS.map((trait) => `${TRAIT_LABELS[trait]} ${signed(builderResult.draft.traits?.[trait] ?? fields.traits[trait] ?? 0)}`).join(' / ')}</span>
+                    <span>Броня: {builderResult.draft.armor?.name} — уклонение {effectiveArmorEvasion}</span>
+                    <span>{BUILDER_TRAIT_IDS.map((trait) => `${TRAIT_LABELS[trait]} ${signed(clamp((builderResult.draft.traits?.[trait] ?? fields.traits[trait] ?? 0) + (selectedArmor?.traitModifiers?.[trait] ?? 0), -10, 20))}`).join(' / ')}</span>
                     <span>Деньги: {formatWealthSummary(builderResult.draft.wealth)}</span>
                     <span>Инвентарь: {builderResult.draft.inventory?.map((item) => item.name).join(' / ')}</span>
                   </article>

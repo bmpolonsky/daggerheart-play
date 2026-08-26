@@ -1,5 +1,6 @@
 import type { LibraryEquipmentItem } from '../content/types';
 import type { ArmorState, CharacterInventoryItem, CharacterSheetCard, DaggerheartClass, DamageType, TraitId, Weapon } from './types';
+import { equipmentFeatureModifiers } from './equipmentFeatureModifiers';
 import { createInventoryItem } from './factories';
 
 const MAX_ARMOR_SCORE = 12;
@@ -196,7 +197,7 @@ export function weaponToRecord(option: StartingWeaponOption): Weapon {
 
 export function equipmentItemToArmorOption(item: LibraryEquipmentItem): StartingArmorOption | null {
   if (!item.baseThresholds || item.armorScore === null || item.tier === null) return null;
-  const modifiers = parseModifierText(item.featureText);
+  const modifiers = equipmentFeatureModifiers(item.featureText);
   return {
     id: item.id,
     slug: item.slug,
@@ -323,9 +324,6 @@ const toArmorOption = equipmentItemToArmorOption;
 const toWeaponOption = equipmentItemToWeaponOption;
 
 function runtimeModifierWarnings(option: StartingArmorOption | StartingWeaponOption): string[] {
-  if ('evasionModifier' in option && (option.evasionModifier || Object.keys(option.traitModifiers ?? {}).length > 0)) {
-    return ['Численные модификаторы свойства не применены автоматически: проверьте характеристики и уклонение вручную.'];
-  }
   if ('category' in option) {
     const modifiers = weaponEquipmentModifiers(option);
     if (modifiers.evasionModifier || modifiers.armorScoreModifier || Object.keys(modifiers.traitModifiers).length > 0) {
@@ -349,65 +347,18 @@ function matchesIdOrSlug(item: { id: string; slug: string }, id: string): boolea
   return item.id === id || item.slug === id;
 }
 
-function parseModifierText(text: string): {
-  evasionModifier?: number;
-  armorScoreModifier: number;
-  traitModifiers: Partial<Record<TraitId, number>>;
-} {
-  const normalized = text.replace(/−/g, '-').toLowerCase();
-  return {
-    evasionModifier: signedNumberForTerms(normalized, ['уклон', 'evasion']),
-    armorScoreModifier: signedNumberForTerms(normalized, ['показател', 'брони', 'armor score']) ?? 0,
-    traitModifiers: parseTraitModifiers(normalized)
-  };
-}
-
-function parseTraitModifiers(text: string): Partial<Record<TraitId, number>> {
-  const traits: Array<[TraitId, string[]]> = [
-    ['agility', ['провор', 'agility']],
-    ['strength', ['сил', 'strength']],
-    ['finesse', ['искус', 'finesse']],
-    ['instinct', ['инстинкт', 'instinct']],
-    ['presence', ['влия', 'presence']],
-    ['knowledge', ['знан', 'knowledge']]
-  ];
-  const result: Partial<Record<TraitId, number>> = {};
-  for (const [trait, names] of traits) {
-    if (!names.some((name) => text.includes(name))) continue;
-    const value = signedNumberForTerms(text, names);
-    if (value) result[trait] = value;
-  }
-  return result;
-}
-
 function weaponEquipmentModifiers(option: StartingWeaponOption | null | undefined): {
   armorScoreModifier: number;
   evasionModifier: number;
   traitModifiers: Partial<Record<TraitId, number>>;
 } {
   if (!option) return { armorScoreModifier: 0, evasionModifier: 0, traitModifiers: {} };
-  const modifiers = parseModifierText(option.feature ?? '');
+  const modifiers = equipmentFeatureModifiers(option.feature ?? '');
   return {
     armorScoreModifier: modifiers.armorScoreModifier,
     evasionModifier: modifiers.evasionModifier ?? 0,
     traitModifiers: modifiers.traitModifiers
   };
-}
-
-function firstSignedNumber(text: string): number | undefined {
-  const match = text.match(/[+-]\s*\d+/);
-  return match ? Number(match[0].replace(/\s+/g, '')) : undefined;
-}
-
-function signedNumberForTerms(text: string, terms: string[]): number | undefined {
-  for (const term of terms) {
-    const index = text.indexOf(term);
-    if (index < 0) continue;
-    const before = text.slice(Math.max(0, index - 24), index);
-    const after = text.slice(index, Math.min(text.length, index + 24));
-    return firstSignedNumber(before) ?? firstSignedNumber(after);
-  }
-  return undefined;
 }
 
 function emptyArmorOption(): StartingArmorOption {

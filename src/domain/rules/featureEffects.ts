@@ -293,6 +293,7 @@ export function analyzeFeatureRules(value: string): FeatureRuleAnalysis {
 
   const stanceChoice = matchFirst(normalized, [
     /начинаете\s+с\s+(одн[а-яa-z]*|дв[а-яa-z]*|тр[еия][а-яa-z]*|\d+)\s+боев[а-яa-z]*\s+сто(?:ек|йк[а-яa-z]*)[\s\S]{0,220}?нов[а-яa-z]*\s+ранг[а-яa-z]*[^.]*взять\s+(одн[а-яa-z]*|дв[а-яa-z]*|тр[еия][а-яa-z]*|\d+)\s+дополнительн[а-яa-z]*\s+сто(?:ек|йк[а-яa-z]*)/i,
+    /выбер[а-яa-z]*\s+(одн[а-яa-z]*|дв[а-яa-z]*|тр[еия][а-яa-z]*|\d+)\s+боев[а-яa-z]*\s+сто(?:ек|йк[а-яa-z]*)[\s\S]{0,220}?кажд[а-яa-z]*\s+повышен[а-яa-z]*\s+уровн[а-яa-z]*[^.]*выбира[а-яa-z]*\s+ещ[её]\s+(одн[а-яa-z]*|дв[а-яa-z]*|тр[еия][а-яa-z]*|\d+)\s+сто(?:ек|йк[а-яa-z]*)/i,
     /start\s+with\s+(one|two|three|\d+)\s+combat\s+stances?[^.]*new\s+tier[^.]*take\s+(one|two|three|\d+)\s+additional\s+stances?/i
   ]);
   if (stanceChoice) {
@@ -330,6 +331,7 @@ export function analyzeFeatureRules(value: string): FeatureRuleAnalysis {
 
   const resourceInit = matchFirst(normalized, [
     /начните\s+с\s+(\d+|одн[а-яa-z]*|дв[а-яa-z]*|тр[еия][а-яa-z]*)\s+очк[а-яa-z]*\s+([^.!?\n]+)/i,
+    /(?:вы\s+)?начинаете\s+с\s+(\d+|одн[а-яa-z]*|дв[а-яa-z]*|тр[еия][а-яa-z]*)\s+очк[а-яa-z]*\s+([^.!?\n]+)/i,
     /start\s+with\s+(\d+|one|two|three)\s+([^.!?\n]+?)\s+points?/i
   ]);
   if (resourceInit) {
@@ -460,6 +462,7 @@ export function analyzeFeatureRules(value: string): FeatureRuleAnalysis {
 
   const offeredRestMove = matchFirst(normalized, [
     /во\s+время\s+отдых[а-яa-z]*,?\s+потратьте\s+один\s+из\s+(?:своих|ваших)\s+ход[а-яa-z]*\s+отдых[а-яa-z]*\s+в\s+качестве\s+дани\s+(?:вашему\s+)?покровител[а-яa-z]*/i,
+    /во\s+время\s+отдых[а-яa-z]*,?\s+потратьте\s+один\s+из\s+(?:своих|ваших)\s+ход[а-яa-z]*\s+отдых[а-яa-z]*,?\s+чтобы\s+отдать\s+дань\s+(?:вашему\s+)?покровител[а-яa-z]*/i,
     /during\s+(?:a\s+)?rest,?\s+spend\s+one\s+of\s+your\s+rest\s+moves?\s+as\s+(?:a\s+)?tribute\s+to\s+(?:your\s+)?patron/i
   ]);
   if (offeredRestMove) {
@@ -494,6 +497,8 @@ export function analyzeFeatureRules(value: string): FeatureRuleAnalysis {
   ]);
   collectUsageLimit(effects, text, normalized, 'scene', [
     /перв[а-яa-z]*\s+раз\s+в\s+сцен[а-яa-z]*/i,
+    /(один|два|три|\d+)\s+раз(?:а)?\s+за\s+сцен[а-яa-z]*/i,
+    /(one|two|three|\d+)\s+times?\s+per\s+scene/i,
     /(?:the\s+)?first\s+time\s+in\s+(?:a\s+)?scene/i
   ]);
 

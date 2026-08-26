@@ -45,7 +45,7 @@ const EXPECTED_FEATURE_COUNTS: Record<RuleCollection, number> = {
   classes: 36,
   ancestries: 48,
   communities: 15,
-  subclasses: 118
+  subclasses: 119
 };
 
 function loadCollection(collection: RuleCollection | 'domain-cards'): CorpusItem[] {
@@ -147,11 +147,11 @@ test('audits every current feature rule without an implicit green default', () =
   const corpusKeys = features.map(({ key }) => key).sort();
   const declaredKeys = [...FEATURE_EFFECT_AUDIT_KEYS].sort();
 
-  assert.equal(features.length, 217);
+  assert.equal(features.length, 218);
   assert.equal(new Set(FEATURE_EFFECT_AUDIT_KEYS).size, FEATURE_EFFECT_AUDIT_KEYS.length, 'feature audit contains duplicate keys');
   assert.deepEqual(declaredKeys, corpusKeys, 'every corpus feature must have exactly one explicit audit key');
   assert.deepEqual(Object.keys(audit).sort(), corpusKeys, 'built audit must cover exactly the current corpus');
-  assert.equal(sha256Corpus(features), '3ece4b609c18a98fc20bc6f818fd95a64e93d1a874ed80bb2aa1653a17911e17');
+  assert.equal(sha256Corpus(features), '7af7971f66576615ef997203267b41b46fc7272b219e5a591309f78195d82f14');
 
   for (const feature of features) assertAuditEntry(feature.key, feature.text, audit[feature.key as keyof typeof audit]);
 });
@@ -166,7 +166,7 @@ test('keeps all top-level domain cards outside structural feature detection', ()
 test('pins every current top-level source text, including composite rules outside feature arrays', () => {
   const entries = enumerateTopLevelTexts();
   assert.equal(entries.length, 78);
-  assert.equal(sha256Corpus(entries), 'f5fdbbf3d835dbb93fbc7ee88f3ab65ff230b658bb4013b53d05f2124721d49e');
+  assert.equal(sha256Corpus(entries), 'f0caac9ba7d3b4575ab68a4ce8c834f30149c03d2ab7dad933594e12fd6dd393');
 
   const parsed = Object.fromEntries(entries.flatMap((entry) => {
     const effects = analyzeContract(entry.text);
