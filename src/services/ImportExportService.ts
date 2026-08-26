@@ -244,6 +244,9 @@ function gameDocumentFromZipEntries(entries: ZipEntry[]): GameDocument | null {
       'content/custom-card-domains.json': parseJsonEntry(entries, 'content/custom-card-domains.json') ?? [],
       'content/custom-adversaries.json': parseJsonEntry(entries, 'content/custom-adversaries.json') ?? [],
       'content/custom-environments.json': parseJsonEntry(entries, 'content/custom-environments.json') ?? [],
+      'content/custom-classes.json': parseJsonEntry(entries, 'content/custom-classes.json') ?? [],
+      'content/custom-equipment.json': parseJsonEntry(entries, 'content/custom-equipment.json') ?? [],
+      'content/custom-beastforms.json': parseJsonEntry(entries, 'content/custom-beastforms.json') ?? [],
       'resources/assets.json': parseJsonEntry(entries, 'resources/assets.json') ?? []
     }
   };

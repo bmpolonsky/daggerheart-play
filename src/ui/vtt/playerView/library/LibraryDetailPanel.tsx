@@ -10,18 +10,20 @@ export function LibraryDetailPanel({
   actionMessage,
   entry,
   onAction,
-  onEditCustom,
+  onCopy,
+  onEdit,
   onClose
 }: {
   actionMessage: string;
   entry: LibraryEntry | null;
   onAction: (message: string) => void;
-  onEditCustom?: (custom: NonNullable<LibraryEntry['custom']>) => void;
+  onCopy?: (editable: NonNullable<LibraryEntry['editable']>) => void;
+  onEdit?: (editable: NonNullable<LibraryEntry['editable']>) => void;
   onClose: () => void;
 }) {
   if (!entry) return null;
 
-  const hasFooter = entry.actions.length > 0 || Boolean(entry.custom && onEditCustom) || Boolean(actionMessage);
+  const hasFooter = entry.actions.length > 0 || Boolean(entry.editable && (onEdit || onCopy)) || Boolean(actionMessage);
 
   return (
     <aside className="player-library-detail" aria-label="Полная запись компендиума">
@@ -64,13 +66,20 @@ export function LibraryDetailPanel({
       </div>
       {hasFooter && (
         <footer className="player-library-detail__footer">
-          {(entry.actions.length > 0 || (entry.custom && onEditCustom)) && (
+          {(entry.actions.length > 0 || entry.editable) && (
             <div className="player-library-detail__actions">
-              {entry.custom && onEditCustom && (
+              {entry.editable?.isCustom && onEdit && (
                 <Button size="sm" variant="primary" type="button" onClick={() => {
-                  if (entry.custom) onEditCustom(entry.custom);
+                  if (entry.editable) onEdit(entry.editable);
                 }}>
                   Редактировать
+                </Button>
+              )}
+              {entry.editable && !entry.editable.isCustom && onCopy && (
+                <Button size="sm" variant="primary" type="button" onClick={() => {
+                  if (entry.editable) onCopy(entry.editable);
+                }}>
+                  Создать копию
                 </Button>
               )}
               {entry.actions.map((action) => (

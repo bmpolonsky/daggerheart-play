@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
-import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
-import { currentRoutePathname } from '../../app/routing';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { currentRoutePathname, locationSignature } from '../../app/routing';
 import { BookOpenText, ScrollText, Swords, X } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import {
@@ -85,6 +85,8 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const [rosterRequestId, setRosterRequestId] = useState(0);
   const [generatedNpc, setGeneratedNpc] = useState(generateNpc);
   const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(currentRoutePathname(), role));
+  const [sharedToolsEditorDirty, setSharedToolsEditorDirty] = useState(false);
+  const acceptedRouteUrlRef = useRef(typeof window === 'undefined' ? '' : locationSignature());
   const quickToolsOpen = role === 'gm' && routedUi.toolsOpen && routedUi.toolsTab === 'generators';
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
@@ -192,7 +194,13 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const syncRouteState = () => {
+    const syncRouteState = (event?: Event) => {
+      const nextUrl = locationSignature();
+      if (event && sharedToolsEditorDirty && nextUrl !== acceptedRouteUrlRef.current && !window.confirm('Отменить несохранённые изменения?')) {
+        window.history.pushState({}, '', acceptedRouteUrlRef.current);
+        return;
+      }
+      acceptedRouteUrlRef.current = nextUrl;
       const next = parseRoutedPlayerViewState(currentRoutePathname(), role);
       setRoutedUi(next);
       if (!desktopLayout) {
@@ -206,7 +214,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       window.removeEventListener('popstate', syncRouteState);
       window.removeEventListener('hashchange', syncRouteState);
     };
-  }, [desktopLayout, role]);
+  }, [desktopLayout, role, sharedToolsEditorDirty]);
 
   useEffect(() => {
     if (!routedUi.libraryCollection || content.selectedCollection === routedUi.libraryCollection) return;
@@ -237,8 +245,17 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     if (navigation.url !== currentUrl) {
       window.history.pushState({}, '', navigation.url);
     }
+    acceptedRouteUrlRef.current = locationSignature();
     setRoutedUi(parseRoutedPlayerViewState(navigation.routePath, role));
   }, [role]);
+  const consumeLibraryCopy = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('copy')) return;
+    url.searchParams.delete('copy');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    acceptedRouteUrlRef.current = locationSignature();
+  }, []);
   useEffect(() => {
     const openRuleArticle = (event: Event) => {
       const ruleSlug = (event as CustomEvent<{ ruleSlug?: string }>).detail?.ruleSlug?.trim();
@@ -283,14 +300,14 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     contentService.setSelectedCollection(collection);
     commitRoutedUi({ toolsOpen: true, toolsTab: 'library', libraryCollection: collection, libraryEntrySlug: null });
   }, [commitRoutedUi]);
-  const changeLibraryRule = useCallback((ruleSlug: string | null) => {
+  const changeLibraryEntry = useCallback((entrySlug: string | null) => {
     commitRoutedUi({
       toolsOpen: true,
       toolsTab: 'library',
-      libraryCollection: 'rules',
-      libraryEntrySlug: ruleSlug
+      libraryCollection: content.selectedCollection,
+      libraryEntrySlug: entrySlug
     });
-  }, [commitRoutedUi]);
+  }, [commitRoutedUi, content.selectedCollection]);
   const changeSettingsSection = useCallback((section: string) => {
     commitRoutedUi({ toolsOpen: true, toolsTab: 'settings', settingsSection: section });
   }, [commitRoutedUi]);
@@ -541,16 +558,19 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       {quickToolsOpen && <QuickToolsRail npc={generatedNpc} onNpcChange={setGeneratedNpc} onClose={closeTools} onOpenTool={openTool} />}
       {routedUi.toolsOpen && !quickToolsOpen && (
         <SharedToolsModal
+          onEditorDirtyChange={setSharedToolsEditorDirty}
           role={role}
           tab={routedUi.toolsTab}
           targetCharacterId={role === 'player' ? model.character?.id ?? null : viewedCharacterId ?? model.character?.id ?? null}
           onClose={closeTools}
           onLibraryCollectionChange={changeLibraryCollection}
-          onLibraryRuleChange={changeLibraryRule}
+          onLibraryCopyConsumed={consumeLibraryCopy}
+          onLibraryEntryChange={changeLibraryEntry}
           onHandoutChange={openHandoutEditor}
           onSettingsSectionChange={changeSettingsSection}
           onTabChange={changeToolsTab}
           routedLibraryEntrySlug={routedUi.libraryEntrySlug}
+          routedLibraryCopySlug={typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('copy')}
           routedHandoutId={routedUi.handoutId}
           routedSettingsSection={routedUi.settingsSection}
         />

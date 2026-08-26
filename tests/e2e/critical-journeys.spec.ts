@@ -82,8 +82,140 @@ async function waitForStoredCustomAdversary(page: Page, name: string, present: b
   }, { name, present })).toBe(true);
 }
 
+async function storedCustomAdversarySlug(page: Page, name: string): Promise<string> {
+  let slug = '';
+  await expect.poll(async () => {
+    slug = await page.evaluate(async (expectedName) => new Promise<string>((resolve, reject) => {
+      const request = indexedDB.open('daggerheart-play-custom-content');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction('documents', 'readonly');
+        const read = transaction.objectStore('documents').get('local');
+        read.onerror = () => reject(read.error);
+        read.onsuccess = () => resolve(read.result?.adversaries?.find((entry: { name?: string }) => entry.name === expectedName)?.slug ?? '');
+        transaction.oncomplete = () => db.close();
+      };
+    }), name);
+    return slug;
+  }).not.toBe('');
+  return slug;
+}
+
+async function waitForStoredPreparedAdversary(page: Page, name: string): Promise<void> {
+  await expect.poll(async () => page.evaluate(async (expectedName) => {
+    const project = await new Promise<any>((resolve, reject) => {
+      const request = indexedDB.open('daggerheart-play-game');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction('documents', 'readonly');
+        const read = transaction.objectStore('documents').get('current-game');
+        read.onerror = () => reject(read.error);
+        read.onsuccess = () => resolve(read.result);
+        transaction.oncomplete = () => db.close();
+      };
+    });
+    const encounter = project?.games?.[project?.activeGameId]?.state?.encounter;
+    return Object.values(encounter?.adversaries ?? {}).some((entry: any) => entry.name === expectedName);
+  }, name)).toBe(true);
+}
+
 test.describe('critical persisted journeys', () => {
   test.describe.configure({ timeout: 120_000 });
+
+  test('opens a structured editor for every editable compendium collection', async ({ page }) => {
+    await openGmGame(page);
+    const workspace = await openWorkspace(page);
+    await selectWorkspaceTab(workspace, 'Справочник');
+    const collections = workspace.getByLabel('Коллекции справочника');
+    const cases = [
+      ['Классы', 'Уклонение'],
+      ['Подклассы', 'Характеристика заклинателя'],
+      ['Родословные', 'Краткое описание'],
+      ['Сообщества', 'Краткое описание'],
+      ['Домены', 'Уровень'],
+      ['Снаряжение', 'Тип'],
+      ['Противники', 'Роль'],
+      ['Окружения', 'Импульсы'],
+      ['Звероформы', 'Атака через']
+    ] as const;
+
+    for (const [collection, field] of cases) {
+      await collections.getByRole('button', { name: collection, exact: true }).click();
+      await workspace.getByRole('button', { name: 'Создать', exact: true }).click();
+      const editor = workspace.locator('.player-compendium-editor');
+      await expect(editor.getByLabel('Название', { exact: true })).toBeVisible();
+      await expect(editor.getByText(field, { exact: true }).first()).toBeVisible();
+      await editor.getByRole('button', { name: 'Отмена', exact: true }).click();
+      await expect(editor).toHaveCount(0);
+    }
+
+    await collections.getByRole('button', { name: 'Правила', exact: true }).click();
+    await expect(workspace.getByRole('button', { name: 'Создать', exact: true })).toHaveCount(0);
+  });
+
+  test('keeps a dirty compendium draft when collection change is cancelled', async ({ page }) => {
+    await openGmGame(page);
+    const workspace = await openWorkspace(page);
+    await selectWorkspaceTab(workspace, 'Справочник');
+    const collections = workspace.getByLabel('Коллекции справочника');
+    await collections.getByRole('button', { name: 'Противники' }).click();
+    await workspace.getByRole('button', { name: 'Создать', exact: true }).click();
+    const editor = workspace.locator('.player-compendium-editor');
+    await editor.getByLabel('Название', { exact: true }).fill('Несохранённый противник');
+
+    page.once('dialog', async (dialog) => {
+      expect(dialog.message()).toBe('Отменить несохранённые изменения?');
+      await dialog.dismiss();
+    });
+    await collections.getByRole('button', { name: 'Классы', exact: true }).click();
+
+    await expect(editor.getByLabel('Название', { exact: true })).toHaveValue('Несохранённый противник');
+    await expect(collections.getByRole('button', { name: 'Противники', exact: true })).toHaveAttribute('aria-pressed', 'true');
+
+    page.once('dialog', async (dialog) => {
+      expect(dialog.message()).toBe('Отменить несохранённые изменения?');
+      await dialog.dismiss();
+    });
+    const acceptedUrl = page.url();
+    await page.goBack();
+    await expect(editor.getByLabel('Название', { exact: true })).toHaveValue('Несохранённый противник');
+    await expect(collections.getByRole('button', { name: 'Противники', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => page.url()).toBe(acceptedUrl);
+  });
+
+  test('opens copy intents and normalizes official raw select values', async ({ page }) => {
+    await openGmGame(page);
+    const workspace = await openWorkspace(page);
+    await selectWorkspaceTab(workspace, 'Справочник');
+    const collections = workspace.getByLabel('Коллекции справочника');
+    await collections.getByRole('button', { name: 'Снаряжение' }).click();
+    await workspace.getByLabel('Поиск по справочнику').fill('Наручные Руны');
+    await workspace.locator('.player-library-card').filter({ hasText: 'Наручные Руны' }).first().click();
+    await workspace.getByLabel('Полная запись компендиума').getByRole('button', { name: 'Создать копию' }).click();
+
+    const editor = workspace.locator('.player-compendium-editor');
+    await expect(editor.getByLabel('Дистанция')).toHaveValue('very-close');
+    await expect(editor.getByLabel('Тип урона')).toHaveValue('magic');
+
+    const origin = new URL(page.url()).origin;
+    await page.goto(`${origin}/?copy=red-ooze#/library/compendium/adversaries/red-ooze`);
+    const routedWorkspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    const routedEditor = routedWorkspace.locator('.player-compendium-editor');
+    await expect(routedEditor.getByLabel('Название', { exact: true }).first()).toHaveValue('Алая Слизь (копия)');
+    await expect.poll(() => new URL(page.url()).searchParams.has('copy')).toBe(false);
+
+    await routedEditor.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(routedEditor.getByText('Материал сохранён.')).toBeVisible();
+    await expect.poll(() => new URL(page.url()).hash).toMatch(/\/custom-/);
+    await routedEditor.getByRole('button', { name: 'Закрыть редактор' }).click();
+    await expect(routedEditor).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('dialog', { name: 'Библиотека игры' })).toBeVisible();
+    await expect(page.locator('.player-compendium-editor')).toHaveCount(0);
+    await expect.poll(() => new URL(page.url()).searchParams.has('copy')).toBe(false);
+  });
 
   test('persists scene creation, editing, publishing and deletion across reloads', async ({ page }) => {
     await openGmGame(page);
@@ -330,20 +462,32 @@ test.describe('critical persisted journeys', () => {
     await expect.poll(() => workspace.locator('.player-library-card').count()).toBeGreaterThan(0);
     await workspace.getByRole('button', { name: 'Создать' }).click();
 
-    const customEditor = workspace.locator('.player-custom-compendium-section');
+    const customEditor = workspace.locator('.player-compendium-editor');
     await customEditor.getByLabel('Кратко').fill('Идёт на звон разбитых обещаний.');
     await customEditor.getByLabel('Сложность').fill('15');
-    await customEditor.getByLabel('Название').fill('Стеклянный паломник');
-    await expect(customEditor.getByLabel('Название')).toHaveValue('Стеклянный паломник');
+    await customEditor.getByLabel('Название', { exact: true }).fill('Стеклянный паломник');
+    await expect(customEditor.getByLabel('Название', { exact: true })).toHaveValue('Стеклянный паломник');
     await expect(customEditor.getByLabel('Кратко')).toHaveValue('Идёт на звон разбитых обещаний.');
     await customEditor.getByRole('button', { name: 'Сохранить' }).click();
-    await expect(customEditor.getByText('Противник сохранен.')).toBeVisible();
+    await expect(customEditor.getByText('Материал сохранён.')).toBeVisible();
     await waitForStoredCustomAdversary(page, 'Стеклянный паломник', true);
-    await expect(customEditor.getByRole('button', { name: 'В бой' })).toBeVisible();
-    await customEditor.getByRole('button', { name: 'В бой' }).click();
-    await expect(customEditor.getByText('Противник добавлен в бой.')).toBeVisible();
-    await selectWorkspaceTab(workspace, 'Бой');
-    await expect(workspace.getByLabel('Состав боя').locator('.player-combat-entry').filter({ hasText: 'Стеклянный паломник' })).toHaveCount(1);
+    const customSlug = await storedCustomAdversarySlug(page, 'Стеклянный паломник');
+
+    await workspace.getByRole('button', { name: 'Создать', exact: true }).click();
+    await expect(customEditor.getByLabel('Название', { exact: true })).toHaveValue('');
+    await customEditor.getByRole('button', { name: 'Отмена', exact: true }).click();
+
+    await page.evaluate((slug) => { window.location.hash = `/library/compendium/adversaries/${slug}`; }, customSlug);
+    const routedDetail = workspace.getByLabel('Полная запись компендиума');
+    await expect(routedDetail.getByRole('heading', { name: 'Стеклянный паломник' })).toBeVisible();
+    await expect(workspace.getByLabel('Источник материалов').getByRole('button', { name: 'Все' })).toHaveAttribute('aria-pressed', 'true');
+    await workspace.getByLabel('Источник материалов').getByRole('button', { name: 'Свои' }).click();
+    await workspace.getByLabel('Поиск по справочнику').fill('Стеклянный паломник');
+    await workspace.locator('.player-library-card').filter({ hasText: 'Стеклянный паломник' }).click();
+    const createdDetail = workspace.getByLabel('Полная запись компендиума');
+    await createdDetail.getByRole('button', { name: 'Подготовить' }).click();
+    await expect(createdDetail.getByRole('button', { name: 'Подготовлено' })).toBeDisabled();
+    await waitForStoredPreparedAdversary(page, 'Стеклянный паломник');
 
     await reloadGamePage(page);
     await expect(workspace).toBeVisible();
@@ -358,14 +502,20 @@ test.describe('critical persisted journeys', () => {
     const detail = workspace.getByLabel('Полная запись компендиума');
     await expect(detail).toContainText('Сложность: 15');
     await detail.getByRole('button', { name: 'Редактировать' }).click();
-    const restoredEditor = workspace.locator('.player-custom-compendium-section');
-    await expect(restoredEditor.getByLabel('Название')).toHaveValue('Стеклянный паломник');
-    await restoredEditor.getByRole('button', { name: 'Удалить запись' }).click();
-    const confirmation = page.getByRole('dialog', { name: 'Удалить противника «Стеклянный паломник»?' });
+    const restoredEditor = workspace.locator('.player-compendium-editor');
+    await expect(restoredEditor.getByLabel('Название', { exact: true })).toHaveValue('Стеклянный паломник');
+    await restoredEditor.getByRole('button', { name: 'Удалить материал' }).click();
+    const confirmation = page.getByRole('dialog', { name: 'Удалить «Стеклянный паломник»?' });
     await confirmation.getByRole('button', { name: 'Удалить' }).click();
-    await expect(restoredEditor.getByText('Противник удален.')).toBeVisible();
+    await expect(restoredEditor).toHaveCount(0);
     await waitForStoredCustomAdversary(page, 'Стеклянный паломник', false);
+    await waitForStoredPreparedAdversary(page, 'Стеклянный паломник');
     await reloadGamePage(page);
+    await expect(workspace).toBeVisible();
+    await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
+    await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Подготовлено' }).click();
+    await expect(page.getByRole('region', { name: 'Подготовлено' }).getByText('Стеклянный паломник')).toBeVisible();
+    await openGameLibrary(page);
     await expect(workspace).toBeVisible();
     await selectWorkspaceTab(workspace, 'Справочник');
     await collections.getByRole('button', { name: 'Противники' }).click();

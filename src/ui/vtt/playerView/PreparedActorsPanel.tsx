@@ -4,7 +4,7 @@ import { Check, Copy, Ellipsis, Eye, EyeOff, Image, Minus, Mountain, PackageChec
 import { useState } from 'preact/hooks';
 import type { PreparedActorsView } from '../../../domain/tabletop/preparedActors';
 import type { PreparedHandoutRow } from '../../../domain/rules/handouts';
-import { classLabel, adversaryTypeLabel } from '../../../domain/rules/constants';
+import { characterClassLabel, adversaryTypeLabel } from '../../../domain/rules/constants';
 import { defaultCharacterPortraitUrl } from '../../../domain/tabletop/defaultArt';
 import { gameService, preparedActorService } from '../../../services/serviceRegistry';
 import { ActionMenu, AssetImage, Avatar, Badge, ConfirmDialog, IconButton, ListItem, SearchField, SectionHeader } from '../../components/common';
@@ -35,7 +35,7 @@ export function PreparedActorsPanel({ view, handouts, query, onQueryChange, onOp
           <div className="player-prepared__hero" key={character.id}>
             <ListItem
               title={character.name}
-              subtitle={`${classLabel(character.className)} ${character.level}`}
+            subtitle={`${characterClassLabel(character)} ${character.level}`}
               leftAccessory={<Avatar src={cssImageUrl(defaultCharacterPortraitUrl(character))} fallback={initials(character.name)} size="sm" />}
               rightAccessory={<IconButton size="xs" variant={onActiveScene ? 'ghost' : 'primary'} disabled={onActiveScene} title={onActiveScene ? 'Уже на сцене' : 'Добавить на сцену'} aria-label={onActiveScene ? `${character.name} уже на сцене` : `Добавить ${character.name} на сцену`} onClick={() => preparedActorService.addCharacter(character.id)}>{onActiveScene ? <Check size={13} /> : <Plus size={13} />}</IconButton>}
               onClick={() => onOpenActor({ kind: 'character', actorId: character.id })}

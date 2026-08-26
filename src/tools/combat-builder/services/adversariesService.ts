@@ -3,7 +3,6 @@ import {
   buildCustomAdversaryExport,
   customAdversaryToRaw,
   extractCustomAdversaryItems,
-  normalizeCustomAdversary,
   normalizeRawCustomAdversary,
 } from "@combat/lib/customAdversaries";
 import { encounterService } from "@combat/services/encounterService";
@@ -174,75 +173,6 @@ export class AdversariesService {
     return adversariesStore.get().items.find((item) => item.id === id) ?? null;
   }
 
-  async createCustomAdversary(payload: Partial<Adversary>) {
-    await this.ensureCustomLoaded();
-    const existingIds = new Set(adversariesStore.get().items.map((item) => item.id));
-    const adversary = normalizeCustomAdversary(
-      {
-        ...payload,
-        updatedAt: Date.now(),
-      },
-      existingIds
-    );
-    if (!adversary) {
-      throw new Error("Введите название противника");
-    }
-
-    this.customItems = [adversary, ...this.customItems];
-    this.persistCustom();
-    this.publishItems();
-    return adversary;
-  }
-
-  async updateCustomAdversary(id: number, payload: Partial<Adversary>) {
-    await this.ensureCustomLoaded();
-    const current = this.customItems.find((item) => item.id === id);
-    if (!current) {
-      throw new Error("Кастомный противник не найден");
-    }
-
-    const existingIds = new Set(
-      adversariesStore
-        .get()
-        .items.map((item) => item.id)
-        .filter((itemId) => itemId !== id)
-    );
-    const adversary = normalizeCustomAdversary(
-      {
-        ...current,
-        ...payload,
-        id,
-        updatedAt: Date.now(),
-      },
-      existingIds,
-      { keepId: true }
-    );
-    if (!adversary) {
-      throw new Error("Введите название противника");
-    }
-
-    this.customItems = this.customItems.map((item) => (item.id === id ? adversary : item));
-    this.persistCustom();
-    this.publishItems();
-    encounterService.syncAdversary(adversary);
-    return adversary;
-  }
-
-  async removeCustomAdversary(id: number) {
-    await this.ensureCustomLoaded();
-    const target = this.customItems.find((item) => item.id === id);
-    if (!target) return;
-
-    this.customItems = this.customItems.filter((item) => item.id !== id);
-    this.persistCustom();
-    this.publishItems();
-
-    adversariesStore.update((state) => ({
-      ...state,
-      selectedAdversaryId: state.selectedAdversaryId === id ? null : state.selectedAdversaryId,
-    }));
-  }
-
   async exportCustomAdversaries() {
     await this.ensureCustomLoaded();
     return JSON.stringify(buildCustomAdversaryExport(this.customItems), null, 2);
@@ -267,7 +197,6 @@ export class AdversariesService {
     const byId = new Map(this.customItems.map((item) => [item.id, item]));
     for (const item of imported) {
       byId.set(item.id, item);
-      encounterService.syncAdversary(item);
     }
     this.customItems = Array.from(byId.values());
     this.persistCustom();

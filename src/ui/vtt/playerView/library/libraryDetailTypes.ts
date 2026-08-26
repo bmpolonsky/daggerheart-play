@@ -20,8 +20,10 @@ export type LibraryEntry = {
   stats: string[];
   sections: LibraryDetailSection[];
   actions: LibraryDetailAction[];
-  custom?: {
-    kind: 'adversary' | 'environment';
-    id: string;
+  editable?: {
+    collection: EditableContentCollectionKey;
+    raw: EditableRawContent;
+    isCustom: boolean;
   };
 };
+import type { EditableContentCollectionKey, EditableRawContent } from '../../../../domain/content/types';

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { ChevronLeft, MinusCircle, Plus, UserRound } from 'lucide-react';
 import type { ContentState } from '../../../../domain/content/types';
 import type { Character, CharacterChangeActor, DaggerheartClass, SceneTableState } from '../../../../domain/rules/types';
-import { classLabel } from '../../../../domain/rules/constants';
+import { characterClassLabel } from '../../../../domain/rules/constants';
 import { sceneTableService } from '../../../../services/serviceRegistry';
 import { CharacterBuilderModal } from '../../../characters/CharacterBuilderModal';
 import { CharacterEditor } from '../../../characters/CharacterEditor';
@@ -71,7 +71,7 @@ export function SharedToolsCharactersTab({
                 className={isSelected ? 'player-tools-character-card dh-is-selected' : 'player-tools-character-card'}
                 key={character.id}
                 title={character.name || 'Без имени'}
-                subtitle={`${classLabel(character.className)} — уровень ${character.level}`}
+                subtitle={`${characterClassLabel(character)} — уровень ${character.level}`}
                 detail={assignedSeat ? assignedSeatName || 'Игрок без имени' : 'Игрок не назначен'}
                 leftAccessory={<CharacterPortrait character={character} />}
                 rightAccessory={<div className="player-tools-character-actions">

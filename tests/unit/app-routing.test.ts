@@ -3,6 +3,7 @@ import { test } from "vitest";
 import { replaceLegacyRoute, routeNavigation, routePathFromLocation } from "../../src/app/routing";
 import { buildRoutedPlayerViewLocation, parseRoutedPlayerViewState, sharedToolsTabsForRole } from "../../src/ui/vtt/playerView/routedUiState";
 import { buildCardEditorHash, parseCardEditorHash } from "../../src/tools/card-creator/services/editorService";
+import { openAdversaryCompendium } from "../../src/tools/combat-builder/lib/compendium";
 
 test('app route navigation canonicalizes legacy route events', () => {
   assert.deepEqual(routeNavigation('gm'), {
@@ -179,6 +180,48 @@ test('app routing builds slash-based library hash URLs without query params', ()
     search: '',
     url: '/#/game'
   });
+});
+
+test('all compendium collections support direct entry routes', () => {
+  const collections = {
+    adversaries: 'adversaries',
+    classes: 'classes',
+    rules: 'rules',
+    environments: 'environments',
+    beastforms: 'beastforms',
+    ancestries: 'ancestries',
+    communities: 'communities',
+    subclasses: 'subclasses',
+    domainCards: 'domain-cards',
+    equipment: 'equipment'
+  } as const;
+
+  for (const [collection, slug] of Object.entries(collections)) {
+    const location = buildRoutedPlayerViewLocation('gm', {
+      toolsOpen: true,
+      toolsTab: 'library',
+      libraryCollection: collection as keyof typeof collections,
+      libraryEntrySlug: 'custom-entry'
+    });
+    assert.equal(location.routePath, `/library/compendium/${slug}/custom-entry`);
+    assert.equal(parseRoutedPlayerViewState(location.routePath, 'gm').libraryCollection, collection);
+    assert.equal(parseRoutedPlayerViewState(location.routePath, 'gm').libraryEntrySlug, 'custom-entry');
+  }
+});
+
+test('combat builder carries copy intent into the adversary compendium route', () => {
+  const originalWindow = globalThis.window;
+  let assignedUrl = '';
+  Object.defineProperty(globalThis, 'window', {
+    value: { location: { assign: (url: string) => { assignedUrl = url; } } },
+    configurable: true
+  });
+  try {
+    openAdversaryCompendium('red-ooze', true);
+    assert.equal(assignedUrl, '/?copy=red-ooze#/library/compendium/adversaries/red-ooze');
+  } finally {
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
 });
 
 test('card editor state fits into slash-based hash routes', () => {

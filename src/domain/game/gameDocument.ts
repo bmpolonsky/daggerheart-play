@@ -1,5 +1,13 @@
 import type { PersistedState } from '../rules/types';
 import type { MapAsset } from '../tabletop/types';
+import type {
+  RawAdversary,
+  RawBeastformItem,
+  RawClassItem,
+  RawContentItem,
+  RawEnvironmentItem,
+  RawEquipmentItem
+} from '../content/types';
 import { createId } from '../../core/utils/id';
 
 export const GAME_DOCUMENT_KIND = 'daggerheart-play:game';
@@ -14,13 +22,16 @@ export interface GameManifest {
 }
 
 export interface GameCustomContent {
-  ancestries: unknown[];
-  communities: unknown[];
-  subclasses: unknown[];
-  domainCards: unknown[];
+  ancestries: RawContentItem[];
+  communities: RawContentItem[];
+  subclasses: RawContentItem[];
+  domainCards: RawContentItem[];
   cardDomains: unknown[];
-  adversaries: unknown[];
-  environments?: unknown[];
+  adversaries: RawAdversary[];
+  environments: RawEnvironmentItem[];
+  classes: RawClassItem[];
+  equipment: RawEquipmentItem[];
+  beastforms: RawBeastformItem[];
 }
 
 export interface GameResources {
@@ -38,13 +49,16 @@ export interface GameDocument {
     'data/feed.json': PersistedState['feed'];
     'data/ui.json': PersistedState['ui'];
     'data/scene-table.json': PersistedState['sceneTable'];
-    'content/custom-ancestries.json': unknown[];
-    'content/custom-communities.json': unknown[];
-    'content/custom-subclasses.json': unknown[];
-    'content/custom-domain-cards.json': unknown[];
+    'content/custom-ancestries.json': RawContentItem[];
+    'content/custom-communities.json': RawContentItem[];
+    'content/custom-subclasses.json': RawContentItem[];
+    'content/custom-domain-cards.json': RawContentItem[];
     'content/custom-card-domains.json': unknown[];
-    'content/custom-adversaries.json': unknown[];
-    'content/custom-environments.json': unknown[];
+    'content/custom-adversaries.json': RawAdversary[];
+    'content/custom-environments.json': RawEnvironmentItem[];
+    'content/custom-classes.json'?: RawClassItem[];
+    'content/custom-equipment.json'?: RawEquipmentItem[];
+    'content/custom-beastforms.json'?: RawBeastformItem[];
     'resources/assets.json': MapAsset[];
   };
 }
@@ -82,7 +96,10 @@ export function createGameDocument(state: PersistedState, customContent: GameCus
       'content/custom-domain-cards.json': customContent.domainCards,
       'content/custom-card-domains.json': customContent.cardDomains,
       'content/custom-adversaries.json': customContent.adversaries,
-      'content/custom-environments.json': customContent.environments ?? [],
+      'content/custom-environments.json': customContent.environments,
+      'content/custom-classes.json': customContent.classes,
+      'content/custom-equipment.json': customContent.equipment,
+      'content/custom-beastforms.json': customContent.beastforms,
       'resources/assets.json': Object.values(state.sceneTable.assets).map(assetWithResourcePath)
     }
   });
@@ -132,20 +149,34 @@ export function emptyCustomContent(): GameCustomContent {
     domainCards: [],
     cardDomains: [],
     adversaries: [],
-    environments: []
+    environments: [],
+    classes: [],
+    equipment: [],
+    beastforms: []
   };
 }
 
+export function normalizeGameCustomContent(value: unknown): GameCustomContent {
+  const source = isRecord(value) ? value : {};
+  const fallback = emptyCustomContent();
+  return Object.fromEntries(
+    Object.keys(fallback).map((key) => [key, Array.isArray(source[key]) ? source[key] : []])
+  ) as unknown as GameCustomContent;
+}
+
 export function gameDocumentCustomContent(document: GameDocument): GameCustomContent {
-  return {
+  return normalizeGameCustomContent({
     ancestries: document.files['content/custom-ancestries.json'],
     communities: document.files['content/custom-communities.json'],
     subclasses: document.files['content/custom-subclasses.json'],
     domainCards: document.files['content/custom-domain-cards.json'],
     cardDomains: document.files['content/custom-card-domains.json'],
     adversaries: document.files['content/custom-adversaries.json'],
-    environments: document.files['content/custom-environments.json'] ?? []
-  };
+    environments: document.files['content/custom-environments.json'] ?? [],
+    classes: document.files['content/custom-classes.json'] ?? [],
+    equipment: document.files['content/custom-equipment.json'] ?? [],
+    beastforms: document.files['content/custom-beastforms.json'] ?? []
+  });
 }
 
 export function isGameDocument(value: unknown): value is GameDocument {

@@ -66,6 +66,22 @@ test('game document store repairs recoverable v2 project indexes', () => {
   assert.equal(migrated.games['game-1'].id, 'game-1');
 });
 
+test('game document store preserves old custom content and adds new collections', () => {
+  const project = validProjectDocument();
+  const legacyContent = project.shared.customContent as unknown as Record<string, unknown>;
+  legacyContent.ancestries = [{ id: 'old-ancestry' }];
+  delete legacyContent.classes;
+  delete legacyContent.equipment;
+  delete legacyContent.beastforms;
+
+  const migrated = prepareProjectDocument(project, migrationHandlers());
+
+  assert.deepEqual(migrated.shared.customContent.ancestries, [{ id: 'old-ancestry' }]);
+  assert.deepEqual(migrated.shared.customContent.classes, []);
+  assert.deepEqual(migrated.shared.customContent.equipment, []);
+  assert.deepEqual(migrated.shared.customContent.beastforms, []);
+});
+
 test('game document store accepts valid v2 project documents', () => {
   const project = validProjectDocument();
 

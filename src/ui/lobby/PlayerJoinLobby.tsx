@@ -4,6 +4,7 @@ import { MonitorPlay } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import type { Character } from '../../domain/rules/types';
+import { characterClassLabel } from '../../domain/rules/constants';
 import type { TableParticipant } from '../../domain/tabletop/types';
 import { characterService, p2pSessionService, sceneTableService } from '../../services/serviceRegistry';
 import { Button, ChoiceCard, EmptyState, SectionHeader, Surface, Toolbar } from '../components/common';
@@ -94,7 +95,7 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, scen
                     onClick={() => setSelectedSeatId(seat.id)}
                   >
                     <strong>{seat.name}</strong>
-                    <span>{character ? `${character.name} / ${character.className} ${character.level}` : 'Персонаж не назначен'}</span>
+                    <span>{character ? `${character.name} / ${characterClassLabel(character)} ${character.level}` : 'Персонаж не назначен'}</span>
                   </ChoiceCard>
                 );
               })}

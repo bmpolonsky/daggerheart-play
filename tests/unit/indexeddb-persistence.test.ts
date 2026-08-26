@@ -7,7 +7,7 @@ import { snapshotPersistedState } from "../../src/stores/persistedState";
 import { gameService, characterService, contentService, importExportService, sceneTableService } from "../../src/services/serviceRegistry";
 import { PersistenceService } from "../../src/services/PersistenceService";
 import { applyBrowserCustomContent, readBrowserCustomContent } from "../../src/core/persistence/browserProjectContent";
-import type { GameDocument } from "../../src/domain/game/gameDocument";
+import { emptyCustomContent, type GameDocument } from "../../src/domain/game/gameDocument";
 import { MemoryGameDocumentStore, waitFor } from "./helpers";
 
 function createFakeWindow(memory = new Map<string, string>()) {
@@ -68,13 +68,17 @@ test('persistence mirrors the exported game document into IndexedDB with custom 
   const memory = new Map<string, string>();
   const documentStore = new MemoryGameDocumentStore();
   applyBrowserCustomContent({
+    ...emptyCustomContent(),
     ancestries: [{ id: 'custom-ancestry-1', name: 'Custom Ancestry' }],
     communities: [],
     subclasses: [],
     domainCards: [{ id: 'custom-card-1', name: 'Custom Card' }],
     cardDomains: [{ id: 'custom-domain-1' }],
     adversaries: [{ id: 42, name: 'Custom Adversary' }],
-    environments: [{ id: 'custom-environment-1', name: 'Custom Environment' }]
+    environments: [{ id: 'custom-environment-1', name: 'Custom Environment' }],
+    classes: [{ id: 'custom-class-1', name: 'Custom Class' }],
+    equipment: [{ id: 'custom-equipment-1', name: 'Custom Equipment' }],
+    beastforms: [{ id: 'custom-beastform-1', name: 'Custom Beastform' }]
   });
   const fakeWindow = createFakeWindow(memory);
   Object.defineProperty(globalThis, 'window', { value: fakeWindow, configurable: true });
@@ -91,13 +95,16 @@ test('persistence mirrors the exported game document into IndexedDB with custom 
     assert.deepEqual(documentStore.state?.files['content/custom-card-domains.json'], [{ id: 'custom-domain-1' }]);
     assert.deepEqual(documentStore.state?.files['content/custom-adversaries.json'], [{ id: 42, name: 'Custom Adversary' }]);
     assert.deepEqual(documentStore.state?.files['content/custom-environments.json'], [{ id: 'custom-environment-1', name: 'Custom Environment' }]);
+    assert.deepEqual(documentStore.state?.files['content/custom-classes.json'], [{ id: 'custom-class-1', name: 'Custom Class' }]);
+    assert.deepEqual(documentStore.state?.files['content/custom-equipment.json'], [{ id: 'custom-equipment-1', name: 'Custom Equipment' }]);
+    assert.deepEqual(documentStore.state?.files['content/custom-beastforms.json'], [{ id: 'custom-beastform-1', name: 'Custom Beastform' }]);
     assert.equal(memory.has('daggerheart-play:v3:game:local'), false);
 
     service.resetEverything();
     await Promise.resolve();
     assert.equal(documentStore.state, null);
   } finally {
-    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [], environments: [] });
+    applyBrowserCustomContent(emptyCustomContent());
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });
@@ -435,6 +442,7 @@ test('persistence keeps multiple local games and switches the active one', async
 test('persistence hydration does not overwrite custom tool content from game document files', async () => {
   resetAllStores();
   applyBrowserCustomContent({
+    ...emptyCustomContent(),
     ancestries: [{ id: 'tool-ancestry-kept', name: 'Tool ancestry kept' }],
     communities: [],
     subclasses: [],
@@ -469,7 +477,7 @@ test('persistence hydration does not overwrite custom tool content from game doc
     assert.deepEqual(readBrowserCustomContent().environments, [{ id: 'tool-environment-kept', name: 'Tool environment kept' }]);
   } finally {
     service?.stop();
-    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [], environments: [] });
+    applyBrowserCustomContent(emptyCustomContent());
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });

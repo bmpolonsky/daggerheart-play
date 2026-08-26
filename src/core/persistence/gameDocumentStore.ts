@@ -410,7 +410,11 @@ function isCustomContent(value: unknown): value is GameCustomContent {
     Array.isArray(value.subclasses) &&
     Array.isArray(value.domainCards) &&
     Array.isArray(value.cardDomains) &&
-    Array.isArray(value.adversaries)
+    Array.isArray(value.adversaries) &&
+    Array.isArray(value.environments) &&
+    Array.isArray(value.classes) &&
+    Array.isArray(value.equipment) &&
+    Array.isArray(value.beastforms)
   );
 }
 

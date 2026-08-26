@@ -35,6 +35,7 @@ export interface CharacterBuilderInput {
   name?: string;
   playerName?: string;
   className?: DaggerheartClass;
+  classId?: string;
   ancestryId?: string;
   communityId?: string;
   subclassId?: string;
@@ -110,10 +111,13 @@ export function coerceDomainName(input: unknown): DomainName | null {
   return DOMAIN_ALIASES[value] ?? null;
 }
 
-export function isSubclassForClass(item: GenericLibraryItem, className: DaggerheartClass): boolean {
+export function isSubclassForClass(item: GenericLibraryItem, className: DaggerheartClass, selectedClass?: Pick<LibraryClassItem, 'slug' | 'name'> | null): boolean {
   const classSlug = String(item.raw.class_slug ?? item.raw.class_name ?? '').trim().toLowerCase().replace(/^playtest-/, '');
   const classLabel = CLASS_LABELS[className].toLowerCase();
-  return classSlug === className.toLowerCase() || classSlug === classLabel;
+  return classSlug === selectedClass?.slug.toLowerCase().replace(/^playtest-/, '') ||
+    classSlug === selectedClass?.name.toLowerCase() ||
+    classSlug === className.toLowerCase() ||
+    classSlug === classLabel;
 }
 
 export function isDomainCardForDomains(item: GenericLibraryItem, domains: DomainName[]): boolean {
@@ -124,18 +128,36 @@ export function isDomainCardForDomains(item: GenericLibraryItem, domains: Domain
 export function isSrdLibraryItem(item: GenericLibraryItem): boolean {
   const sources = item.raw.source_slugs;
   if (!Array.isArray(sources)) return true;
-  return sources.some((source) => source === 'core' || source === 'srd');
+  return sources.some((source) => source === 'core' || source === 'srd' || source === 'custom');
 }
 
 export function isSrdClassItem(item: LibraryClassItem): boolean {
   const sources = item.raw.source_slugs;
   if (!Array.isArray(sources)) return true;
-  return sources.some((source) => source === 'core' || source === 'srd');
+  return sources.some((source) => source === 'core' || source === 'srd' || source === 'custom');
 }
 
-export function classDefinitionFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest = false): LibraryClassItem | null {
+export function classDefinitionFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest = false, classId?: string): LibraryClassItem | null {
   const available = includePlaytest ? classes ?? [] : (classes ?? []).filter(isSrdClassItem);
+  if (classId) {
+    const selected = available.find((item) => item.id === classId);
+    if (selected) return selected;
+  }
   return available.find((item) => item.className === className) ?? null;
+}
+
+export function classDefinitionForCharacter(
+  classes: LibraryClassItem[] | undefined,
+  character: Pick<Character, 'className' | 'classSourceId' | 'classSlug'>,
+  includePlaytest = false
+): LibraryClassItem | null {
+  const available = includePlaytest ? classes ?? [] : (classes ?? []).filter(isSrdClassItem);
+  const exact = available.find((item) => (
+    character.classSourceId !== undefined &&
+    String(item.sourceId) === String(character.classSourceId) &&
+    (!character.classSlug || item.slug === character.classSlug)
+  )) ?? available.find((item) => Boolean(character.classSlug) && item.slug === character.classSlug);
+  return exact ?? classDefinitionFor(available, character.className, true);
 }
 
 export function classDomainsFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest = false): DomainName[] {
@@ -391,24 +413,25 @@ export function cleanRulesText(text: string): string {
 
 export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraftResult {
   const content = filterBuilderContent(input.content, input.includePlaytest);
-  const className = input.className ?? 'Bard';
-  const classDomains = classDomainsFor(input.classes, className, input.includePlaytest);
-  const classStats = classStartingStatsFor(input.classes, className, input.includePlaytest);
-  const classDefinition = classDefinitionFor(input.classes, className, input.includePlaytest);
-  const classItems = classStartingItemsFor(input.classes, className, input.includePlaytest);
+  const requestedClassName = input.className ?? 'Bard';
+  const classDefinition = classDefinitionFor(input.classes, requestedClassName, input.includePlaytest, input.classId);
+  const className = classDefinition?.className ?? requestedClassName;
+  const classDomains = classDefinition?.domains ?? classDomainsFor(input.classes, className, input.includePlaytest);
+  const classStats = classDefinition ? { evasion: classDefinition.evasion, hp: classDefinition.hp } : classStartingStatsFor(input.classes, className, input.includePlaytest);
+  const classItems = classDefinition?.classItems.length ? classDefinition.classItems : classStartingItemsFor(input.classes, className, input.includePlaytest);
   const playableDomains = classDomains.filter((domain) => domain !== 'Custom');
   const warnings: string[] = [];
 
   const ancestry = selectById(content.ancestries, input.ancestryId);
   const community = selectById(content.communities, input.communityId);
-  const classSubclasses = content.subclasses.filter((item) => isSubclassForClass(item, className));
+  const classSubclasses = content.subclasses.filter((item) => isSubclassForClass(item, className, classDefinition));
   const subclass = selectById(classSubclasses, input.subclassId);
   const spellcastTrait = spellcastTraitFor(classDefinition, subclass);
   const ruleModifiers = characterBuilderRuleModifiersForSubclass(subclass);
   const requiredDomainCards = startingDomainCardCount(ruleModifiers);
 
   if (input.subclassId && !subclass) {
-    warnings.push(`Подкласс ${input.subclassId} недоступен для класса ${CLASS_LABELS[className]}.`);
+    warnings.push(`Подкласс ${input.subclassId} недоступен для класса ${classDefinition?.name ?? CLASS_LABELS[className]}.`);
   }
 
   const availableDomainCards = content.domainCards
@@ -472,6 +495,9 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
       playerName: input.playerName?.trim() ?? '',
       pronouns: input.pronouns?.trim() ?? '',
       className,
+      classSourceId: classDefinition?.sourceId,
+      classSlug: classDefinition?.slug,
+      classDisplayName: classDefinition?.name,
       subclassName: subclass?.name ?? '',
       subclassSlug: subclass?.slug ?? '',
       ancestry: ancestry?.name ?? '',

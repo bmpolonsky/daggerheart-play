@@ -1,5 +1,6 @@
 import { nowIso } from '../core/utils/date';
-import { reloadBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
+import { reloadBrowserCustomContent, replaceBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
+import { createId } from '../core/utils/id';
 import { contentStore } from '../stores/contentStore';
 import { readRawCustomCardCollections } from '../domain/content/customCardLibrary';
 import { encounterStore, sceneTableStore } from '../stores/gameStores';
@@ -23,6 +24,8 @@ import {
 import type {
   ApiPayload,
   ContentCollectionKey,
+  EditableContentCollectionKey,
+  EditableRawContent,
   ContentManifest,
   ContentSourceFilter,
   ContentState,
@@ -124,27 +127,27 @@ export class ContentService {
 
       const customAdversaries = customContent.adversaries
         .filter(isRawAdversary)
-        .map(markCustomRawAdversary)
+        .map(markCustomRaw)
         .map((item) => mapRawAdversary(item));
       const customEnvironments = (customContent.environments ?? [])
         .filter(isRawEnvironment)
-        .map(markCustomRawEnvironment)
+        .map(markCustomRaw)
         .map((item) => mapRawEnvironmentItem(item));
       const customCards = readRawCustomCardCollections(customContent);
       const adversaries = [...customAdversaries, ...(adversaryPayload.data ?? []).map(mapRawAdversary)].sort(sortAdversaries);
-      const classes = (classesPayload.data ?? []).map(mapRawClassItem).sort(sortClasses);
+      const classes = [...customContent.classes.filter(isNamedRaw<RawClassItem>).map(markCustomRaw), ...(classesPayload.data ?? [])].map(mapRawClassItem).sort(sortClasses);
       // Hidden rules are still valid reference articles for contextual help.
       // The library view filters them from ordinary browsing below.
       const rules = (rulesPayload.data ?? []).map(mapRawRuleItem).sort(sortRules);
       const environments = [...customEnvironments, ...(environmentsPayload.data ?? []).map(mapRawEnvironmentItem)].sort(sortEnvironments);
-      const beastforms = (beastformsPayload.data ?? []).map(mapRawBeastformItem).sort(sortBeastforms);
+      const beastforms = [...customContent.beastforms.filter(isNamedRaw<RawBeastformItem>).map(markCustomRaw), ...(beastformsPayload.data ?? [])].map(mapRawBeastformItem).sort(sortBeastforms);
       const generic = {
         ancestries: [...(ancestriesPayload.data ?? []), ...customCards.ancestries.map(markCustomRawContent)].map((item) => mapGenericItem(item, 'ancestry')).sort(sortGenericItems),
         communities: [...(communitiesPayload.data ?? []), ...customCards.communities.map(markCustomRawContent)].map((item) => mapGenericItem(item, 'community')).sort(sortGenericItems),
         subclasses: [...(subclassesPayload.data ?? []), ...customCards.subclasses.map(markCustomRawContent)].map((item) => mapGenericItem(item, 'subclass')).sort(sortGenericItems),
         domainCards: [...(domainCardsPayload.data ?? []), ...customCards.domainCards.map(markCustomRawContent)].map((item) => mapGenericItem(item, 'domain-card')).sort(sortGenericItems)
       };
-      const equipment = (equipmentPayload.data ?? []).map(mapRawEquipmentItem).sort(sortEquipment);
+      const equipment = [...customContent.equipment.filter(isNamedRaw<RawEquipmentItem>).map(markCustomRaw), ...(equipmentPayload.data ?? [])].map(mapRawEquipmentItem).sort(sortEquipment);
 
       contentStore.update((state) => ({
         ...state,
@@ -197,6 +200,42 @@ export class ContentService {
 
   setSourceFilter(sourceFilter: ContentSourceFilter): void {
     contentStore.update((state) => ({ ...state, sourceFilter, tierFilter: 'all', levelFilter: 'all' }));
+  }
+
+  async saveCustomContent(collection: EditableContentCollectionKey, item: EditableRawContent): Promise<EditableRawContent> {
+    const customContent = await reloadBrowserCustomContent();
+    const key = rawContentKey(item);
+    const normalized = normalizeCustomRaw(collection, item);
+    const items = customContent[collection] as EditableRawContent[];
+    const next = items.some((candidate) => rawContentKey(candidate) === key)
+      ? items.map((candidate) => rawContentKey(candidate) === key ? normalized : candidate)
+      : [normalized, ...items];
+    await replaceBrowserCustomContent({ ...customContent, [collection]: next });
+    await this.reload();
+    return normalized;
+  }
+
+  async removeCustomContent(collection: EditableContentCollectionKey, id: string | number): Promise<void> {
+    const customContent = await reloadBrowserCustomContent();
+    const items = customContent[collection] as EditableRawContent[];
+    await replaceBrowserCustomContent({
+      ...customContent,
+      [collection]: items.filter((item) => rawContentKey(item) !== String(id))
+    });
+    await this.reload();
+  }
+
+  createCustomCopy(collection: EditableContentCollectionKey, source: EditableRawContent = {}): EditableRawContent {
+    const now = Date.now();
+    const id = collection === 'adversaries' ? -now : createId(collection);
+    const name = String(source.name ?? source.title ?? '').trim();
+    return normalizeCustomRaw(collection, {
+      ...source,
+      id,
+      slug: `custom-${now.toString(36)}`,
+      name: name ? `${name} (копия)` : '',
+      updated_at: new Date(now).toISOString()
+    });
   }
 
   applyGameSourceDefaults(gameId: string, includeVoidContent: boolean): void {
@@ -419,14 +458,26 @@ function markCustomRawContent(item: RawContentItem): RawContentItem {
   return sourceSlugs.includes('custom') ? item : { ...item, source_slugs: [...sourceSlugs, 'custom'] };
 }
 
-function markCustomRawAdversary(item: RawAdversary): RawAdversary {
+function markCustomRaw<TRaw extends { source_slugs?: string[] }>(item: TRaw): TRaw {
   const sourceSlugs = Array.isArray(item.source_slugs) ? item.source_slugs : [];
-  return sourceSlugs.includes('custom') ? item : { ...item, source_slugs: [...sourceSlugs, 'custom'] };
+  return sourceSlugs.includes('custom') ? item : { ...item, source_slugs: [...sourceSlugs, 'custom'] } as TRaw;
 }
 
-function markCustomRawEnvironment(item: RawEnvironmentItem): RawEnvironmentItem {
-  const sourceSlugs = Array.isArray(item.source_slugs) ? item.source_slugs : [];
-  return sourceSlugs.includes('custom') ? item : { ...item, source_slugs: [...sourceSlugs, 'custom'] };
+function normalizeCustomRaw(collection: EditableContentCollectionKey, item: EditableRawContent): EditableRawContent {
+  const normalized = markCustomRaw({ ...item });
+  const now = Date.now();
+  return {
+    ...normalized,
+    id: normalized.id ?? (collection === 'adversaries' ? -now : createId(collection)),
+    slug: String(normalized.slug ?? `custom-${now.toString(36)}`),
+    source_slugs: ['custom'],
+    language: typeof normalized.language === 'string' ? normalized.language : 'ru',
+    updated_at: new Date(now).toISOString()
+  };
+}
+
+function rawContentKey(item: EditableRawContent): string {
+  return String(item.id ?? item.slug ?? '');
 }
 
 function sourceMatches(raw: { source_slugs?: unknown }, filter: ContentSourceFilter): boolean {
@@ -496,6 +547,10 @@ function isRawEnvironment(value: unknown): value is RawEnvironmentItem {
   if (!value || typeof value !== 'object') return false;
   const environment = value as Record<string, unknown>;
   return typeof environment.name === 'string' && environment.name.trim().length > 0;
+}
+
+function isNamedRaw<TRaw extends { name?: string | null }>(value: unknown): value is TRaw {
+  return Boolean(value && typeof value === 'object' && typeof (value as { name?: unknown }).name === 'string' && (value as { name: string }).name.trim());
 }
 
 function sortGenericItems(left: GenericLibraryItem, right: GenericLibraryItem): number {

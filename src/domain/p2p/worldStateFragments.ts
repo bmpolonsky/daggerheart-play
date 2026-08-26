@@ -1,5 +1,5 @@
 import type { GameCustomContent } from '../game/gameDocument';
-import { emptyCustomContent } from '../game/gameDocument';
+import { emptyCustomContent, normalizeGameCustomContent } from '../game/gameDocument';
 import type { PersistedState, SceneTableState } from '../rules/types';
 import type { TableScene, TokenState } from '../tabletop/types';
 
@@ -91,9 +91,7 @@ export function decodeWorldState(fragments: WorldStateFragments): DecodedWorldSt
 
   return {
     state: toJsonValue(state),
-    customContent: toJsonValue(
-      (fragments[WORLD_STATE_KEYS.customContent] as GameCustomContent | undefined) ?? emptyCustomContent()
-    )
+    customContent: toJsonValue(normalizeGameCustomContent(fragments[WORLD_STATE_KEYS.customContent]))
   };
 }
 

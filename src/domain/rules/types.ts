@@ -280,6 +280,9 @@ export interface Character {
   pronouns: string;
   portraitUrl: string;
   className: DaggerheartClass;
+  classSourceId?: string | number;
+  classSlug?: string;
+  classDisplayName?: string;
   subclassName: string;
   subclassSlug?: string;
   ancestry: string;

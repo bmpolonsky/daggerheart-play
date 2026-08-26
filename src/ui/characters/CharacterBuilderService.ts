@@ -25,6 +25,7 @@ interface CharacterBuilderDraftState {
   step: BuilderStep;
   name: string;
   className: DaggerheartClass;
+  classId: string;
   ancestryId: string;
   communityId: string;
   subclassId: string;
@@ -63,6 +64,7 @@ export class CharacterBuilderService {
       step,
       name,
       className,
+      classId,
       ancestryId,
       communityId,
       subclassId,
@@ -83,7 +85,7 @@ export class CharacterBuilderService {
       classItem,
       consumableId
     } = draft;
-    const catalog = buildCharacterBuilderCatalog({ content, classes, equipment, className, includePlaytest });
+    const catalog = buildCharacterBuilderCatalog({ content, classes, equipment, className, classId, includePlaytest });
     const { builderContent, classDefinition, classDomains, classItems, equipmentCatalog } = catalog;
     const backgroundQuestions = backgroundQuestionsFor(classDefinition);
     const connectionQuestions = connectionQuestionsFor(classDefinition);
@@ -103,6 +105,7 @@ export class CharacterBuilderService {
       equipment,
       name,
       className,
+      classId: catalog.classDefinition?.id ?? classId,
       ancestryId,
       communityId,
       subclassId,
@@ -128,6 +131,7 @@ export class CharacterBuilderService {
       classes,
       equipment,
       className,
+      classId: catalog.classDefinition?.id ?? classId,
       ancestryId,
       communityId,
       subclassId,
@@ -148,6 +152,7 @@ export class CharacterBuilderService {
       fields: {
         name,
         className,
+        classId: catalog.classDefinition?.id ?? classId,
         ancestryId,
         communityId,
         subclassId,
@@ -195,7 +200,10 @@ export class CharacterBuilderService {
         goToStep: (nextStep: BuilderStep) => this.setStep(nextStep),
         goNext: () => this.setStep(nextBuilderStep(step)),
         goBack: () => this.setStep(previousBuilderStep(step)),
-        selectClass: (next: DaggerheartClass) => this.selectClass(next),
+        selectClass: (next: string) => {
+          const option = catalog.classOptions.find((item) => item.id === next);
+          if (option) this.selectClass(option.id, option.className);
+        },
         selectAncestry: (next: string) => this.updateDraft({ ancestryId: next }),
         selectCommunity: (next: string) => this.updateDraft({ communityId: next }),
         selectSubclass: (next: string) => this.updateDraft({ subclassId: next }),
@@ -230,9 +238,10 @@ export class CharacterBuilderService {
     this.updateDraft({ step });
   }
 
-  private selectClass(className: DaggerheartClass): void {
+  private selectClass(classId: string, className: DaggerheartClass): void {
     this.updateDraft({
       className,
+      classId,
       subclassId: '',
       selectedCardIds: [],
       classItem: '',
@@ -277,12 +286,15 @@ export class CharacterBuilderService {
     includePlaytest: boolean
   ): void {
     this.draftStore.update((current) => {
-      const className = catalog.classOptions[Math.floor(Math.random() * catalog.classOptions.length)]?.className ?? current.className;
-      const randomCatalog = buildCharacterBuilderCatalog({ content, classes, equipment, className, includePlaytest });
+      const classOption = catalog.classOptions[Math.floor(Math.random() * catalog.classOptions.length)];
+      const className = classOption?.className ?? current.className;
+      const classId = classOption?.id ?? current.classId;
+      const randomCatalog = buildCharacterBuilderCatalog({ content, classes, equipment, className, classId, includePlaytest });
       const quick = buildCharacterBuilderQuickStart(randomCatalog, Math.random);
       return {
         ...current,
         className,
+        classId,
         traits: { ...(CLASS_RECOMMENDED_TRAITS[className] ?? DEFAULT_TRAITS) },
         ancestryId: quick.ancestryId,
         communityId: quick.communityId,
@@ -331,6 +343,7 @@ function createDefaultCharacterBuilderDraft(): CharacterBuilderDraftState {
     step: 'class',
     name: 'Новый герой',
     className: 'Bard',
+    classId: '',
     ancestryId: '',
     communityId: '',
     subclassId: '',

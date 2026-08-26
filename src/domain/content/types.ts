@@ -1,6 +1,7 @@
 import type { AdversaryType, DaggerheartClass, DamageType, DomainName, TraitId } from '../rules/types';
 
 export type ContentCollectionKey = 'adversaries' | 'classes' | 'rules' | 'environments' | 'beastforms' | 'ancestries' | 'communities' | 'subclasses' | 'domainCards' | 'equipment';
+export type EditableContentCollectionKey = Exclude<ContentCollectionKey, 'rules'>;
 export type ContentSourceFilter = 'all' | 'core' | 'void' | 'homebrew';
 
 export interface ApiPayload<T> {
@@ -64,6 +65,8 @@ export interface RawAdversaryFeature {
   name?: string | null;
   main_body?: string | null;
   text?: string | null;
+  kind?: 'action' | 'reaction' | 'passive' | 'fear' | string;
+  cost?: string | null;
   [key: string]: unknown;
 }
 
@@ -213,6 +216,8 @@ export interface RawEquipmentItem {
   feature?: string | null;
   [key: string]: unknown;
 }
+
+export type EditableRawContent = RawAdversary | RawClassItem | RawEnvironmentItem | RawBeastformItem | RawEquipmentItem | RawContentItem;
 
 export interface LibraryAdversary {
   id: string;

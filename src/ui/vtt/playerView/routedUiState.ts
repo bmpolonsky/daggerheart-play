@@ -80,7 +80,7 @@ export function parseRoutedPlayerViewState(pathname: string, role: TableViewRole
       toolsOpen: true,
       toolsTab: 'library',
       libraryCollection: collectionFromSlug(subsection),
-      libraryEntrySlug: subsection === COLLECTION_SLUGS.rules ? entrySlug ?? null : null,
+      libraryEntrySlug: entrySlug ?? null,
       settingsSection: null,
       handoutId: null
     };
@@ -146,7 +146,7 @@ function pathForToolsTab(tab: SharedToolsTab, next: { libraryCollection?: Conten
   if (tab === 'library') {
     const collectionSlug = next.libraryCollection ? COLLECTION_SLUGS[next.libraryCollection] : '';
     if (!collectionSlug) return `${LIBRARY_PATH_PREFIX}/compendium`;
-    const entrySlug = next.libraryCollection === 'rules' && next.libraryEntrySlug
+    const entrySlug = next.libraryEntrySlug
       ? `/${encodeURIComponent(next.libraryEntrySlug)}`
       : '';
     return `${LIBRARY_PATH_PREFIX}/compendium/${collectionSlug}${entrySlug}`;

@@ -5,7 +5,7 @@ import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTe
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { characterSheetCardSourceLabel, isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
 import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId, CharacterWealth } from '../rules/types';
-import { TRAIT_LABELS, adversaryTypeLabel, classLabel, domainLabel, rangeLabel } from '../rules/constants';
+import { TRAIT_LABELS, adversaryTypeLabel, characterClassLabel, domainLabel, rangeLabel } from '../rules/constants';
 import { normalizeStatusTag } from '../rules/statuses';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
 import { canViewFeedEntry, latestVisibleRollLogEntry } from './rollPublication';
@@ -411,7 +411,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
   return {
     id: character.id,
     name: character.name,
-    subtitle: [character.ancestry, character.community, classLabel(character.className)].filter(Boolean).join(' / '),
+    subtitle: [character.ancestry, character.community, characterClassLabel(character)].filter(Boolean).join(' / '),
     portraitUrl: defaultCharacterPortraitUrl(character),
     level: character.level,
     proficiency: character.proficiency,

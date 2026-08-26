@@ -3,13 +3,15 @@ import assert from "node:assert/strict";
 import { customAdversaryToRaw, normalizeRawCustomAdversary } from "../../src/tools/combat-builder/lib/customAdversaries";
 import { fetchTemplateCollection } from "../../src/tools/card-creator/lib/api";
 import { ContentService } from "../../src/services/ContentService";
-import { applyBrowserCustomContent } from "../../src/core/persistence/browserProjectContent";
+import { applyBrowserCustomContent, readBrowserCustomContent, reloadBrowserCustomContent, replaceBrowserCustomContent } from "../../src/core/persistence/browserProjectContent";
 import { createContentState } from "../../src/stores/contentStore";
 import { cleanRulesText, coerceDomainName, domainCardFromLibrary, isDomainCardForDomains, isSubclassForClass } from "../../src/domain/characterBuilder/index";
 import { queryLibraryContent } from "../../src/domain/content/query";
 import { createAdversaryFromLibrary, mapGenericItem, mapRawAdversary, mapRawClassItem, mapRawEquipmentItem, mapRawRuleItem } from "../../src/domain/content/mappers";
 import { buildApiCollectionUrl, createContentManifest, summarizeContentSources } from "../../src/domain/content/source";
 import { genericItem } from "./helpers";
+import { emptyCustomContent } from "../../src/domain/game/gameDocument";
+import { cleanCustomContentDraft, createCustomContentDraft, validateCustomContentDraft } from "../../src/domain/content/customContentDraft";
 
 test('character builder maps and cleans library items without UI state', () => {
   const card = genericItem({
@@ -390,6 +392,7 @@ test('content service normalizes custom tool content into library collections du
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () => new Response(JSON.stringify({ result: 'ok', data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
   applyBrowserCustomContent({
+    ...emptyCustomContent(),
     domainCards: [{
       id: 'custom-library-card',
       slug: 'custom-library-card',
@@ -483,7 +486,7 @@ test('content service normalizes custom tool content into library collections du
     assert.equal(environmentView.environments.some((item) => item.name === 'Custom Library Environment'), true);
     assert.equal(environmentView.environments.every((item) => item.raw.source_slugs?.includes('custom') && item.tier === 3), true);
   } finally {
-    applyBrowserCustomContent({ ancestries: [], communities: [], subclasses: [], domainCards: [], cardDomains: [], adversaries: [], environments: [] });
+    applyBrowserCustomContent(emptyCustomContent());
     globalThis.fetch = originalFetch;
   }
 });
@@ -510,6 +513,125 @@ test('content source domain prefers live api metadata and reports cache fallback
   assert.equal(manifest.source, 'https://daggerheart.su');
   assert.equal(manifest.collections[0].count, 2);
   assert.equal(manifest.collections[0].source, 'api');
+});
+
+test('custom content CRUD copies all editable collections without losing unknown fields', async () => {
+  const service = new ContentService();
+  const originalFetch = globalThis.fetch;
+  const collections = ['adversaries', 'classes', 'environments', 'beastforms', 'ancestries', 'communities', 'subclasses', 'domainCards', 'equipment'] as const;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ result: 'ok', data: [] }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  })) as typeof fetch;
+  applyBrowserCustomContent(emptyCustomContent());
+
+  try {
+    for (const collection of collections) {
+      const copy = service.createCustomCopy(collection, {
+        id: 'official-id',
+        slug: 'official-slug',
+        name: 'Официальный материал',
+        future_field: { preserved: true }
+      });
+      assert.notEqual(copy.id, 'official-id');
+      assert.notEqual(copy.slug, 'official-slug');
+      assert.deepEqual(copy.source_slugs, ['custom']);
+
+      const saved = await service.saveCustomContent(collection, copy);
+      const stored = (readBrowserCustomContent()[collection] as Array<Record<string, unknown>>)
+        .find((item) => String(item.id) === String(saved.id));
+      assert.deepEqual(stored?.future_field, { preserved: true });
+
+      await service.removeCustomContent(collection, saved.id!);
+      assert.equal((readBrowserCustomContent()[collection] as Array<Record<string, unknown>>)
+        .some((item) => String(item.id) === String(saved.id)), false);
+    }
+
+    applyBrowserCustomContent({
+      ...emptyCustomContent(),
+      ancestries: [{ slug: 'slug-only', name: 'Старое имя', source_slugs: ['custom'] }]
+    });
+    const updated = await service.saveCustomContent('ancestries', {
+      slug: 'slug-only',
+      name: 'Новое имя',
+      source_slugs: ['custom']
+    });
+    const slugOnlyEntries = readBrowserCustomContent().ancestries as Array<Record<string, unknown>>;
+    assert.equal(slugOnlyEntries.length, 1);
+    assert.equal(slugOnlyEntries[0]?.name, 'Новое имя');
+    assert.ok(updated.id);
+  } finally {
+    applyBrowserCustomContent(emptyCustomContent());
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('awaited custom content persistence reports storage failures and restores the cache', async () => {
+  const before = { ...emptyCustomContent(), ancestries: [{ slug: 'kept', name: 'Сохранённое' }] };
+  applyBrowserCustomContent(before);
+
+  await assert.rejects(() => replaceBrowserCustomContent({
+    ...emptyCustomContent(),
+    ancestries: [{ slug: 'lost', name: 'Не сохранено' }]
+  }, {
+    get: async () => null,
+    put: async () => { throw new Error('quota exceeded'); },
+    delete: async () => undefined,
+    subscribe: () => () => undefined
+  }), /quota exceeded/);
+
+  assert.deepEqual(readBrowserCustomContent().ancestries, before.ancestries);
+});
+
+test('custom content mutations stop when the latest storage read fails', async () => {
+  const before = { ...emptyCustomContent(), ancestries: [{ slug: 'kept', name: 'Сохранённое' }] };
+  applyBrowserCustomContent(before);
+  let writes = 0;
+
+  await assert.rejects(() => reloadBrowserCustomContent({
+    get: async () => { throw new Error('read failed'); },
+    put: async () => { writes += 1; },
+    delete: async () => { writes += 1; },
+    subscribe: () => () => undefined
+  }), /read failed/);
+
+  assert.deepEqual(readBrowserCustomContent().ancestries, before.ancestries);
+  assert.equal(writes, 0);
+});
+
+test('custom content drafts validate numeric limits and preserve imported fields', () => {
+  const draft = createCustomContentDraft('adversaries', {
+    name: 'Проверочный противник',
+    tier: 5,
+    damage_thresholds: [12, 8],
+    features: [
+      { id: 'kept', name: 'Действие', main_body: 'Текст' },
+      { id: 'empty', name: '', main_body: '' }
+    ],
+    future_field: { preserved: true }
+  });
+
+  assert.equal(validateCustomContentDraft('adversaries', draft), 'Ранг: допустимо от 1 до 4.');
+  draft.tier = 2;
+  assert.equal(validateCustomContentDraft('adversaries', draft), 'Тяжёлый порог должен быть не меньше ощутимого.');
+  draft.damage_thresholds = [8, 12];
+  assert.equal(validateCustomContentDraft('adversaries', draft), null);
+
+  const cleaned = cleanCustomContentDraft(draft);
+  assert.deepEqual(cleaned.future_field, { preserved: true });
+  assert.deepEqual(cleaned.features?.map((feature) => feature.id), ['kept']);
+
+  const classDraft = createCustomContentDraft('classes', { name: 'Свой класс', domain_slugs: [] });
+  assert.equal(validateCustomContentDraft('classes', classDraft), 'Выберите два разных домена.');
+  classDraft.domain_slugs = ['arcana', 'arcana'];
+  assert.equal(validateCustomContentDraft('classes', classDraft), 'Выберите два разных домена.');
+  classDraft.domain_slugs = ['arcana', 'sage'];
+  assert.equal(validateCustomContentDraft('classes', classDraft), null);
+
+  const subclassDraft = createCustomContentDraft('subclasses', { name: 'Свой подкласс' });
+  assert.equal(validateCustomContentDraft('subclasses', subclassDraft), 'Выберите класс.');
+  subclassDraft.class_slug = 'custom-class';
+  assert.equal(validateCustomContentDraft('subclasses', subclassDraft), null);
 });
 
 test('content service uses cache-first collection reads unless live refresh is requested', async () => {

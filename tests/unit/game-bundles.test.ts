@@ -9,6 +9,8 @@ import { gameService, importExportService, sceneTableService } from "../../src/s
 import { AssetService } from "../../src/services/AssetService";
 import { ImportExportService } from "../../src/services/ImportExportService";
 import { PersistenceService } from "../../src/services/PersistenceService";
+import { applyBrowserCustomContent, readBrowserCustomContent } from "../../src/core/persistence/browserProjectContent";
+import { emptyCustomContent } from "../../src/domain/game/gameDocument";
 
 function createMemoryImportExportService(assetService: AssetService): ImportExportService {
   return new ImportExportService(assetService, new PersistenceService(null, assetService));
@@ -28,6 +30,12 @@ test('game bundles are real zip folders and legacy JSON remains importable', asy
   });
   const bundleImportExportService = createMemoryImportExportService(memoryAssetService);
   gameService.updateGame({ name: 'Zip Game' });
+  applyBrowserCustomContent({
+    ...emptyCustomContent(),
+    classes: [{ id: 'custom-class', name: 'Класс из архива' }],
+    equipment: [{ id: 'custom-equipment', name: 'Снаряжение из архива' }],
+    beastforms: [{ id: 'custom-beastform', name: 'Звероформа из архива' }]
+  });
   await memoryAssetService.putAssetBlob({
     id: 'asset-bundle',
     name: 'bundle-map.png',
@@ -47,11 +55,17 @@ test('game bundles are real zip folders and legacy JSON remains importable', asy
   assert.deepEqual(Array.from(entries.find((entry) => entry.path === 'resources/images/asset-bundle.png')?.bytes ?? []), [1, 2, 3, 4]);
   assert.equal(JSON.parse(zipTextEntry(entries, 'manifest.json') ?? '{}').name, 'Zip Game');
   assert.equal(JSON.parse(zipTextEntry(entries, 'resources/assets.json') ?? '[]')[0]?.resourcePath, 'resources/images/asset-bundle.png');
+  assert.equal(JSON.parse(zipTextEntry(entries, 'content/custom-classes.json') ?? '[]')[0]?.name, 'Класс из архива');
+  applyBrowserCustomContent(emptyCustomContent());
   assert.deepEqual(await bundleImportExportService.importFile(bundle), { ok: true });
   assert.equal(gameService.game$.get().name, 'Zip Game');
+  assert.equal(readBrowserCustomContent().classes[0]?.name, 'Класс из архива');
+  assert.equal(readBrowserCustomContent().equipment[0]?.name, 'Снаряжение из архива');
+  assert.equal(readBrowserCustomContent().beastforms[0]?.name, 'Звероформа из архива');
 
   const legacyJson = JSON.stringify(snapshotPersistedState());
   assert.deepEqual(await importExportService.importFile(new Blob([legacyJson], { type: 'application/json' })), { ok: true });
+  applyBrowserCustomContent(emptyCustomContent());
 });
 
 test('game bundle export extracts embedded scene data URLs into resource files', async () => {

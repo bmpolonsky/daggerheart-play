@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { Plus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import type { LibraryRuleEntry } from '../../../../domain/content/types';
 import { contentService } from '../../../../services/serviceRegistry';
@@ -9,25 +9,33 @@ import { SelectControl } from '../../../components/common/Field';
 import { SearchField } from '../../../components/common/SearchField';
 import { SegmentedControl } from '../../../components/common/SegmentedControl';
 import { Toolbar } from '../../../components/common/Toolbar';
-import { SharedToolsCustomCompendiumEditor } from '../sharedTools/SharedToolsCustomCompendiumEditor';
-import type { LibraryEntry } from './libraryDetailTypes';
+import type { CompendiumEditorTarget } from './CompendiumEntityEditor';
 import { LibraryResults } from './LibraryResults';
 
 export function SharedToolsLibraryTab({
   libraryView,
-  onRuleSelectionChange,
-  selectedRuleSlug,
+  copyEntrySlug,
+  editable = false,
+  onEditorDirtyChange,
+  onCopyEntryConsumed,
+  onEntrySelectionChange,
+  selectedEntrySlug,
   targetCharacterId,
   targetRule
 }: {
   libraryView: ContentLibraryView;
-  onRuleSelectionChange?: (slug: string | null) => void;
-  selectedRuleSlug?: string | null;
+  copyEntrySlug?: string | null;
+  editable?: boolean;
+  onEditorDirtyChange?: (dirty: boolean) => void;
+  onCopyEntryConsumed?: () => void;
+  onEntrySelectionChange?: (slug: string | null) => void;
+  selectedEntrySlug?: string | null;
   targetCharacterId?: string | null;
   targetRule?: LibraryRuleEntry | null;
 }) {
-  const editableKind = editableKindForCollection(libraryView.selectedCollection);
-  const [editorState, setEditorState] = useState<NonNullable<LibraryEntry['custom']> | null>(null);
+  const editableCollection = editable && libraryView.selectedCollection !== 'rules' ? libraryView.selectedCollection : null;
+  const [editorTarget, setEditorTarget] = useState<CompendiumEditorTarget | null>(null);
+  const [editorDirty, setEditorDirty] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const sourceOptions = useMemo(() => [
     { value: 'all', label: 'Все' },
@@ -36,23 +44,23 @@ export function SharedToolsLibraryTab({
     { value: 'homebrew', label: 'Свои' }
   ], []);
   useEffect(() => {
-    setEditorState((current) => {
-      if (!editableKind) return null;
-      if (current && current.kind !== editableKind) return null;
-      return current;
-    });
-  }, [editableKind]);
-
-  const openCustomEditor = (custom: NonNullable<LibraryEntry['custom']>) => {
-    contentService.setSourceFilter('homebrew');
-    setEditorState(custom);
+    setEditorTarget((current) => current && current.collection !== libraryView.selectedCollection ? null : current);
+  }, [libraryView.selectedCollection]);
+  const updateDirty = useCallback((dirty: boolean) => {
+    setEditorDirty(dirty);
+    onEditorDirtyChange?.(dirty);
+  }, [onEditorDirtyChange]);
+  const createEntry = () => {
+    if (!editableCollection) return;
+    if (editorDirty && typeof window !== 'undefined' && !window.confirm('Отменить несохранённые изменения?')) return;
+    setEditorTarget({ collection: editableCollection, raw: contentService.createCustomCopy(editableCollection), persisted: false });
   };
 
   return (
-    <section className={`player-tools-section player-library-section ${editableKind ? 'player-library-section--has-actions' : ''} ${editorState ? 'player-library-section--editing' : ''} ${detailOpen ? 'player-library-section--detail-open' : ''}`.trim()}>
-      {editableKind && (
+    <section className={`player-tools-section player-library-section ${editableCollection ? 'player-library-section--has-actions' : ''} ${editorTarget ? 'player-library-section--editing' : ''} ${detailOpen ? 'player-library-section--detail-open' : ''}`.trim()}>
+      {editableCollection && (
         <Toolbar className="player-tools-section-actions" aria-label="Действия справочника">
-          <Button size="sm" type="button" variant="primary" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={() => openCustomEditor({ kind: editableKind, id: 'new' })}>
+          <Button size="sm" type="button" variant="primary" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={createEntry}>
             Создать
           </Button>
         </Toolbar>
@@ -64,7 +72,7 @@ export function SharedToolsLibraryTab({
           aria-label="Поиск по справочнику"
           value={libraryView.searchTerm}
           onInput={(event) => {
-            if (libraryView.selectedCollection === 'rules') onRuleSelectionChange?.(null);
+            onEntrySelectionChange?.(null);
             contentService.setSearchTerm(event.currentTarget.value);
           }}
           placeholder="Найти по названию, эффекту или типу..."
@@ -94,32 +102,21 @@ export function SharedToolsLibraryTab({
         )}
       </div>
 
-      {editorState && (
-        <SharedToolsCustomCompendiumEditor
-          key={`${editorState.kind}:${editorState.id}`}
-          kind={editorState.kind}
-          initialId={editorState.id}
-          onClose={() => setEditorState(null)}
-        />
-      )}
-
-      {!editorState && (
-        <LibraryResults
+      <LibraryResults
+          copyEntrySlug={copyEntrySlug}
+          editable={editable}
           libraryView={libraryView}
           targetCharacterId={targetCharacterId}
-          onEditCustom={openCustomEditor}
+          editorTarget={editorTarget}
+          editorDirty={editorDirty}
+          onEditorDirtyChange={updateDirty}
+          onEditorTargetChange={setEditorTarget}
+          onCopyEntryConsumed={onCopyEntryConsumed}
           onDetailOpenChange={setDetailOpen}
-          onRuleSelectionChange={onRuleSelectionChange}
-          selectedRuleSlug={selectedRuleSlug}
+          onEntrySelectionChange={onEntrySelectionChange}
+          selectedEntrySlug={selectedEntrySlug}
           targetRule={targetRule}
-        />
-      )}
+      />
     </section>
   );
-}
-
-function editableKindForCollection(collection: ContentLibraryView['selectedCollection']): NonNullable<LibraryEntry['custom']>['kind'] | null {
-  if (collection === 'adversaries') return 'adversary';
-  if (collection === 'environments') return 'environment';
-  return null;
 }

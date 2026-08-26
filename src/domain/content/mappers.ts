@@ -214,11 +214,12 @@ function mapFeature(feature: RawAdversaryFeature): AdversaryFeature {
   const text = cleanImportedRulesText(feature.main_body ?? feature.text);
   const lower = `${name} ${text}`.toLowerCase();
   const explicitCost = inferExplicitAdversaryFeatureCost(lower);
+  const storedKind = feature.kind === 'action' || feature.kind === 'reaction' || feature.kind === 'passive' || feature.kind === 'fear' ? feature.kind : null;
   return {
     id: String(feature.id ?? createId('feature')),
     name,
-    kind: explicitCost.kind ?? (lower.includes('reaction') || lower.includes('реакц') ? 'reaction' : 'action'),
-    cost: explicitCost.cost,
+    kind: storedKind ?? explicitCost.kind ?? (lower.includes('reaction') || lower.includes('реакц') ? 'reaction' : 'action'),
+    cost: typeof feature.cost === 'string' ? feature.cost : explicitCost.cost,
     text
   };
 }

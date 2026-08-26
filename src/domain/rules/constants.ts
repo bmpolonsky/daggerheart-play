@@ -135,6 +135,10 @@ export function classLabel(value: string): string {
     : value;
 }
 
+export function characterClassLabel(character: { className: DaggerheartClass; classDisplayName?: string }): string {
+  return character.classDisplayName?.trim() || classLabel(character.className);
+}
+
 export function domainLabel(value: string): string {
   return Object.prototype.hasOwnProperty.call(DOMAIN_LABELS, value)
     ? DOMAIN_LABELS[value as DomainName]

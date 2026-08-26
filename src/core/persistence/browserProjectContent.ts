@@ -1,10 +1,11 @@
 import type { GameCustomContent } from '../../domain/game/gameDocument';
-import { emptyCustomContent } from '../../domain/game/gameDocument';
+import { emptyCustomContent, normalizeGameCustomContent } from '../../domain/game/gameDocument';
 import { createCustomContentStore } from './customContentStore';
 import type { KeyValueDocumentStore } from './keyValueStore';
 import { prepareCustomContentDocument, type BrowserCustomContentDocument } from './migrations/browserProjectContent';
 import { CUSTOM_CONTENT_STORAGE } from './storageKeys';
 
+export type CustomContentCollectionKey = Exclude<keyof GameCustomContent, 'cardDomains'>;
 type CustomContentTopic = keyof GameCustomContent | 'customCards' | 'all';
 
 const customContentStore = createCustomContentStore();
@@ -33,25 +34,27 @@ export async function loadBrowserCustomContent(): Promise<GameCustomContent> {
   return cloneProjectContent(document);
 }
 
-export async function reloadBrowserCustomContent(): Promise<GameCustomContent> {
+export async function reloadBrowserCustomContent(store: KeyValueDocumentStore | null = customContentStore): Promise<GameCustomContent> {
   await pendingWrite;
-  projectContentLoadPromise = loadCustomContentDocument(customContentStore).then((document) => {
-    projectContentCache = cloneProjectContent(document);
-    projectContentLoaded = true;
-    return cloneCustomContentDocument();
-  });
-  const document = await projectContentLoadPromise;
+  const document = await readCustomContentDocument(store);
+  setCustomContentDocumentCache(document);
   return cloneProjectContent(document);
 }
 
 export function applyBrowserCustomContent(content: GameCustomContent): void {
   setProjectContentCache(content);
-  void persistProjectContent(customContentStore, projectContentCache);
+  persistCustomContentDocumentSilently(customContentStore);
 }
 
-export async function replaceBrowserCustomContent(content: GameCustomContent): Promise<void> {
+export async function replaceBrowserCustomContent(content: GameCustomContent, store: KeyValueDocumentStore | null = customContentStore): Promise<void> {
+  const previous = projectContentCache;
   setProjectContentCache(content);
-  await persistProjectContent(customContentStore, projectContentCache);
+  try {
+    await persistCustomContentDocument(store);
+  } catch (error) {
+    setProjectContentCache(previous);
+    throw error;
+  }
 }
 
 export type CustomCardCollectionKey = 'ancestries' | 'communities' | 'subclasses' | 'domainCards';
@@ -72,7 +75,7 @@ export function readCustomCardCollectionsSnapshot(): Pick<GameCustomContent, Cus
 
 export function saveCustomCardCollection(key: CustomCardCollectionKey, cards: unknown[]): void {
   setProjectContentCache({ ...projectContentCache, [key]: cards });
-  void persistCustomContentDocument(customContentStore);
+  persistCustomContentDocumentSilently(customContentStore);
 }
 
 export function saveCustomCardCollections(collections: Pick<GameCustomContent, CustomCardCollectionKey>): void {
@@ -83,7 +86,17 @@ export function saveCustomCardCollections(collections: Pick<GameCustomContent, C
     subclasses: collections.subclasses,
     domainCards: collections.domainCards
   });
-  void persistCustomContentDocument(customContentStore);
+  persistCustomContentDocumentSilently(customContentStore);
+}
+
+export async function loadCustomContentCollection<TKey extends CustomContentCollectionKey>(key: TKey): Promise<GameCustomContent[TKey]> {
+  const content = await loadBrowserCustomContent();
+  return [...content[key]] as GameCustomContent[TKey];
+}
+
+export function saveCustomContentCollection<TKey extends CustomContentCollectionKey>(key: TKey, items: GameCustomContent[TKey]): void {
+  setProjectContentCache({ ...projectContentCache, [key]: [...items] });
+  persistCustomContentDocumentSilently(customContentStore);
 }
 
 export async function loadCustomCardDomains(): Promise<unknown[]> {
@@ -93,7 +106,7 @@ export async function loadCustomCardDomains(): Promise<unknown[]> {
 
 export function saveCustomCardDomains(cardDomains: unknown[]): void {
   setProjectContentCache({ ...projectContentCache, cardDomains });
-  void persistCustomContentDocument(customContentStore);
+  persistCustomContentDocumentSilently(customContentStore);
 }
 
 export async function loadCustomAdversaries(): Promise<unknown[]> {
@@ -102,8 +115,8 @@ export async function loadCustomAdversaries(): Promise<unknown[]> {
 }
 
 export function saveCustomAdversaries(adversaries: unknown[]): void {
-  setProjectContentCache({ ...projectContentCache, adversaries });
-  void persistCustomContentDocument(customContentStore);
+  setProjectContentCache({ ...projectContentCache, adversaries: adversaries.filter(isRecord) });
+  persistCustomContentDocumentSilently(customContentStore);
 }
 
 export function readCustomAdversariesSnapshot(): unknown[] {
@@ -116,8 +129,8 @@ export async function loadCustomEnvironments(): Promise<unknown[]> {
 }
 
 export function saveCustomEnvironments(environments: unknown[]): void {
-  setProjectContentCache({ ...projectContentCache, environments });
-  void persistCustomContentDocument(customContentStore);
+  setProjectContentCache({ ...projectContentCache, environments: environments.filter(isRecord) });
+  persistCustomContentDocumentSilently(customContentStore);
 }
 
 export function readCustomEnvironmentsSnapshot(): unknown[] {
@@ -152,38 +165,33 @@ export function subscribeCustomContentChanges(topic: CustomContentTopic, listene
 }
 
 async function loadCustomContentDocument(store: KeyValueDocumentStore | null): Promise<BrowserCustomContentDocument> {
-  if (!store) {
-    return cloneCustomContentDocument();
-  }
   try {
-    const document = await store.get<Partial<BrowserCustomContentDocument>>(CUSTOM_CONTENT_STORAGE.key);
-    return prepareCustomContentDocument(document);
+    return await readCustomContentDocument(store);
   } catch {
     return emptyCustomContentDocument();
   }
 }
 
-async function persistProjectContent(store: KeyValueDocumentStore | null, content: GameCustomContent): Promise<void> {
-  projectContentCache = cloneProjectContent(content);
-  await persistCustomContentDocument(store);
+async function readCustomContentDocument(store: KeyValueDocumentStore | null): Promise<BrowserCustomContentDocument> {
+  if (!store) {
+    return cloneCustomContentDocument();
+  }
+  const document = await store.get<Partial<BrowserCustomContentDocument>>(CUSTOM_CONTENT_STORAGE.key);
+  return prepareCustomContentDocument(document);
 }
 
 async function persistCustomContentDocument(store: KeyValueDocumentStore | null): Promise<void> {
-  if (!store) {
-    return;
-  }
-  try {
-    const document = cloneCustomContentDocument();
-    if (isEmptyCustomContentDocument(document)) {
-      pendingWrite = store.delete(CUSTOM_CONTENT_STORAGE.key);
-      await pendingWrite;
-      return;
-    }
-    pendingWrite = store.put(CUSTOM_CONTENT_STORAGE.key, document);
-    await pendingWrite;
-  } catch {
-    // Custom tool content is a project sidecar; failing to mirror it should not block the table.
-  }
+  if (!store) return;
+  const document = cloneCustomContentDocument();
+  const write = isEmptyCustomContentDocument(document)
+    ? store.delete(CUSTOM_CONTENT_STORAGE.key)
+    : store.put(CUSTOM_CONTENT_STORAGE.key, document);
+  pendingWrite = write.catch(() => undefined);
+  await write;
+}
+
+function persistCustomContentDocumentSilently(store: KeyValueDocumentStore | null): void {
+  void persistCustomContentDocument(store).catch(() => undefined);
 }
 
 function setProjectContentCache(content: GameCustomContent): void {
@@ -199,15 +207,10 @@ function setCustomContentDocumentCache(document: BrowserCustomContentDocument): 
 }
 
 function cloneProjectContent(content: GameCustomContent): GameCustomContent {
-  return {
-    ancestries: [...content.ancestries],
-    communities: [...content.communities],
-    subclasses: [...content.subclasses],
-    domainCards: [...content.domainCards],
-    cardDomains: [...content.cardDomains],
-    adversaries: [...content.adversaries],
-    environments: [...(content.environments ?? [])]
-  };
+  const normalized = normalizeGameCustomContent(content);
+  return Object.fromEntries(
+    Object.entries(normalized).map(([key, items]) => [key, [...items]])
+  ) as unknown as GameCustomContent;
 }
 
 function cloneCustomContentDocument(): BrowserCustomContentDocument {
@@ -226,7 +229,10 @@ function isEmptyCustomContentDocument(document: BrowserCustomContentDocument): b
     document.domainCards.length === 0 &&
     document.cardDomains.length === 0 &&
     document.adversaries.length === 0 &&
-    (document.environments ?? []).length === 0
+    document.environments.length === 0 &&
+    document.classes.length === 0 &&
+    document.equipment.length === 0 &&
+    document.beastforms.length === 0
   );
 }
 
@@ -251,4 +257,8 @@ function stableJsonSignature(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object');
 }

@@ -12,7 +12,7 @@ import {
 import { useStream } from "../../../../core/hooks/useStream";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";
-import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";
+import { openAdversaryCompendium } from "@combat/lib/compendium";
 import { Button } from "../../../../ui/components/common/Button";
 import { EmptyState } from "../../../../ui/components/common/EmptyState";
 import { IconButton } from "../../../../ui/components/common/IconButton";
@@ -86,7 +86,7 @@ export function SidebarContainer() {
               variant="primary"
               onClick={() => {
                 setCatalogNotice(null);
-                customAdversaryEditorService.openCreate();
+                openAdversaryCompendium();
               }}
               title="Создать кастомного противника"
               iconBefore={<IconPlus size={14} aria-hidden="true" />}
@@ -214,7 +214,7 @@ export function SidebarContainer() {
                 onViewDetails={() => adversariesService.openDetails(adversary.id)}
                 onEdit={
                   adversary.isCustom
-                    ? () => customAdversaryEditorService.openEdit(adversary)
+                    ? () => openAdversaryCompendium(adversary.slug)
                     : undefined
                 }
               />

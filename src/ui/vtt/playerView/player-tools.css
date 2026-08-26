@@ -2855,6 +2855,89 @@
   padding-top: 6px;
 }
 
+.player-compendium-editor__header {
+  padding-right: 42px;
+}
+
+.player-compendium-editor__header h3 {
+  margin: 4px 0 0;
+}
+
+.player-compendium-editor__identity-fields {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.player-compendium-editor__section {
+  display: grid;
+  gap: 12px;
+}
+
+.player-compendium-editor__section > header,
+.player-compendium-editor__collection-head,
+.player-compendium-editor__string-row,
+.player-compendium-editor__footer {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.player-compendium-editor__section > header {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.player-compendium-editor__section > header h4 {
+  margin: 0;
+}
+
+.player-compendium-editor__collection,
+.player-compendium-editor__string-list {
+  display: grid;
+  gap: 10px;
+}
+
+.player-compendium-editor__collection-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--dh-radius);
+  background: var(--dh-glass-subtle);
+}
+
+.player-compendium-editor__collection-head > .dh-label,
+.player-compendium-editor__string-row > .dh-label {
+  flex: 1 1 0;
+}
+
+.player-compendium-editor__move-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-bottom: 2px;
+}
+
+.player-compendium-editor__footer {
+  justify-content: flex-end;
+}
+
+.player-compendium-editor__footer > :first-child:not(:last-child) {
+  margin-right: auto;
+}
+
+@media (max-width: 720px) {
+  .player-compendium-editor__collection-head,
+  .player-compendium-editor__string-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .player-compendium-editor__move-actions {
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 860px) {
   .player-custom-compendium-section {
     max-height: none;

@@ -48,7 +48,7 @@ export function CharacterBuilderModal({
   const selectedCommunity = selections.community;
   const selectedSubclass = selections.subclass;
   const selectedCards = selections.domainCards;
-  const selectedClassOption = options.classOptions.find((item) => item.className === fields.className);
+  const selectedClassOption = options.classOptions.find((item) => item.id === fields.classId) ?? options.classOptions.find((item) => item.className === fields.className);
   const selectedArmor = options.armor.find((item) => item.id === fields.armorId || item.slug === fields.armorId) ?? options.armor[0];
   const selectedPrimaryWeapon = options.primaryWeapons.find((item) => item.id === fields.primaryWeaponId || item.slug === fields.primaryWeaponId) ?? options.primaryWeapons[0];
   const selectedSecondaryWeapon = options.secondaryWeapons.find((item) => item.id === fields.secondaryWeaponId || item.slug === fields.secondaryWeaponId) ?? options.secondaryWeapons[0] ?? null;
@@ -111,11 +111,11 @@ export function CharacterBuilderModal({
         <div className="cinematic-builder-panel dh-scroll" role="region" aria-label="Шаг создания героя">
           <header className="cinematic-builder-stage" aria-label="Сводка героя">
             <div className="cinematic-builder-stage-art">
-              {stagePortraitUrl ? <AssetImage src={stagePortraitUrl} alt="" /> : <span>{initials(CLASS_LABELS[fields.className])}</span>}
+              {stagePortraitUrl ? <AssetImage src={stagePortraitUrl} alt="" /> : <span>{initials(selectedClassOption?.name ?? CLASS_LABELS[fields.className])}</span>}
             </div>
             <div className="cinematic-builder-stage-copy">
               <span className="cinematic-card-meta">{steps[currentStepIndex]?.label ?? 'Создание'} — {progress}%</span>
-              <strong>{CLASS_LABELS[fields.className]}</strong>
+              <strong>{selectedClassOption?.name ?? CLASS_LABELS[fields.className]}</strong>
               <p>
                 {[selectedAncestry?.name, selectedCommunity?.name, selectedSubclass?.name].filter(Boolean).join(' / ') ||
                   options.classDomains.map(domainLabel).join(' + ')}
@@ -141,10 +141,10 @@ export function CharacterBuilderModal({
                     <ChoiceCard
                       layout="class"
                       mediaFallback={item.imageUrl ? undefined : initials(item.name)}
-                      selected={fields.className === item.className}
-                      key={item.className}
+                      selected={selectedClassOption?.id === item.id}
+                      key={item.id}
                       type="button"
-                      onClick={() => handlers.selectClass(item.className)}
+                      onClick={() => handlers.selectClass(item.id)}
                     >
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
@@ -407,7 +407,7 @@ export function CharacterBuilderModal({
                 <div className="cinematic-builder-choice-area dh-scroll">
                   <article className="cinematic-builder-loadout-summary">
                     <strong>{fields.name}</strong>
-                    <span>{CLASS_LABELS[fields.className]} / {selectedSubclass?.name ?? 'подкласс не выбран'}</span>
+                    <span>{selectedClassOption?.name ?? CLASS_LABELS[fields.className]} / {selectedSubclass?.name ?? 'подкласс не выбран'}</span>
                     <span>{selectedAncestry?.name ?? 'родословная'} / {selectedCommunity?.name ?? 'сообщество'}</span>
                     <span>Карты: {selectedCards.map((card) => card.name).join(' / ') || 'не выбраны'}</span>
                     <span>Оружие: {builderResult.draft.weapons?.map((weapon) => weapon.name).join(' / ')}</span>

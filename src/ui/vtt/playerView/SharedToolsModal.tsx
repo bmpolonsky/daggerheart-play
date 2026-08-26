@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { ExternalLink, X } from 'lucide-react';
 import { useStream } from '../../../core/hooks/useStream';
 import type { Character, DaggerheartClass } from '../../../domain/rules/types';
@@ -38,10 +38,13 @@ export function SharedToolsModal({
   tab,
   targetCharacterId,
   onClose,
+  onEditorDirtyChange,
   onLibraryCollectionChange,
-  onLibraryRuleChange,
+  onLibraryCopyConsumed,
+  onLibraryEntryChange,
   onSettingsSectionChange,
   routedLibraryEntrySlug,
+  routedLibraryCopySlug,
   routedSettingsSection,
   routedHandoutId,
   onHandoutChange,
@@ -51,10 +54,13 @@ export function SharedToolsModal({
   tab: SharedToolsTab;
   targetCharacterId?: string | null;
   onClose: () => void;
+  onEditorDirtyChange?: (dirty: boolean) => void;
   onLibraryCollectionChange?: (collection: ContentCollectionKey) => void;
-  onLibraryRuleChange?: (slug: string | null) => void;
+  onLibraryCopyConsumed?: () => void;
+  onLibraryEntryChange?: (slug: string | null) => void;
   onSettingsSectionChange?: (section: SettingsSectionId) => void;
   routedLibraryEntrySlug?: string | null;
+  routedLibraryCopySlug?: string | null;
   routedSettingsSection?: string | null;
   routedHandoutId?: string | null;
   onHandoutChange?: (handoutId: string) => void;
@@ -69,6 +75,7 @@ export function SharedToolsModal({
   const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>(
     normalizeSettingsSection((routedSettingsSection as SettingsSectionId | null) ?? (role === 'gm' ? 'game' : 'connection'), role)
   );
+  const [libraryEditorDirty, setLibraryEditorDirty] = useState(false);
   const settingsSections = settingsSectionsForRole(role);
   const normalizedSettingsSection = normalizeSettingsSection(activeSettingsSection, role);
   const targetedRule = routedLibraryEntrySlug
@@ -79,6 +86,12 @@ export function SharedToolsModal({
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
   }, [activeTab]);
+  useEffect(() => () => onEditorDirtyChange?.(false), [onEditorDirtyChange]);
+
+  const updateLibraryEditorDirty = useCallback((dirty: boolean) => {
+    setLibraryEditorDirty(dirty);
+    onEditorDirtyChange?.(dirty);
+  }, [onEditorDirtyChange]);
 
   useEffect(() => {
     contentService.applyGameSourceDefaults(game.id, game.includeVoidContent);
@@ -116,6 +129,8 @@ export function SharedToolsModal({
     }
   };
   const changeLibraryCollection = (collection: ContentCollectionKey) => {
+    if (libraryEditorDirty && typeof window !== 'undefined' && !window.confirm('Отменить несохранённые изменения?')) return;
+    updateLibraryEditorDirty(false);
     contentService.setSelectedCollection(collection);
     if (onLibraryCollectionChange) {
       onLibraryCollectionChange(collection);
@@ -123,13 +138,22 @@ export function SharedToolsModal({
       onTabChange('library');
     }
   };
+  const changeTab = (nextTab: SharedToolsTab) => {
+    if (libraryEditorDirty && typeof window !== 'undefined' && !window.confirm('Отменить несохранённые изменения?')) return;
+    updateLibraryEditorDirty(false);
+    onTabChange(nextTab);
+  };
+  const close = () => {
+    if (libraryEditorDirty && typeof window !== 'undefined' && !window.confirm('Отменить несохранённые изменения?')) return;
+    onClose();
+  };
 
   return (
-    <Dialog aria-label="Библиотека игры" className="player-tools-modal__panel" onClose={onClose}>
+    <Dialog aria-label="Библиотека игры" className="player-tools-modal__panel" onClose={close}>
         <header className="player-tools-modal__header">
           <Tabs align="start" className="player-tools-modal__primary-nav" label="Разделы библиотеки">
             {tabs.map((item) => (
-              <TabButton active={activeTab === item} key={item} onClick={() => onTabChange(item)}>
+              <TabButton active={activeTab === item} key={item} onClick={() => changeTab(item)}>
                 {toolTabLabel(item)}
               </TabButton>
             ))}
@@ -140,7 +164,7 @@ export function SharedToolsModal({
               </TabButton>
             )}
           </Tabs>
-          <IconButton autoFocus variant="ghost" type="button" title="Закрыть" aria-label="Закрыть библиотеку" onClick={onClose}>
+          <IconButton autoFocus variant="ghost" type="button" title="Закрыть" aria-label="Закрыть библиотеку" onClick={close}>
             <X size={18} aria-hidden="true" />
           </IconButton>
         </header>
@@ -189,9 +213,13 @@ export function SharedToolsModal({
           )}
           {activeTab === 'library' && (
             <SharedToolsLibraryTab
+              copyEntrySlug={routedLibraryCopySlug}
+              editable={role === 'gm'}
               libraryView={libraryView}
-              onRuleSelectionChange={onLibraryRuleChange}
-              selectedRuleSlug={routedLibraryEntrySlug}
+              onEditorDirtyChange={updateLibraryEditorDirty}
+              onCopyEntryConsumed={onLibraryCopyConsumed}
+              onEntrySelectionChange={onLibraryEntryChange}
+              selectedEntrySlug={routedLibraryEntrySlug}
               targetCharacterId={targetCharacterId}
               targetRule={targetedRule}
             />

@@ -44,7 +44,7 @@ export function buildLibraryEntries(
       entries = libraryView.beastforms.map(beastformEntry);
       break;
     default:
-      entries = libraryView.genericItems.map(genericEntry);
+      entries = libraryView.genericItems.map((item) => genericEntry(item, libraryView.selectedCollection as 'ancestries' | 'communities' | 'subclasses' | 'domainCards'));
   }
 
   return entries.map((entry) => ({
@@ -87,15 +87,14 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
   ]);
   return {
     id: item.id,
+    routeSlug: item.slug,
     title: item.name,
     kicker: `Ранг ${item.tier} / ${item.roleName || 'противник'}`,
     preview: item.summary || item.motives || item.mainBody,
     imageUrl: item.imageUrl,
     stats,
     sections,
-    custom: isCustomLibrarySource(item.raw.source_slugs) && item.sourceId !== undefined
-      ? { kind: 'adversary', id: String(item.sourceId) }
-      : undefined,
+    editable: { collection: 'adversaries', raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
     actions: [
       {
         label: prepared ? 'Подготовлено' : 'Подготовить',
@@ -117,12 +116,14 @@ function classEntry(item: LibraryClassItem): LibraryEntry {
   ]);
   return {
     id: item.id,
+    routeSlug: item.slug,
     title: item.name,
     kicker: item.domains.map(domainLabel).join(' / '),
     preview: item.body,
     imageUrl: item.imageUrl,
     stats,
     sections,
+    editable: { collection: 'classes', raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
     actions: [shareAction(item.name, sections, stats)]
   };
 }
@@ -155,15 +156,14 @@ function environmentEntry(item: LibraryEnvironment): LibraryEntry {
   ]);
   return {
     id: item.id,
+    routeSlug: item.slug,
     title: item.name,
     kicker: `Ранг ${item.tier} / ${item.typeName || item.type}`,
     preview: item.summary || item.body || item.featureText,
     imageUrl: item.imageUrl,
     stats,
     sections,
-    custom: isCustomLibrarySource(item.raw.source_slugs)
-      ? { kind: 'environment', id: item.id }
-      : undefined,
+    editable: { collection: 'environments', raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
     actions: [
       {
         label: prepared ? 'Подготовлено' : 'Подготовить',
@@ -210,12 +210,14 @@ function equipmentEntry(item: LibraryEquipmentItem, targetCharacterId?: string |
   ]);
   return {
     id: item.id,
+    routeSlug: item.slug,
     title: item.name,
     kicker: item.typeName,
     preview: item.featureText,
     imageUrl: item.imageUrl,
     stats,
     sections,
+    editable: { collection: 'equipment', raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
     actions: [equipmentAction(item, targetCharacterId), shareAction(item.name, sections, stats)]
   };
 }
@@ -246,16 +248,18 @@ function beastformEntry(item: LibraryBeastform): LibraryEntry {
   ]);
   return {
     id: item.id,
+    routeSlug: item.slug,
     title: item.name,
     kicker: `Ранг ${item.tier}`,
     preview: item.summary || item.featureText,
     stats,
     sections,
+    editable: { collection: 'beastforms', raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
     actions: [shareAction(item.name, sections, stats)]
   };
 }
 
-function genericEntry(item: GenericLibraryItem): LibraryEntry {
+function genericEntry(item: GenericLibraryItem, collection: 'ancestries' | 'communities' | 'subclasses' | 'domainCards'): LibraryEntry {
   const spellcastTrait = traitLabel(item.raw.spellcast_trait);
   const cardType = domainCardTypeLabel(item.raw.card_type);
   const recallCost = domainCardRecallCost(item.raw.stress_cost);
@@ -271,12 +275,14 @@ function genericEntry(item: GenericLibraryItem): LibraryEntry {
   ]);
   return {
     id: item.id,
+    routeSlug: item.slug,
     title: item.name,
     kicker: item.subtitle || 'Запись справочника',
     preview: item.body,
     imageUrl: item.imageUrl,
     stats,
     sections,
+    editable: { collection, raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
     actions: [shareAction(item.name, sections, stats)]
   };
 }

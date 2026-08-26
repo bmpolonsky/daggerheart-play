@@ -52,6 +52,26 @@ describe('world state fragments', () => {
     expect(diff.deletes).toEqual([]);
   });
 
+  it('normalizes custom content from older peers', () => {
+    const fragments = encodeWorldState(snapshotPersistedState());
+    fragments[WORLD_STATE_KEYS.customContent] = {
+      ancestries: [{ id: 'old-ancestry' }],
+      communities: [],
+      subclasses: [],
+      domainCards: [],
+      cardDomains: [],
+      adversaries: [],
+      environments: []
+    };
+
+    const decoded = decodeWorldState(fragments);
+
+    expect(decoded?.customContent.ancestries).toEqual([{ id: 'old-ancestry' }]);
+    expect(decoded?.customContent.classes).toEqual([]);
+    expect(decoded?.customContent.equipment).toEqual([]);
+    expect(decoded?.customContent.beastforms).toEqual([]);
+  });
+
   it('deletes both scene fragments when a scene is removed', () => {
     const before = structuredClone(snapshotPersistedState());
     const scene = createTableScene({ id: 'scene-one' });

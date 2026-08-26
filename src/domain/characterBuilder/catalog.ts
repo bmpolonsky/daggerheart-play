@@ -19,6 +19,7 @@ export interface CharacterBuilderCatalogInput {
   classes: LibraryClassItem[];
   equipment: LibraryEquipmentItem[];
   className: DaggerheartClass;
+  classId?: string;
   includePlaytest?: boolean;
 }
 
@@ -36,11 +37,12 @@ export interface CharacterBuilderQuickStart {
 
 export function buildCharacterBuilderCatalog(input: CharacterBuilderCatalogInput) {
   const builderContent = filterBuilderContent(input.content, input.includePlaytest);
-  const classDefinition = classDefinitionFor(input.classes, input.className, input.includePlaytest);
-  const classDomains = classDomainsFor(input.classes, input.className, input.includePlaytest).filter((domain) => domain !== 'Custom');
-  const classItems = classStartingItemsFor(input.classes, input.className, input.includePlaytest);
+  const classDefinition = classDefinitionFor(input.classes, input.className, input.includePlaytest, input.classId);
+  const className = classDefinition?.className ?? input.className;
+  const classDomains = (classDefinition?.domains ?? classDomainsFor(input.classes, className, input.includePlaytest)).filter((domain) => domain !== 'Custom');
+  const classItems = classDefinition?.classItems.length ? classDefinition.classItems : classStartingItemsFor(input.classes, className, input.includePlaytest);
   const equipmentCatalog = buildStartingEquipmentCatalog(input.equipment, input.includePlaytest);
-  const classSubclasses = builderContent.subclasses.filter((item) => isSubclassForClass(item, input.className));
+  const classSubclasses = builderContent.subclasses.filter((item) => isSubclassForClass(item, className, classDefinition));
   const availableDomainCards = builderContent.domainCards
     .filter((item) => isDomainCardForDomains(item, classDomains))
     .filter((item) => (item.level ?? Number(item.raw.level ?? 1)) === 1)
@@ -51,7 +53,7 @@ export function buildCharacterBuilderCatalog(input: CharacterBuilderCatalogInput
   ]));
 
   return {
-    className: input.className,
+    className,
     builderContent,
     classDefinition,
     classDomains,
@@ -112,13 +114,13 @@ function randomIndex(length: number, random: () => number): number {
   return Math.min(length - 1, Math.max(0, Math.floor(random() * length)));
 }
 
-function buildClassOptions(classes: LibraryClassItem[], includePlaytest = false): Array<{ className: DaggerheartClass; name: string; domains: string[]; imageUrl: string | null; body: string }> {
+function buildClassOptions(classes: LibraryClassItem[], includePlaytest = false): Array<{ id: string; className: DaggerheartClass; name: string; domains: string[]; imageUrl: string | null; body: string; featureText: string }> {
   const availableClasses = classes.filter((item) => (
-    item.className !== 'Custom' &&
     (includePlaytest || isSrdClassItem(item))
   ));
   if (availableClasses.length > 0) {
     return availableClasses.map((item) => ({
+      id: item.id,
       className: item.className,
       name: item.name,
       domains: item.domains,
@@ -130,6 +132,7 @@ function buildClassOptions(classes: LibraryClassItem[], includePlaytest = false)
   return DAGGERHEART_CLASSES
     .filter((item) => item !== 'Custom' && (includePlaytest || !PLAYTEST_CLASSES.includes(item)))
     .map((item) => ({
+      id: `class:${item.toLowerCase()}`,
       className: item,
       name: CLASS_LABELS[item],
       domains: [],

@@ -336,7 +336,7 @@ function runtimeModifierWarnings(option: StartingArmorOption | StartingWeaponOpt
 function isSrdEquipment(item: LibraryEquipmentItem): boolean {
   const sources = item.raw.source_slugs;
   if (!Array.isArray(sources)) return true;
-  return sources.some((source) => source === 'core' || source === 'srd');
+  return sources.some((source) => source === 'core' || source === 'srd' || source === 'custom');
 }
 
 function selectByIdOrSlug<T extends { id: string; slug: string }>(items: T[], id: string | undefined): T | null {

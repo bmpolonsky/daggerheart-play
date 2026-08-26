@@ -6,6 +6,7 @@ import {
   backgroundQuestionsFor,
   buildCharacterDraft,
   buildCharacterBuilderChoicePreview,
+  classDefinitionForCharacter,
   connectionQuestionsFor,
   featureListText,
   filterBuilderContent,
@@ -251,7 +252,7 @@ test('character service applies API equipment through domain attachment plan', (
   const updated = characterService.getCharacter(character.id);
 
   assert.equal(armorResult?.kind, 'armor');
-  assert.equal(armorResult?.warnings.length, 1);
+  assert.equal(armorResult?.warnings.length, 0);
   assert.equal(weaponResult?.kind, 'weapon');
   assert.equal(itemResult?.kind, 'inventory');
   assert.equal(updated?.armor.name, 'Латный Доспех');
@@ -457,4 +458,64 @@ test('The Void setting adds playtest classes and random builder choices', () => 
   assert.equal(quick.communityId, 'void-community');
   assert.equal(quick.subclassId, 'void-assassin-subclass');
   assert.deepEqual(new Set(quick.selectedCardIds), new Set(['void-blade-card', 'void-midnight-card']));
+});
+
+test('character builder keeps multiple custom classes and their subclasses separate', () => {
+  const ember = classItem({
+    id: 'ember-class',
+    slug: 'ember-knight',
+    name: 'Рыцарь углей',
+    source_slugs: ['custom'],
+    domain_slugs: ['blade', 'arcana'],
+    evasion: 9,
+    hp: 8,
+    class_items: ['Угольный медальон']
+  });
+  const tide = classItem({
+    id: 'tide-class',
+    slug: 'tide-singer',
+    name: 'Певец прилива',
+    source_slugs: ['custom'],
+    domain_slugs: ['grace', 'sage']
+  });
+  const emberSubclass = genericItem({ id: 'ember-subclass', name: 'Пепельный страж', raw: { source_slugs: ['custom'], class_slug: 'ember-knight' } });
+  const tideSubclass = genericItem({ id: 'tide-subclass', name: 'Голос глубин', raw: { source_slugs: ['custom'], class_slug: 'tide-singer' } });
+  const content: ContentState['generic'] = {
+    ancestries: [],
+    communities: [],
+    subclasses: [emberSubclass, tideSubclass],
+    domainCards: []
+  };
+
+  const catalog = buildCharacterBuilderCatalog({
+    content,
+    classes: [ember, tide],
+    equipment: equipmentFixture(),
+    className: 'Custom',
+    classId: ember.id
+  });
+  const result = buildCharacterDraft({
+    content,
+    classes: [ember, tide],
+    equipment: equipmentFixture(),
+    className: 'Custom',
+    classId: ember.id,
+    subclassId: emberSubclass.id,
+    classItem: 'Угольный медальон'
+  });
+
+  assert.deepEqual(catalog.classOptions.map((item) => item.id), [ember.id, tide.id]);
+  assert.deepEqual(catalog.classSubclasses.map((item) => item.id), [emberSubclass.id]);
+  assert.equal(result.draft.className, 'Custom');
+  assert.equal(result.draft.classSourceId, 'ember-class');
+  assert.equal(result.draft.classSlug, 'ember-knight');
+  assert.equal(result.draft.classDisplayName, 'Рыцарь углей');
+  assert.equal(result.draft.subclassName, 'Пепельный страж');
+  assert.equal(result.draft.evasion, 9);
+  assert.equal(result.draft.hp?.max, 8);
+  assert.equal(classDefinitionForCharacter([tide, ember], {
+    className: 'Custom',
+    classSourceId: 'ember-class',
+    classSlug: 'ember-knight'
+  })?.id, ember.id);
 });

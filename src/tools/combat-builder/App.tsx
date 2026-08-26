@@ -3,11 +3,10 @@ import { useMemo } from "preact/hooks";
 import { SidebarContainer } from "@combat/components/app/SidebarContainer";
 import { WorkspaceContainer } from "@combat/components/app/WorkspaceContainer";
 import { AdversaryDetailsModal } from "@combat/components/adversaries/AdversaryDetailsModal";
-import { CustomAdversaryEditorHost } from "@combat/components/adversaries/CustomAdversaryEditorHost";
 import { useStream } from "../../core/hooks/useStream";
 import { adversariesService } from "@combat/services/adversariesService";
 import { encounterService } from "@combat/services/encounterService";
-import { customAdversaryEditorService } from "@combat/services/customAdversaryEditorService";
+import { openAdversaryCompendium } from "@combat/lib/compendium";
 
 export default function App({ embedded = false }: { embedded?: boolean }) {
   adversariesService.ensureLoaded();
@@ -42,15 +41,14 @@ export default function App({ embedded = false }: { embedded?: boolean }) {
               onAdd={() => encounterService.addAdversary(selectedAdversary)}
               onEdit={
                 selectedAdversary.isCustom
-                  ? () => customAdversaryEditorService.openEdit(selectedAdversary)
+                  ? () => openAdversaryCompendium(selectedAdversary.slug)
                   : undefined
               }
-              onDuplicate={() => customAdversaryEditorService.openDuplicate(selectedAdversary)}
+              onDuplicate={() => openAdversaryCompendium(selectedAdversary.slug, true)}
             />
           </div>
         </div>
       )}
-      <CustomAdversaryEditorHost />
     </div>
   );
 }

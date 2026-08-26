@@ -38,6 +38,7 @@ export interface CharacterBuilderReadinessInput {
   classes: LibraryClassItem[];
   equipment: LibraryEquipmentItem[];
   className?: DaggerheartClass;
+  classId?: string;
   ancestryId?: string;
   communityId?: string;
   subclassId?: string;
@@ -71,10 +72,11 @@ export function validateCharacterBuilderReadiness(input: CharacterBuilderReadine
     classes: input.classes,
     equipment: input.equipment,
     className,
+    classId: input.classId,
     includePlaytest: input.includePlaytest
   });
 
-  if (!catalog.classOptions.some((option) => option.className === className)) {
+  if (!catalog.classOptions.some((option) => input.classId ? option.id === input.classId : option.className === className)) {
     addIssue(issues, 'class.invalid', 'blocking', 'Выбранный класс недоступен для создания персонажа.');
   }
 

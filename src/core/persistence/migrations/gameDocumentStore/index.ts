@@ -6,6 +6,7 @@ import { v0ToV2ProjectLibraryMigration } from './v0-to-v2-project-library-migrat
 import { v0ToV2ProjectSingleDocumentMigration } from './v0-to-v2-project-single-document-migration';
 import { v1ToV2ProjectSharedContentMigration } from './v1-to-v2-project-shared-content-migration';
 import { v2ProjectIndexConsistencyMigration } from './v2-project-index-consistency-migration';
+import { v2CustomContentCollectionsMigration } from './v2-custom-content-collections-migration';
 import type { GameDocumentStoreMigrationContext } from './types';
 
 export { deleteV0ProjectDocuments as deletePreviousProjectDocuments, readV0ProjectDocument as readPreviousProjectDocument } from './v0-indexeddb-project-storage';
@@ -17,6 +18,7 @@ export function prepareProjectDocument(value: unknown, context: Omit<GameDocumen
       v1ToV2ProjectSharedContentMigration(),
       v0ToV2ProjectLibraryMigration(),
       v0ToV2ProjectSingleDocumentMigration(),
+      v2CustomContentCollectionsMigration(),
       v2ProjectIndexConsistencyMigration()
     ]
   ).value;

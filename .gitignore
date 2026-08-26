@@ -2,7 +2,8 @@ node_modules/
 dist/
 public/image/
 public/data/
-docs/
+docs/*
+!docs/TODO.md
 public/icon/**
 !public/icon/dice/**
 public/cards.css

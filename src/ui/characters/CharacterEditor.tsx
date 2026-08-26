@@ -17,11 +17,12 @@ import { SectionHeader } from '../components/common/SectionHeader';
 import { TabButton, Tabs } from '../components/common/Tabs';
 import { Toolbar } from '../components/common/Toolbar';
 import { WizardStepButton } from '../components/common/WizardStepButton';
-import { CLASS_DOMAINS, CLASS_LABELS, DAGGERHEART_CLASSES, DOMAIN_LABELS, PLAYTEST_CLASSES, TRAIT_LABELS } from '../../domain/rules/constants';
+import { CLASS_DOMAINS, CLASS_LABELS, DAGGERHEART_CLASSES, DOMAIN_LABELS, PLAYTEST_CLASSES, TRAIT_LABELS, characterClassLabel } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
 import {
   cleanRulesText,
   classDefinitionFor,
+  classDefinitionForCharacter,
   classDomainsFor,
   classFeatureListText,
   classFeatureSheetCards,
@@ -79,7 +80,9 @@ export function CharacterEditor({
   const includePlaytest = game.includeVoidContent;
   const armorOptions = content?.equipment.filter((item) => item.type === 'armor') ?? [];
   const selectedArmorId = equipmentIdByName(armorOptions, character.armor.name);
-  const domains = content ? classDomainsFor(content.classes, character.className, includePlaytest) : character.domains;
+  const domains = content
+    ? classDefinitionForCharacter(content.classes, character, includePlaytest)?.domains ?? classDomainsFor(content.classes, character.className, includePlaytest)
+    : character.domains;
   const effectiveStats = useMemo(() => buildEffectiveCharacterStats(character), [character]);
 
   useEffect(() => () => characterService.endHistoryGroup(character.id), [character.id]);
@@ -110,7 +113,7 @@ export function CharacterEditor({
         )}
         <SectionHeader
           className="character-editor-heading"
-          eyebrow={`${CLASS_LABELS[character.className]} — ${character.ancestry || 'Родословная не выбрана'}`}
+          eyebrow={`${characterClassLabel(character)} — ${character.ancestry || 'Родословная не выбрана'}`}
           title={character.name}
           subtitle={`${character.subclassName || 'Без подкласса'} — уровень ${character.level}`}
           actions={(
@@ -297,7 +300,7 @@ function CharacterIdentitySummary({ character }: { character: Character }) {
   return (
     <section className="character-editor-section" aria-label="Образ персонажа">
       <ListItem title="Имя" value={character.name} />
-      <ListItem title="Класс" value={CLASS_LABELS[character.className]} />
+      <ListItem title="Класс" value={characterClassLabel(character)} />
       <ListItem title="Подкласс" value={character.subclassName || 'Не выбран'} />
       <ListItem title="Родословная" value={character.ancestry || 'Не выбрана'} />
       <ListItem title="Сообщество" value={character.community || 'Не выбрано'} />
