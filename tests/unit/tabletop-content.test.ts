@@ -25,9 +25,10 @@ test('adversary import removes rule links while preserving emphasis markers', ()
   const adversary = createAdversaryFromLibrary(libraryItem);
 
   assert.equal(libraryItem.summary, 'Грызун с **острыми зубами**.');
+  assert.equal(libraryItem.raw.main_body?.includes('](/rule/'), false);
   assert.equal(adversary.summary, 'Грызун с **острыми зубами**.');
   assert.match(adversary.motives, /\*\*Голодать\*\*/);
-  assert.match(adversary.mainBody, /\*\*\*отметить Стресс\*\*\*/);
+  assert.match(adversary.mainBody, /\*отметить Стресс\*/);
   assert.equal(adversary.notes, '');
   assert.equal(adversary.features[0]?.text, '**Потратьте Страх**, чтобы **активировать** всех крыс.');
   assert.equal(adversary.features[0]?.cost, 'Страх 1');

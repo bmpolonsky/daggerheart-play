@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import type { VNode } from 'preact';
-import { cleanMarkdownText, stripMarkdownLinks } from '../../../../core/utils/markdownText';
+import { cleanMarkdownText } from '../../../../core/utils/markdownText';
 
 export function RichText({ text }: { text: string }) {
   const blocks = richBlocks(text);
@@ -68,7 +68,7 @@ function richBlocks(text: string): VNode[] {
 }
 
 function inlineRichText(text: string): Array<string | VNode> {
-  const cleaned = cleanRuleLinks(text);
+  const cleaned = text;
   const pieces: Array<string | VNode> = [];
   const pattern = /(\*\*\*([^*]+)\*\*([^*]+)\*|(\*{1,3})([^*]+)\4)/g;
   let cursor = 0;
@@ -93,10 +93,6 @@ function inlineRichText(text: string): Array<string | VNode> {
   }
   if (cursor < cleaned.length) pieces.push(cleaned.slice(cursor));
   return pieces.length > 0 ? pieces : [cleaned];
-}
-
-function cleanRuleLinks(text: string): string {
-  return stripMarkdownLinks(text);
 }
 
 function normalizeDetailText(value: string): string {

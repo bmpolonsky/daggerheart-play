@@ -1,4 +1,5 @@
 import { API_BASE_URL, ASSET_BASE_PATH } from "@combat/lib/constants";
+import { cleanMarkdownValue } from "../../../core/utils/markdownText";
 
 export interface AdversaryFeature {
   id: number | string;
@@ -113,6 +114,7 @@ function mapFeature(feature: RawFeature): AdversaryFeature {
 }
 
 export function mapRawAdversary(item: RawAdversary): Adversary {
+  item = cleanMarkdownValue(item);
   return {
     id: item.id,
     slug: item.slug,

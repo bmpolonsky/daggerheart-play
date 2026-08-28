@@ -1,9 +1,11 @@
 import type { EditableContentCollectionKey, EditableRawContent, RawAdversaryFeature } from './types';
+import { cleanMarkdownValue } from '../../core/utils/markdownText';
 
 export type CustomContentDraft = EditableRawContent & Record<string, unknown>;
 
 export function createCustomContentDraft(collection: EditableContentCollectionKey, raw: EditableRawContent): CustomContentDraft {
-  const common = { ...raw, name: text(raw.name ?? raw.title), source_slugs: ['custom'] } as CustomContentDraft;
+  const cleanedRaw = cleanMarkdownValue(raw);
+  const common = { ...cleanedRaw, name: text(cleanedRaw.name ?? cleanedRaw.title), source_slugs: ['custom'] } as CustomContentDraft;
   switch (collection) {
     case 'adversaries': return { tier: 1, type_slug: 'standard', difficulty: 12, hp: 4, stress: 0, attack_bonus: 0, damage_die_count: 1, damage_die_size: 6, damage_bonus: 0, damage_type: 'physical', features: [], ...common };
     case 'environments': return { tier: 1, difficulty: 12, type_name: 'Окружение', features: [], ...common };
@@ -24,7 +26,7 @@ export function cleanCustomContentDraft(draft: CustomContentDraft): EditableRawC
   for (const key of ['class_items', 'background_questions', 'connection_questions', 'domain_slugs']) {
     if (Array.isArray(next[key])) next[key] = next[key].map((item) => text(item)).filter(Boolean);
   }
-  return next;
+  return cleanMarkdownValue(next) as EditableRawContent;
 }
 
 export function validateCustomContentDraft(collection: EditableContentCollectionKey, draft: CustomContentDraft): string | null {

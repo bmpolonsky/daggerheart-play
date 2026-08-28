@@ -75,7 +75,7 @@ test('audits recognized stat modifiers for every current equipment item', () => 
   assert.equal(equipment.length, 358, 'equipment item count changed');
   assert.equal(new Set(equipment.map((item) => item.slug)).size, equipment.length, 'equipment slugs must be unique');
   const rows = equipment.map(({ slug, featureText }) => [slug, featureText] as const).sort(([left], [right]) => left.localeCompare(right));
-  assert.equal(createHash('sha256').update(JSON.stringify(rows)).digest('hex'), '981d0190949a67e4b3b42edf74a6b7f71b0c25f816be5bf536eb121bc1c45499');
+  assert.equal(createHash('sha256').update(JSON.stringify(rows)).digest('hex'), 'b41404e67fe41de865013cd24d09c70044b05b818d6aa0746db03400bc5004ba');
 
   const corpusSlugs = new Set(equipment.map((item) => item.slug));
   for (const slug of Object.keys(EXPECTED_MODIFIERS)) assert.ok(corpusSlugs.has(slug), `audited equipment is missing: ${slug}`);

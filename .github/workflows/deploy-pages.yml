@@ -120,7 +120,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Verify refreshed rules corpus
-        run: npx vitest run tests/content/feature-effects-corpus.test.ts tests/content/equipment-effects-corpus.test.ts
+        run: npx vitest run tests/content/feature-effects-corpus.test.ts tests/content/equipment-effects-corpus.test.ts tests/content/markdown-cleanup-corpus.test.ts
 
       - name: Build with verified Daggerheart content
         run: npm run build

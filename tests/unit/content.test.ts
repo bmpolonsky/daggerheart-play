@@ -55,11 +55,12 @@ test('content mappers retain both summaries and full rule text', () => {
     slug: 'beastbound',
     name: 'Звериные узы',
     description: 'Короткое описание подкласса.',
-    main_body: 'Полные правила спутника.'
+    main_body: 'Полные правила со [Стрессом](/rule/stress).'
   }, 'subclass');
 
   assert.equal(classItem.body, 'Короткое описание.\n\nПолное описание класса.\n\nВажное примечание.');
-  assert.equal(subclass.body, 'Короткое описание подкласса.\n\nПолные правила спутника.');
+  assert.equal(subclass.body, 'Короткое описание подкласса.\n\nПолные правила со **Стрессом**.');
+  assert.equal(subclass.raw.main_body, 'Полные правила со **Стрессом**.');
 });
 
 test('content mappers preserve uploaded image data URLs', () => {
@@ -77,6 +78,18 @@ test('custom adversary images survive persistence and reload', () => {
 
   const reloaded = normalizeRawCustomAdversary(customAdversaryToRaw(loaded), new Set(), { keepId: true });
   assert.equal(reloaded?.image, imageUrl);
+});
+
+test('combat builder removes source links while preserving rule emphasis', () => {
+  const adversary = normalizeRawCustomAdversary({
+    id: -1,
+    name: 'Ссылочный противник',
+    short_description: 'Получает [Страх](/rule/fear).',
+    features: [{ id: 1, name: 'Цена', main_body: '**Потратьте [Надежду](/rule/hope)**.' }]
+  }, new Set(), { keepId: true });
+
+  assert.equal(adversary?.summary, 'Получает **Страх**.');
+  assert.equal(adversary?.features[0]?.text, '**Потратьте Надежду**.');
 });
 
 test('card template images preserve uploaded image URLs', async () => {
@@ -609,6 +622,7 @@ test('custom content mutations stop when the latest storage read fails', async (
 test('custom content drafts validate numeric limits and preserve imported fields', () => {
   const draft = createCustomContentDraft('adversaries', {
     name: 'Проверочный противник',
+    main_body: '**Отметьте [Стресс](/rule/stress)**. ![](/image/ancestry/concept/example.png)',
     tier: 5,
     damage_thresholds: [12, 8],
     features: [
@@ -617,6 +631,8 @@ test('custom content drafts validate numeric limits and preserve imported fields
     ],
     future_field: { preserved: true }
   });
+
+  assert.equal(draft.main_body, '**Отметьте Стресс**.');
 
   assert.equal(validateCustomContentDraft('adversaries', draft), 'Ранг: допустимо от 1 до 4.');
   draft.tier = 2;
@@ -629,8 +645,10 @@ test('custom content drafts validate numeric limits and preserve imported fields
   assert.equal(validateCustomContentDraft('adversaries', draft), 'Противников на Рану: допустимо от 1.');
   draft.horde_per_hp = 5;
   assert.equal(validateCustomContentDraft('adversaries', draft), null);
+  draft.main_body = 'Бонус равен [Мастерству](/rule/proficiency).';
 
   const cleaned = cleanCustomContentDraft(draft);
+  assert.equal(cleaned.main_body, 'Бонус равен **Мастерству**.');
   assert.deepEqual(cleaned.future_field, { preserved: true });
   assert.deepEqual(cleaned.features?.map((feature) => feature.id), ['kept']);
 

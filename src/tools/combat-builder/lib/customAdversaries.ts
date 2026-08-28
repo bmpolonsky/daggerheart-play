@@ -5,6 +5,7 @@ import {
   type RawAdversary,
   type RawFeature,
 } from "@combat/lib/api";
+import { cleanMarkdownText } from "../../../core/utils/markdownText";
 
 export const CUSTOM_ADVERSARY_EXPORT_FORMAT = "daggerheart-combat-builder.custom-adversaries";
 
@@ -53,7 +54,7 @@ export function normalizeNumber(
 }
 
 export function normalizeText(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+  return typeof value === "string" ? cleanMarkdownText(value, { emphasizeLinks: true }) : "";
 }
 
 export function resolveRoleName(roleId: string, fallback?: string) {

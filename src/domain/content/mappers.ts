@@ -1,5 +1,5 @@
 import type { Adversary, AdversaryFeature, AdversaryType, DaggerheartClass, DamageType, DomainName, EncounterEnvironment, TraitId } from '../rules/types';
-import { cleanMarkdownText } from '../../core/utils/markdownText';
+import { cleanMarkdownText, cleanMarkdownValue } from '../../core/utils/markdownText';
 import { inferExplicitAdversaryFeatureCost } from '../rules/adversaries';
 import type {
   GenericLibraryItem,
@@ -225,6 +225,7 @@ function mapFeature(feature: RawAdversaryFeature): AdversaryFeature {
 }
 
 export function mapRawAdversary(raw: RawAdversary): LibraryAdversary {
+  raw = cleanMarkdownValue(raw);
   const name = asString(raw.name, 'Без названия');
   const tier = Math.max(1, asNumber(raw.tier, 1));
   const thresholds = parseThresholds(raw.damage_thresholds, tier);
@@ -313,6 +314,7 @@ export function createEnvironmentFromLibrary(item: LibraryEnvironment): Encounte
 }
 
 export function mapRawEquipmentItem(raw: RawEquipmentItem): LibraryEquipmentItem {
+  raw = cleanMarkdownValue(raw);
   const name = asString(raw.name, 'Без названия');
   const type = coerceEquipmentType(raw.type_slug);
   const slug = asString(raw.slug, slugify(name));
@@ -344,6 +346,7 @@ export function mapRawEquipmentItem(raw: RawEquipmentItem): LibraryEquipmentItem
 }
 
 export function mapRawClassItem(raw: RawClassItem): LibraryClassItem {
+  raw = cleanMarkdownValue(raw);
   const name = asString(raw.name, 'Без названия');
   const slug = asString(raw.slug, slugify(name));
   const normalizedSlug = slug.replace(/^playtest-/, '').toLowerCase();
@@ -370,6 +373,7 @@ export function mapRawClassItem(raw: RawClassItem): LibraryClassItem {
 }
 
 export function mapRawRuleItem(raw: RawRuleItem): LibraryRuleEntry {
+  raw = cleanMarkdownValue(raw);
   const name = asString(raw.name, 'Без названия');
   const slug = asString(raw.slug, slugify(name));
   const body = cleanImportedRulesText(raw.main_body);
@@ -387,6 +391,7 @@ export function mapRawRuleItem(raw: RawRuleItem): LibraryRuleEntry {
 }
 
 export function mapRawEnvironmentItem(raw: RawEnvironmentItem): LibraryEnvironment {
+  raw = cleanMarkdownValue(raw);
   const name = asString(raw.name, 'Без названия');
   const slug = asString(raw.slug, slugify(name));
   return {
@@ -409,6 +414,7 @@ export function mapRawEnvironmentItem(raw: RawEnvironmentItem): LibraryEnvironme
 }
 
 export function mapRawBeastformItem(raw: RawBeastformItem): LibraryBeastform {
+  raw = cleanMarkdownValue(raw);
   const name = asString(raw.name, 'Без названия');
   const slug = asString(raw.slug, slugify(name));
   const count = 1;
@@ -513,6 +519,7 @@ function equipmentFeatureFromBody(body: string): string {
 }
 
 export function mapGenericItem(raw: RawContentItem, prefix: string): GenericLibraryItem {
+  raw = cleanMarkdownValue(raw);
   const name = asString(raw.name ?? raw.title, 'Без названия');
   const slug = asString(raw.slug, slugify(name));
   const subtitleParts = [
