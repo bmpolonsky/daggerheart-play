@@ -173,12 +173,12 @@ test.describe('critical persisted journeys', () => {
         await editor.getByLabel('Текст свойства 2').fill('Второй текст');
         await editor.getByRole('button', { name: 'Переместить выше: Второе свойство' }).click();
       }
-      if (collection === 'Подклассы') await editor.getByLabel('Класс').selectOption({ index: 1 });
+      if (collection === 'Подклассы') await editor.getByLabel('Класс', { exact: true }).selectOption({ index: 1 });
       await setProfile(editor, profile);
 
       await editor.getByRole('button', { name: 'Сохранить', exact: true }).click();
       await expect(editor.getByText('Материал сохранён.')).toBeVisible();
-      await editor.getByRole('button', { name: 'Закрыть редактор' }).click();
+      await editor.getByRole('button', { name: 'Отмена', exact: true }).click();
       await expect(editor).toHaveCount(0);
 
       await workspace.getByLabel('Источник материалов').getByRole('button', { name: 'Свои' }).click();
@@ -200,7 +200,7 @@ test.describe('critical persisted journeys', () => {
       await editor.getByLabel('Название', { exact: true }).fill(updatedName);
       await editor.getByRole('button', { name: 'Сохранить', exact: true }).click();
       await expect(editor.getByText('Материал сохранён.')).toBeVisible();
-      await editor.getByRole('button', { name: 'Закрыть редактор' }).click();
+      await editor.getByRole('button', { name: 'Отмена', exact: true }).click();
 
       await search.fill(updatedName);
       const updatedCard = workspace.locator('.player-library-card').filter({ hasText: updatedName });
@@ -272,7 +272,7 @@ test.describe('critical persisted journeys', () => {
     await routedEditor.getByRole('button', { name: 'Сохранить' }).click();
     await expect(routedEditor.getByText('Материал сохранён.')).toBeVisible();
     await expect.poll(() => new URL(page.url()).hash).toMatch(/\/custom-/);
-    await routedEditor.getByRole('button', { name: 'Закрыть редактор' }).click();
+    await routedEditor.getByRole('button', { name: 'Отмена', exact: true }).click();
     await expect(routedEditor).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole('dialog', { name: 'Библиотека игры' })).toBeVisible();

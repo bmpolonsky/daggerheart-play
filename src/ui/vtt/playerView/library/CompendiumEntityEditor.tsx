@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { EditableContentCollectionKey, EditableRawContent, RawAdversaryFeature } from '../../../../domain/content/types';
 import { cleanCustomContentDraft, createCustomContentDraft, validateCustomContentDraft, type CustomContentDraft } from '../../../../domain/content/customContentDraft';
@@ -86,13 +86,6 @@ export function CompendiumEntityEditor({ target, onClose, onDirtyChange, onSaved
   return (
     <aside className="player-library-detail player-compendium-editor" aria-label={`Редактор: ${name || LABELS[target.collection]}`}>
       <div className="player-library-detail__body">
-        <IconButton className="player-library-detail__close" type="button" variant="ghost" size="sm" title="Закрыть редактор" aria-label="Закрыть редактор" onClick={close}>
-          <X size={18} aria-hidden="true" />
-        </IconButton>
-        <header className="player-compendium-editor__header">
-          <span className="player-library-card__kicker">Свой материал</span>
-          <h3>{target.persisted ? `Редактировать ${LABELS[target.collection]}` : `Создать ${LABELS[target.collection]}`}</h3>
-        </header>
         {notice && <Notice tone={notice.tone}>{notice.message}</Notice>}
         <div className={`player-custom-compendium-form ${target.collection === 'adversaries' ? '' : 'player-custom-compendium-form--generic'}`.trim()}>
           {target.collection !== 'adversaries' && <IdentityFields collection={target.collection} draft={draft} setField={setField} />}
@@ -211,12 +204,12 @@ function AdversaryFields({ draft, setField }: EditorFieldsProps) {
       <div className="player-compendium-statblock__rules">
         <div className="player-compendium-statblock__line">
           <InlineNumber label="Сложность" min={0} value={number(draft.difficulty, 12)} onInput={(value) => setField('difficulty', int(value, 12))} />
-          <label className="player-compendium-statblock__number player-compendium-statblock__thresholds">
+          <div className="player-compendium-statblock__number player-compendium-statblock__thresholds">
             <strong>Пороги</strong>
             <NumberControl tone="plain" aria-label="Ощутимый порог" min={0} value={thresholds[0]} onInput={(event) => setField('damage_thresholds', [int(event.currentTarget.value, 0), thresholds[1]])} />
             <span>/</span>
             <NumberControl tone="plain" aria-label="Тяжёлый порог" min={0} value={thresholds[1]} onInput={(event) => setField('damage_thresholds', [thresholds[0], int(event.currentTarget.value, 0)])} />
-          </label>
+          </div>
           <InlineNumber label="Раны" min={1} value={number(draft.hp, 4)} onInput={(value) => setField('hp', int(value, 4))} />
           <InlineNumber label="Стресс" min={0} value={number(draft.stress, 0)} onInput={(value) => setField('stress', int(value, 0))} />
           {role === 'horde' && <InlineNumber label="Противников на Рану" min={1} value={number(draft.horde_per_hp, 1)} onInput={(value) => setField('horde_per_hp', int(value, 1))} />}

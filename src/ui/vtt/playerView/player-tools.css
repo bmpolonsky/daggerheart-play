@@ -2793,7 +2793,6 @@
   gap: 8px;
 }
 
-.player-custom-compendium-form--generic,
 .player-compendium-generic-card {
   padding: 10px 12px;
   border-radius: var(--dh-radius);
@@ -2852,15 +2851,6 @@
   font-size: 0.8rem;
 }
 
-.player-compendium-editor__header {
-  padding-right: 42px;
-}
-
-.player-compendium-editor__header h3 {
-  margin: 2px 0 0;
-  font-size: 0.94rem;
-}
-
 .player-compendium-editor__identity-fields {
   display: grid;
   align-content: start;
@@ -2879,7 +2869,8 @@
   padding: 10px 12px;
 }
 
-.player-compendium-editor textarea {
+.player-compendium-editor textarea,
+.player-prepared-editor--adversary textarea {
   field-sizing: content;
   overflow-y: hidden;
   resize: none;
@@ -2903,9 +2894,9 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-.player-compendium-editor__title-control {
+textarea.player-compendium-editor__title-control {
   min-height: 32px;
-  padding: 0;
+  padding: 3px 0;
   background: transparent;
   color: #fff4d6;
   font-family: "DH Eveleth", "Overpass", sans-serif;
@@ -3137,6 +3128,13 @@
   padding: 10px 12px;
 }
 
+.player-compendium-editor .player-compendium-statblock,
+.player-prepared-editor--adversary .player-compendium-statblock {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .player-compendium-statblock__identity-copy {
   min-width: 0;
   display: grid;
@@ -3273,6 +3271,10 @@ textarea.player-compendium-statblock__weapon {
 
 .player-compendium-statblock__damage input {
   width: 34px;
+}
+
+.player-compendium-statblock__damage .player-prepared-adversary__damage-formula {
+  width: 72px;
 }
 
 .player-compendium-statblock__die-select {
@@ -3419,5 +3421,11 @@ textarea.player-compendium-statblock__weapon {
     align-items: stretch;
     flex-direction: column;
     gap: 1px;
+  }
+
+  .player-compendium-statblock__damage {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    white-space: normal;
   }
 }

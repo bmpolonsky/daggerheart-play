@@ -41,6 +41,25 @@ test.describe('prepared resources', () => {
     await expect(sheet).toContainText('Подготовленный шаблон');
     await expect(sheet.getByRole('button', { name: /Атака/ })).toHaveCount(0);
 
+    await page.getByRole('button', { name: 'Редактировать', exact: true }).click();
+    let editor = page.getByRole('dialog', { name: `Редактор шаблона ${title}` });
+    await expect(editor.getByLabel('Карточка подготовленного противника')).toBeVisible();
+    await expect(editor.getByLabel('Заметки мастера')).toHaveCount(0);
+    await editor.getByLabel('Сложность', { exact: true }).fill('17');
+    await editor.getByLabel('Название атаки').fill('Проверочный удар');
+    const properties = editor.locator('.player-compendium-editor__section').filter({ hasText: 'Свойства' });
+    await properties.getByRole('button', { name: 'Добавить' }).click();
+    await editor.getByLabel(/Название свойства/).last().fill('Проверочное свойство');
+    await editor.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(editor).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Редактировать', exact: true }).click();
+    editor = page.getByRole('dialog', { name: `Редактор шаблона ${title}` });
+    await expect(editor.getByLabel('Сложность', { exact: true })).toHaveValue('17');
+    await expect(editor.getByLabel('Название атаки')).toHaveValue('Проверочный удар');
+    await expect(editor.getByLabel(/Название свойства/).last()).toHaveValue('Проверочное свойство');
+    await editor.getByRole('button', { name: 'Отмена' }).click();
+
     await page.getByLabel('Контекст мастера').getByRole('button', { name: 'Подготовлено' }).click();
     await prepared.getByRole('button', { name: 'Создать героя' }).click();
     await expect(page.getByRole('dialog', { name: 'Новый герой' })).toBeVisible();
