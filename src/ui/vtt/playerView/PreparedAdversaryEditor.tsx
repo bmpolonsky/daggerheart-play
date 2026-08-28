@@ -47,7 +47,7 @@ export function PreparedAdversaryEditor({ adversary, onClose }: { adversary: Adv
         <section className="player-prepared-editor__grid player-prepared-editor__grid--identity">
           <TextField label="Название" value={draft.name} autoFocus onInput={(event) => setDraft((current) => ({ ...current, name: event.currentTarget.value }))} />
           <NumberField label="Ранг" min={1} max={4} value={draft.tier} onInput={(event) => setDraft((current) => ({ ...current, tier: updateNumber(event.currentTarget.value, current.tier, 1) }))} />
-          <SelectField label="Роль" value={draft.type} onChange={(event) => setDraft((current) => ({ ...current, type: event.currentTarget.value as Adversary['type'] }))}>
+          <SelectField label="Тип" value={draft.type} onChange={(event) => setDraft((current) => ({ ...current, type: event.currentTarget.value as Adversary['type'] }))}>
             {ADVERSARY_TYPES.map((type) => <option key={type} value={type}>{adversaryTypeLabel(type)}</option>)}
           </SelectField>
         </section>

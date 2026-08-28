@@ -153,7 +153,7 @@ export function CharacterSheet({
             <span>Уровень {character.level} / {character.subtitle || character.className}</span>
             <div className="player-character-panel__hero-meta" aria-label="Ключевые параметры персонажа">
               <small><CompendiumRuleTerm ruleSlug="proficiency">Мастерство</CompendiumRuleTerm> {character.proficiency}</small>
-              {character.spellcastTrait && <small>Характеристика заклинателя: {character.traits.find((trait) => trait.id === character.spellcastTrait)?.label ?? character.spellcastTrait}</small>}
+              {character.spellcastTrait && <small>Заклинание: {character.traits.find((trait) => trait.id === character.spellcastTrait)?.label ?? character.spellcastTrait}</small>}
             </div>
           </div>
         </header>

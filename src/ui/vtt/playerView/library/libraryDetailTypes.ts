@@ -18,12 +18,14 @@ export type LibraryEntry = {
   preview: string;
   imageUrl?: string | null;
   stats: string[];
+  listStats?: string[];
   sections: LibraryDetailSection[];
   actions: LibraryDetailAction[];
+  adversary?: LibraryAdversary;
   editable?: {
     collection: EditableContentCollectionKey;
     raw: EditableRawContent;
     isCustom: boolean;
   };
 };
-import type { EditableContentCollectionKey, EditableRawContent } from '../../../../domain/content/types';
+import type { EditableContentCollectionKey, EditableRawContent, LibraryAdversary } from '../../../../domain/content/types';

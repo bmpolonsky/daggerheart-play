@@ -24,7 +24,7 @@ export function adversaryTypeLabel(type: AdversaryType): string {
     Skulk: 'Скрытный',
     Social: 'Социальный',
     Solo: 'Одиночка',
-    Standard: 'Обычный',
+    Standard: 'Рядовой',
     Support: 'Поддержка',
     Custom: 'Свой тип'
   };

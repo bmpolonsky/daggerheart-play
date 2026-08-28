@@ -124,31 +124,94 @@ async function waitForStoredPreparedAdversary(page: Page, name: string): Promise
 test.describe('critical persisted journeys', () => {
   test.describe.configure({ timeout: 120_000 });
 
-  test('opens a structured editor for every editable compendium collection', async ({ page }) => {
+  test('creates, edits and deletes every editable compendium collection', async ({ page }) => {
     await openGmGame(page);
     const workspace = await openWorkspace(page);
     await selectWorkspaceTab(workspace, 'Справочник');
     const collections = workspace.getByLabel('Коллекции справочника');
     const cases = [
-      ['Классы', 'Уклонение'],
-      ['Подклассы', 'Характеристика заклинателя'],
-      ['Родословные', 'Краткое описание'],
-      ['Сообщества', 'Краткое описание'],
-      ['Домены', 'Уровень'],
-      ['Снаряжение', 'Тип'],
-      ['Противники', 'Роль'],
-      ['Окружения', 'Импульсы'],
-      ['Звероформы', 'Атака через']
+      { collection: 'Классы', marker: 'Уклонение', name: 'Автотест — класс', profile: ['Уклонение', '11', 'fill'] },
+      { collection: 'Подклассы', marker: 'Заклинание', name: 'Автотест — подкласс', profile: ['Заклинание', 'knowledge', 'select'] },
+      { collection: 'Родословные', marker: 'Свойства', name: 'Автотест — родословная', profile: ['Краткое описание', 'Наследие автотеста', 'fill', 'Описание'] },
+      { collection: 'Сообщества', marker: 'Свойства', name: 'Автотест — сообщество', profile: ['Краткое описание', 'Сообщество автотеста', 'fill', 'Описание'] },
+      { collection: 'Домены', marker: 'Уровень', name: 'Автотест — карта домена', profile: ['Домен', 'blade', 'select'] },
+      { collection: 'Снаряжение', marker: 'Тип', name: 'Автотест — снаряжение', profile: ['Тип', 'primary-weapon', 'select'] },
+      { collection: 'Противники', marker: 'Тип', name: 'Автотест — противник', profile: ['Мотивы и тактика', 'Проверяет границы карты', 'fill'] },
+      { collection: 'Окружения', marker: 'Импульсы', name: 'Автотест — окружение', profile: ['Импульсы', 'Разделить героев', 'fill'] },
+      { collection: 'Звероформы', marker: 'Атака через', name: 'Автотест — звероформа', profile: ['Атака через', 'strength', 'select'] }
     ] as const;
+    const setProfile = async (editor: Locator, profile: typeof cases[number]['profile']) => {
+      const [label, value, action, summary] = profile;
+      if (summary) await editor.locator('summary', { hasText: summary }).click();
+      const field = editor.getByLabel(label, { exact: true });
+      if (action === 'select') await field.selectOption(value);
+      else await field.fill(value);
+    };
+    const expectProfile = async (editor: Locator, profile: typeof cases[number]['profile']) => {
+      const [label, value, , summary] = profile;
+      if (summary) await editor.locator('summary', { hasText: summary }).click();
+      await expect(editor.getByLabel(label, { exact: true })).toHaveValue(value);
+    };
 
-    for (const [collection, field] of cases) {
+    for (const { collection, marker, name, profile } of cases) {
       await collections.getByRole('button', { name: collection, exact: true }).click();
       await workspace.getByRole('button', { name: 'Создать', exact: true }).click();
       const editor = workspace.locator('.player-compendium-editor');
       await expect(editor.getByLabel('Название', { exact: true })).toBeVisible();
-      await expect(editor.getByText(field, { exact: true }).first()).toBeVisible();
-      await editor.getByRole('button', { name: 'Отмена', exact: true }).click();
+      await expect(editor.getByLabel(marker, { exact: true }).or(editor.getByText(marker, { exact: true })).first()).toBeVisible();
+
+      await editor.getByLabel('Название', { exact: true }).fill(name);
+      if (collection === 'Классы') {
+        await editor.getByLabel('Домен').nth(0).selectOption('arcana');
+        await editor.getByLabel('Домен').nth(1).selectOption('blade');
+        const properties = editor.locator('.player-compendium-editor__section').filter({ hasText: 'Свойства' });
+        await properties.getByRole('button', { name: 'Добавить' }).click();
+        await properties.getByRole('button', { name: 'Добавить' }).click();
+        await editor.getByLabel('Название свойства 1').fill('Первое свойство');
+        await editor.getByLabel('Текст свойства 1').fill('Первый текст');
+        await editor.getByLabel('Название свойства 2').fill('Второе свойство');
+        await editor.getByLabel('Текст свойства 2').fill('Второй текст');
+        await editor.getByRole('button', { name: 'Переместить выше: Второе свойство' }).click();
+      }
+      if (collection === 'Подклассы') await editor.getByLabel('Класс').selectOption({ index: 1 });
+      await setProfile(editor, profile);
+
+      await editor.getByRole('button', { name: 'Сохранить', exact: true }).click();
+      await expect(editor.getByText('Материал сохранён.')).toBeVisible();
+      await editor.getByRole('button', { name: 'Закрыть редактор' }).click();
       await expect(editor).toHaveCount(0);
+
+      await workspace.getByLabel('Источник материалов').getByRole('button', { name: 'Свои' }).click();
+      const search = workspace.getByLabel('Поиск по справочнику');
+      await search.fill(name);
+      const card = workspace.locator('.player-library-card').filter({ hasText: name });
+      await expect(card).toHaveCount(1);
+      await card.click();
+
+      const detail = workspace.getByLabel('Полная запись компендиума');
+      await detail.getByRole('button', { name: 'Редактировать', exact: true }).click();
+      await expectProfile(editor, profile);
+      if (collection === 'Классы') {
+        await expect(editor.getByLabel('Название свойства 1')).toHaveValue('Второе свойство');
+        await expect(editor.getByLabel('Текст свойства 1')).toHaveValue('Второй текст');
+        await expect(editor.getByLabel('Название свойства 2')).toHaveValue('Первое свойство');
+      }
+      const updatedName = `${name} — изменено`;
+      await editor.getByLabel('Название', { exact: true }).fill(updatedName);
+      await editor.getByRole('button', { name: 'Сохранить', exact: true }).click();
+      await expect(editor.getByText('Материал сохранён.')).toBeVisible();
+      await editor.getByRole('button', { name: 'Закрыть редактор' }).click();
+
+      await search.fill(updatedName);
+      const updatedCard = workspace.locator('.player-library-card').filter({ hasText: updatedName });
+      await expect(updatedCard).toHaveCount(1);
+      await updatedCard.click();
+      await workspace.getByLabel('Полная запись компендиума').getByRole('button', { name: 'Редактировать', exact: true }).click();
+      await editor.getByRole('button', { name: 'Удалить материал' }).click();
+      await page.getByRole('dialog', { name: `Удалить «${updatedName}»?` }).getByRole('button', { name: 'Удалить' }).click();
+      await expect(editor).toHaveCount(0);
+      await expect(workspace.locator('.player-library-card').filter({ hasText: updatedName })).toHaveCount(0);
+      await search.fill('');
     }
 
     await collections.getByRole('button', { name: 'Правила', exact: true }).click();
@@ -466,6 +529,8 @@ test.describe('critical persisted journeys', () => {
     await customEditor.getByLabel('Кратко').fill('Идёт на звон разбитых обещаний.');
     await customEditor.getByLabel('Сложность').fill('15');
     await customEditor.getByLabel('Название', { exact: true }).fill('Стеклянный паломник');
+    await customEditor.getByLabel('Тип', { exact: true }).selectOption('horde');
+    await expect(customEditor.getByLabel('Противников на Рану')).toHaveValue('1');
     await expect(customEditor.getByLabel('Название', { exact: true })).toHaveValue('Стеклянный паломник');
     await expect(customEditor.getByLabel('Кратко')).toHaveValue('Идёт на звон разбитых обещаний.');
     await customEditor.getByRole('button', { name: 'Сохранить' }).click();
@@ -500,7 +565,7 @@ test.describe('critical persisted journeys', () => {
     await expect(result).toContainText('Идёт на звон разбитых обещаний.');
     await result.click();
     const detail = workspace.getByLabel('Полная запись компендиума');
-    await expect(detail).toContainText('Сложность: 15');
+    await expect(detail).toContainText(/Сложность\s*15/);
     await detail.getByRole('button', { name: 'Редактировать' }).click();
     const restoredEditor = workspace.locator('.player-compendium-editor');
     await expect(restoredEditor.getByLabel('Название', { exact: true })).toHaveValue('Стеклянный паломник');

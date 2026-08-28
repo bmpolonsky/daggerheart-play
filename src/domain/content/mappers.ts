@@ -254,6 +254,7 @@ export function mapRawAdversary(raw: RawAdversary): LibraryAdversary {
     experiencesText: cleanImportedRulesText(raw.experiences),
     mainBody: cleanImportedRulesText(raw.main_body),
     imageUrl: assetPath(raw.image_url),
+    features,
     featureCount: features.length,
     raw
   };

@@ -344,7 +344,7 @@ test('character builder exposes subclass foundation features and their starting-
   assert.equal(firstFeatureText(subclass), 'Подготовленный: Возьмите дополнительную карту домена первого уровня.');
   assert.match(featureListText(subclass), /Подготовленный/);
   assert.deepEqual(preview?.facts, [
-    'Характеристика заклинателя: Знание'
+    'Заклинание: Знание'
   ]);
 });
 

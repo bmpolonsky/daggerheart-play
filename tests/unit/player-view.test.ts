@@ -539,7 +539,7 @@ test('GM roster keeps adversary tracks beside the shared participant list', () =
   });
   const actor = roster.find((item) => item.kind === 'adversary' && item.actorId === adversary.id);
 
-  assert.equal(actor?.subtitle, 'Ранг 1 / Обычный');
+  assert.equal(actor?.subtitle, 'Ранг 1 / Рядовой');
   assert.deepEqual(actor?.hp, { marked: 2, max: 5 });
   assert.deepEqual(actor?.stress, { marked: 1, max: 3 });
 });

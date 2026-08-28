@@ -56,35 +56,15 @@ export function buildLibraryEntries(
 function adversaryEntry(item: LibraryAdversary): LibraryEntry {
   const prepared = contentService.isAdversaryPrepared(item.id);
   const attackRange = formatRange(item.attackRange);
-  const damageType = formatDamageType(item.damageType);
   const stats = [
     `Сложность ${item.difficulty}`,
     `Раны ${item.hp}`,
-    item.hordePerHp ? `Раны на противника ${item.hordePerHp}` : '',
+    item.hordePerHp ? `Противников на Рану ${item.hordePerHp}` : '',
     `Стресс ${item.stress}`,
     `Атака ${item.attackModifier >= 0 ? '+' : ''}${item.attackModifier}`,
     `${item.weaponName}: ${item.damageFormula}`,
     attackRange
   ].filter(Boolean);
-  const sections = compactSections([
-    ['Кратко', item.summary],
-    ['Боевые параметры', [
-      `Роль: ${item.roleName || item.type}`,
-      `Сложность: ${item.difficulty}`,
-      `Раны: ${item.hp}`,
-      item.hordePerHp ? `Раны на противника: ${item.hordePerHp}` : '',
-      `Стресс: ${item.stress}`,
-      `Пороги: ${item.thresholds.major} / ${item.thresholds.severe}`,
-      `Бонус атаки: ${item.attackModifier >= 0 ? '+' : ''}${item.attackModifier}`,
-      `Атака: ${item.weaponName}`,
-      `Урон: ${item.damageFormula} ${damageType}`,
-      `Дистанция: ${attackRange}`
-    ].join('\n')],
-    ['Мотивы и тактика', item.motives],
-    ['Опыт', item.experiencesText],
-    ['Описание', item.mainBody],
-    ['Свойства', featureSections(item.raw.features)]
-  ]);
   return {
     id: item.id,
     routeSlug: item.slug,
@@ -93,7 +73,8 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
     preview: item.summary || item.motives || item.mainBody,
     imageUrl: item.imageUrl,
     stats,
-    sections,
+    sections: [],
+    adversary: item,
     editable: { collection: 'adversaries', raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
     actions: [
       {
@@ -108,8 +89,8 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
 function classEntry(item: LibraryClassItem): LibraryEntry {
   const stats = [`Уклонение ${item.evasion}`, `Раны ${item.hp}`];
   const sections = compactSections([
-    ['Описание', item.body],
     ['Свойства', featureSections(item.raw.features)],
+    ['Описание', item.body],
     ['Начальные предметы', item.classItems.join('\n')],
     ['Вопросы предыстории', item.backgroundQuestions.join('\n')],
     ['Вопросы связей', item.connectionQuestions.join('\n')]
@@ -149,8 +130,8 @@ function environmentEntry(item: LibraryEnvironment): LibraryEntry {
   const stats = [`Ранг ${item.tier}`, `Сложность ${item.difficulty}`];
   const sections = compactSections([
     ['Кратко', item.summary],
+    ['Свойства', item.featureText],
     ['Описание', item.body],
-    ['Особенности', item.featureText],
     ['Импульсы', item.impulses],
     ['Потенциальные противники', item.potentialAdversaries]
   ]);
@@ -185,7 +166,7 @@ function equipmentEntry(item: LibraryEquipmentItem, targetCharacterId?: string |
   const range = formatRange(item.range);
   const damageType = formatDamageType(item.damageType);
   const trait = formatTrait(item.trait);
-  const traitDescription = trait ? `Характеристика ${trait}` : item.usesSpellcastTrait ? 'Характеристика заклинателя' : '';
+  const traitDescription = trait ? `Характеристика ${trait}` : item.usesSpellcastTrait ? 'Заклинание' : '';
   const stats = [
     item.tier ? `Ранг ${item.tier}` : '',
     traitDescription,
@@ -205,7 +186,7 @@ function equipmentEntry(item: LibraryEquipmentItem, targetCharacterId?: string |
       item.armorScore ? `Показатель брони: ${item.armorScore}` : '',
       item.uses !== null ? `Использований: ${item.uses}` : ''
     ].filter(Boolean).join('\n')],
-    ['Описание', item.featureText],
+    ['Свойства', item.featureText],
     ['Пороги брони', item.baseThresholds ? `Ощутимый ${item.baseThresholds.major} / Тяжелый ${item.baseThresholds.severe}` : '']
   ]);
   return {
@@ -241,10 +222,10 @@ function beastformEntry(item: LibraryBeastform): LibraryEntry {
       item.attackRange ? `Дистанция: ${attackRange}` : '',
       trait ? `Характеристика: ${trait} ${item.traitBonus >= 0 ? '+' : ''}${item.traitBonus}` : ''
     ].filter(Boolean).join('\n')],
+    ['Свойства', item.featureText],
     ['Кратко', item.summary],
     ['Примеры', item.examples],
-    ['Преимущества', item.advantages],
-    ['Особенности', item.featureText]
+    ['Преимущества', item.advantages]
   ]);
   return {
     id: item.id,
@@ -267,11 +248,11 @@ function genericEntry(item: GenericLibraryItem, collection: 'ancestries' | 'comm
     item.level ? `Уровень ${item.level}` : '',
     cardType,
     recallCost,
-    spellcastTrait ? `Характеристика заклинателя: ${spellcastTrait}` : ''
+    spellcastTrait ? `Заклинание: ${spellcastTrait}` : ''
   ].filter(Boolean);
   const sections = compactSections([
-    ['Описание', item.body],
-    ['Свойства', genericFeatureSections(item)]
+    ['Свойства', genericFeatureSections(item)],
+    ['Описание', item.body]
   ]);
   return {
     id: item.id,
@@ -281,6 +262,7 @@ function genericEntry(item: GenericLibraryItem, collection: 'ancestries' | 'comm
     preview: item.body,
     imageUrl: item.imageUrl,
     stats,
+    listStats: stats.filter((stat) => !stat.startsWith('Заклинание:')),
     sections,
     editable: { collection, raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
     actions: [shareAction(item.name, sections, stats)]
@@ -357,9 +339,9 @@ function genericFeatureSections(item: GenericLibraryItem): string {
   const raw = item.raw;
   return [
     featureSections(raw.features),
-    titledFeatureSections('Свойства основы', raw.foundation_features),
-    titledFeatureSections('Свойства специализации', raw.specialization_features),
-    titledFeatureSections('Свойства мастерства', raw.mastery_features)
+    titledFeatureSections('Основа', raw.foundation_features),
+    titledFeatureSections('Специализация', raw.specialization_features),
+    titledFeatureSections('Мастерство', raw.mastery_features)
   ].filter(Boolean).join('\n\n');
 }
 

@@ -102,6 +102,7 @@ export function LibraryResults({
 
   return (
     <ListDetailLayout
+      className="player-library-workspace"
       listLabel="Записи компендиума"
       detailLabel="Детали записи"
       listClassName="player-library-list"
@@ -115,7 +116,7 @@ export function LibraryResults({
               isSelected={selectedEntry?.id === entry.id}
               key={entry.id}
               kicker={entry.kicker}
-              stats={entry.stats}
+              stats={entry.listStats ?? entry.stats}
               title={entry.title}
               onSelect={() => {
                 if (editorTarget && !leaveEditor()) return;

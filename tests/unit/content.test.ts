@@ -119,6 +119,7 @@ test('content library query searches all compendium sections outside UI', () => 
     experiencesText: '',
     mainBody: '',
     imageUrl: null,
+    features: [],
     featureCount: 0,
     raw: {}
   };
@@ -297,7 +298,7 @@ test('equipment mapper preserves consumable uses', () => {
   assert.equal(item.uses, 1);
 });
 
-test('adversary mapper retains the Horde wounds-per-figure rule', () => {
+test('adversary mapper retains the Horde figures-per-wound rule', () => {
   const horde = mapRawAdversary({
     id: 'zombie-pack',
     slug: 'zombie-pack',
@@ -310,6 +311,12 @@ test('adversary mapper retains the Horde wounds-per-figure rule', () => {
 
   assert.equal(horde.hordePerHp, 2);
   assert.equal(createAdversaryFromLibrary(horde).hordePerHp, 2);
+});
+
+test('adversary mapper hides malformed imported features from presentation', () => {
+  const adversary = mapRawAdversary({ name: 'Старый импорт', features: 'legacy text' as unknown as [] });
+
+  assert.deepEqual(adversary.features, []);
 });
 
 test('equipment mapper extracts fallback features without stat block noise', () => {
@@ -615,6 +622,12 @@ test('custom content drafts validate numeric limits and preserve imported fields
   draft.tier = 2;
   assert.equal(validateCustomContentDraft('adversaries', draft), 'Тяжёлый порог должен быть не меньше ощутимого.');
   draft.damage_thresholds = [8, 12];
+  assert.equal(validateCustomContentDraft('adversaries', draft), null);
+  draft.horde_per_hp = 0;
+  assert.equal(validateCustomContentDraft('adversaries', draft), null);
+  draft.type_slug = 'horde';
+  assert.equal(validateCustomContentDraft('adversaries', draft), 'Противников на Рану: допустимо от 1.');
+  draft.horde_per_hp = 5;
   assert.equal(validateCustomContentDraft('adversaries', draft), null);
 
   const cleaned = cleanCustomContentDraft(draft);

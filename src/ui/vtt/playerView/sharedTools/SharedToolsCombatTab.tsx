@@ -324,7 +324,7 @@ function combatAdversaryEntry(adversary: Adversary): LibraryEntry {
     {
       title: 'Боевые параметры',
       body: [
-        `Роль: ${adversary.roleName}`,
+        `Тип: ${adversary.roleName}`,
         `Сложность: ${adversary.difficulty}`,
         `Раны: ${adversary.hp}`,
         `Стресс: ${adversary.stress}`,

@@ -361,7 +361,7 @@ function libraryItemPreview(kicker: string, item?: GenericLibraryItem, facts?: s
 
 function subclassFacts(item: GenericLibraryItem | undefined): string[] {
   const spellcastTrait = coerceTrait(item?.raw.spellcast_trait);
-  return spellcastTrait ? [`Характеристика заклинателя: ${TRAIT_LABELS[spellcastTrait]}`] : [];
+  return spellcastTrait ? [`Заклинание: ${TRAIT_LABELS[spellcastTrait]}`] : [];
 }
 
 export function domainCardFromLibrary(item: GenericLibraryItem, inLoadout: boolean): DomainCardRecord {

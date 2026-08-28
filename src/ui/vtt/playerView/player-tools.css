@@ -187,11 +187,6 @@
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
-.player-library-section--editing .player-custom-compendium-section {
-  height: 100%;
-  max-height: none;
-}
-
 @media (max-width: 1120px) {
   .player-library-section--detail-open {
     grid-template-rows: minmax(0, 1fr);
@@ -834,6 +829,23 @@
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  scrollbar-color: rgba(240, 201, 106, 0.28) transparent;
+  scrollbar-width: thin;
+}
+
+.player-library-detail__body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.player-library-detail__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.player-library-detail__body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(240, 201, 106, 0.28);
+  background-clip: padding-box;
 }
 
 .player-library-detail__header {
@@ -1066,6 +1078,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.player-library-workspace {
+  --dh-list-detail-list-min: 480px;
+  --dh-list-detail-list-max: 1fr;
+  --dh-list-detail-detail-min: 520px;
+  --dh-list-detail-detail-max: 640px;
 }
 
 .player-tools-character-backbar > span {
@@ -2767,92 +2786,70 @@
   }
 }
 
-.player-custom-compendium-section {
-  min-height: 0;
-  max-height: min(620px, calc(100vh - 230px));
-  gap: 16px;
-  padding: 4px 0 2px;
-  overflow: hidden;
-}
-
-.player-custom-compendium-layout {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
-  gap: 24px;
-}
-
-.player-custom-compendium-sidebar,
-.player-custom-compendium-editor {
-  min-width: 0;
-  min-height: 0;
-}
-
-.player-custom-compendium-sidebar {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
-}
-
-.player-custom-compendium-list {
+.player-custom-compendium-form {
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 5px;
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: 8px;
 }
 
-.player-custom-compendium-list__item {
+.player-custom-compendium-form--generic,
+.player-compendium-generic-card {
+  padding: 10px 12px;
+  border-radius: var(--dh-radius);
+  background: var(--dh-glass-subtle);
+}
+
+.player-custom-compendium-form--generic .player-compendium-editor__title-control,
+.player-custom-compendium-form--generic .player-compendium-editor__summary-control,
+.player-custom-compendium-form--generic .player-compendium-editor__collection-head > .dh-field {
+  padding-inline: 0;
   background: transparent;
 }
 
-.player-custom-compendium-list__item.dh-is-selected {
-  background: rgba(240, 201, 106, 0.09);
-}
-
-.player-custom-compendium-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.player-custom-compendium-editor > .dh-notice {
-  margin-bottom: -4px;
-}
-
-.player-custom-compendium-form {
-  flex: 1 1 auto;
-  min-height: 0;
+.player-compendium-generic-card {
   display: grid;
   align-content: start;
-  gap: 12px;
-  overflow-y: auto;
-  padding-right: 2px;
+  gap: 8px;
 }
 
-.player-custom-compendium-grid {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
+.player-compendium-generic-card .player-library-detail__header--with-art {
+  grid-template-columns: minmax(0, 1fr) 88px;
 }
 
-.player-custom-compendium-grid--title {
-  grid-template-columns: minmax(190px, 1fr) minmax(72px, 0.24fr) minmax(140px, 0.38fr);
+.player-compendium-generic-card .player-library-detail__identity {
+  gap: 5px;
 }
 
-.player-custom-compendium-grid--media {
-  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.34fr);
+.player-compendium-generic-card .player-library-detail__art {
+  width: 88px;
+  height: 88px;
+  aspect-ratio: 1;
 }
 
-.player-custom-compendium-grid--stats {
-  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+.player-compendium-generic-card h3 {
+  font-size: 1.12rem;
 }
 
-.player-custom-compendium-actions {
-  justify-content: flex-end;
-  padding-top: 6px;
+.player-compendium-generic-card .player-library-detail__sections,
+.player-compendium-generic-card .player-library-richtext {
+  gap: 5px;
+}
+
+.player-compendium-generic-card .player-library-detail__text,
+.player-compendium-generic-card .player-library-richtext__list {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.player-compendium-generic-card__features .player-library-richtext {
+  gap: 3px;
+}
+
+.player-compendium-generic-card__features .player-library-richtext__heading {
+  margin-top: 4px;
+  color: #fff4d6;
+  font-size: 0.8rem;
 }
 
 .player-compendium-editor__header {
@@ -2860,18 +2857,94 @@
 }
 
 .player-compendium-editor__header h3 {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
+  font-size: 0.94rem;
 }
 
 .player-compendium-editor__identity-fields {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 4px;
+}
+
+.player-compendium-editor,
+.player-library-detail--adversary {
+  width: min(720px, 100%);
+  margin-left: auto;
+}
+
+.player-compendium-editor .player-library-detail__body,
+.player-library-detail--adversary .player-library-detail__body {
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.player-compendium-editor textarea {
+  field-sizing: content;
+  overflow-y: hidden;
+  resize: none;
+}
+
+.player-compendium-statblock {
+  border-radius: var(--dh-radius);
+  background: var(--dh-glass-subtle);
+}
+
+.player-compendium-editor__identity-layout,
+.player-compendium-statblock__identity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: start;
+  gap: 10px;
+}
+
+.player-compendium-editor__identity-layout--no-art {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.player-compendium-editor__title-control {
+  min-height: 32px;
+  padding: 0;
+  background: transparent;
+  color: #fff4d6;
+  font-family: "DH Eveleth", "Overpass", sans-serif;
+  font-size: 1.12rem;
+  font-weight: 900;
+  line-height: 1.2;
+  resize: none;
+}
+
+.player-compendium-statblock textarea.player-compendium-editor__title-control {
+  min-height: 48px;
+}
+
+.player-compendium-editor__summary-control {
+  min-height: 40px;
+  padding: 3px 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  resize: vertical;
+}
+
+.player-compendium-editor__art-picker {
+  --image-file-picker-compact-size: 72px;
+}
+
+.player-compendium-editor__art-picker .image-file-picker__frame {
+  min-height: 72px;
+}
+
+.player-compendium-editor__art-picker .image-file-picker__empty {
+  gap: 0;
+  font-size: 0;
 }
 
 .player-compendium-editor__section {
   display: grid;
-  gap: 12px;
+  gap: 6px;
 }
 
 .player-compendium-editor__section > header,
@@ -2888,22 +2961,32 @@
   justify-content: space-between;
 }
 
-.player-compendium-editor__section > header h4 {
+.player-compendium-editor__section > header h4,
+.player-compendium-statblock__features > h4 {
   margin: 0;
+  color: rgba(240, 201, 106, 0.82);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
 }
 
 .player-compendium-editor__collection,
 .player-compendium-editor__string-list {
   display: grid;
-  gap: 10px;
+  gap: 0;
 }
 
-.player-compendium-editor__collection-item {
+.player-compendium-editor__collection-item,
+.player-compendium-statblock__features article {
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  border-radius: var(--dh-radius);
-  background: var(--dh-glass-subtle);
+  gap: 3px;
+  padding: 6px 0;
+  background: transparent;
+}
+
+.player-compendium-editor__collection-item + .player-compendium-editor__collection-item,
+.player-compendium-statblock__features article + article {
+  box-shadow: 0 -1px rgba(255, 255, 255, 0.05);
 }
 
 .player-compendium-editor__collection-head > .dh-label,
@@ -2915,49 +2998,426 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  padding-bottom: 2px;
+  align-self: center;
 }
 
 .player-compendium-editor__footer {
   justify-content: flex-end;
+  padding: 8px 12px 10px;
 }
 
 .player-compendium-editor__footer > :first-child:not(:last-child) {
   margin-right: auto;
 }
 
+.player-compendium-editor__feature-text {
+  min-height: 48px;
+  padding: 5px 7px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.player-compendium-editor__details {
+  display: grid;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.player-compendium-editor__details > summary {
+  color: rgba(240, 201, 106, 0.72);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.player-compendium-editor__details .dh-textarea {
+  min-height: 64px;
+}
+
+.player-compendium-cardfields {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 7px 9px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.player-compendium-cardfield {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(243, 234, 216, 0.72);
+  font-size: 0.72rem;
+}
+
+.player-compendium-cardfield > strong {
+  flex: 0 0 auto;
+  color: #fff4d6;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.player-compendium-cardfield > .dh-field,
+.player-compendium-cardfield__formula > .dh-field {
+  width: auto;
+  min-width: 42px;
+  min-height: 28px;
+  padding: 2px 22px 2px 5px;
+  background: transparent;
+  font-size: 0.74rem;
+}
+
+.player-compendium-cardfield:not(.player-compendium-cardfield--grow) input.dh-field {
+  width: 48px;
+  padding-inline: 4px;
+  text-align: center;
+}
+
+.player-compendium-cardfield--grow {
+  flex: 1 1 150px;
+}
+
+.player-compendium-cardfield--grow > .dh-field {
+  width: 100%;
+}
+
+.player-compendium-cardfield--wide {
+  width: 100%;
+  align-items: flex-start;
+}
+
+.player-compendium-cardfield--wide > strong {
+  padding-top: 5px;
+}
+
+.player-compendium-cardfield--wide > .dh-textarea {
+  flex: 1 1 0;
+  min-height: 42px;
+  padding: 4px 6px;
+  background: transparent;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.player-compendium-cardfield__formula {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  white-space: nowrap;
+}
+
+.player-compendium-cardfield__formula > .dh-select {
+  width: 60px;
+}
+
+.player-compendium-cardfield__formula > input.dh-field {
+  width: 36px;
+  padding-inline: 2px;
+  text-align: center;
+}
+
+.player-compendium-editor input[type="number"] {
+  appearance: textfield;
+}
+
+.player-compendium-editor input[type="number"]::-webkit-inner-spin-button,
+.player-compendium-editor input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.player-compendium-statblock {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.player-compendium-statblock__identity-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.player-compendium-statblock__meta,
+.player-compendium-statblock__meta label,
+.player-compendium-statblock__prose,
+.player-compendium-statblock__number,
+.player-compendium-statblock__damage,
+.player-compendium-statblock__experience {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.player-compendium-statblock__meta {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: rgba(243, 234, 216, 0.72);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.player-compendium-statblock__meta label {
+  gap: 5px;
+}
+
+.player-compendium-statblock__meta input {
+  width: 30px;
+  min-height: 26px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.player-compendium-statblock__meta select {
+  width: auto;
+  min-height: 28px;
+  padding: 0 22px 0 4px;
+  background-color: transparent;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.player-compendium-statblock__prose,
+.player-compendium-statblock__experience {
+  gap: 5px;
+  font-size: 0.76rem;
+}
+
+.player-compendium-statblock__prose {
+  align-items: flex-start;
+}
+
+.player-compendium-statblock__prose--editable > strong {
+  padding-top: 4px;
+}
+
+.player-compendium-statblock__prose strong,
+.player-compendium-statblock__experience strong,
+.player-compendium-statblock__number strong {
+  flex: 0 0 auto;
+  color: #fff4d6;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.player-compendium-statblock__experience input {
+  min-width: 90px;
+  min-height: 28px;
+  border-bottom: 1px dotted rgba(240, 201, 106, 0.28);
+}
+
+.player-compendium-statblock__rules {
+  display: grid;
+  gap: 3px;
+  padding: 7px 9px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.player-compendium-statblock__line {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 9px;
+}
+
+.player-compendium-statblock__number {
+  gap: 3px;
+  font-size: 0.76rem;
+}
+
+.player-compendium-statblock__number input,
+.player-compendium-statblock__damage input {
+  width: 42px;
+  min-height: 27px;
+  font-weight: 850;
+  text-align: center;
+}
+
+.player-compendium-statblock__attack {
+  padding-top: 2px;
+  box-shadow: 0 -1px rgba(255, 255, 255, 0.045);
+}
+
+.player-compendium-statblock__weapon {
+  flex: 1 1 240px;
+  min-width: 220px;
+  min-height: 27px;
+  border-bottom: 1px dotted rgba(240, 201, 106, 0.28);
+  font-weight: 850;
+}
+
+textarea.player-compendium-statblock__weapon {
+  min-height: 27px;
+  padding: 4px 0;
+  line-height: 1.35;
+}
+
+.player-compendium-statblock__select {
+  width: auto;
+  min-height: 28px;
+  padding: 0 22px 0 6px;
+  font-size: 0.72rem;
+}
+
+.player-compendium-statblock__damage {
+  flex: 0 0 auto;
+  gap: 0;
+  white-space: nowrap;
+}
+
+.player-compendium-statblock__damage input {
+  width: 34px;
+}
+
+.player-compendium-statblock__die-select {
+  width: 62px;
+  padding-left: 2px;
+}
+
+.player-compendium-statblock__die-select--none {
+  width: 104px;
+  margin-right: 4px;
+}
+
+.player-compendium-statblock__damage > select:last-child {
+  margin-left: 8px;
+}
+
+.player-compendium-statblock__experience {
+  padding-top: 3px;
+  box-shadow: 0 -1px rgba(255, 255, 255, 0.045);
+}
+
+.player-compendium-statblock--readonly .player-compendium-statblock__identity {
+  grid-template-columns: minmax(0, 1fr) 96px;
+}
+
+.player-compendium-statblock--readonly .player-compendium-statblock__identity--no-art {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.player-compendium-statblock__title {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.player-compendium-statblock__art {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--dh-radius-sm);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.player-compendium-statblock__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.player-compendium-statblock--readonly .player-library-richtext {
+  gap: 3px;
+}
+
+.player-compendium-statblock--readonly .player-library-detail__text {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.player-compendium-statblock--readonly .player-compendium-statblock__meta span {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.player-compendium-statblock--readonly .player-compendium-statblock__prose > span,
+.player-compendium-statblock--readonly .player-compendium-statblock__experience > span {
+  min-width: 0;
+  color: rgba(243, 234, 216, 0.82);
+  line-height: 1.4;
+}
+
+.player-compendium-statblock--readonly .player-compendium-statblock__number > span {
+  color: rgba(243, 234, 216, 0.88);
+  font-weight: 850;
+}
+
+.player-compendium-statblock--readonly .player-compendium-statblock__weapon {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 0;
+  border-bottom: 0;
+  color: #fff4d6;
+  font-size: 0.8rem;
+}
+
+.player-compendium-statblock--readonly .player-compendium-statblock__attack {
+  gap: 3px 8px;
+  font-size: 0.78rem;
+}
+
+.player-compendium-statblock--readonly .player-compendium-statblock__damage {
+  gap: 4px;
+}
+
+.player-compendium-statblock__features {
+  display: grid;
+  gap: 0;
+}
+
+.player-compendium-statblock__features h5 {
+  margin: 0;
+  color: #fff4d6;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 720px) {
+  .player-compendium-editor__identity-layout,
+  .player-compendium-statblock__identity {
+    grid-template-columns: minmax(0, 1fr) 60px;
+  }
+
+  .player-compendium-statblock--readonly .player-compendium-statblock__identity {
+    grid-template-columns: minmax(0, 1fr) 72px;
+  }
+
+  .player-compendium-statblock--readonly .player-compendium-statblock__identity--no-art {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .player-compendium-statblock__art {
+    width: 72px;
+    height: 72px;
+  }
+
+  .player-compendium-editor__art-picker {
+    --image-file-picker-compact-size: 60px;
+  }
+
+  .player-compendium-editor__art-picker .image-file-picker__frame {
+    min-height: 60px;
+  }
+
   .player-compendium-editor__collection-head,
   .player-compendium-editor__string-row {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
   }
 
   .player-compendium-editor__move-actions {
     justify-content: flex-end;
   }
-}
 
-@media (max-width: 860px) {
-  .player-custom-compendium-section {
-    max-height: none;
-    overflow: visible;
-  }
-
-  .player-custom-compendium-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .player-custom-compendium-sidebar {
-    grid-template-rows: auto auto;
-  }
-
-  .player-custom-compendium-list {
-    max-height: 220px;
-  }
-
-  .player-custom-compendium-grid--title,
-  .player-custom-compendium-grid--media {
-    grid-template-columns: 1fr;
+  .player-compendium-statblock__prose,
+  .player-compendium-statblock__experience {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1px;
   }
 }

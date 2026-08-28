@@ -242,6 +242,7 @@ export interface LibraryAdversary {
   experiencesText: string;
   mainBody: string;
   imageUrl: string | null;
+  features: RawAdversaryFeature[];
   featureCount: number;
   raw: RawAdversary;
 }

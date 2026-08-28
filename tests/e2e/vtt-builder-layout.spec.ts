@@ -106,7 +106,7 @@ test.describe('character builder composition', () => {
 
     const detail = builder.getByLabel('Описание выбора');
     await expect(detail).toContainText('Подготовленный');
-    await expect(detail).toContainText('Характеристика заклинателя: Знание');
+    await expect(detail).toContainText('Заклинание: Знание');
     await expectInsideViewport(page, detail);
 
     await builder.getByRole('button', { name: 'Карты' }).click();

@@ -68,7 +68,7 @@ export function AdversaryCard({
 
       <div
         className="combat-adversary-card__cost absolute left-2 top-2 z-40"
-        title={`Стоимость: ${cost} очков (Роль: ${adversary.roleName})`}
+        title={`Стоимость: ${cost} очков (Тип: ${adversary.roleName})`}
       >
         <span
           className="combat-adversary-card__cost-badge"

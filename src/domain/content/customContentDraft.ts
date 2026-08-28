@@ -44,7 +44,7 @@ export function validateCustomContentDraft(collection: EditableContentCollection
 
   switch (collection) {
     case 'adversaries':
-      return range('tier', 'Ранг', 1, 4) || range('difficulty', 'Сложность', 0) || range('hp', 'Раны', 1) || range('stress', 'Стресс', 0) || range('damage_die_count', 'Количество костей', 0) || range('damage_die_size', 'Грани', 0) || range('horde_per_hp', 'Ран на противника', 1, Number.POSITIVE_INFINITY, true) || thresholds('damage_thresholds');
+      return range('tier', 'Ранг', 1, 4) || range('difficulty', 'Сложность', 0) || range('hp', 'Раны', 1) || range('stress', 'Стресс', 0) || range('damage_die_count', 'Количество костей', 0) || range('damage_die_size', 'Грани', 0) || (text(draft.type_slug).toLowerCase() === 'horde' ? range('horde_per_hp', 'Противников на Рану', 1) : null) || thresholds('damage_thresholds');
     case 'environments': return range('tier', 'Ранг', 1, 4) || range('difficulty', 'Сложность', 0);
     case 'classes': {
       const domains = Array.isArray(draft.domain_slugs)

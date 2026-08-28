@@ -72,7 +72,7 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
               max={adversary.stress.max}
               onSet={readOnly ? undefined : (next) => encounterService.updateAdversarySlots(adversary.id, 'stress', { marked: next })}
             />
-            {adversary.hordePerHp && <ListItem title="Раны на противника" value={String(adversary.hordePerHp)} density="compact" />}
+            {adversary.hordePerHp && <ListItem title="Противников на Рану" value={String(adversary.hordePerHp)} density="compact" />}
           </section>
           <section className="player-threshold-row" aria-label="Пороги противника">
             <div>
