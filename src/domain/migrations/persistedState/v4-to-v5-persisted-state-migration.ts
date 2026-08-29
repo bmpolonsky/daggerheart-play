@@ -1,4 +1,4 @@
-import { publicAssetUrl } from '../../content/publicAssets';
+import { portablePublicAssetPath } from '../../content/publicAssets';
 import type {
   Adversary,
   CharacterBeastformState,
@@ -40,7 +40,7 @@ export const v4ToV5PersistedStateMigration: PersistedStateMigration = {
 };
 
 export function migrateV4ToV5PersistedState(state: PersistedStateV4): PersistedState {
-  return migratePublicAssetUrls(normalizePersistedStateV4(state));
+  return normalizePersistedPublicAssetUrls(normalizePersistedStateV4(state));
 }
 
 function normalizePersistedStateV4(state: PersistedStateV4): PersistedState {
@@ -254,7 +254,7 @@ function normalizeSceneTableState(sceneTable: unknown): SceneTableState {
   return createSceneTableState();
 }
 
-function migratePublicAssetUrls(state: PersistedState): PersistedState {
+export function normalizePersistedPublicAssetUrls(state: PersistedState): PersistedState {
   return {
     ...state,
     schemaVersion: 5,
@@ -272,6 +272,10 @@ function migratePublicAssetUrls(state: PersistedState): PersistedState {
         {
           ...character,
           portraitUrl: migrateAssetUrl(character.portraitUrl),
+          companion: character.companion ? {
+            ...character.companion,
+            imageUrl: migrateOptionalAssetUrl(character.companion.imageUrl)
+          } : character.companion,
           domainCards: character.domainCards.map((card) => ({
             ...card,
             imageUrl: migrateNullableAssetUrl(card.imageUrl)
@@ -365,21 +369,14 @@ function migrateAssetUrl(value: string): string {
     return value;
   }
   if (/^https?:\/\//i.test(value)) {
-    return publicAssetUrl(value);
+    return portablePublicAssetPath(value);
   }
-  if (!isStoredPublicImagePath(value)) {
-    return value;
-  }
-  return replacePublicImageExtension(value);
+  return isStoredPublicImagePath(value) ? portablePublicAssetPath(value) : value;
 }
 
 function isStoredPublicImagePath(value: string): boolean {
   const path = value.split(/[?#]/, 1)[0].replace(/^\.\//, '').replace(/^\/+/, '');
-  return /^(?:image|daggerheart-play\/image)\/.+\.(?:jpe?g|png)$/i.test(path);
-}
-
-function replacePublicImageExtension(value: string): string {
-  return value.replace(/\.(?:jpe?g|png)([?#].*)?$/i, '.webp$1');
+  return /^(?:image|daggerheart-play\/image)\/.+/i.test(path);
 }
 
 function normalizeSourceId(value: unknown): string | number | undefined {

@@ -23,6 +23,7 @@ import type {
 import { createAdversary, createEncounterEnvironment } from '../rules/factories';
 import { rangeLabel } from '../rules/constants';
 import { createId } from '../../core/utils/id';
+import { portablePublicAssetPath } from './publicAssets';
 
 const ADVERSARY_TYPES: AdversaryType[] = [
   'Bruiser',
@@ -100,10 +101,7 @@ function slugify(input: string): string {
 
 function assetPath(imageUrl: unknown): string | null {
   if (typeof imageUrl !== 'string' || !imageUrl.trim()) return null;
-  const trimmed = imageUrl.trim();
-  if (/^(?:https?:\/\/|blob:|data:)/i.test(trimmed)) return trimmed;
-  const normalized = trimmed.replace(/^\/+/, '');
-  return `${import.meta.env.BASE_URL}${normalized}`.replace(/\/\//g, '/');
+  return portablePublicAssetPath(imageUrl.trim());
 }
 
 function coerceAdversaryType(raw: RawAdversary): AdversaryType {

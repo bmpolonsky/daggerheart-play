@@ -9,6 +9,8 @@ import type {
   RawEquipmentItem
 } from '../content/types';
 import { createId } from '../../core/utils/id';
+import { normalizePersistedPublicAssetUrls } from '../migrations/persistedState/v4-to-v5-persisted-state-migration';
+import { portablePublicAssetPath } from '../content/publicAssets';
 
 export const GAME_DOCUMENT_KIND = 'daggerheart-play:game';
 const LEGACY_GAME_PROJECT_KIND = 'daggerheart-play:game-project-folder';
@@ -72,6 +74,8 @@ export interface LegacyGameArchive {
 }
 
 export function createGameDocument(state: PersistedState, customContent: GameCustomContent = emptyCustomContent()): GameDocument {
+  state = normalizePersistedPublicAssetUrls(state);
+  customContent = normalizeGameCustomContent(customContent);
   const updatedAt = state.game.updatedAt || state.sceneTable.updatedAt || new Date().toISOString();
   const manifest: GameManifest = {
     kind: GAME_DOCUMENT_KIND,
@@ -107,7 +111,7 @@ export function createGameDocument(state: PersistedState, customContent: GameCus
 
 export function gameDocumentToPersistedState(document: GameDocument): PersistedState {
   const sceneTable = document.files['data/scene-table.json'];
-  return {
+  return normalizePersistedPublicAssetUrls({
     schemaVersion: 5,
     game: document.files['data/game.json'],
     characters: document.files['data/characters.json'],
@@ -123,7 +127,7 @@ export function gameDocumentToPersistedState(document: GameDocument): PersistedS
         ...sceneTable.assets
       }
     }
-  };
+  });
 }
 
 export function forkGameDocument(document: GameDocument, suffix = ' — восстановленная копия'): GameDocument {
@@ -160,8 +164,17 @@ export function normalizeGameCustomContent(value: unknown): GameCustomContent {
   const source = isRecord(value) ? value : {};
   const fallback = emptyCustomContent();
   return Object.fromEntries(
-    Object.keys(fallback).map((key) => [key, Array.isArray(source[key]) ? source[key] : []])
+    Object.keys(fallback).map((key) => [key, Array.isArray(source[key]) ? source[key].map(normalizeCustomContentAssetUrls) : []])
   ) as unknown as GameCustomContent;
+}
+
+function normalizeCustomContentAssetUrls(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const normalized = { ...value };
+  for (const key of ['image_url', 'domain_image_url', 'icon']) {
+    if (typeof normalized[key] === 'string') normalized[key] = portablePublicAssetPath(normalized[key]);
+  }
+  return normalized;
 }
 
 export function gameDocumentCustomContent(document: GameDocument): GameCustomContent {

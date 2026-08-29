@@ -8,7 +8,7 @@ import {
   buildPlayerViewModel,
   type PlayerViewCharacterSummary
 } from '../../domain/tabletop/playerView';
-import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview } from '../../domain/tabletop/feed';
+import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildHandoutDraftFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview, type TableFeedItem } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import { resolveTableSessionContext } from '../../domain/p2p/sessionPresentation';
@@ -50,6 +50,7 @@ import { TabButton, Tabs } from '../components/common/Tabs';
 import { Dialog } from '../components/common/Dialog';
 import { IconButton } from '../components/common/IconButton';
 import { SectionHeader } from '../components/common/SectionHeader';
+import { ContentPreviewPanel } from './playerView/ContentPreviewPanel';
 import './playerView/player-view.css';
 
 export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
@@ -90,6 +91,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const quickToolsOpen = role === 'gm' && routedUi.toolsOpen && routedUi.toolsTab === 'generators';
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
+  const [contentPreviewItem, setContentPreviewItem] = useState<TableFeedItem | null>(null);
   const assetUrls = useLiveSceneAssetUrls(viewedScene, sceneTable.assets, role, sceneTable.musicDeliveryMode);
   const viewedCharacterId = viewedActor?.kind === 'character' ? viewedActor.actorId : null;
   const viewedAdversaryId = viewedActor?.kind === 'adversary' ? viewedActor.actorId : null;
@@ -110,6 +112,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
 
   useEffect(() => {
     playerViewUiActions.reset();
+    setContentPreviewItem(null);
     return () => playerViewUiActions.reset();
   }, [role, sessionRoomId]);
 
@@ -229,6 +232,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     if (role === 'player' && (actor.kind !== 'character' || actor.actorId !== playerCharacterId)) {
       return;
     }
+    setContentPreviewItem((current) => current?.actor?.actorId === actor.actorId ? current : null);
     setViewedActor(actor);
     setPanelOpen(true);
     setMobileLayer('sheet');
@@ -352,7 +356,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     }
   }, [openActor, role, selectedPlayerName, selectedPlayerSeatId]);
   const previewDomainCard = useCallback((character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => {
-    playerViewUiActions.setEphemeralFeedItem(buildDomainCardPreviewFeedItem({
+    setContentPreviewItem(buildDomainCardPreviewFeedItem({
       id: `ephemeral-card-${character.id}`,
       createdAt: nowIso(),
       authorName: character.name,
@@ -363,11 +367,9 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         actorType: 'character'
       }
     }));
-    setActivityOpen(true);
-    setMobileLayer('feed');
   }, []);
   const previewCharacterFeature = useCallback((character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => {
-    playerViewUiActions.setEphemeralFeedItem(buildCharacterFeaturePreviewFeedItem({
+    setContentPreviewItem(buildCharacterFeaturePreviewFeedItem({
       id: `ephemeral-feature-${character.id}-${feature.id}`,
       createdAt: nowIso(),
       authorName: character.name,
@@ -384,11 +386,16 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         actorType: 'character'
       }
     }));
-    setActivityOpen(true);
-    setMobileLayer('feed');
+  }, []);
+  const previewHandout = useCallback((handout: Parameters<typeof buildHandoutDraftFeedItem>[0]['handout']) => {
+    setContentPreviewItem(buildHandoutDraftFeedItem({
+      id: `ephemeral-handout-${handout.id}`,
+      createdAt: nowIso(),
+      handout
+    }));
   }, []);
   const editCharacterWealth = useCallback((character: PlayerViewCharacterSummary) => {
-    playerViewUiActions.setEphemeralFeedItem(buildWealthEditorFeedItem({
+    setContentPreviewItem(buildWealthEditorFeedItem({
       id: `ephemeral-wealth-${character.id}`,
       createdAt: nowIso(),
       authorName: character.name,
@@ -399,8 +406,6 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         actorType: 'character'
       }
     }));
-    setActivityOpen(true);
-    setMobileLayer('feed');
   }, []);
   const needsSeatSelection = role === 'player' && playerSeats.length > 0 && !selectedPlayerSeat;
   const openRoster = useCallback(() => {
@@ -542,11 +547,11 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onClearActivationRequest={(request) => void p2pSessionService.clearRaisedHand(request)}
           onDomainCardPreview={previewDomainCard}
           onFeaturePreview={previewCharacterFeature}
+          onHandoutPreview={previewHandout}
           onOpenChronicle={() => { setActivityOpen(true); setMobileLayer('feed'); }}
           onAddToScene={role === 'gm' ? openSceneAddTarget : undefined}
           onCreateCharacter={role === 'gm' ? () => setPlayerCharacterBuilderOpen(true) : undefined}
           onCreateHandout={role === 'gm' ? createHandout : undefined}
-          onOpenHandout={role === 'gm' ? openHandoutEditor : undefined}
           onOpenPlayersSettings={role === 'gm' ? () => changeSettingsSection('players') : undefined}
           onWealthEdit={editCharacterWealth}
           onEditCharacter={displayedCharacter ? () => setEditingCharacterId(displayedCharacter.id) : undefined}
@@ -555,6 +560,15 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onOpenActor={openActor}
         />
       </div>
+      {contentPreviewItem && (
+        <ContentPreviewPanel
+          item={contentPreviewItem}
+          mobile={!desktopLayout}
+          role={role}
+          onClose={() => setContentPreviewItem(null)}
+          onEditHandout={role === 'gm' ? openHandoutEditor : undefined}
+        />
+      )}
       {quickToolsOpen && <QuickToolsRail npc={generatedNpc} onNpcChange={setGeneratedNpc} onClose={closeTools} onOpenTool={openTool} />}
       {routedUi.toolsOpen && !quickToolsOpen && (
         <SharedToolsModal
@@ -632,7 +646,7 @@ function toDomainCardRecord(card: PlayerViewDomainCard): DomainCardRecord {
     cost: card.cost || undefined,
     recallCost: card.recallCost || undefined,
     text: card.text,
-    inLoadout: true,
+    inLoadout: card.inHand,
     permanentlyVaulted: card.permanentlyVaulted,
     loadoutChoicePending: card.loadoutChoicePending,
     imageUrl: card.imageUrl || null,

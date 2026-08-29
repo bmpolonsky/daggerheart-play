@@ -155,7 +155,7 @@ test('ephemeral feed items cover countdown composers and character features with
   assert.equal(feedService.feed$.get().length, 0);
 });
 
-test('handout drafts stay ephemeral until the GM publishes them', () => {
+test('handout previews stay private until the GM publishes them', () => {
   resetAllStores();
   playerViewUiActions.reset();
   const handout = createGameHandout({
@@ -176,10 +176,7 @@ test('handout drafts stay ephemeral until the GM publishes them', () => {
   assert.equal(draft.kicker, 'Раздатка');
   assert.equal(draft.handout?.id, handout.id);
 
-  playerViewUiActions.openHandoutDraft(handout);
-  const active = playerViewUiStore.get().ephemeralFeedItem;
-  assert.equal(active?.kind, 'handout');
-  assert.equal(active?.ephemeral, true);
+  assert.equal(playerViewUiStore.get().ephemeralFeedItem, null);
   assert.equal(feedStore.get().length, 0);
 });
 

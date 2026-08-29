@@ -19,7 +19,8 @@ export function FeedCard({
   waitingForResult,
   role,
   onRevealToPublic,
-  onDomainCardMacro
+  onDomainCardMacro,
+  onHandoutPublish
 }: {
   actorId: string | null;
   item: TableFeedItem;
@@ -27,6 +28,7 @@ export function FeedCard({
   role: TableViewRole;
   onRevealToPublic: (item: TableFeedItem) => void;
   onDomainCardMacro?: (card: PlayerViewDomainCard, macro: PlayerViewDomainCardMacro, item: TableFeedItem) => void;
+  onHandoutPublish?: () => void;
 }) {
   if (item.kind === 'roll') {
     return <RollFeedCard item={item} waitingForResult={waitingForResult} role={role} onRevealToPublic={onRevealToPublic} />;
@@ -52,7 +54,7 @@ export function FeedCard({
     return role === 'gm' ? <CountdownComposerFeedCard item={item} /> : <MessageFeedCard item={item} />;
   }
   if (item.kind === 'handout') {
-    return <HandoutFeedCard item={item} />;
+    return <HandoutFeedCard item={item} onPublish={onHandoutPublish} />;
   }
   if (item.kind === 'wealth') {
     return <WealthFeedCard item={item} />;

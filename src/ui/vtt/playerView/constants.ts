@@ -16,5 +16,5 @@ export const PLAYER_SHEET_SECTIONS: Array<{ id: PlayerSheetSectionId; label: str
   { id: 'actions', label: 'Оружие', target: 'player-sheet-actions' },
   { id: 'features', label: 'Свойства', target: 'player-sheet-features' },
   { id: 'cards', label: 'Карты', target: 'player-sheet-domain-cards' },
-  { id: 'gear', label: 'Снаряжение', target: 'player-sheet-gear' }
+  { id: 'gear', label: 'Инвентарь', target: 'player-sheet-gear' }
 ];

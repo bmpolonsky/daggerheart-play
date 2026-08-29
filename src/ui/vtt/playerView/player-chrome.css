@@ -1010,6 +1010,20 @@
   object-fit: cover;
 }
 
+.feed-handout-card--preview > img {
+  max-height: 260px;
+  object-fit: contain;
+}
+
+.feed-handout-card--preview > div {
+  padding-right: 34px;
+}
+
+.feed-handout-card__publish {
+  justify-self: end;
+  margin-top: 5px;
+}
+
 .feed-domain-card__body,
 .feed-handout-card > div {
   min-width: 0;

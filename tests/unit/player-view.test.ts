@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildPreparedHandoutRows, buildPresentedHandoutOverlay, selectPresentedHandout } from "../../src/domain/rules/handouts";
 import { createGameHandout, createGameState, createInventoryItem } from "../../src/domain/rules/factories";
 import { ActorStatus } from "../../src/domain/rules/statuses";
-import { buildCharacterSummary, buildPlayerViewModel } from "../../src/domain/tabletop/playerView";
+import { buildCharacterSummary, buildPlayerViewModel, groupPlayerViewFeatures } from "../../src/domain/tabletop/playerView";
 import { defaultCharacterPortraitUrl, defaultSceneImageUrl } from "../../src/domain/tabletop/defaultArt";
 import { createMapAsset, createTableScene, createTokenState } from "../../src/domain/tabletop/factories";
 import { resetAllStores, charactersStore, sceneTableStore } from "../../src/stores/gameStores";
@@ -219,6 +219,14 @@ test('player view model exposes only public live scene state', () => {
     'Подкласс — Основа',
     'Подкласс — Специализация',
     'Подкласс — Мастерство'
+  ]);
+  assert.deepEqual(groupPlayerViewFeatures([
+    { id: 'other', name: 'Другое', subtitle: '', sourceLabel: 'Особенность', text: '' },
+    ...(assignedModel.character?.features ?? [])
+  ]).map((group) => [group.label, group.features.map((feature) => feature.name)]), [
+    ['Подкласс', ['Companion', 'Advanced Companion', 'Master Companion']],
+    ['Родословная', ['Ribbet Leap']],
+    ['Остальное', ['Другое']]
   ]);
   assert.deepEqual(assignedModel.character?.inventory.map((item) => item.name), ['Lantern', 'Rope']);
   assert.deepEqual(assignedModel.character?.conditions.map((condition) => condition.name), [ActorStatus.Hidden]);

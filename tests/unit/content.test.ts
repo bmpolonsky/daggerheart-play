@@ -5,12 +5,13 @@ import { fetchTemplateCollection } from "../../src/tools/card-creator/lib/api";
 import { ContentService } from "../../src/services/ContentService";
 import { applyBrowserCustomContent, readBrowserCustomContent, reloadBrowserCustomContent, replaceBrowserCustomContent } from "../../src/core/persistence/browserProjectContent";
 import { createContentState } from "../../src/stores/contentStore";
+import { snapshotPersistedState } from "../../src/stores/persistedState";
 import { cleanRulesText, coerceDomainName, domainCardFromLibrary, isDomainCardForDomains, isSubclassForClass } from "../../src/domain/characterBuilder/index";
 import { queryLibraryContent } from "../../src/domain/content/query";
 import { createAdversaryFromLibrary, mapGenericItem, mapRawAdversary, mapRawClassItem, mapRawEquipmentItem, mapRawRuleItem } from "../../src/domain/content/mappers";
 import { buildApiCollectionUrl, createContentManifest, summarizeContentSources } from "../../src/domain/content/source";
 import { genericItem } from "./helpers";
-import { emptyCustomContent } from "../../src/domain/game/gameDocument";
+import { createGameDocument, emptyCustomContent } from "../../src/domain/game/gameDocument";
 import { cleanCustomContentDraft, createCustomContentDraft, validateCustomContentDraft } from "../../src/domain/content/customContentDraft";
 
 test('character builder maps and cleans library items without UI state', () => {
@@ -67,6 +68,32 @@ test('content mappers preserve uploaded image data URLs', () => {
   const imageUrl = 'data:image/webp;base64,AQID';
 
   assert.equal(mapRawAdversary({ name: 'Кастомный противник', image_url: imageUrl }).imageUrl, imageUrl);
+});
+
+test('content mappers store bundled images without a deployment base URL', () => {
+  assert.equal(
+    mapRawAdversary({ name: 'Бандит', image_url: '/image/adversary/jagge-knife-bandit.webp' }).imageUrl,
+    './image/adversary/jagge-knife-bandit.webp'
+  );
+});
+
+test('game documents store custom bundled images without a deployment URL', () => {
+  const customContent = emptyCustomContent();
+  customContent.adversaries = [{
+    name: 'Свой противник',
+    image_url: 'https://bmpolonsky.github.io/daggerheart-play/image/adversary/ooze-red.webp'
+  }];
+  customContent.cardDomains = [{
+    id: 'custom-domain',
+    icon: 'https://bmpolonsky.github.io/daggerheart-play/image/domain/emblems/arcana.svg'
+  }];
+
+  const document = createGameDocument(snapshotPersistedState(), customContent);
+  assert.equal(document.files['content/custom-adversaries.json'][0]?.image_url, './image/adversary/ooze-red.webp');
+  assert.equal(
+    (document.files['content/custom-card-domains.json'][0] as { icon?: string }).icon,
+    './image/domain/emblems/arcana.svg'
+  );
 });
 
 test('custom adversary images survive persistence and reload', () => {

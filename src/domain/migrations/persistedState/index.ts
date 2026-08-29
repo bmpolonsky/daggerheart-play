@@ -1,7 +1,7 @@
 import { runVersionedMigrations } from '../migration-runner';
 import type { PersistedState } from '../../rules/types';
 import type { PersistedStateMigration } from './types';
-import { v4ToV5PersistedStateMigration } from './v4-to-v5-persisted-state-migration';
+import { normalizePersistedPublicAssetUrls, v4ToV5PersistedStateMigration } from './v4-to-v5-persisted-state-migration';
 import { createCharacter, createGameState, createSceneTableState } from '../../rules/factories';
 
 export { migrateV4ToV5PersistedState } from './v4-to-v5-persisted-state-migration';
@@ -25,7 +25,7 @@ export function migratePersistedState(state: unknown): PersistedState {
   if (!isPersistedStateContract(migrated)) {
     throw new Error('Unsupported persisted state payload.');
   }
-  return normalizePersistedCharacters(migrated);
+  return normalizePersistedPublicAssetUrls(normalizePersistedCharacters(migrated));
 }
 
 export function canMigratePersistedState(value: unknown): boolean {

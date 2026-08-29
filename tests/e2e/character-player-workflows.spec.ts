@@ -184,13 +184,22 @@ test.describe('filled-game player character workflows', () => {
       // the row-wide hit target. Relative coordinates stay correct if WebKit
       // completes a late layout pass between asserting and clicking.
       await previewHitTarget.click({ position: { x: 30, y: 30 } });
-      await expect(player.locator('.feed-domain-card').filter({ hasText: 'Заклинание 1' })).toBeVisible();
+      const materialPreview = player.getByRole('complementary', { name: 'Предпросмотр', exact: true });
+      await expect(materialPreview.locator('.feed-domain-card').filter({ hasText: 'Заклинание 1' })).toBeVisible();
+      await expect(player.getByLabel('Чат игры').locator('.feed-domain-card')).toHaveCount(0);
+      const previewBox = await materialPreview.boundingBox();
+      expect(previewBox).not.toBeNull();
+      expect(Math.abs((previewBox?.y ?? 0) + (previewBox?.height ?? 0) / 2 - 450)).toBeLessThan(2);
+      expect(previewBox?.height ?? 900).toBeLessThan(900 * 0.8);
       await previewHitTarget.click({ position: { x: 3, y: 3 } });
-      await expect(player.locator('.feed-domain-card').filter({ hasText: 'Заклинание 1' })).toBeVisible();
+      await expect(materialPreview.locator('.feed-domain-card').filter({ hasText: 'Заклинание 1' })).toBeVisible();
+      await materialPreview.getByRole('button', { name: 'Закрыть предпросмотр' }).click();
+      await expect(materialPreview).toHaveCount(0);
 
       const pendingAcquisition = cardRow(vault, 'Заклинание 7');
       await expect(pendingAcquisition).toContainText('Новая — ждёт выбора');
-      await pendingAcquisition.getByRole('button', { name: 'Выбрать' }).click();
+      await pendingAcquisition.getByRole('button', { name: 'Заклинание 7', exact: true }).click();
+      await materialPreview.getByRole('button', { name: 'Выбрать' }).click();
       const acquisitionDialog = player.getByRole('dialog', { name: 'Новая карта: Заклинание 7' });
       await expect(acquisitionDialog).toContainText('бесплатно заменяет одну карту');
       await expect(acquisitionDialog.getByRole('button', { name: 'Заменить в Руке' })).toBeDisabled();
@@ -203,17 +212,19 @@ test.describe('filled-game player character workflows', () => {
       await expect(cardRow(vault, 'Заклинание 5')).toBeVisible();
       await expect(cardRow(vault, 'Заклинание 7')).toHaveCount(0);
 
-      await cardRow(hand, 'Заклинание 1').getByRole('button', { name: 'В Хранилище' }).click();
+      await cardRow(hand, 'Заклинание 1').getByRole('button', { name: 'Заклинание 1', exact: true }).click();
+      await materialPreview.getByRole('button', { name: 'В Хранилище' }).click();
       await expect(hand.locator('.dh-list-item')).toHaveCount(4);
       await expect(vault.locator('.dh-list-item')).toHaveCount(3);
 
-      await cardRow(vault, 'Заклинание 1').getByRole('button', { name: 'В Руку' }).click();
+      await materialPreview.getByRole('button', { name: 'В Руку' }).click();
       await expect(player.getByRole('dialog', { name: 'Вернуть в Руку: Заклинание 1' })).toHaveCount(0);
       await expect(cardRow(hand, 'Заклинание 1')).toBeVisible();
-      await cardRow(hand, 'Заклинание 1').getByRole('button', { name: 'В Хранилище' }).click();
+      await materialPreview.getByRole('button', { name: 'В Хранилище' }).click();
 
       const stressBeforeAdventureRecall = await markedStress(player);
-      await cardRow(vault, 'Заклинание 6').getByRole('button', { name: 'В Руку' }).click();
+      await cardRow(vault, 'Заклинание 6').getByRole('button', { name: 'Заклинание 6', exact: true }).click();
+      await materialPreview.getByRole('button', { name: 'В Руку' }).click();
       const adventureRecall = player.getByRole('dialog', { name: 'Вернуть в Руку: Заклинание 6' });
       await expect(adventureRecall.getByText('Цена возврата: 1 Стресс.')).toBeVisible();
       await expect(adventureRecall.getByLabel('Во время отдыха — без Стресса')).not.toBeChecked();
@@ -221,15 +232,16 @@ test.describe('filled-game player character workflows', () => {
       await expect(cardRow(hand, 'Заклинание 6')).toBeVisible();
       await expect.poll(() => markedStress(player)).toBe(stressBeforeAdventureRecall + 1);
 
-      await cardRow(hand, 'Заклинание 6').getByRole('button', { name: 'В Хранилище' }).click();
-      await cardRow(vault, 'Заклинание 6').getByRole('button', { name: 'В Руку' }).click();
+      await materialPreview.getByRole('button', { name: 'В Хранилище' }).click();
+      await materialPreview.getByRole('button', { name: 'В Руку' }).click();
       const restRecall = player.getByRole('dialog', { name: 'Вернуть в Руку: Заклинание 6' });
       await restRecall.getByLabel('Во время отдыха — без Стресса').check();
       await expect(restRecall.getByText(/Цена возврата/)).toHaveCount(0);
       await restRecall.getByRole('button', { name: 'Вернуть в Руку' }).click();
       await expect.poll(() => markedStress(player)).toBe(stressBeforeAdventureRecall + 1);
 
-      await cardRow(vault, 'Заклинание 1').getByRole('button', { name: 'В Руку' }).click();
+      await cardRow(vault, 'Заклинание 1').getByRole('button', { name: 'Заклинание 1', exact: true }).click();
+      await materialPreview.getByRole('button', { name: 'В Руку' }).click();
       const replacementRecall = player.getByRole('dialog', { name: 'Вернуть в Руку: Заклинание 1' });
       await expect(replacementRecall.getByLabel('Во время отдыха — без Стресса')).toHaveCount(0);
       await expect(replacementRecall.getByText(/Цена возврата/)).toHaveCount(0);
@@ -249,8 +261,9 @@ test.describe('filled-game player character workflows', () => {
 
       const permanentCandidate = cardRow(vault, 'Заклинание 5');
       await expect(permanentCandidate.getByRole('button', { name: 'Навсегда' })).toHaveCount(0);
-      await permanentCandidate.getByLabel('Другие действия карты Заклинание 5').click();
-      await permanentCandidate.getByRole('button', { name: 'Убрать навсегда' }).click();
+      await permanentCandidate.getByRole('button', { name: 'Заклинание 5', exact: true }).click();
+      await materialPreview.getByLabel('Другие действия карты Заклинание 5').click();
+      await player.getByRole('menu', { name: 'Другие действия карты Заклинание 5' }).getByRole('menuitem', { name: 'Убрать навсегда' }).click();
       const permanentDialog = player.getByRole('dialog', { name: 'Навсегда убрать «Заклинание 5»?' });
       await expect(permanentDialog).toContainText('обычным действием вернуть её больше нельзя');
       await permanentDialog.getByRole('button', { name: 'Убрать навсегда' }).click();
@@ -272,52 +285,101 @@ test.describe('filled-game player character workflows', () => {
       const zones = await openCardSection(player);
       const hand = zones.getByRole('region', { name: 'Рука карт доменов' });
       const tokenCard = cardRow(hand, 'Заклинание 3');
-      const tokenTrack = tokenCard.getByRole('group', { name: 'Надежда карты Заклинание 3' });
+      await tokenCard.getByRole('button', { name: 'Заклинание 3', exact: true }).click();
+      const preview = player.getByRole('complementary', { name: 'Предпросмотр', exact: true });
+      const tokenTrack = preview.getByRole('group', { name: 'Надежда карты Заклинание 3' });
       await expect(tokenTrack).toBeVisible();
       await expect(tokenCard.getByTitle('Настроить трекер для «Заклинание 3»')).toHaveCount(0);
 
       const trackedCard = cardRow(hand, 'Заклинание 4');
-
-      await trackedCard.getByTitle('Настроить трекер для «Заклинание 4»').click();
+      await trackedCard.getByRole('button', { name: 'Заклинание 4', exact: true }).click();
+      await preview.getByTitle('Настроить трекер для «Заклинание 4»').click();
       let dialog = player.getByRole('dialog', { name: 'Трекер: Заклинание 4' });
       await dialog.getByLabel('Название трекера').fill('До долгого отдыха');
       await dialog.getByLabel('Сброс').selectOption('long');
       await dialog.getByRole('button', { name: 'Сохранить' }).click();
 
-      let tracker = trackedCard.getByLabel('До долгого отдыха: 0 из 1');
+      let tracker = preview.getByLabel('До долгого отдыха: 0 из 1');
       await expect(tracker).toBeVisible();
       await expect(tracker).toContainText('0/1');
       await expect(tracker).not.toContainText('До долгого отдыха');
       await tracker.getByRole('button', { name: 'Увеличить До долгого отдыха' }).click();
-      tracker = cardRow(hand, 'Заклинание 4').getByLabel('До долгого отдыха: 1 из 1');
+      tracker = preview.getByLabel('До долгого отдыха: 1 из 1');
       await expect(tracker).toBeVisible();
+      await expect(cardRow(hand, 'Заклинание 4').getByLabel('До долгого отдыха: 1 из 1')).toContainText('1/1');
 
       await tracker.getByRole('button', { name: 'Настроить трекер Заклинание 4' }).click();
       dialog = player.getByRole('dialog', { name: 'Трекер: Заклинание 4' });
       await dialog.getByLabel('Количество использований').fill('2');
       await dialog.getByRole('button', { name: 'Сохранить' }).click();
-      tracker = cardRow(hand, 'Заклинание 4').getByLabel('До долгого отдыха: 1 из 2');
+      tracker = preview.getByLabel('До долгого отдыха: 1 из 2');
       await tracker.getByRole('button', { name: 'Увеличить До долгого отдыха' }).click();
-      tracker = cardRow(hand, 'Заклинание 4').getByLabel('До долгого отдыха: 2 из 2');
+      tracker = preview.getByLabel('До долгого отдыха: 2 из 2');
       await expect(tracker).toBeVisible();
 
       await tracker.getByRole('button', { name: 'Настроить трекер Заклинание 4' }).click();
       dialog = player.getByRole('dialog', { name: 'Трекер: Заклинание 4' });
       await dialog.getByRole('button', { name: 'Сбросить' }).click();
       await dialog.getByRole('button', { name: 'Сохранить' }).click();
-      tracker = trackedCard.getByLabel('До долгого отдыха: 0 из 2');
+      tracker = preview.getByLabel('До долгого отдыха: 0 из 2');
       await expect(tracker).toBeVisible();
 
       await tracker.getByRole('button', { name: 'Увеличить До долгого отдыха' }).click();
-      await expect(trackedCard.getByLabel('До долгого отдыха: 1 из 2')).toBeVisible();
+      await expect(preview.getByLabel('До долгого отдыха: 1 из 2')).toBeVisible();
 
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Действия' }).click();
       await gm.getByRole('button', { name: 'Продолжительный отдых', exact: true }).click();
       const chronicle = gm.getByLabel('Чат игры');
       await chronicle.getByRole('button', { name: 'Получить страх и завершить' }).click();
       await expect.poll(async () => (
-        await trackedCard.getByLabel('До долгого отдыха: 0 из 2').count()
+        await preview.getByLabel('До долгого отдыха: 0 из 2').count()
       ), { timeout: 15_000 }).toBe(1);
+    } finally {
+      await relay.close();
+    }
+  });
+
+  test('opens previews over the current sheet on mobile instead of switching to chat', async ({ browser }) => {
+    const { relay, player } = await openJoinedFilledTable(browser, 'preview-mobile', { width: 390, height: 844 }, (character) => {
+      character.sheetCards.push(
+        { id: 'feature-class', kind: 'classFeature', name: 'Знание школы', text: 'Помните забытые заклинания.' },
+        { id: 'feature-ancestry', kind: 'ancestryFeature', name: 'Наследие', text: 'Храните память рода.' },
+        { id: 'feature-other', kind: 'custom', name: 'Личная клятва', text: 'Не оставляйте союзников.' }
+      );
+      character.inventory.push({ id: 'consumable-tonic', name: 'Малое зелье выносливости', kind: 'consumable', quantity: 1, uses: { current: 2, max: 2 }, text: 'Снимите 1 Стресс.' });
+    });
+    try {
+      await player.getByLabel('Слой интерфейса').getByRole('button', { name: 'Лист' }).click();
+      const zones = await openCardSection(player);
+      await cardRow(zones.getByRole('region', { name: 'Рука карт доменов' }), 'Заклинание 1').locator('.player-domain-card-thumb').click();
+
+      const preview = player.getByRole('dialog', { name: 'Предпросмотр' });
+      await expect(preview).toBeVisible();
+      await expect(preview).toContainText('Заклинание 1');
+      await expect(player.locator('[data-vtt-root]')).toHaveClass(/player-view--mobile-sheet/);
+      await expect(player.getByLabel('Чат игры').locator('.feed-domain-card')).toHaveCount(0);
+      const box = await preview.boundingBox();
+      expect(box).toMatchObject({ x: 0, y: 0, width: 390, height: 844 });
+      await preview.getByRole('button', { name: 'Закрыть предпросмотр' }).click();
+      await expect(preview).toHaveCount(0);
+
+      await player.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Свойства' }).click();
+      const sheet = player.getByLabel('Персонаж игрока');
+      await expect(sheet.getByRole('region', { name: 'Свойства: Класс' })).toContainText('Знание школы');
+      await expect(sheet.getByRole('region', { name: 'Свойства: Родословная' })).toContainText('Наследие');
+      await expect(sheet.getByRole('region', { name: 'Свойства: Остальное' })).toContainText('Личная клятва');
+      const featureHeights = await sheet.locator('.player-sheet-feature-group .dh-list-item').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height));
+      expect(featureHeights.every((height) => height <= 48)).toBe(true);
+
+      await player.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Инвентарь' }).click();
+      await player.getByLabel('Персонаж игрока').getByRole('button', { name: /Деньги/ }).click();
+      await expect(preview).toContainText('Деньги');
+      await expect(preview.getByLabel('Редактировать деньги')).toBeVisible();
+      await expect(player.getByLabel('Чат игры').getByLabel('Редактировать деньги')).toHaveCount(0);
+      await player.getByLabel('Персонаж игрока').getByRole('button', { name: 'Малое зелье выносливости' }).click();
+      await expect(preview.getByRole('button', { name: 'Использовать' })).toBeVisible();
+      await preview.getByRole('button', { name: 'Использовать' }).click();
+      await expect(player.getByLabel('Персонаж игрока').locator('.dh-list-item').filter({ hasText: 'Малое зелье выносливости' })).toContainText('1/2');
     } finally {
       await relay.close();
     }
@@ -330,13 +392,17 @@ test.describe('filled-game player character workflows', () => {
       const zones = await openCardSection(gm);
       const hand = zones.getByRole('region', { name: 'Рука карт доменов' });
       const tokenCard = cardRow(hand, 'Заклинание 3');
-      const tokenTrack = tokenCard.getByRole('group', { name: 'Надежда карты Заклинание 3' });
+      await tokenCard.getByRole('button', { name: 'Заклинание 3', exact: true }).click();
+      const preview = gm.getByRole('complementary', { name: 'Предпросмотр', exact: true });
+      const tokenTrack = preview.getByRole('group', { name: 'Надежда карты Заклинание 3' });
 
       await tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 3 из 3' }).click();
       await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 1 из 3' })).toHaveAttribute('aria-pressed', 'true');
       await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 2 из 3' })).toHaveAttribute('aria-pressed', 'true');
       await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 3 из 3' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(gm.locator('.feed-domain-card').filter({ hasText: 'Заклинание 3' })).toHaveCount(0);
+      await expect(gm.getByLabel('Чат игры').locator('.feed-domain-card')).toHaveCount(0);
+      await gm.getByLabel('Участники сцены').getByRole('button', { name: /Алая Слизь/ }).first().click();
+      await expect(preview).toHaveCount(0);
     } finally {
       await relay.close();
     }

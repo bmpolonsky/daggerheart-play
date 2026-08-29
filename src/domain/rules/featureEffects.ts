@@ -93,6 +93,27 @@ export interface FeatureUsageLimitEffect extends FeatureRuleEffectBase {
   options?: string[];
 }
 
+export function featureUsageSuggestion(
+  text: string,
+  featureName = '',
+  allFeatures: readonly { name?: string; text: string }[] = []
+): FeatureUsageLimitEffect | null {
+  const normalizedName = normalizeFeatureName(featureName);
+  const override = normalizedName ? allFeatures.flatMap((feature) => analyzeFeatureRules(feature.text).effects).find((effect): effect is FeatureUsageLimitEffect => (
+    effect.kind === 'usageLimit' &&
+    effect.scope === 'targetFeature' &&
+    normalizeFeatureName(effect.targetLabel ?? '') === normalizedName
+  )) : null;
+  if (override) return { ...override, scope: 'feature' };
+  return analyzeFeatureRules(text).effects.find((effect): effect is FeatureUsageLimitEffect => (
+    effect.kind === 'usageLimit' && effect.scope === 'feature'
+  )) ?? null;
+}
+
+function normalizeFeatureName(value: string): string {
+  return value.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/[^а-яa-z0-9]+/g, ' ').trim();
+}
+
 export interface FeatureUsageAllowanceEffect extends FeatureRuleEffectBase {
   kind: 'usageAllowance';
   count: number;

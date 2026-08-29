@@ -210,7 +210,7 @@ export function buildHandoutDraftFeedItem(input: {
     authorName: 'Мастер',
     kicker: 'Раздатка',
     title: input.handout.title || 'Без названия',
-    body: input.handout.body?.trim() || 'Материал показан игрокам.',
+    body: input.handout.body?.trim() || 'Описание раздатки не заполнено.',
     tone: 'hope',
     handout: input.handout,
     publication: 'private',

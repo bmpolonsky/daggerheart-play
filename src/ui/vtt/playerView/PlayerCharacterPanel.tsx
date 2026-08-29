@@ -3,7 +3,7 @@ import { useMemo } from "preact/hooks";
 import { useStream } from "../../../core/hooks/useStream";
 import { buildPlayerTokens, type PlayerViewAdversarySummary, type PlayerViewCharacterSummary, type PlayerViewEmptyCharacterState } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
-import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
+import type { EncounterEnvironment, GameHandout, SceneTableState } from "../../../domain/rules/types";
 import { characterService, contentService, encounterService, mediaCallService, playerActivationQueueService, playerPresenceService } from "../../../services/serviceRegistry";
 import { buildConnectedPlayerRows, buildSessionRosterActors } from "./helpers";
 import type { PlayerRosterActor, PlayerViewedActor, TableViewRole } from "./types";
@@ -27,11 +27,11 @@ export function PlayerCharacterPanel({
   onClearActivationRequest,
   onDomainCardPreview,
   onFeaturePreview,
+  onHandoutPreview,
   onOpenChronicle,
   onAddToScene,
   onCreateCharacter,
   onCreateHandout,
-  onOpenHandout,
   onOpenPlayersSettings,
   onEmptyAction,
   onWealthEdit,
@@ -53,11 +53,11 @@ export function PlayerCharacterPanel({
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor["activationRequest"]>) => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
+  onHandoutPreview?: (handout: Pick<GameHandout, 'id' | 'title' | 'body' | 'imageUrl'>) => void;
   onOpenChronicle?: () => void;
   onAddToScene?: (target: SceneAddTarget) => void;
   onCreateCharacter?: () => void;
   onCreateHandout?: () => void;
-  onOpenHandout?: (handoutId: string) => void;
   onOpenPlayersSettings?: () => void;
   onEmptyAction?: () => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
@@ -106,11 +106,11 @@ export function PlayerCharacterPanel({
         onClearActivationRequest={onClearActivationRequest}
         onDomainCardPreview={onDomainCardPreview}
         onFeaturePreview={onFeaturePreview}
+        onHandoutPreview={onHandoutPreview}
         onOpenChronicle={onOpenChronicle}
         onAddToScene={onAddToScene}
         onCreateCharacter={onCreateCharacter}
         onCreateHandout={onCreateHandout}
-        onOpenHandout={onOpenHandout}
         onOpenPlayersSettings={onOpenPlayersSettings}
         onWealthEdit={onWealthEdit}
         onEditCharacter={onEditCharacter}

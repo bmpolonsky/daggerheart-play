@@ -135,7 +135,7 @@ test.describe('filled VTT layout regressions', () => {
       const container = element.closest('[aria-label="Персонаж игрока"]')?.getBoundingClientRect();
       return Boolean(container && card.top >= container.top && card.bottom <= container.bottom);
     })).toBe(true);
-    await sectionRail.getByRole('button', { name: 'Снаряжение' }).click();
+    await sectionRail.getByRole('button', { name: 'Инвентарь' }).click();
     await expect.poll(() => sheet.evaluate((element) => element.scrollTop)).toBeGreaterThan(600);
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -155,7 +155,7 @@ test.describe('filled VTT layout regressions', () => {
     await expect(mobileRail).toBeVisible();
     expect((await rect(mobileRail)).height).toBeGreaterThanOrEqual(36);
     await expect(mobileRail.getByRole('button')).toHaveCount(6);
-    await expect(mobileRail.getByRole('button', { name: 'Снаряжение' })).toBeVisible();
+    await expect(mobileRail.getByRole('button', { name: 'Инвентарь' })).toBeVisible();
     await expect(mobileSheet.locator('.player-sheet-section')).toHaveCount(6);
     const defense = mobileSheet.getByLabel('Защита');
     await defense.scrollIntoViewIfNeeded();
@@ -176,7 +176,7 @@ test.describe('filled VTT layout regressions', () => {
     }));
     expect(Math.abs(traitBoxes[0].y - traitBoxes[2].y)).toBeLessThanOrEqual(1);
     expect(traitBoxes[3].y).toBeGreaterThan(traitBoxes[0].y + traitBoxes[0].height);
-    await mobileRail.getByRole('button', { name: 'Снаряжение' }).click();
+    await mobileRail.getByRole('button', { name: 'Инвентарь' }).click();
     await expect.poll(() => mobileSheet.evaluate((element) => element.scrollTop)).toBeGreaterThan(600);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });

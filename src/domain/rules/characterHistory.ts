@@ -291,7 +291,7 @@ function toChangeValue(value: unknown): CharacterChangeValue {
 }
 
 function fromChangeValue(value: unknown): unknown {
-  if (isRecord(value) && value.__characterChangeUndefined === true && Object.keys(value).length === 1) return undefined;
+  if (isUndefinedChangeValue(value)) return undefined;
   if (Array.isArray(value)) return value.map(fromChangeValue);
   if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, fromChangeValue(item)]));
   return value;
@@ -299,17 +299,24 @@ function fromChangeValue(value: unknown): unknown {
 
 function deepEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true;
+  const leftUndefined = isUndefinedChangeValue(left);
+  const rightUndefined = isUndefinedChangeValue(right);
+  if (leftUndefined || rightUndefined) return leftUndefined && rightUndefined;
   if (Array.isArray(left) && Array.isArray(right)) {
     return left.length === right.length && left.every((item, index) => deepEqual(item, right[index]));
   }
   if (isRecord(left) && isRecord(right) && !Array.isArray(left) && !Array.isArray(right)) {
-    const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined);
-    const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined);
+    const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined && !isUndefinedChangeValue(left[key]));
+    const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined && !isUndefinedChangeValue(right[key]));
     return leftKeys.length === rightKeys.length && leftKeys.every((key) => (
       Object.prototype.hasOwnProperty.call(right, key) && deepEqual(left[key], right[key])
     ));
   }
   return false;
+}
+
+function isUndefinedChangeValue(value: unknown): boolean {
+  return isRecord(value) && value.__characterChangeUndefined === true && Object.keys(value).length === 1;
 }
 
 function normalizeActor(actor: CharacterChangeActor | undefined): CharacterChangeActor {

@@ -6,7 +6,7 @@ import { useStream } from "../../../core/hooks/useStream";
 import type { LibraryBeastform } from "../../../domain/content/types";
 import type { PlayerViewAdversarySummary, PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
-import type { EncounterEnvironment, SceneTableState } from "../../../domain/rules/types";
+import type { EncounterEnvironment, GameHandout, SceneTableState } from "../../../domain/rules/types";
 import { isPreparedAdversary, isPreparedEnvironment } from "../../../domain/tabletop/preparedActors";
 import { buildPreparedHandoutRows } from "../../../domain/rules/handouts";
 import { encounterService, gameService, preparedActorService, sceneTableService, tabletopService } from "../../../services/serviceRegistry";
@@ -44,11 +44,11 @@ export function GmRightPanel({
   onClearActivationRequest,
   onDomainCardPreview,
   onFeaturePreview,
+  onHandoutPreview,
   onOpenChronicle,
   onAddToScene,
   onCreateCharacter,
   onCreateHandout,
-  onOpenHandout,
   onOpenPlayersSettings,
   onWealthEdit,
   onEditCharacter,
@@ -69,11 +69,11 @@ export function GmRightPanel({
   onClearActivationRequest?: (request: NonNullable<PlayerRosterActor['activationRequest']>) => void;
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
+  onHandoutPreview?: (handout: Pick<GameHandout, 'id' | 'title' | 'body' | 'imageUrl'>) => void;
   onOpenChronicle?: () => void;
   onAddToScene?: (target: SceneAddTarget) => void;
   onCreateCharacter?: () => void;
   onCreateHandout?: () => void;
-  onOpenHandout?: (handoutId: string) => void;
   onOpenPlayersSettings?: () => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
   onEditCharacter?: () => void;
@@ -215,7 +215,7 @@ export function GmRightPanel({
               </div>
             </section>
           )}
-          {activeView === 'prepared' && <PreparedActorsPanel view={preparedView} handouts={preparedHandouts} query={preparedQuery} onQueryChange={setPreparedQuery} onOpenActor={openActorSheet} onEditAdversary={setEditingTemplateId} onEditEnvironment={setEditingEnvironmentId} onCreateHero={() => onCreateCharacter?.()} onCreateHandout={() => onCreateHandout?.()} onOpenHandout={(handoutId) => onOpenHandout?.(handoutId)} onOpenAdversaries={() => onAddToScene?.('adversary')} onOpenEnvironments={() => onAddToScene?.('environment')} />}
+          {activeView === 'prepared' && <PreparedActorsPanel view={preparedView} handouts={preparedHandouts} query={preparedQuery} onQueryChange={setPreparedQuery} onOpenActor={openActorSheet} onEditAdversary={setEditingTemplateId} onEditEnvironment={setEditingEnvironmentId} onCreateHero={() => onCreateCharacter?.()} onCreateHandout={() => onCreateHandout?.()} onPreviewHandout={(handout) => onHandoutPreview?.(handout)} onOpenAdversaries={() => onAddToScene?.('adversary')} onOpenEnvironments={() => onAddToScene?.('environment')} />}
           {activeView === 'scenes' && <LiveSceneSwitcher sceneTable={sceneTable} />}
           {activeView === 'actions' && <GmActionsPanel onOpenChronicle={onOpenChronicle} />}
           {activeView === 'media' && (

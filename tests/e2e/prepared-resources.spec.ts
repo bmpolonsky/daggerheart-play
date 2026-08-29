@@ -65,7 +65,7 @@ test.describe('prepared resources', () => {
     await expect(page.getByRole('dialog', { name: 'Новый герой' })).toBeVisible();
   });
 
-  test('keeps handouts in Prepared and opens the existing routed editor', async ({ page }) => {
+  test('keeps handouts in Prepared, previews them, and opens the routed editor explicitly', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 860 });
     await openFilledGmGame(page);
 
@@ -86,7 +86,8 @@ test.describe('prepared resources', () => {
 
     await expect(context.getByRole('button', { name: 'Подготовлено' })).toHaveAttribute('aria-pressed', 'true');
     const row = handouts.locator('.dh-list-item').filter({ hasText: 'Письмо из тумана' });
-    await expect(row).toContainText('Черновик');
+    await expect(row).not.toContainText('Секретная тропа');
+    await expect(row).not.toContainText('Черновик');
 
     const search = prepared.getByRole('searchbox', { name: 'Поиск подготовленных ресурсов' });
     await search.fill('старого маяка');
@@ -96,6 +97,15 @@ test.describe('prepared resources', () => {
     await search.fill('');
 
     await row.getByRole('button', { name: 'Письмо из тумана', exact: true }).click();
+    const preview = page.getByRole('complementary', { name: 'Предпросмотр', exact: true });
+    await expect(preview).toContainText('Письмо из тумана');
+    await expect(preview).toContainText('Секретная тропа начинается у старого маяка.');
+    await expect(preview.getByText('Раздатка', { exact: true })).toHaveCount(0);
+    await expect(preview.getByText('Приватно', { exact: true })).toHaveCount(0);
+    await expect(preview.getByRole('button', { name: 'Отправить в чат раздатку Письмо из тумана' })).toBeVisible();
+    await expect(page.getByLabel('Чат игры').getByText('Письмо из тумана')).toHaveCount(0);
+    await preview.getByRole('button', { name: 'Действия: Письмо из тумана' }).click();
+    await page.getByRole('menu', { name: 'Действия: Письмо из тумана' }).getByRole('menuitem', { name: 'Редактировать' }).click();
     workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
     editor = workspace.getByRole('region', { name: 'Редактор раздатки Письмо из тумана' });
     await expect(editor.getByLabel('Текст')).toHaveValue('Секретная тропа начинается у старого маяка.');
@@ -105,10 +115,11 @@ test.describe('prepared resources', () => {
     await page.goForward();
     await expect(page.getByRole('dialog', { name: 'Библиотека игры' })).toHaveCount(0);
 
-    await row.getByRole('button', { name: 'Показать на столе: Письмо из тумана' }).click();
-    await expect(row).toContainText('Сейчас показана');
-    await row.getByRole('button', { name: 'Убрать со стола: Письмо из тумана' }).click();
-    await expect(row).toContainText('Доступна игрокам');
+    await row.getByRole('button', { name: 'Письмо из тумана', exact: true }).click();
+    await preview.getByRole('button', { name: 'Показать на столе' }).click();
+    await expect(row).toContainText('На столе');
+    await preview.getByRole('button', { name: 'Убрать со стола' }).click();
+    await expect(row).not.toContainText('На столе');
 
     await context.getByRole('button', { name: 'Музыка' }).click();
     await expect(page.getByRole('region', { name: 'Музыка сцены' })).toBeVisible();

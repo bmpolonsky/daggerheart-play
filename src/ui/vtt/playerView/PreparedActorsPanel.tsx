@@ -1,18 +1,16 @@
 /** @jsxImportSource preact */
 import type { ComponentChildren } from 'preact';
-import { Check, Copy, Ellipsis, Eye, EyeOff, Image, Minus, Mountain, PackageCheck, PackageMinus, Pencil, Plus, Shield, Trash2, UserRound } from 'lucide-react';
-import { useState } from 'preact/hooks';
+import { Check, Copy, Ellipsis, Image, Minus, Mountain, PackageCheck, PackageMinus, Pencil, Plus, Shield, UserRound } from 'lucide-react';
 import type { PreparedActorsView } from '../../../domain/tabletop/preparedActors';
 import type { PreparedHandoutRow } from '../../../domain/rules/handouts';
 import { characterClassLabel, adversaryTypeLabel } from '../../../domain/rules/constants';
 import { defaultCharacterPortraitUrl } from '../../../domain/tabletop/defaultArt';
-import { gameService, preparedActorService } from '../../../services/serviceRegistry';
-import { ActionMenu, AssetImage, Avatar, Badge, ConfirmDialog, IconButton, ListItem, SearchField, SectionHeader } from '../../components/common';
-import { cleanMarkdownText } from '../../../core/utils/markdownText';
+import { preparedActorService } from '../../../services/serviceRegistry';
+import { ActionMenu, AssetImage, Avatar, Badge, IconButton, ListItem, SearchField, SectionHeader } from '../../components/common';
 import { cssImageUrl, initials } from './helpers';
 import type { PlayerViewedActor } from './types';
 
-export function PreparedActorsPanel({ view, handouts, query, onQueryChange, onOpenActor, onEditAdversary, onEditEnvironment, onCreateHero, onCreateHandout, onOpenHandout, onOpenAdversaries, onOpenEnvironments }: {
+export function PreparedActorsPanel({ view, handouts, query, onQueryChange, onOpenActor, onEditAdversary, onEditEnvironment, onCreateHero, onCreateHandout, onPreviewHandout, onOpenAdversaries, onOpenEnvironments }: {
   view: PreparedActorsView;
   handouts: PreparedHandoutRow[];
   query: string;
@@ -22,11 +20,10 @@ export function PreparedActorsPanel({ view, handouts, query, onQueryChange, onOp
   onEditEnvironment: (environmentId: string) => void;
   onCreateHero: () => void;
   onCreateHandout: () => void;
-  onOpenHandout: (handoutId: string) => void;
+  onPreviewHandout: (handout: PreparedHandoutRow['handout']) => void;
   onOpenAdversaries: () => void;
   onOpenEnvironments: () => void;
 }) {
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   return (
     <section className="player-prepared" aria-label="Подготовлено">
       <SearchField size="sm" value={query} placeholder="Найти подготовленное..." aria-label="Поиск подготовленных ресурсов" onInput={(event) => onQueryChange(event.currentTarget.value)} />
@@ -105,21 +102,14 @@ export function PreparedActorsPanel({ view, handouts, query, onQueryChange, onOp
           return <ListItem
             key={handout.id}
             title={handout.title || 'Без названия'}
-            subtitle={handoutPreview(handout.body)}
-            detail={<Badge tone={presented ? 'gold' : status === 'visible' ? 'success' : 'neutral'} size="xs">{handoutStatusLabel(status)}</Badge>}
+            detail={presented ? <Badge tone="gold" size="xs">На столе</Badge> : undefined}
             leftAccessory={<span className="player-prepared__handout-preview" aria-hidden="true">{handout.imageUrl ? <AssetImage src={cssImageUrl(handout.imageUrl)} alt="" /> : <Image size={16} />}</span>}
-            rightAccessory={<div className="player-prepared__actions">
-              <IconButton size="xs" variant={presented ? 'ghost' : 'primary'} title={presented ? 'Убрать со стола' : 'Показать на столе'} aria-label={`${presented ? 'Убрать со стола' : 'Показать на столе'}: ${handout.title || 'Без названия'}`} onClick={() => presented ? gameService.hidePresentedHandout() : gameService.presentHandout(handout.id)}>{presented ? <EyeOff size={13} /> : <Eye size={13} />}</IconButton>
-              <ActionMenu ariaLabel={`Действия: ${handout.title || 'Без названия'}`} items={[{ id: 'edit', label: 'Редактировать', icon: <Pencil size={14} />, onSelect: () => onOpenHandout(handout.id) }, { id: 'delete', label: 'Удалить', icon: <Trash2 size={14} />, onSelect: () => setDeleteTarget({ id: handout.id, name: handout.title || 'Без названия' }) }]} renderTrigger={(props) => <IconButton {...props} size="xs" variant="ghost" title="Действия" aria-label={`Действия: ${handout.title || 'Без названия'}`}><Ellipsis size={14} /></IconButton>} />
-            </div>}
-            lines={2}
-            align="start"
-            onClick={() => onOpenHandout(handout.id)}
+            density="compact"
+            onClick={() => onPreviewHandout(handout)}
           />;
         })}
         {handouts.length === 0 && <PreparedEmpty searching={Boolean(query.trim())} />}
       </PreparedSection>
-      {deleteTarget && <ConfirmDialog title={`Удалить «${deleteTarget.name}»?`} body="Раздатка исчезнет у мастера и игроков. Это действие нельзя отменить." onCancel={() => setDeleteTarget(null)} onConfirm={() => { gameService.removeHandout(deleteTarget.id); setDeleteTarget(null); }} />}
     </section>
   );
 }
@@ -130,15 +120,4 @@ function PreparedSection({ title, icon, addLabel, onAdd, children }: { title: st
 
 function PreparedEmpty({ searching }: { searching: boolean }) {
   return <p className="player-participant-group__empty"><PackageCheck size={14} aria-hidden="true" /> {searching ? 'Ничего не найдено.' : 'Пока ничего не подготовлено.'}</p>;
-}
-
-function handoutStatusLabel(status: PreparedHandoutRow['status']): string {
-  if (status === 'presented') return 'Сейчас показана';
-  return status === 'visible' ? 'Доступна игрокам' : 'Черновик';
-}
-
-function handoutPreview(body: string): string {
-  const text = cleanMarkdownText(body, { stripEmphasis: true }).replace(/\s+/g, ' ').trim();
-  if (!text) return 'Без текста';
-  return text.length > 72 ? `${text.slice(0, 69).trim()}…` : text;
 }

@@ -64,6 +64,30 @@ export interface PlayerViewCharacterSummary {
   scars: CharacterScar[];
 }
 
+export interface PlayerViewFeatureGroup {
+  id: 'class' | 'subclass' | 'ancestry' | 'community' | 'other';
+  label: string;
+  features: PlayerViewCharacterSummary['features'];
+}
+
+const PLAYER_VIEW_FEATURE_GROUPS: Array<Omit<PlayerViewFeatureGroup, 'features'> & { source: string }> = [
+  { id: 'class', label: 'Класс', source: 'Класс' },
+  { id: 'subclass', label: 'Подкласс', source: 'Подкласс' },
+  { id: 'ancestry', label: 'Родословная', source: 'Родословная' },
+  { id: 'community', label: 'Сообщество', source: 'Сообщество' },
+  { id: 'other', label: 'Остальное', source: '' }
+];
+
+export function groupPlayerViewFeatures(features: PlayerViewCharacterSummary['features']): PlayerViewFeatureGroup[] {
+  return PLAYER_VIEW_FEATURE_GROUPS.map((group) => ({
+    id: group.id,
+    label: group.label,
+    features: features.filter((feature) => group.source
+      ? feature.sourceLabel.split(' — ')[0] === group.source
+      : !PLAYER_VIEW_FEATURE_GROUPS.slice(0, -1).some((known) => feature.sourceLabel.split(' — ')[0] === known.source))
+  })).filter((group) => group.features.length > 0);
+}
+
 export interface PlayerViewDomainCardSummary {
   id: string;
   name: string;

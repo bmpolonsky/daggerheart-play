@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { publicAssetUrl } from "../../src/domain/content/publicAssets";
+import { portablePublicAssetPath, publicAssetUrl } from "../../src/domain/content/publicAssets";
 
 test('public asset URLs respect GitHub Pages base paths', () => {
   assert.equal(
@@ -61,6 +61,43 @@ test('public asset URLs ignore path-only library routes', () => {
     assert.equal(
       publicAssetUrl('/image/subclass/troubadour.webp'),
       'http://localhost:5173/image/subclass/troubadour.webp'
+    );
+  } finally {
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});
+
+test('public asset URLs survive moving between GitHub Pages and localhost', () => {
+  const originalWindow = globalThis.window;
+  Object.defineProperty(globalThis, 'window', {
+    value: { location: { origin: 'http://localhost:5173', pathname: '/game' } },
+    configurable: true
+  });
+  try {
+    assert.equal(
+      portablePublicAssetPath('https://bmpolonsky.github.io/daggerheart-play/image/domain/card/rain-of-blades.webp'),
+      './image/domain/card/rain-of-blades.webp'
+    );
+    assert.equal(portablePublicAssetPath('image/domain/card/rain-of-blades.webp'), './image/domain/card/rain-of-blades.webp');
+    assert.equal(
+      publicAssetUrl('/daggerheart-play/image/adversary/jagge-knife-bandit.webp'),
+      'http://localhost:5173/image/adversary/jagge-knife-bandit.webp'
+    );
+    assert.equal(
+      publicAssetUrl('http://localhost:5173/daggerheart-play/image/domain/card/rain-of-blades.webp'),
+      'http://localhost:5173/image/domain/card/rain-of-blades.webp'
+    );
+    assert.equal(
+      publicAssetUrl('https://example.test/image/custom.webp'),
+      'https://example.test/image/custom.webp'
+    );
+    assert.equal(
+      publicAssetUrl('https://example.test/daggerheart-play/image/custom.webp'),
+      'https://example.test/daggerheart-play/image/custom.webp'
+    );
+    assert.equal(
+      publicAssetUrl('https://bmpolonsky.github.io/image/custom.webp'),
+      'https://bmpolonsky.github.io/image/custom.webp'
     );
   } finally {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });

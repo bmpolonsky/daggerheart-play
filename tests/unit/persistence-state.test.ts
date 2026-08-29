@@ -248,6 +248,10 @@ test('persistence migrates legacy public asset image URLs', () => {
       name: 'Environment',
       imageUrl: './image/environment/cliffside-tavern.png'
     });
+    characterService.ensureRangerCompanion(character.id, {
+      name: 'Companion',
+      imageUrl: 'https://bmpolonsky.github.io/daggerheart-play/image/companion/wolf.png'
+    });
     gameStore.update((state) => ({
       ...state,
       handouts: [{
@@ -270,16 +274,17 @@ test('persistence migrates legacy public asset image URLs', () => {
     });
     const migratedCharacter = migrated.characters.entities[character.id];
 
-    assert.equal(migratedCharacter.portraitUrl, '/image/character/ribbet.webp');
-    assert.equal(migratedCharacter.domainCards[0]?.imageUrl, '/image/domain/card/rune-ward.webp');
-    assert.equal(migratedCharacter.sheetCards[0]?.imageUrl, '/daggerheart-play/image/subclass/feature.webp');
+    assert.equal(migratedCharacter.portraitUrl, './image/character/ribbet.webp');
+    assert.equal(migratedCharacter.domainCards[0]?.imageUrl, './image/domain/card/rune-ward.webp');
+    assert.equal(migratedCharacter.sheetCards[0]?.imageUrl, './image/subclass/feature.webp');
+    assert.equal(migratedCharacter.companion?.imageUrl, './image/companion/wolf.webp');
     assert.equal(migratedCharacter.inventory[0]?.imageUrl, 'https://example.test/image/item/rope.png');
     assert.equal(migratedCharacter.inventory[1]?.imageUrl, 'blob:https://bmpolonsky.github.io/item');
     assert.equal(migratedCharacter.inventory[2]?.imageUrl, 'data:image/png;base64,AQID');
-    assert.equal(migrated.encounter.adversaries[adversary.id]?.imageUrl, 'https://bmpolonsky.github.io/daggerheart-play/image/adversary/ooze-red.webp');
+    assert.equal(migrated.encounter.adversaries[adversary.id]?.imageUrl, './image/adversary/ooze-red.webp');
     assert.equal(migrated.encounter.environments[environment.id]?.imageUrl, './image/environment/cliffside-tavern.webp');
-    assert.equal(migrated.game.handouts[0]?.imageUrl, '/image/handout/clue.webp');
-    assert.equal(migrated.sceneTable.scenes[migrated.sceneTable.activeSceneId]?.backgroundUrl, '/daggerheart-play/image/environment/raging-river.webp');
+    assert.equal(migrated.game.handouts[0]?.imageUrl, './image/handout/clue.webp');
+    assert.equal(migrated.sceneTable.scenes[migrated.sceneTable.activeSceneId]?.backgroundUrl, './image/environment/raging-river.webp');
   } finally {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }

@@ -74,7 +74,7 @@ export function FeedCardHeader({
   return (
     <span className="player-activity-event__kicker">
       <span>{label}</span>
-      {item.publication === 'private' && (
+      {item.publication === 'private' && !item.ephemeral && (
         <b>
           <LockKeyhole size={10} />
           Приватно

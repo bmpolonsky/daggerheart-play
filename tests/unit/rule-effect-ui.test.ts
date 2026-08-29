@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { FeatureRuleEffect, FeatureUsageLimitEffect } from '../../src/domain/rules/featureEffects';
-import { analyzeFeatureRules } from '../../src/domain/rules/featureEffects';
+import { analyzeFeatureRules, featureUsageSuggestion } from '../../src/domain/rules/featureEffects';
 import { usageTrackerSuggestionDefaults } from '../../src/ui/characters/UsageTrackerControl';
 import { ruleEffectApplicationLabel, ruleEffectTooltipText, uniqueRuleEffectMessages } from '../../src/ui/components/common/RuleEffectText';
-import { featureUsageSuggestion } from '../../src/ui/vtt/playerView/CharacterSheet';
 
 function usageEffect(
   reset: FeatureUsageLimitEffect['reset'],
