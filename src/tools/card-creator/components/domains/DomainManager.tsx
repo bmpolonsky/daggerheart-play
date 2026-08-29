@@ -3,6 +3,7 @@ import { Trash2 } from "lucide-react";
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import { useStream } from "../../../../core/hooks/useStream";
+import { publicAssetUrl } from "../../../../domain/content/publicAssets";
 import type { DomainTheme } from "@cards/stores/domains";
 import { domainService } from "@cards/services/domainService";
 import { Button } from "@cards/components/ui/button";
@@ -209,7 +210,7 @@ export function DomainManager({ onClose }: DomainManagerProps) {
               </div>
               <div className="domain-card-editor__icon">
                 {domain.icon ? (
-                  <img src={domain.icon} alt="" />
+                  <img src={publicAssetUrl(domain.icon)} alt="" />
                 ) : (
                   <div className="domain-card-editor__placeholder">Нет иконки</div>
                 )}

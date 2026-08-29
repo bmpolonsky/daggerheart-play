@@ -6,6 +6,7 @@ import { cn } from "@cards/lib/utils";
 import { stripInlineMarkers } from "@cards/lib/text";
 import type { TemplateGroupView } from "@cards/services/templatesService";
 import type { CustomCardRecord } from "@cards/services/customCardsService";
+import { publicAssetUrl } from "../../../../domain/content/publicAssets";
 import { Badge, IconButton, Notice, SearchField } from "../../../../ui/components/common";
 
 interface TemplateSidebarProps {
@@ -135,7 +136,7 @@ export function TemplateSidebar({
                       <div className="custom-cards__media">
                         {previewImage ? (
                           <img
-                            src={previewImage}
+                            src={publicAssetUrl(previewImage)}
                             alt={title}
                             className="custom-cards__image"
                             loading="lazy"

@@ -5,6 +5,7 @@ import type { CardFields, CardTypeConfig } from "@cards/lib/cardTypes";
 import { IconUpload } from "@cards/components/icons";
 import type { TargetedEvent, JSX } from "preact";
 import { stripInlineMarkers } from "@cards/lib/text";
+import { publicAssetUrl } from "../../../../domain/content/publicAssets";
 
 interface CardPreviewProps {
   cardRef: RefObject<HTMLDivElement>;
@@ -98,7 +99,7 @@ export function CardPreview({
           >
             {cardImage ? (
               <img
-                src={cardImage}
+                src={publicAssetUrl(cardImage)}
                 alt={
                   imageAlt
                 }

@@ -1,5 +1,6 @@
 import { ImagePlus, Music, X } from 'lucide-react';
 import type { CSSProperties, ChangeEvent } from 'react';
+import { publicAssetUrl } from '../../../domain/content/publicAssets';
 import { IconButton } from './IconButton';
 import styles from './ImageFilePicker.module.css';
 
@@ -90,5 +91,5 @@ export interface ImageFilePickerProps extends Omit<FilePickerProps, 'accept' | '
 }
 
 export function ImageFilePicker({ imageUrl, ...props }: ImageFilePickerProps) {
-  return <FilePicker {...props} accept="image/*" previewUrl={imageUrl} icon="image" />;
+  return <FilePicker {...props} accept="image/*" previewUrl={imageUrl ? publicAssetUrl(imageUrl) : imageUrl} icon="image" />;
 }
