@@ -36,6 +36,7 @@ const COLLECTION_BY_SLUG = Object.fromEntries(
 const SETTINGS_SLUGS: Record<string, string> = {
   connection: 'connection',
   diagnostics: 'diagnostics',
+  files: 'files',
   game: 'game',
   players: 'players',
   projectGames: 'project-games'

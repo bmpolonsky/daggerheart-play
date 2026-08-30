@@ -6,6 +6,7 @@ const migration = readFileSync('supabase/migrations/202608120001_server_transpor
 const p2pTurnMigration = readFileSync('supabase/migrations/202608160001_p2p_turn_rooms.sql', 'utf8');
 const roomMemberIdentityMigration = readFileSync('supabase/migrations/202608160002_room_member_identity.sql', 'utf8');
 const assetPolicyMigration = readFileSync('supabase/migrations/202608160003_fix_asset_storage_policies.sql', 'utf8');
+const worldBackupMigration = readFileSync('supabase/migrations/202608300001_world_backups.sql', 'utf8');
 const turnFunction = readFileSync('supabase/functions/turn-credentials/index.ts', 'utf8');
 
 test('Supabase room contract keeps writes behind authenticated RPCs', () => {
@@ -43,4 +44,11 @@ test('asset policies validate the outer storage path rather than the world title
   assert.match(migration, /storage\.foldername\(storage\.objects\.name\)/);
   assert.match(assetPolicyMigration, /storage\.foldername\(storage\.objects\.name\)/);
   assert.doesNotMatch(assetPolicyMigration, /storage\.foldername\(world\.name\)/);
+});
+
+test('world backups are private owner-only archives', () => {
+  assert.match(worldBackupMigration, /'world-backups', 'world-backups', false/);
+  assert.match(worldBackupMigration, /file_size_limit[^;]+52428800/);
+  assert.match(worldBackupMigration, /storage\.foldername\(name\)\)\[1\] = auth\.uid\(\)::text/);
+  assert.match(worldBackupMigration, /is_anonymous/);
 });

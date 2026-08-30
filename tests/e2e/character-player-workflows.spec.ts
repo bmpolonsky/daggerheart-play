@@ -69,7 +69,7 @@ async function importCharacterWorkflowFixture(gm: Page, configureCharacter?: (ch
   await openGameLibrary(gm);
   const workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
   await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Настройки' }).click();
-  await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игры проекта' }).click();
+  await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Миры' }).click();
   await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles({
     name: fixtureName,
     mimeType: 'application/json',

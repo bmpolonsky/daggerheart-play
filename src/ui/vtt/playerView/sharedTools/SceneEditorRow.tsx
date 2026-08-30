@@ -3,6 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { Copy, Eye, LocateFixed, RotateCcw, RotateCw, Trash2 } from 'lucide-react';
 import { useStream } from '../../../../core/hooks/useStream';
 import type { SceneTableState } from '../../../../domain/rules/types';
+import type { MapAsset } from '../../../../domain/tabletop/types';
 import { DEFAULT_SCENE_HEIGHT, DEFAULT_SCENE_WIDTH } from '../../../../domain/tabletop/logic';
 import { buildPlayerTokens, type PlayerViewToken } from '../../../../domain/tabletop/playerView';
 import {
@@ -30,11 +31,13 @@ import { cssImageUrl } from '../helpers';
 
 export function SceneEditorRow({
   scene,
+  assets,
   canDelete,
   isActive,
   isLive
 }: {
   scene: SceneTableState['scenes'][string];
+  assets: Record<string, MapAsset>;
   canDelete: boolean;
   isActive: boolean;
   isLive: boolean;
@@ -47,6 +50,11 @@ export function SceneEditorRow({
   useEffect(() => {
     if (!scene.backgroundAssetId) {
       setBackgroundObjectUrl(null);
+      return;
+    }
+    const asset = assets[scene.backgroundAssetId];
+    if (asset?.storage === 'remote') {
+      setBackgroundObjectUrl(asset.url ?? null);
       return;
     }
     let cancelled = false;
@@ -63,7 +71,7 @@ export function SceneEditorRow({
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [scene.backgroundAssetId]);
+  }, [assets, scene.backgroundAssetId]);
 
   const selectBackgroundImage = async (file: File | null | undefined) => {
     if (!file) return;
@@ -90,6 +98,8 @@ export function SceneEditorRow({
   const previewTokens = buildPlayerTokens(scene.tokens, characters.entities, encounter, 'gm');
   const backgroundFraming = normalizeSceneBackgroundFraming(scene.backgroundFraming);
   const musicTitle = scene.music.title || 'Не выбрана';
+  const imageAssets = Object.values(assets).filter((asset) => asset.mimeType.startsWith('image/'));
+  const audioAssets = Object.values(assets).filter((asset) => asset.mimeType.startsWith('audio/'));
   const publishScene = () => {
     if (sceneTableService.publishScene(scene.id)) gameService.startScene(scene.name);
   };
@@ -149,6 +159,21 @@ export function SceneEditorRow({
           </section>
           <section className="player-tools-scene-editor__section" aria-label="Изображение">
             <SectionHeader title="Изображение" />
+            <SelectField
+              label="Из хранилища"
+              value={scene.backgroundAssetId ?? ''}
+              onChange={(event) => {
+                const assetId = event.currentTarget.value || undefined;
+                sceneTableService.updateScene(scene.id, {
+                  backgroundAssetId: assetId,
+                  backgroundUrl: '',
+                  backgroundFraming: { ...DEFAULT_SCENE_BACKGROUND_FRAMING }
+                });
+              }}
+            >
+              <option value="">Не выбрано</option>
+              {imageAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
+            </SelectField>
             <div className="player-tools-scene-framing">
               <SelectField
                 label="Привязка"
@@ -254,6 +279,21 @@ export function SceneEditorRow({
           </section>
           <section className="player-tools-scene-editor__section" aria-label="Музыка">
             <SectionHeader title="Музыка" />
+            <SelectField
+              label="Из хранилища"
+              value={scene.music.assetId ?? ''}
+              onChange={(event) => {
+                const asset = assets[event.currentTarget.value];
+                sceneTableService.setSceneMusicTrack(scene.id, {
+                  assetId: asset?.id,
+                  sourceUrl: '',
+                  title: asset?.name ?? ''
+                });
+              }}
+            >
+              <option value="">Не выбрано</option>
+              {audioAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
+            </SelectField>
             <FilePicker
               className="player-tools-scene-music-picker"
               label="Трек"

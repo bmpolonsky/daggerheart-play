@@ -95,7 +95,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dh-paper-100);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 900;
   line-height: 1.15;
   text-overflow: ellipsis;
@@ -107,7 +107,7 @@
   display: -webkit-box;
   overflow: hidden;
   color: var(--dh-paper-muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 760;
   line-height: 1.28;
   overflow-wrap: break-word;

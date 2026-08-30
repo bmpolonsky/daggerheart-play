@@ -62,6 +62,7 @@ export function SharedToolsScenesTab({
           {selectedScene ? (
             <SceneEditorRow
               scene={selectedScene}
+              assets={sceneTable.assets}
               canDelete={scenes.length > 1}
               isActive={sceneTable.activeSceneId === selectedScene.id}
               isLive={sceneTable.liveSceneId === selectedScene.id}

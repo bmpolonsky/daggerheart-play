@@ -1,7 +1,8 @@
 /** @jsxImportSource preact */
 import type { GameState, Character } from '../../../domain/rules/types';
-import type { TableParticipant } from '../../../domain/tabletop/types';
+import type { MapAsset, TableParticipant } from '../../../domain/tabletop/types';
 import { SharedToolsGamesTab } from './SharedToolsGamesTab';
+import { SharedToolsAssetsTab } from './sharedTools/SharedToolsAssetsTab';
 import {
   SharedToolsConnectionSettingsPanel,
   SharedToolsDiagnosticsSettingsPanel,
@@ -10,9 +11,9 @@ import {
 } from './SharedToolsSettingsPanels';
 import type { TableViewRole } from './types';
 
-export type SettingsSectionId = 'game' | 'projectGames' | 'players' | 'connection' | 'diagnostics';
+export type SettingsSectionId = 'game' | 'projectGames' | 'players' | 'connection' | 'diagnostics' | 'files';
 
-export const GM_SETTINGS_SECTIONS: SettingsSectionId[] = ['game', 'projectGames', 'players', 'connection', 'diagnostics'];
+export const GM_SETTINGS_SECTIONS: SettingsSectionId[] = ['game', 'projectGames', 'players', 'connection', 'diagnostics', 'files'];
 export const PLAYER_SETTINGS_SECTIONS: SettingsSectionId[] = ['connection', 'diagnostics'];
 
 export function settingsSectionsForRole(role: TableViewRole): SettingsSectionId[] {
@@ -27,22 +28,25 @@ export function normalizeSettingsSection(section: SettingsSectionId, role: Table
 export function settingsSectionLabel(section: SettingsSectionId): string {
   const labels: Record<SettingsSectionId, string> = {
     game: 'Игра',
-    projectGames: 'Игры проекта',
+    projectGames: 'Миры',
     players: 'Игроки',
     connection: 'Подключение',
-    diagnostics: 'Диагностика'
+    diagnostics: 'Диагностика',
+    files: 'Файлы'
   };
   return labels[section];
 }
 
 export function SharedToolsSettingsTab({
   activeSection,
+  assets,
   characterOptions,
   game,
   playerSeats,
   role
 }: {
   activeSection: SettingsSectionId;
+  assets: Record<string, MapAsset>;
   game: GameState;
   characterOptions: Character[];
   playerSeats: TableParticipant[];
@@ -70,6 +74,9 @@ export function SharedToolsSettingsTab({
         )}
         {section === 'diagnostics' && (
           <SharedToolsDiagnosticsSettingsPanel role={role} />
+        )}
+        {section === 'files' && role === 'gm' && (
+          <SharedToolsAssetsTab assets={assets} />
         )}
       </div>
     </section>

@@ -326,6 +326,7 @@ function SharedToolsSettingsTabHost({
   return (
     <SharedToolsSettingsTab
       activeSection={activeSection}
+      assets={sceneTable.assets}
       game={game}
       characterOptions={characterOptions}
       playerSeats={playerSeats}

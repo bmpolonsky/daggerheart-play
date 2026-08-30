@@ -1,0 +1,102 @@
+.root,
+.section,
+.worlds,
+.serverWorlds {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+}
+
+.root {
+  width: 100%;
+  max-width: 980px;
+  gap: 26px;
+}
+
+.section {
+  gap: 10px;
+}
+
+.worlds,
+.serverWorlds {
+  gap: 8px;
+}
+
+.world {
+  display: grid;
+  gap: 3px;
+}
+
+.title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.worldTitle {
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.gameTitle {
+  font-size: 0.78rem;
+  font-weight: 820;
+}
+
+.games {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  margin-left: 19px;
+  padding-left: 13px;
+  border-left: 1px solid rgba(243, 234, 216, 0.11);
+}
+
+.game {
+  min-height: 40px;
+  background: transparent;
+}
+
+.actions,
+.rowActions {
+  flex-wrap: nowrap;
+}
+
+.rowActions {
+  gap: 4px;
+}
+
+.empty {
+  justify-items: start;
+  text-align: left;
+  padding: 12px;
+}
+
+@media (max-width: 700px) {
+  .root {
+    gap: 22px;
+  }
+
+  .section > :global(.dh-section-header) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actions > * {
+    flex: 1 1 auto;
+  }
+
+  .games {
+    margin-left: 10px;
+    padding-left: 8px;
+  }
+
+  .rowActions :global(.dh-button) {
+    min-width: 0;
+  }
+}

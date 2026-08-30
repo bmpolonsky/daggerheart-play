@@ -21,7 +21,7 @@
 .header h2 {
   margin: 0;
   color: #fff4d6;
-  font-size: 0.98rem;
+  font-size: 0.9rem;
   font-weight: 900;
   line-height: 1.15;
 }
@@ -29,7 +29,7 @@
 .header p {
   margin: 3px 0 0;
   color: var(--dh-paper-muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   line-height: 1.35;
 }
 

@@ -30,6 +30,7 @@ import { SceneAudioBroadcastService } from './SceneAudioBroadcastService';
 import { SyncService } from './SyncService';
 import { TabletopService } from './TabletopService';
 import { UiService } from './UiService';
+import { WorldBackupService } from './WorldBackupService';
 
 export const assetService = new AssetService();
 export const persistenceService = new PersistenceService(undefined, assetService);
@@ -72,6 +73,7 @@ const sessionTransportFactory = (
 };
 const supabaseSessionConfig = readSupabaseSessionConfig();
 const supabaseAssetService = supabaseSessionConfig ? new SupabaseAssetService(supabaseSessionConfig) : undefined;
+export const worldBackupService = supabaseSessionConfig ? new WorldBackupService(supabaseSessionConfig, importExportService) : null;
 export const p2pSessionService = new P2PSessionService(syncService, playerActionRequestService, playerActivationQueueService, playerPresenceService, feedService, sceneTableService, diceService, assetService, audioService, sceneAudioBroadcastService, sessionTransportFactory, undefined, mediaCallService, characterService, supabaseAssetService);
 export const gmLobbyService = new GmLobbyService(p2pSessionService);
 characterService.setDeathMoveRequestHandler((character, transition) => {

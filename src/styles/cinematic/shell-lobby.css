@@ -220,11 +220,6 @@
   background: var(--role-glass-soft);
 }
 
-.role-entry__game-list {
-  display: grid;
-  gap: 6px;
-}
-
 .role-entry__invite-grid {
   display: grid;
   grid-template-columns: minmax(150px, 0.32fr) minmax(0, 0.68fr);
@@ -414,17 +409,6 @@
   box-shadow: 0 18px 52px rgba(0, 0, 0, 0.2);
 }
 
-.role-entry__storage-tools {
-  width: 100%;
-  flex-wrap: nowrap;
-  justify-content: stretch;
-}
-
-.role-entry__game-actions {
-  gap: 4px;
-  flex-wrap: nowrap;
-}
-
 .role-entry__players {
   padding: 12px 0 0;
   border: 0;
@@ -445,11 +429,6 @@
   width: 100%;
 }
 
-.role-entry__game-list {
-  max-height: min(520px, 58vh);
-  overflow: auto;
-}
-
 .role-entry__games-dialog {
   width: min(760px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
@@ -468,12 +447,6 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-
-@media (max-width: 900px) {
-  .role-entry__game-list {
-    max-height: none;
-  }
 }
 
 @media (max-width: 700px) {

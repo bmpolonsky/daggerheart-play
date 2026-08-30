@@ -56,7 +56,7 @@ export async function importGameDocument(page: Page, document: unknown, fileName
   await openGameLibrary(page);
   const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
   await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Настройки' }).click();
-  await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Игры проекта' }).click();
+  await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Миры' }).click();
   await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles({
     name: fileName,
     mimeType: 'application/json',

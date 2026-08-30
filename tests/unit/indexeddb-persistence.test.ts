@@ -382,7 +382,7 @@ test('persistence does not restore an older token position from its own in-fligh
   }
 });
 
-test('persistence keeps multiple local games and switches the active one', async () => {
+test('persistence keeps characters and participants inside their game', async () => {
   resetAllStores();
   const originalWindow = globalThis.window;
   const documentStore = new MemoryGameDocumentStore();
@@ -404,8 +404,8 @@ test('persistence keeps multiple local games and switches the active one', async
     assert.ok(first);
 
     await service.createStoredGame();
-    assert.equal(characterService.characters$.get().entities[hero.id]?.name, 'Общий герой');
-    assert.equal(Object.values(sceneTableStore.get().participants).some((seat) => seat.actorIds.includes(hero.id)), true);
+    assert.equal(characterService.characters$.get().entities[hero.id], undefined);
+    assert.deepEqual(sceneTableStore.get().participants, {});
     assert.equal(gameService.game$.get().fear, 0);
     gameService.updateGame({ name: 'Ваншот' });
     gameService.setFear(1);
@@ -432,14 +432,14 @@ test('persistence keeps multiple local games and switches the active one', async
     assert.equal(await service.removeStoredGame(first.id), true);
     assert.equal(gameService.game$.get().name, '');
     assert.equal(gameService.game$.get().fear, 0);
-    assert.equal(characterService.characters$.get().entities[hero.id]?.name, 'Общий герой');
-    assert.equal(Object.values(sceneTableStore.get().participants).some((seat) => seat.actorIds.includes(hero.id)), true);
+    assert.equal(characterService.characters$.get().entities[hero.id], undefined);
+    assert.deepEqual(sceneTableStore.get().participants, {});
   } finally {
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });
 
-test('persistence hydration does not overwrite custom tool content from game document files', async () => {
+test('persistence hydration switches the custom content mirror to the stored world', async () => {
   resetAllStores();
   applyBrowserCustomContent({
     ...emptyCustomContent(),
@@ -470,11 +470,7 @@ test('persistence hydration does not overwrite custom tool content from game doc
     service = new PersistenceService(documentStore);
     service.start();
     await service.whenReady();
-    assert.deepEqual(readBrowserCustomContent().ancestries, [{ id: 'tool-ancestry-kept', name: 'Tool ancestry kept' }]);
-    assert.deepEqual(readBrowserCustomContent().domainCards, [{ id: 'tool-card-kept', name: 'Tool card kept' }]);
-    assert.deepEqual(readBrowserCustomContent().cardDomains, [{ id: 'tool-domain-kept' }]);
-    assert.deepEqual(readBrowserCustomContent().adversaries, [{ id: -42, name: 'Tool adversary kept' }]);
-    assert.deepEqual(readBrowserCustomContent().environments, [{ id: 'tool-environment-kept', name: 'Tool environment kept' }]);
+    assert.deepEqual(readBrowserCustomContent(), emptyCustomContent());
   } finally {
     service?.stop();
     applyBrowserCustomContent(emptyCustomContent());

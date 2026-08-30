@@ -18,7 +18,8 @@ async function waitForStoredSceneFraming(page: import('@playwright/test').Page, 
         transaction.oncomplete = () => db.close();
       };
     });
-    const game = project?.games?.[project.activeGameId];
+    const world = project?.worlds?.[project.activeWorldId] ?? project;
+    const game = world?.games?.[world.activeGameId];
     const sceneTable = game?.state?.sceneTable;
     const stored = sceneTable?.scenes?.[sceneTable.liveSceneId]?.backgroundFraming;
     return stored?.zoom === framing.zoom && stored?.offsetX === framing.offsetX && stored?.offsetY === framing.offsetY;

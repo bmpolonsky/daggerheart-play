@@ -1,14 +1,20 @@
-import { createGameDocumentStore, type GameDocumentStore } from '../core/persistence/gameDocumentStore';
+import {
+  createGameDocumentStore,
+  type GameDocumentStore,
+  type StoredGameSummary,
+  type StoredWorldSummary,
+  type WorldArchiveDocument,
+  worldAssetUsageCounts
+} from '../core/persistence/gameDocumentStore';
 import { applyBrowserCustomContent, loadBrowserCustomContent, readBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../domain/p2p/sessionLinks';
-import { createGameDocument, isGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState } from '../domain/game/gameDocument';
+import { createGameDocument, emptyCustomContent, isGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState } from '../domain/game/gameDocument';
 import type { GameDocument } from '../domain/game/gameDocument';
 import { createGameState, createEncounterState, createSceneTableState, createUiState } from '../domain/rules/factories';
 import { resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
 import { CURRENT_PERSISTED_STATE_VERSION, migratePersistedState } from '../domain/migrations/persistedState';
 import { hydratePersistedState, isPersistedState, snapshotPersistedState } from '../stores/persistedState';
 import type { PersistedState } from '../domain/rules/types';
-import type { StoredGameSummary } from '../core/persistence/gameDocumentStore';
 import type { AssetService } from './AssetService';
 import { Store } from '../core/store/Store';
 import { readActiveSession } from './p2p/P2PSessionPersistence';
@@ -21,6 +27,8 @@ const PERSISTENCE_LOCK_NAME = 'daggerheart-play:game-document';
 export class PersistenceService {
   private storedGamesStore = new Store<StoredGameSummary[]>([]);
   readonly storedGames$ = this.storedGamesStore.toStream();
+  private storedWorldsStore = new Store<StoredWorldSummary[]>([]);
+  readonly storedWorlds$ = this.storedWorldsStore.toStream();
 
   private started = false;
   private unsubscribeCallbacks: Array<() => void> = [];
@@ -110,16 +118,39 @@ export class PersistenceService {
     return games;
   }
 
+  async listStoredWorlds(): Promise<StoredWorldSummary[]> {
+    return this.documentStore?.listWorlds() ?? [];
+  }
+
+  async refreshStoredWorlds(): Promise<StoredWorldSummary[]> {
+    const worlds = await this.listStoredWorlds();
+    this.storedWorldsStore.set(worlds);
+    return worlds;
+  }
+
   async createStoredGame(): Promise<string | null> {
     if (!this.documentStore) {
       return null;
     }
     await this.flushPersistNow();
     await loadBrowserCustomContent();
-    const document = this.createEmptyGameDocumentFromProject();
+    const document = this.createEmptyGameDocument(false);
     const id = await this.documentStore.create(document);
     this.applyStoredDocument(document);
     this.lastDocumentSignature = stableJsonSignature(document);
+    return id;
+  }
+
+  async createStoredWorld(name?: string): Promise<string | null> {
+    if (!this.documentStore) return null;
+    await this.flushPersistNow();
+    const document = this.createEmptyGameDocument(true);
+    const id = await this.documentStore.createWorld(document, name);
+    this.applyStoredDocument(document);
+    applyBrowserCustomContent(gameDocumentCustomContent(document));
+    this.lastDocumentSignature = stableJsonSignature(document);
+    await this.refreshStoredWorlds();
+    await this.refreshStoredGames();
     return id;
   }
 
@@ -132,9 +163,31 @@ export class PersistenceService {
     if (!document) {
       return false;
     }
-    this.applyStoredDocument(document);
-    await loadBrowserCustomContent();
+    const gameDocument = storedDocumentToGameDocument(document);
+    if (!gameDocument) return false;
+    this.applyStoredDocument(gameDocument);
+    applyBrowserCustomContent(gameDocumentCustomContent(gameDocument));
     return true;
+  }
+
+  async switchStoredWorld(id: string): Promise<boolean> {
+    if (!this.documentStore) return false;
+    await this.flushPersistNow();
+    const document = await this.documentStore.setActiveWorld(id);
+    if (!document) return false;
+    const gameDocument = storedDocumentToGameDocument(document);
+    if (!gameDocument) return false;
+    this.applyStoredDocument(gameDocument);
+    applyBrowserCustomContent(gameDocumentCustomContent(gameDocument));
+    await this.refreshStoredWorlds();
+    await this.refreshStoredGames();
+    return true;
+  }
+
+  async renameStoredWorld(id: string, name: string): Promise<boolean> {
+    const renamed = await this.documentStore?.renameWorld(id, name) ?? false;
+    if (renamed) await this.refreshStoredWorlds();
+    return renamed;
   }
 
   async importGameDocument(document: GameDocument, options: { asNewGame?: boolean } = {}): Promise<void> {
@@ -159,24 +212,135 @@ export class PersistenceService {
     }
   }
 
+  async importGameAsWorldDocument(document: GameDocument): Promise<void> {
+    await this.flushPersistNow();
+    if (!this.documentStore || typeof window === 'undefined' || isRemotePlayerJoin()) {
+      await this.importGameDocument(document);
+      return;
+    }
+    this.isApplyingStoredDocument = true;
+    try {
+      await this.documentStore.createWorld(document, document.manifest.name);
+      applyBrowserCustomContent(gameDocumentCustomContent(document));
+      this.applyStoredDocument(document);
+      await this.refreshStoredWorlds();
+      await this.refreshStoredGames();
+    } finally {
+      this.isApplyingStoredDocument = false;
+    }
+  }
+
+  async exportWorldDocument(id?: string): Promise<WorldArchiveDocument | null> {
+    await this.flushPersistNow();
+    return this.documentStore?.exportWorld(id) ?? null;
+  }
+
+  async getWorldAssetUsageCounts(): Promise<Record<string, number>> {
+    const worlds = await this.listStoredWorlds();
+    const active = worlds.find((world) => world.active);
+    if (!active) return {};
+    const document = await this.exportWorldDocument(active.id);
+    if (!document) return {};
+    const counts = worldAssetUsageCounts(document.world);
+    for (const world of worlds) {
+      if (world.id === active.id) continue;
+      const other = await this.exportWorldDocument(world.id);
+      if (!other) continue;
+      for (const assetId of Object.keys(other.world.shared.assets)) {
+        if (document.world.shared.assets[assetId]) counts[assetId] = Math.max(1, counts[assetId] ?? 0);
+      }
+    }
+    return counts;
+  }
+
+  async deleteUnusedWorldAsset(assetId: string): Promise<boolean> {
+    const usages = await this.getWorldAssetUsageCounts();
+    if (usages[assetId]) return false;
+    await this.assetService?.deleteAsset(assetId);
+    await this.flushPersistNow();
+    return true;
+  }
+
+  async importWorldDocument(document: WorldArchiveDocument): Promise<void> {
+    await this.flushPersistNow();
+    if (!this.documentStore || typeof window === 'undefined' || isRemotePlayerJoin()) {
+      const activeGameId = document.world.activeGameId;
+      const game = activeGameId ? document.world.games[activeGameId] : null;
+      if (game) {
+        const imported = createGameDocument({
+          schemaVersion: CURRENT_PERSISTED_STATE_VERSION,
+          ...game.state,
+          sceneTable: { ...game.state.sceneTable, assets: document.world.shared.assets }
+        }, document.world.shared.customContent);
+        applyBrowserCustomContent(document.world.shared.customContent);
+        this.applyStoredDocument(imported);
+      }
+      return;
+    }
+    this.isApplyingStoredDocument = true;
+    try {
+      await this.documentStore.importWorld(document);
+      const stored = storedDocumentToGameDocument(await this.documentStore.load());
+      if (!stored) throw new Error('Imported world has no active game.');
+      applyBrowserCustomContent(gameDocumentCustomContent(stored));
+      this.applyStoredDocument(stored);
+      await this.refreshStoredWorlds();
+      await this.refreshStoredGames();
+    } finally {
+      this.isApplyingStoredDocument = false;
+    }
+  }
+
   async removeStoredGame(id: string): Promise<boolean> {
     if (!this.documentStore) {
       return false;
     }
     await this.flushPersistNow();
     const wasActive = (await this.documentStore.list()).some((game) => game.id === id && game.active);
-    const replacement = wasActive ? this.createEmptyGameDocumentFromProject() : undefined;
+    const replacement = wasActive ? this.createEmptyGameDocument(false) : undefined;
     const nextDocument = await this.documentStore.remove(id, replacement);
     if (wasActive) {
       if (nextDocument) {
         this.applyStoredDocument(nextDocument);
       } else {
-        const document = replacement ?? this.createEmptyGameDocumentFromProject();
+        const document = replacement ?? this.createEmptyGameDocument(false);
         await this.documentStore.create(document);
         this.applyStoredDocument(document);
       }
-      await loadBrowserCustomContent();
+      if (nextDocument) {
+        const gameDocument = storedDocumentToGameDocument(nextDocument);
+        if (gameDocument) applyBrowserCustomContent(gameDocumentCustomContent(gameDocument));
+      }
     }
+    return true;
+  }
+
+  async removeStoredWorld(id: string): Promise<boolean> {
+    if (!this.documentStore) return false;
+    await this.flushPersistNow();
+    const worlds = await this.documentStore.listWorlds();
+    const removedWorld = await this.documentStore.exportWorld(id);
+    const retainedAssetIds = new Set<string>();
+    for (const world of worlds) {
+      if (world.id === id) continue;
+      const document = await this.documentStore.exportWorld(world.id);
+      Object.keys(document?.world.shared.assets ?? {}).forEach((assetId) => retainedAssetIds.add(assetId));
+    }
+    const wasActive = worlds.some((world) => world.id === id && world.active);
+    const replacement = worlds.length === 1 ? this.createEmptyGameDocument(true) : undefined;
+    const next = await this.documentStore.removeWorld(id, replacement);
+    if (wasActive && next) {
+      const document = storedDocumentToGameDocument(next);
+      if (document) {
+        this.applyStoredDocument(document);
+        applyBrowserCustomContent(gameDocumentCustomContent(document));
+      }
+    }
+    for (const assetId of Object.keys(removedWorld?.world.shared.assets ?? {})) {
+      if (!retainedAssetIds.has(assetId)) await this.assetService?.deleteAsset(assetId);
+    }
+    await this.refreshStoredWorlds();
+    await this.refreshStoredGames();
     return true;
   }
 
@@ -248,7 +412,7 @@ export class PersistenceService {
       this.applyStoredDocument(document);
       await this.assetService?.normalizeEmbeddedSceneAssets();
       await this.assetService?.optimizeStoredImages();
-      await loadBrowserCustomContent();
+      applyBrowserCustomContent(gameDocumentCustomContent(document));
       this.persistNow();
       return true;
     } catch (error) {
@@ -275,6 +439,7 @@ export class PersistenceService {
           await this.documentStore?.save(document);
           this.lastDocumentSignature = signature;
           void this.refreshStoredGames();
+          void this.refreshStoredWorlds();
         } catch (error) {
           this.ownPersistSignatures.delete(signature);
           throw error;
@@ -327,14 +492,16 @@ export class PersistenceService {
       try {
         if (document) {
           this.applyStoredDocument(document);
+          applyBrowserCustomContent(gameDocumentCustomContent(document));
         } else {
           resetAllStores();
+          applyBrowserCustomContent(emptyCustomContent());
         }
       } finally {
         this.isApplyingStoredDocument = false;
       }
-      void loadBrowserCustomContent();
       void this.refreshStoredGames();
+      void this.refreshStoredWorlds();
     });
   }
 
@@ -361,7 +528,7 @@ export class PersistenceService {
     }
   }
 
-  private createEmptyGameDocumentFromProject(): GameDocument {
+  private createEmptyGameDocument(newWorld: boolean): GameDocument {
     const current = snapshotPersistedState();
     const game = {
       ...createGameState(),
@@ -370,13 +537,13 @@ export class PersistenceService {
     return createGameDocument({
       schemaVersion: CURRENT_PERSISTED_STATE_VERSION,
       game,
-      characters: current.characters,
+      characters: { entities: {}, order: [], selectedId: null, updatedAt: new Date().toISOString() },
       encounter: createEncounterState(),
       rollLog: [],
       feed: [],
       ui: createUiState(),
-      sceneTable: createSceneTableState({ participants: current.sceneTable.participants })
-    }, readBrowserCustomContent());
+      sceneTable: createSceneTableState({ participants: {}, assets: newWorld ? {} : current.sceneTable.assets })
+    }, newWorld ? undefined : readBrowserCustomContent());
   }
 
   private applyStoredDocument(document: GameDocument | PersistedState): void {

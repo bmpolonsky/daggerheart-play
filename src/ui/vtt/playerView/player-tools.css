@@ -222,10 +222,6 @@
   min-width: 130px;
 }
 
-.player-tools-games-section {
-  align-content: start;
-}
-
 .player-tools-settings-section {
   align-content: start;
 }
@@ -236,8 +232,7 @@
   gap: 14px;
 }
 
-.player-tools-settings-panel,
-.player-tools-games-section {
+.player-tools-settings-panel {
   min-width: 0;
   max-width: 980px;
   display: grid;
@@ -247,28 +242,6 @@
 
 .player-tools-game-name {
   max-width: 520px;
-}
-
-.player-tools-game-list {
-  display: grid;
-  align-items: start;
-  gap: 6px;
-}
-
-.player-tools-game-row {
-  min-width: 0;
-  background: transparent;
-}
-
-.player-tools-game-row.dh-is-active {
-  background: rgba(240, 201, 106, 0.08);
-}
-
-.player-tools-game-row__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 7px;
 }
 
 .player-tools-setting-choices {
@@ -309,6 +282,52 @@
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
+}
+
+.player-tools-assets-section {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  align-content: start;
+}
+
+.player-tools-assets-toolbar {
+  justify-content: space-between;
+}
+
+.player-tools-assets-toolbar .dh-search-field {
+  width: min(280px, 100%);
+}
+
+.player-tools-assets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.player-tools-asset-card {
+  align-content: start;
+}
+
+.player-tools-asset-card__preview {
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-control);
+  color: var(--dh-paper-faint);
+}
+
+.player-tools-asset-card__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.player-tools-asset-card__preview audio {
+  width: calc(100% - 16px);
 }
 
 .player-tools-handouts-section--readonly,
@@ -2292,13 +2311,11 @@
     padding-right: 0;
   }
 
-  .player-tools-detail-editor > .dh-section-header .dh-section-header__actions,
-  .player-tools-games-section > .dh-section-header .dh-section-header__actions {
+  .player-tools-detail-editor > .dh-section-header .dh-section-header__actions {
     width: 100%;
   }
 
-  .player-tools-detail-editor > .dh-section-header .dh-toolbar,
-  .player-tools-games-section > .dh-section-header .dh-toolbar {
+  .player-tools-detail-editor > .dh-section-header .dh-toolbar {
     width: 100%;
     justify-content: flex-start;
     overflow-x: auto;

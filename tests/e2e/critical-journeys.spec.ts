@@ -58,7 +58,8 @@ async function waitForLiveScene(page: Page, sceneName: string): Promise<void> {
         transaction.oncomplete = () => db.close();
       };
     });
-    const active = project?.games?.[project?.activeGameId]?.state?.sceneTable;
+    const world = project?.worlds?.[project?.activeWorldId] ?? project;
+    const active = world?.games?.[world?.activeGameId]?.state?.sceneTable;
     return active?.scenes?.[active.liveSceneId]?.name === expectedName;
   }, sceneName)).toBe(true);
 }
@@ -77,7 +78,8 @@ async function waitForStoredCustomAdversary(page: Page, name: string, present: b
         transaction.oncomplete = () => db.close();
       };
     });
-    const entries = project?.shared?.customContent?.adversaries ?? [];
+    const world = project?.worlds?.[project?.activeWorldId] ?? project;
+    const entries = world?.shared?.customContent?.adversaries ?? [];
     return entries.some((entry: { name?: string }) => entry.name === name) === present;
   }, { name, present })).toBe(true);
 }
@@ -116,7 +118,8 @@ async function waitForStoredPreparedAdversary(page: Page, name: string): Promise
         transaction.oncomplete = () => db.close();
       };
     });
-    const encounter = project?.games?.[project?.activeGameId]?.state?.encounter;
+    const world = project?.worlds?.[project?.activeWorldId] ?? project;
+    const encounter = world?.games?.[world?.activeGameId]?.state?.encounter;
     return Object.values(encounter?.adversaries ?? {}).some((entry: any) => entry.name === expectedName);
   }, name)).toBe(true);
 }
@@ -454,12 +457,13 @@ test.describe('critical persisted journeys', () => {
     await workspace.getByLabel('Название игры').fill('Кампания для round-trip');
     await selectWorkspaceTab(workspace, 'Заметки');
     await workspace.getByLabel('Заметки кампании').fill('Контрольная строка из архива.');
-    await selectSettingsSection(workspace, 'Игры проекта');
+    await selectSettingsSection(workspace, 'Миры');
 
     const downloadPromise = page.waitForEvent('download');
-    await workspace.getByRole('button', { name: 'Экспорт' }).click();
+    await workspace.getByRole('button', { name: /Действия с миром/ }).click();
+    await page.getByRole('menuitem', { name: 'Экспортировать' }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.dhgame$/);
+    expect(download.suggestedFilename()).toMatch(/\.dhworld$/);
     const archivePath = await download.path();
     expect(archivePath).toBeTruthy();
 
@@ -467,14 +471,32 @@ test.describe('critical persisted journeys', () => {
     await workspace.getByLabel('Название игры').fill('Испорченная после экспорта');
     await selectWorkspaceTab(workspace, 'Заметки');
     await workspace.getByLabel('Заметки кампании').fill('Эта строка должна исчезнуть.');
-    await selectSettingsSection(workspace, 'Игры проекта');
-    await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles(archivePath!);
-    await expect(workspace.getByText(/Игра импортирована:/)).toBeVisible();
+    await selectSettingsSection(workspace, 'Миры');
+    await workspace.locator('input[type="file"][accept*=".dhworld"]').setInputFiles(archivePath!);
+    await expect(workspace.getByText(/Мир импортирован:/)).toBeVisible();
 
     await selectSettingsSection(workspace, 'Игра');
     await expect(workspace.getByLabel('Название игры')).toHaveValue('Кампания для round-trip');
     await selectWorkspaceTab(workspace, 'Заметки');
     await expect(workspace.getByLabel('Заметки кампании')).toHaveValue('Контрольная строка из архива.');
+  });
+
+  test('reuses a world image in a scene and protects it while referenced', async ({ page }) => {
+    await openGmGame(page);
+    const workspace = await openWorkspace(page);
+    await selectSettingsSection(workspace, 'Файлы');
+    await workspace.locator('input[type="file"][accept="image/*,audio/*"]').setInputFiles({
+      name: 'карта-мира.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+    });
+    await expect(workspace.getByText('карта-мира.webp', { exact: true })).toBeVisible();
+
+    await selectWorkspaceTab(workspace, 'Сцены');
+    await workspace.getByLabel('Из хранилища').first().selectOption({ label: 'карта-мира.webp' });
+    await selectSettingsSection(workspace, 'Файлы');
+    await expect(workspace.getByText('1 использование')).toBeVisible();
+    await expect(workspace.getByRole('button', { name: 'Удалить карта-мира.webp' })).toBeDisabled();
   });
 
   test('switches between independent project games without mixing their data', async ({ page }) => {
@@ -486,8 +508,9 @@ test.describe('critical persisted journeys', () => {
     await workspace.getByLabel('Заметки кампании').fill('Секрет первой кампании');
     await waitForStoredMarker(page, 'Секрет первой кампании');
 
-    await selectSettingsSection(workspace, 'Игры проекта');
-    await workspace.getByRole('button', { name: 'Новая', exact: true }).click();
+    await selectSettingsSection(workspace, 'Миры');
+    await workspace.getByRole('button', { name: /Действия с миром/ }).click();
+    await page.getByRole('menuitem', { name: 'Новая игра' }).click();
     await expect(workspace.getByText('Новая игра создана.')).toBeVisible();
     await selectSettingsSection(workspace, 'Игра');
     await workspace.getByLabel('Название игры').fill('Вторая кампания');
@@ -495,9 +518,10 @@ test.describe('critical persisted journeys', () => {
     await workspace.getByLabel('Заметки кампании').fill('Секрет второй кампании');
     await waitForStoredMarker(page, 'Секрет второй кампании');
 
-    await selectSettingsSection(workspace, 'Игры проекта');
-    const firstGame = workspace.locator('.player-tools-game-row').filter({ hasText: 'Первая кампания' });
-    const secondGame = workspace.locator('.player-tools-game-row').filter({ hasText: 'Вторая кампания' });
+    await selectSettingsSection(workspace, 'Миры');
+    const games = workspace.getByLabel(/^Игры мира /);
+    const firstGame = games.locator('.dh-list-item').filter({ hasText: 'Первая кампания' });
+    const secondGame = games.locator('.dh-list-item').filter({ hasText: 'Вторая кампания' });
     await expect(firstGame).toBeVisible();
     await expect(secondGame).toContainText('Текущая');
     await firstGame.getByRole('button', { name: 'Открыть' }).click();
@@ -508,12 +532,13 @@ test.describe('critical persisted journeys', () => {
     await selectWorkspaceTab(workspace, 'Заметки');
     await expect(workspace.getByLabel('Заметки кампании')).toHaveValue('Секрет первой кампании');
 
-    await selectSettingsSection(workspace, 'Игры проекта');
-    await secondGame.getByRole('button', { name: 'Удалить игру Вторая кампания' }).click();
+    await selectSettingsSection(workspace, 'Миры');
+    await secondGame.getByRole('button', { name: 'Действия с игрой Вторая кампания' }).click();
+    await page.getByRole('menuitem', { name: 'Удалить' }).click();
     const confirmation = page.getByRole('dialog', { name: 'Удалить игру «Вторая кампания»?' });
     await confirmation.getByRole('button', { name: 'Удалить' }).click();
     await expect(workspace.getByText('Игра удалена.')).toBeVisible();
-    await expect(workspace.locator('.player-tools-game-row').filter({ hasText: 'Вторая кампания' })).toHaveCount(0);
+    await expect(games.locator('.dh-list-item').filter({ hasText: 'Вторая кампания' })).toHaveCount(0);
   });
 
   test('creates, restores, uses and deletes a homebrew adversary', async ({ page }) => {

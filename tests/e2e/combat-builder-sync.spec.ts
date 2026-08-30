@@ -39,7 +39,8 @@ async function waitForStoredEncounterSize(page: Page, size: number): Promise<voi
         transaction.oncomplete = () => db.close();
       };
     });
-    const activeGame = project?.games?.[project.activeGameId];
+    const world = project?.worlds?.[project.activeWorldId] ?? project;
+    const activeGame = world?.games?.[world.activeGameId];
     return activeGame?.state?.encounter?.order?.length ?? -1;
   }), { timeout: 15_000 }).toBe(size);
 }

@@ -6,7 +6,7 @@ import { createPopulatedGameDocument, filledCharacterName, importGameDocument } 
 import { expectInsideBounds, expectInsideViewport, expectTopLayerAtPoint, rect } from './layout-helpers';
 import { openGameLibrary } from './tools-helpers';
 
-async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Игра' | 'Подключение' | 'Диагностика' | 'Игры проекта'): Promise<void> {
+async function openSharedSettings(page: Page, role: 'gm' | 'player', section: 'Игра' | 'Подключение' | 'Диагностика' | 'Миры'): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   if (role === 'gm') {
     await openGmGame(page);
@@ -16,7 +16,7 @@ async function openSharedSettings(page: Page, role: 'gm' | 'player', section: '�
   await openCurrentSettings(page, section);
 }
 
-async function openCurrentSettings(page: Page, section: 'Игра' | 'Подключение' | 'Диагностика' | 'Игры проекта' = 'Подключение'): Promise<void> {
+async function openCurrentSettings(page: Page, section: 'Игра' | 'Подключение' | 'Диагностика' | 'Миры' = 'Подключение'): Promise<void> {
   const modal = page.getByRole('dialog', { name: 'Библиотека игры' });
   if (!(await modal.isVisible())) {
     await openGameLibrary(page);
@@ -64,7 +64,8 @@ async function waitForStoredMusicDeliveryMode(page: Page, mode: 'download' | 'br
         transaction.oncomplete = () => db.close();
       };
     });
-    const activeGame = project?.games?.[project.activeGameId];
+    const world = project?.worlds?.[project.activeWorldId] ?? project;
+    const activeGame = world?.games?.[world.activeGameId];
     return activeGame?.state?.sceneTable?.musicDeliveryMode === expectedMode;
   }, mode)).toBe(true);
 }
@@ -288,9 +289,10 @@ test.describe('P2P session workflow', () => {
     test.setTimeout(90_000);
     const gm = await newSharedPage(browser);
 
-    await openSharedSettings(gm, 'gm', 'Игры проекта');
+    await openSharedSettings(gm, 'gm', 'Миры');
     const gmModal = gm.getByRole('dialog', { name: 'Библиотека игры' });
-    await expect(gmModal.getByRole('button', { name: 'Экспорт' })).toBeVisible();
+    await gmModal.getByRole('button', { name: 'Новый мир' }).click();
+    await expect(gmModal.getByRole('button', { name: /Действия с миром/ })).toBeVisible();
     await expect(gmModal.getByRole('button', { name: 'Импорт' })).toBeVisible();
     await expect(gm.getByText('Ручной JSON-архив')).toHaveCount(0);
     await gm.context().close();

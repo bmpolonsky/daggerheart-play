@@ -13,12 +13,13 @@ import { PlayerPresenceService } from "../../src/services/PlayerPresenceService"
 import { FeedService } from "../../src/services/FeedService";
 import { SceneTableService } from "../../src/services/SceneTableService";
 import { AssetService } from "../../src/services/AssetService";
-import type { GameDocumentStore } from "../../src/core/persistence/gameDocumentStore";
+import type { GameDocumentStore, WorldArchiveDocument } from "../../src/core/persistence/gameDocumentStore";
 import { createGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState, type GameDocument } from "../../src/domain/game/gameDocument";
 import type { PersistedState } from "../../src/domain/rules/types";
 import { mapRawClassItem, mapRawEquipmentItem } from "../../src/domain/content/mappers";
 import type { GenericLibraryItem, LibraryClassItem, LibraryEquipmentItem, RawClassItem, RawEquipmentItem } from "../../src/domain/content/types";
 import type { SyncEvent } from "../../src/domain/tabletop/types";
+import { CURRENT_PERSISTED_STATE_VERSION } from "../../src/domain/migrations/persistedState";
 
 export async function waitFor(assertion: () => void, timeoutMs = 8000): Promise<void> {
   const startedAt = Date.now();
@@ -460,8 +461,8 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
   private gameIndex = 0;
   private games = new Map<string, GameDocument>();
   private order: string[] = [];
-  private sharedCharacters: PersistedState['characters'] | null = null;
-  private sharedParticipants: PersistedState['sceneTable']['participants'] | null = null;
+  private worldId = 'memory-world-1';
+  private worldName = 'Мой мир';
   private listeners = new Set<(document: GameDocument | null) => void>();
 
   async load(): Promise<GameDocument | null> {
@@ -470,9 +471,8 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
 
   async save(document: GameDocument): Promise<void> {
     this.activeId ??= `memory-game-${++this.gameIndex}`;
-    this.updateShared(document);
     this.games.set(this.activeId, document);
-    this.state = this.compose(document);
+    this.state = document;
     if (!this.order.includes(this.activeId)) {
       this.order = [this.activeId, ...this.order];
     }
@@ -485,7 +485,7 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
     }
     this.order = this.order.filter((id) => this.games.has(id));
     this.activeId = this.order[0] ?? null;
-    this.state = this.activeId ? this.compose(this.games.get(this.activeId) ?? null) : null;
+    this.state = this.activeId ? this.games.get(this.activeId) ?? null : null;
     this.emit();
   }
 
@@ -495,7 +495,7 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
       assert.ok(document);
       return {
         id,
-        worldId: document.files['data/game.json'].id,
+        worldId: this.worldId,
         name: document.manifest.name,
         updatedAt: document.manifest.updatedAt,
         active: id === this.activeId
@@ -506,9 +506,8 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
   async create(document: GameDocument): Promise<string> {
     const id = `memory-game-${++this.gameIndex}`;
     this.activeId = id;
-    this.updateShared(document);
     this.games.set(id, document);
-    this.state = this.compose(document);
+    this.state = document;
     this.order = [id, ...this.order];
     this.emit();
     return id;
@@ -519,7 +518,7 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
     this.order = this.order.filter((gameId) => gameId !== id);
     if (this.activeId === id) {
       this.activeId = this.order[0] ?? null;
-      this.state = this.activeId ? this.compose(this.games.get(this.activeId) ?? null) : null;
+      this.state = this.activeId ? this.games.get(this.activeId) ?? null : null;
     }
     this.emit();
     return this.state;
@@ -531,9 +530,85 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
       return null;
     }
     this.activeId = id;
-    this.state = this.compose(document);
+    this.state = document;
     this.emit();
     return this.state;
+  }
+
+  async listWorlds() {
+    const games = await this.list();
+    return this.state || this.games.size > 0
+      ? [{ id: this.worldId, name: this.worldName, updatedAt: this.state?.manifest.updatedAt ?? null, gameCount: games.length, active: true, games }]
+      : [];
+  }
+
+  async createWorld(document: GameDocument, name?: string): Promise<string> {
+    this.worldId = `memory-world-${++this.gameIndex}`;
+    this.worldName = name?.trim() || document.manifest.name || 'Новый мир';
+    this.games.clear();
+    this.order = [];
+    this.activeId = null;
+    await this.create(document);
+    return this.worldId;
+  }
+
+  async renameWorld(id: string, name: string): Promise<boolean> {
+    if (id !== this.worldId || !name.trim()) return false;
+    this.worldName = name.trim();
+    return true;
+  }
+
+  async removeWorld(id: string, replacement?: GameDocument): Promise<GameDocument | null> {
+    if (id !== this.worldId) return this.state;
+    this.games.clear();
+    this.order = [];
+    this.activeId = null;
+    this.state = null;
+    if (replacement) await this.createWorld(replacement);
+    else this.emit();
+    return this.state;
+  }
+
+  async setActiveWorld(id: string): Promise<GameDocument | null> {
+    return id === this.worldId ? this.state : null;
+  }
+
+  async exportWorld(id = this.worldId): Promise<WorldArchiveDocument | null> {
+    if (id !== this.worldId || !this.state) return null;
+    const activeState = gameDocumentToPersistedState(this.state);
+    const games = Object.fromEntries(this.order.map((gameId) => {
+      const document = this.games.get(gameId);
+      assert.ok(document);
+      const state = gameDocumentToPersistedState(document);
+      const { assets: _assets, ...sceneTable } = state.sceneTable;
+      return [gameId, { id: gameId, createdAt: document.manifest.updatedAt, updatedAt: document.manifest.updatedAt, state: { ...state, sceneTable } }];
+    }));
+    return {
+      kind: 'daggerheart-play:world-archive',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      world: {
+        id: this.worldId,
+        name: this.worldName,
+        createdAt: this.state.manifest.updatedAt,
+        updatedAt: this.state.manifest.updatedAt,
+        shared: { customContent: gameDocumentCustomContent(this.state), assets: activeState.sceneTable.assets },
+        activeGameId: this.activeId,
+        order: [...this.order],
+        games
+      }
+    };
+  }
+
+  async importWorld(document: WorldArchiveDocument): Promise<string> {
+    const activeGame = document.world.activeGameId ? document.world.games[document.world.activeGameId] : null;
+    if (!activeGame) throw new Error('Imported world has no active game.');
+    const gameDocument = createGameDocument({
+      schemaVersion: CURRENT_PERSISTED_STATE_VERSION,
+      ...activeGame.state,
+      sceneTable: { ...activeGame.state.sceneTable, assets: document.world.shared.assets }
+    }, document.world.shared.customContent);
+    return this.createWorld(gameDocument, document.world.name);
   }
 
   subscribe(listener: (document: GameDocument | null) => void): () => void {
@@ -550,26 +625,6 @@ export class MemoryGameDocumentStore implements GameDocumentStore {
     }
   }
 
-  private updateShared(document: GameDocument): void {
-    const state = gameDocumentToPersistedState(document);
-    this.sharedCharacters = state.characters;
-    this.sharedParticipants = state.sceneTable.participants;
-  }
-
-  private compose(document: GameDocument | null): GameDocument | null {
-    if (!document || !this.sharedCharacters || !this.sharedParticipants) {
-      return document;
-    }
-    const state = gameDocumentToPersistedState(document);
-    return createGameDocument({
-      ...state,
-      characters: this.sharedCharacters,
-      sceneTable: {
-        ...state.sceneTable,
-        participants: this.sharedParticipants
-      }
-    }, gameDocumentCustomContent(document));
-  }
 }
 
 export function equipmentFixture(): LibraryEquipmentItem[] {
