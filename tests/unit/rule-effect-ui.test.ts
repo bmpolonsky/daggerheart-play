@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { FeatureRuleEffect, FeatureUsageLimitEffect } from '../../src/domain/rules/featureEffects';
-import { analyzeFeatureRules, featureUsageSuggestion } from '../../src/domain/rules/featureEffects';
+import { analyzeFeatureRules, featureUsageSuggestion, featureUsageSuggestions } from '../../src/domain/rules/featureEffects';
+import { automaticUsageTrackerCandidates } from '../../src/domain/rules/usageTrackers';
 import { usageTrackerSuggestionDefaults } from '../../src/ui/characters/UsageTrackerControl';
 import { ruleEffectApplicationLabel, ruleEffectTooltipText, uniqueRuleEffectMessages } from '../../src/ui/components/common/RuleEffectText';
 
@@ -78,4 +79,37 @@ test('a target-feature override replaces the original feature tracker suggestion
   assert.equal(suggestion?.scope, 'feature');
   assert.equal(suggestion?.max, 3);
   assert.equal(suggestion?.reset, 'session');
+});
+
+test('multiple independent limits and explicit per-option limits become separate trackers', () => {
+  const book = automaticUsageTrackerCandidates({
+    targetKind: 'card',
+    targetId: 'book-of-homet',
+    targetName: 'Книга Гомета',
+    text: 'Один раз до следующего отдыха откройте проход. Один раз до следующего продолжительного отдыха откройте врата.'
+  });
+  assert.deepEqual(book.map(({ tracker }) => [tracker.label, tracker.max, tracker.reset]), [
+    ['До отдыха', 1, 'short'],
+    ['До продолжительного отдыха', 1, 'long']
+  ]);
+
+  const features = [
+    {
+      name: 'Одарённый исполнитель',
+      text: 'Вы можете исполнить каждую песню один раз до следующего Продолжительного отдыха:\n- Расслабляющая песня: снимите Рану.\n- Эпическая песня: цель Уязвима.\n- Душераздирающая песня: получите Надежду.'
+    },
+    {
+      name: 'Виртуоз',
+      text: 'Вы можете исполнить каждую из ваших песен “Одаренного Исполнителя” не один, а два раза до следующего Продолжительного отдыха.'
+    }
+  ];
+  const effects = featureUsageSuggestions(features[0].text, features[0].name, features);
+  assert.equal(effects[0]?.max, 2);
+  assert.deepEqual(automaticUsageTrackerCandidates({
+    targetKind: 'feature', targetId: 'troubadour-songs', targetName: features[0].name, text: features[0].text, allFeatures: features
+  }).map(({ tracker }) => [tracker.label, tracker.max]), [
+    ['Расслабляющая песня', 2],
+    ['Эпическая песня', 2],
+    ['Душераздирающая песня', 2]
+  ]);
 });

@@ -18,7 +18,7 @@ import { compactDamageTypeLabel, cssImageUrl, signed } from "./helpers";
 import { CharacterSheetDomainCards } from "./CharacterSheetDomainCards";
 import type { PlayerViewDomainCard } from "./domainCards/types";
 import { PlayerRollConfirm } from "./PlayerRollConfirm";
-import { PlayerSheetSectionRail, SheetSection, TrackDots, TrackRow } from "./PlayerSheetControls";
+import { PlayerSheetSectionRail, SheetSection, TrackRow } from "./PlayerSheetControls";
 import { StatusChips } from "./StatusChips";
 import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./types";
 import { Button } from "../../components/common/Button";
@@ -27,10 +27,11 @@ import { ChoiceCard } from "../../components/common/ChoiceCard";
 import { SelectControl } from "../../components/common/Field";
 import { IconButton } from "../../components/common/IconButton";
 import { ListItem } from "../../components/common/ListItem";
+import { ResourcePips } from "../../components/common/ResourcePips";
 import { RichChoicePicker } from "../../components/common/RichChoicePicker";
 import { PLAYER_SHEET_SECTIONS } from "./constants";
 import { UsageTrackerControl } from "../../characters/UsageTrackerControl";
-import { analyzeFeatureRules, featureUsageSuggestion } from "../../../domain/rules/featureEffects";
+import { analyzeFeatureRules } from "../../../domain/rules/featureEffects";
 import { SheetFeatureSection } from "./SheetContent";
 import { ruleEffectApplicationLabel, uniqueRuleEffectMessages } from "../../components/common/RuleEffectText";
 import { CompanionEditorDialog } from "./CompanionEditorDialog";
@@ -245,12 +246,14 @@ export function CharacterSheet({
             <span><CompendiumRuleTerm ruleSlug="hope">НАДЕЖДА</CompendiumRuleTerm></span>
             <strong>{character.hope.value}/{character.hope.max}</strong>
           </header>
-          <TrackDots
-            value={character.hope.value}
+          <ResourcePips
+            current={character.hope.value}
             max={character.hope.max}
             tone="hope"
+            variant="token"
             label="Надежда"
-            onSet={(next) => characterService.adjustHope(character.id, next - character.hope.value)}
+            showHeader={false}
+            onChange={(next) => characterService.adjustHope(character.id, next - character.hope.value)}
           />
           {character.scars.length > 0 && (
             <div className="player-character-panel__scars">
@@ -311,12 +314,14 @@ export function CharacterSheet({
             <Swords size={16} />
             <span><CompendiumRuleTerm ruleSlug="armor" sectionAnchor="reducing-damage">Броня</CompendiumRuleTerm></span>
             <div className="player-defense-row__armor-value">
-              <TrackDots
-                value={character.armor.marked}
+              <ResourcePips
+                current={character.armor.marked}
                 max={character.armor.score}
                 tone="armor"
+                variant="token"
                 label="Броня"
-                onSet={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
+                showHeader={false}
+                onChange={(next) => characterService.updateArmor(character.id, { markedSlots: next }, false)}
               />
               <strong>{Math.max(0, character.armor.score - character.armor.marked)}/{character.armor.score}</strong>
             </div>
@@ -423,12 +428,14 @@ export function CharacterSheet({
                   </div>
                   <div className="player-companion-panel__stress">
                     <span><CompendiumRuleTerm ruleSlug="stress">Стресс</CompendiumRuleTerm></span>
-                    <TrackDots
-                      value={character.companion.stress.marked}
+                    <ResourcePips
+                      current={character.companion.stress.marked}
                       max={character.companion.stress.max}
                       tone="stress"
+                      variant="token"
                       label="Стресс компаньона"
-                      onSet={(next) => characterService.markCompanionStress(character.id, next - character.companion!.stress.marked)}
+                      showHeader={false}
+                      onChange={(next) => characterService.markCompanionStress(character.id, next - character.companion!.stress.marked)}
                     />
                     <strong>{character.companion.stress.marked}/{character.companion.stress.max}</strong>
                   </div>
@@ -521,10 +528,10 @@ export function CharacterSheet({
           features={character.features}
           highlightRuleEffects
           rightAccessory={(feature) => {
-            const tracker = character.usageTrackers.find((item) => item.targetKind === 'feature' && item.targetId === feature.id);
-            if (!tracker) return null;
-            return (
+            const trackers = character.usageTrackers.filter((item) => item.targetKind === 'feature' && item.targetId === feature.id);
+            return trackers.length > 0 ? <>{trackers.map((tracker) => (
               <UsageTrackerControl
+                key={tracker.id}
                 compact
                 characterId={character.id}
                 targetKind="feature"
@@ -532,7 +539,7 @@ export function CharacterSheet({
                 targetName={feature.name || 'Особенность'}
                 tracker={tracker}
               />
-            );
+            ))}</> : null;
           }}
         />
       ) : (
@@ -541,14 +548,12 @@ export function CharacterSheet({
             <section className="player-sheet-feature-group" aria-label={`Свойства: ${group.label}`} key={group.id}>
               <h4>{group.label}</h4>
               {group.features.map((feature) => {
-                const tracker = character.usageTrackers.find((item) => item.targetKind === 'feature' && item.targetId === feature.id);
                 return (
                   <ListItem
                     aria-label={feature.name}
                     density="compact"
                     key={feature.id}
                     title={<span className="player-sheet-feature-title">{feature.name}{feature.subtitle && <Badge size="xs">{feature.subtitle}</Badge>}</span>}
-                    rightAccessory={tracker ? <Badge size="xs" aria-label={`${tracker.label}: ${tracker.current} из ${tracker.max}`}>{tracker.current}/{tracker.max}</Badge> : undefined}
                     onClick={() => onFeaturePreview?.(character, feature)}
                   />
                 );
@@ -574,7 +579,6 @@ export function CharacterSheet({
         <CharacterSheetDomainCards
           cards={character.domainCards}
           handLimit={character.handLimit}
-          usageTrackers={character.usageTrackers}
           onPreview={publishDomainCard}
         />
       </SheetSection>

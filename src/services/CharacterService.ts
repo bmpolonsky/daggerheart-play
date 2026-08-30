@@ -54,8 +54,12 @@ import {
   type CharacterRuleModifier
 } from '../domain/rules/characterRuleModifiers';
 import {
+  addMissingAutomaticUsageTrackers,
+  automaticUsageTrackerCandidatesForCharacter,
+  backfillAutomaticUsageTrackers,
   createCharacterUsageTracker,
   removeCharacterUsageTracker,
+  refreshAutomaticUsageTrackers,
   resetCharacterUsageTrackers,
   updateCharacterUsageTracker,
   type CharacterUsageTrackerInput
@@ -166,7 +170,8 @@ export class CharacterService {
   }
 
   createCharacter(input?: Partial<Character> & { className?: DaggerheartClass }): Character {
-    const character = createCharacter(input);
+    const base = createCharacter(input);
+    const character = { ...base, usageTrackers: backfillAutomaticUsageTrackers(base) };
     charactersStore.update((state) => ({
       ...state,
       entities: { ...state.entities, [character.id]: character },
@@ -297,6 +302,9 @@ export class CharacterService {
             })
           : card)
         : current.domainCards;
+      const exchangedDomainCard = input.domainCardExchange
+        ? exchangedDomainCards.find((_, index) => current.domainCards[index]?.id === input.domainCardExchange?.removeCardId)
+        : undefined;
       const nextDomainCards = placeAcquiredDomainCards(exchangedDomainCards, newDomainCards, current.ruleModifiers);
       const nextSheetCards = [
         ...current.sheetCards,
@@ -327,11 +335,27 @@ export class CharacterService {
         notes: input.notes ? [current.notes, input.notes].filter(Boolean).join('\n') : current.notes
       };
       const effective = buildEffectiveCharacterStats(nextCharacter);
-      return {
+      const updated = {
         ...nextCharacter,
         hp: { ...nextCharacter.hp, marked: Math.min(current.hp.marked, effective.hp.max) },
         stress: { ...nextCharacter.stress, marked: Math.min(current.stress.marked, effective.stress.max) }
       };
+      const changedSheetCards = nextSheetCards.length > current.sheetCards.length;
+      const targets = [
+        ...newDomainCards.map((card) => ({ targetKind: 'card' as const, targetId: card.id })),
+        ...(input.domainCardExchange ? [
+          { targetKind: 'card' as const, targetId: input.domainCardExchange.removeCardId },
+          { targetKind: 'card' as const, targetId: exchangedDomainCard?.id ?? '' }
+        ] : []),
+        ...(changedSheetCards ? nextSheetCards.map((card) => ({ targetKind: 'feature' as const, targetId: card.id })) : [])
+      ].filter((target) => target.targetId);
+      const refreshed = refreshAutomaticUsageTrackersForTargets(current, updated, targets);
+      return input.domainCardExchange ? {
+        ...refreshed,
+        usageTrackers: (refreshed.usageTrackers ?? []).filter((tracker) => (
+          tracker.targetKind !== 'card' || tracker.targetId !== input.domainCardExchange!.removeCardId
+        ))
+      } : refreshed;
     }, {
       actor: override?.actor ?? input.actor,
       kind: override ? 'freeform' : 'levelUp',
@@ -385,11 +409,15 @@ export class CharacterService {
         ...armorBase,
         markedSlots: clamp(toSafeInteger(armorPatch.markedSlots ?? character.armor.markedSlots), 0, effectiveScore)
       };
-      return {
+      const next = {
         ...character,
         armor,
         thresholds: recalculate ? calculateThresholds(armor, character.level) : character.thresholds
       };
+      const refreshUsage = 'sourceId' in armorPatch || 'sourceSlug' in armorPatch || 'feature' in armorPatch || 'featureText' in armorPatch;
+      return refreshUsage
+        ? refreshAutomaticUsageTrackersForTargets(character, next, [{ targetKind: 'armor', targetId: 'armor' }])
+        : next;
     });
   }
 
@@ -590,10 +618,13 @@ export class CharacterService {
   }
 
   addDomainCard(id: string, input?: Partial<DomainCardRecord>): void {
-    this.patchCharacter(id, (character) => ({
-      ...character,
-      domainCards: placeAcquiredDomainCards(character.domainCards, [createDomainCard(input)], character.ruleModifiers)
-    }));
+    this.patchCharacter(id, (character) => {
+      const card = createDomainCard(input);
+      return addAutomaticUsageTrackersForTargets({
+        ...character,
+        domainCards: placeAcquiredDomainCards(character.domainCards, [card], character.ruleModifiers)
+      }, [{ targetKind: 'card', targetId: card.id }]);
+    });
   }
 
   ensureStarterDomainCardsFromLibrary(
@@ -615,24 +646,27 @@ export class CharacterService {
         ...current.ruleModifiers,
         ...subclassModifiers.filter((modifier) => !current.ruleModifiers.some((item) => item.id === modifier.id))
       ]);
-      return {
+      return addAutomaticUsageTrackersForTargets({
         ...current,
         domainCards: enforceCharacterHandLimit(cards, ruleModifiers),
         ruleModifiers
-      };
+      }, cards.map((card) => ({ targetKind: 'card' as const, targetId: card.id })));
     });
     return true;
   }
 
   updateDomainCard(id: string, cardId: string, patch: Partial<DomainCardRecord>): void {
-    this.patchCharacter(id, (character) => ({
-      ...character,
-      domainCards: enforceCharacterHandLimit(character.domainCards.map((card) => (
+    this.patchCharacter(id, (character) => {
+      const next = {
+        ...character,
+        domainCards: enforceCharacterHandLimit(character.domainCards.map((card) => (
         card.id === cardId
           ? createDomainCard({ ...card, ...patch, id: card.id, permanentlyVaulted: card.permanentlyVaulted || patch.permanentlyVaulted })
           : card
-      )), character.ruleModifiers)
-    }));
+        )), character.ruleModifiers)
+      };
+      return refreshAutomaticUsageTrackersForTargets(character, next, [{ targetKind: 'card', targetId: cardId }]);
+    });
   }
 
   updateRuleModifiers(id: string, modifiers: readonly CharacterRuleModifier[]): boolean {
@@ -685,7 +719,8 @@ export class CharacterService {
   removeDomainCard(id: string, cardId: string): void {
     this.patchCharacter(id, (character) => ({
       ...character,
-      domainCards: character.domainCards.filter((card) => card.id !== cardId)
+      domainCards: character.domainCards.filter((card) => card.id !== cardId),
+      usageTrackers: (character.usageTrackers ?? []).filter((tracker) => tracker.targetKind !== 'card' || tracker.targetId !== cardId)
     }));
   }
 
@@ -769,17 +804,26 @@ export class CharacterService {
   }
 
   addSheetCard(id: string, input?: Partial<CharacterSheetCard>): void {
-    this.patchCharacter(id, (character) => ({
-      ...character,
-      sheetCards: [...(character.sheetCards ?? []), createSheetCard(input)]
-    }));
+    this.patchCharacter(id, (character) => {
+      const card = createSheetCard(input);
+      return addAutomaticUsageTrackersForTargets({
+        ...character,
+        sheetCards: [...(character.sheetCards ?? []), card]
+      }, [{ targetKind: 'feature', targetId: card.id }]);
+    });
   }
 
   updateSheetCard(id: string, cardId: string, patch: Partial<CharacterSheetCard>): void {
-    this.patchCharacter(id, (character) => ({
-      ...character,
-      sheetCards: (character.sheetCards ?? []).map((card) => (card.id === cardId ? { ...card, ...patch } : card))
-    }));
+    this.patchCharacter(id, (character) => {
+      const next = {
+        ...character,
+        sheetCards: (character.sheetCards ?? []).map((card) => (card.id === cardId ? { ...card, ...patch } : card))
+      };
+      return refreshAutomaticUsageTrackersForTargets(character, next, character.sheetCards.map((card) => ({
+        targetKind: 'feature' as const,
+        targetId: card.id
+      })));
+    });
   }
 
   removeSheetCard(id: string, cardId: string): void {
@@ -796,7 +840,10 @@ export class CharacterService {
     const record = typeof item === 'string'
       ? createInventoryItem({ name: item || 'Новый предмет' })
       : createInventoryItem(item);
-    this.patchCharacter(id, (character) => ({ ...character, inventory: [...character.inventory, record] }));
+    this.patchCharacter(id, (character) => addAutomaticUsageTrackersForTargets({
+      ...character,
+      inventory: [...character.inventory, record]
+    }, [{ targetKind: 'inventory', targetId: record.id }]));
   }
 
   addEquipmentItem(id: string, item: LibraryEquipmentItem): EquipmentApplicationResult | null {
@@ -914,10 +961,13 @@ export class CharacterService {
   }
 
   updateInventoryItem(id: string, itemId: string, patch: Partial<CharacterInventoryItem>): void {
-    this.patchCharacter(id, (character) => ({
-      ...character,
-      inventory: character.inventory.map((item) => (item.id === itemId ? createInventoryItem({ ...item, ...patch, id: item.id }) : item))
-    }));
+    this.patchCharacter(id, (character) => {
+      const next = {
+        ...character,
+        inventory: character.inventory.map((item) => (item.id === itemId ? createInventoryItem({ ...item, ...patch, id: item.id }) : item))
+      };
+      return refreshAutomaticUsageTrackersForTargets(character, next, [{ targetKind: 'inventory', targetId: itemId }]);
+    });
   }
 
   updateWealth(id: string, patch: Partial<CharacterWealth>): void {
@@ -930,7 +980,8 @@ export class CharacterService {
   removeInventoryItem(id: string, itemId: string): void {
     this.patchCharacter(id, (character) => ({
       ...character,
-      inventory: character.inventory.filter((item) => item.id !== itemId)
+      inventory: character.inventory.filter((item) => item.id !== itemId),
+      usageTrackers: (character.usageTrackers ?? []).filter((tracker) => tracker.targetKind !== 'inventory' || tracker.targetId !== itemId)
     }));
   }
 
@@ -1115,9 +1166,40 @@ function usageTrackerTargetExists(
   targetKind: CharacterUsageTracker['targetKind'],
   targetId: string
 ): boolean {
-  return targetKind === 'card'
-    ? character.domainCards.some((card) => card.id === targetId)
-    : character.sheetCards.some((card) => card.id === targetId);
+  if (targetKind === 'card') return character.domainCards.some((card) => card.id === targetId);
+  if (targetKind === 'armor') return targetId === 'armor';
+  if (targetKind === 'inventory') return character.inventory.some((item) => item.id === targetId);
+  return character.sheetCards.some((card) => card.id === targetId);
+}
+
+function addAutomaticUsageTrackersForTargets(
+  character: Character,
+  targets: readonly { targetKind: CharacterUsageTracker['targetKind']; targetId: string }[]
+): Character {
+  const candidates = targets.flatMap(({ targetKind, targetId }) => (
+    automaticUsageTrackerCandidatesForCharacter(character, targetKind, targetId)
+  ));
+  return {
+    ...character,
+    usageTrackers: addMissingAutomaticUsageTrackers(character.usageTrackers ?? [], candidates)
+  };
+}
+
+function refreshAutomaticUsageTrackersForTargets(
+  previous: Character,
+  character: Character,
+  targets: readonly { targetKind: CharacterUsageTracker['targetKind']; targetId: string }[]
+): Character {
+  const previousCandidates = targets.flatMap(({ targetKind, targetId }) => (
+    automaticUsageTrackerCandidatesForCharacter(previous, targetKind, targetId)
+  ));
+  const candidates = targets.flatMap(({ targetKind, targetId }) => (
+    automaticUsageTrackerCandidatesForCharacter(character, targetKind, targetId)
+  ));
+  return {
+    ...character,
+    usageTrackers: refreshAutomaticUsageTrackers(character.usageTrackers ?? [], previousCandidates, candidates)
+  };
 }
 
 function hasConditionTag(character: Pick<Character, 'conditions'>, tag: ActorStatus): boolean {

@@ -8,7 +8,7 @@ import { characterService, encounterService, importExportService, sceneTableServ
 import type { GameDocument } from "../../src/domain/game/gameDocument";
 import { buildEffectiveCharacterStats } from "../../src/domain/rules/effects";
 
-test('persistence v5 includes table scenes and import/export hydrates them', async () => {
+test('current persistence includes table scenes and import/export hydrates them', async () => {
   resetAllStores();
   sceneTableService.updateSceneTokens([{
     id: 'character:test',
@@ -38,7 +38,7 @@ test('persistence v5 includes table scenes and import/export hydrates them', asy
   }));
 
   const snapshot = snapshotPersistedState();
-  assert.equal(snapshot.schemaVersion, 5);
+  assert.equal(snapshot.schemaVersion, 6);
   assert.deepEqual(snapshot.feed, []);
   assert.equal(Object.keys(snapshot.sceneTable.assets).length, 1);
   assert.equal(snapshot.sceneTable.scenes[snapshot.sceneTable.activeSceneId].tokens.length, 1);
@@ -61,6 +61,7 @@ test('persistence v5 includes table scenes and import/export hydrates them', asy
 
   const document = JSON.parse(importExportService.exportArchiveJson(false)) as GameDocument;
   assert.equal(document.manifest.kind, 'daggerheart-play:game');
+  assert.equal(document.manifest.version, 2);
   assert.equal(document.files['resources/assets.json'].length, 1);
   assert.equal(document.files['data/scene-table.json'].assets['asset-map']?.name, 'Карта руин');
   assert.equal(importExportService.previewImportJson(JSON.stringify(document)).ok, true);
@@ -115,6 +116,34 @@ test('custom text effects and their usage trackers survive game export and impor
   assert.equal(buildEffectiveCharacterStats(restored).evasion, 11);
 });
 
+test('v5 migration backfills automatic trackers once without resurrecting deleted current trackers', () => {
+  resetAllStores();
+  const character = characterService.createCharacter({ name: 'Старый герой' });
+  characterService.addSheetCard(character.id, {
+    id: 'legacy-limited-feature',
+    kind: 'custom',
+    name: 'Старое свойство',
+    text: 'Один раз за короткий отдых получите преимущество.'
+  });
+  const snapshot = snapshotPersistedState();
+  const withoutTrackers = {
+    ...snapshot,
+    schemaVersion: 5 as const,
+    characters: {
+      ...snapshot.characters,
+      entities: {
+        ...snapshot.characters.entities,
+        [character.id]: { ...snapshot.characters.entities[character.id], usageTrackers: [] }
+      }
+    }
+  };
+  const migrated = migratePersistedState(withoutTrackers);
+  assert.equal(migrated.characters.entities[character.id]?.usageTrackers?.some((tracker) => tracker.targetId === 'legacy-limited-feature'), true);
+
+  const currentWithoutTrackers = migratePersistedState({ ...migrated, characters: withoutTrackers.characters });
+  assert.deepEqual(currentWithoutTrackers.characters.entities[character.id]?.usageTrackers, []);
+});
+
 test('synced game store registry backs snapshots, hydration, and subscriptions', () => {
   resetAllStores();
   const snapshotKeys = Object.keys(snapshotPersistedState()).filter((key) => key !== 'schemaVersion').sort();
@@ -152,7 +181,7 @@ test('persistence migrates v4 string inventory into sanitized v5 inventory', () 
 
   assert.equal(isPersistedState(v4), true);
   const migrated = migratePersistedState(v4);
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.deepEqual(migrated.characters.entities[character.id]?.inventory, []);
 
   hydratePersistedState(v4);
@@ -183,7 +212,7 @@ test('persistence migrates v4 countdown visibility into the v5 contract', () => 
   assert.equal(environment.name, 'Затопленный рынок');
   assert.equal(isPersistedState(v4), true);
   const migrated = migratePersistedState(v4);
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.equal(migrated.encounter.countdowns.find((item) => item.id === 'countdown-public')?.visibility, 'public');
   assert.equal(migrated.encounter.countdowns.find((item) => item.id === 'countdown-gm')?.visibility, 'gm');
 });

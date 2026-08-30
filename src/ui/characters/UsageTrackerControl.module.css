@@ -1,17 +1,34 @@
 .root {
   min-width: 0;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
-  gap: 5px;
+  gap: 7px;
 }
 
-.value {
-  min-width: 28px;
+.track {
+  min-width: 0;
+}
+
+.numeric {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.numeric > span {
   color: var(--dh-paper-muted);
-  font-size: 0.7rem;
-  font-weight: 850;
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.numeric > strong {
+  min-width: 3.5ch;
+  color: var(--dh-gold-400);
+  font-size: 0.74rem;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .dialog {

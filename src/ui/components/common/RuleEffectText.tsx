@@ -19,7 +19,7 @@ export interface RuleEffectTextProps {
  */
 export function RuleEffectText({ children, effects, interactiveChild = false }: RuleEffectTextProps) {
   const anchorRef = useRef<HTMLSpanElement>(null);
-  const tooltipId = useId();
+  const tooltipId = `rule-effect-${useId()}`;
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<RuleEffectTooltipPlacement | null>(null);
   const uniqueEffects = uniqueRuleEffectMessages(effects);

@@ -35,7 +35,7 @@ export function ActionMenu({ ariaLabel, className = '', items, placement = 'bott
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuFocusedRef = useRef(false);
-  const menuId = useId();
+  const menuId = `action-menu-${useId()}`;
 
   useEffect(() => {
     if (!open) return;

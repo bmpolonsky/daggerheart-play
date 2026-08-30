@@ -96,7 +96,7 @@ test.describe('prepared resources', () => {
     await expect(row).toHaveCount(0);
     await search.fill('');
 
-    await row.getByRole('button', { name: 'Письмо из тумана', exact: true }).click();
+    await row.click();
     const preview = page.getByRole('complementary', { name: 'Предпросмотр', exact: true });
     await expect(preview).toContainText('Письмо из тумана');
     await expect(preview).toContainText('Секретная тропа начинается у старого маяка.');
@@ -115,7 +115,7 @@ test.describe('prepared resources', () => {
     await page.goForward();
     await expect(page.getByRole('dialog', { name: 'Библиотека игры' })).toHaveCount(0);
 
-    await row.getByRole('button', { name: 'Письмо из тумана', exact: true }).click();
+    await row.click();
     await preview.getByRole('button', { name: 'Показать на столе' }).click();
     await expect(row).toContainText('На столе');
     await preview.getByRole('button', { name: 'Убрать со стола' }).click();

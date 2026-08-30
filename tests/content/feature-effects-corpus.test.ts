@@ -3,6 +3,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
+import { domainCardFromLibrary } from '../../src/domain/characterBuilder';
+import { mapGenericItem } from '../../src/domain/content/mappers';
+import type { RawContentItem } from '../../src/domain/content/types';
 import { analyzeFeatureRules, type FeatureRuleEffect } from '../../src/domain/rules/featureEffects';
 import {
   buildFeatureEffectAudit,
@@ -78,7 +81,7 @@ function enumerateDomainCards(): EnumeratedFeature[] {
     assert.ok(slug, 'domain card is missing a stable slug');
     return {
       key: `domain-cards/${slug}`,
-      text: String(card.main_body ?? card.text ?? '')
+      text: domainCardFromLibrary(mapGenericItem(card as RawContentItem, 'domain-card'), true).text
     };
   });
 }
@@ -156,11 +159,33 @@ test('audits every current feature rule without an implicit green default', () =
   for (const feature of features) assertAuditEntry(feature.key, feature.text, audit[feature.key as keyof typeof audit]);
 });
 
-test('keeps all top-level domain cards outside structural feature detection', () => {
+test('pins usage limits from the same projected domain-card text used at runtime', () => {
   const cards = enumerateDomainCards();
   assert.equal(cards.length, EXPECTED_ITEM_COUNTS['domain-cards']);
-  assert.equal(sha256Corpus(cards), '5d2a1317582fa98bf0ce7a94dfd408e09f111dff533fd4578ba890591955f7a4');
-  for (const card of cards) assert.deepEqual(analyzeContract(card.text), [], `${card.key} must remain inert`);
+  assert.equal(sha256Corpus(cards), 'cd04c23812707834f132bf5ca593c3e88b582498c08b8a7f715ed67fab0972bd');
+  const actual = Object.fromEntries(cards.flatMap((card) => {
+    const usage = analyzeContract(card.text).filter((effect) => effect.kind === 'usageLimit');
+    return usage.length > 0 ? [[card.key.replace('domain-cards/', ''), usage.map((effect) => `${effect.reset}:${effect.max}`)]] : [];
+  }));
+  const rest = [
+    'deft-maneuvers', 'book-of-illiat', 'enrapture', 'umbral-veil', 'reassurance', 'book-of-vagras', 'troublemaker',
+    'bold-presence', 'scramble', 'hypnotic-shimmer', 'shared-trauma', 'towering-stalk', 'second-wind', 'critical-inspiration',
+    'deadly-focus', 'book-of-exota', 'signature-move', 'manifest-wall', 'thorn-skin', 'smite', 'rousing-strike', 'banish',
+    'share-the-burden', 'arcana-touched', 'bone-touched', 'codex-touched', 'midnight-touched', 'dread-touched', 'sage-touched',
+    'rejuvenation-barrier', 'earthquake', 'sensory-projection'
+  ];
+  const longRest = [
+    'mending-touch', 'a-soldiers-bond', 'siphon-essence', 'lean-on-me', 'book-of-grynn', 'healing-field', 'divination',
+    'premonition', 'teleport', 'battle-hardened', 'zone-of-protection', 'wild-surge', 'splendor-touched', 'confusing-aura',
+    'frenzy', 'battle-cry', 'book-of-vyola', 'astral-projection', 'dark-army', 'full-surge', 'reapers-strike',
+    'splintering-strike', 'disintegration-wave', 'book-of-ronin', 'copycat', 'night-terror', 'plant-dominion',
+    'transcendent-union', 'eclipse'
+  ];
+  assert.deepEqual(actual, {
+    ...Object.fromEntries(rest.map((slug) => [slug, ['rest:1']])),
+    ...Object.fromEntries(longRest.map((slug) => [slug, ['longRest:1']])),
+    'book-of-homet': ['longRest:1', 'rest:1']
+  });
 });
 
 test('pins every current top-level source text, including composite rules outside feature arrays', () => {

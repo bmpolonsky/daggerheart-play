@@ -634,6 +634,7 @@ Use for pip tracks.
 Props:
 
 - `tone`: `hope | hp | stress | armor | fear`
+- `variant`: `default | token`; use `token` for the compact physical-token treatment in character resources and usage counters.
 - `filledMeansMarked`: flips the visual meaning for available-vs-marked tracks.
 - `onChange`: optional; without it pips render read-only.
 - `showHeader`: hides the built-in label/value row when the surrounding composition already owns it.

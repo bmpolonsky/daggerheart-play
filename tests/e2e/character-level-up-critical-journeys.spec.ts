@@ -53,7 +53,15 @@ test.describe('strict character level-up', () => {
     await levelUp.getByLabel('Новый Опыт (+2)').fill('Победитель алой слизи');
 
     await levelUp.getByRole('button', { name: 'Дальше' }).click();
-    await chooseRichOption(page, 'Обязательная карта домена');
+    const cardTrigger = page.getByRole('button', { name: 'Обязательная карта домена', exact: true });
+    await cardTrigger.click();
+    const cardPicker = page.getByRole('dialog', { name: 'Выбор: Обязательная карта домена' });
+    const cardOptions = cardPicker.getByRole('listbox');
+    expect(await cardOptions.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    await cardOptions.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    expect(await cardOptions.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await cardPicker.getByRole('option').last().click();
+    await cardPicker.getByRole('button', { name: 'Выбрать', exact: true }).click();
 
     await levelUp.getByRole('button', { name: 'Дальше' }).click();
     await expect(levelUp.getByText('Всё готово к повышению.')).toBeVisible();
@@ -87,6 +95,24 @@ test.describe('strict character level-up', () => {
     await expect(levelUp.getByText('+1 к Уклонению', { exact: true })).toBeVisible();
     await expect(levelUp.locator('summary').filter({ hasText: 'Свободный режим мастера' })).toHaveCount(0);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  });
+
+  test('lets the GM add catalog cards outside the character level and domains in free editing', async ({ page }) => {
+    await openFilledGmGame(page);
+    await openGameLibrary(page);
+    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
+    await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
+    const editor = workspace.getByLabel('Редактор персонажа');
+    await editor.getByRole('button', { name: 'Редактировать', exact: true }).click();
+    await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Снаряжение' }).click();
+    await editor.getByRole('button', { name: 'Добавить карту домена', exact: true }).click();
+
+    await expect(page.getByRole('option', { name: /Вихрь Клинок — уровень 1/ })).toBeAttached();
+    await page.getByRole('option', { name: /Книга Нораи Кодекс — уровень 3/ }).click();
+    await page.getByRole('button', { name: 'Выбрать', exact: true }).click();
+    await expect(editor.getByText('Книга Нораи', { exact: true })).toBeVisible();
+    await expect(editor.getByText('Ур. 3', { exact: true })).toBeVisible();
   });
 
   test('keeps the low desktop wizard compact and scrollable', async ({ page }) => {

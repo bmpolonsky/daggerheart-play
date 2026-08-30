@@ -106,7 +106,7 @@ test('v4 persisted encounter snapshots migrate old adversary shapes', () => {
 
   const migrated = migratePersistedState(state);
 
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.equal(migrated.encounter.adversaries.legacy?.name, 'Старый противник');
   assert.equal(migrated.encounter.adversaries.legacy?.summary, '');
   assert.equal(migrated.encounter.order[0], 'legacy');

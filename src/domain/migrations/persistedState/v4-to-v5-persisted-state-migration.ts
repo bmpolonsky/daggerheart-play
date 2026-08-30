@@ -257,7 +257,6 @@ function normalizeSceneTableState(sceneTable: unknown): SceneTableState {
 export function normalizePersistedPublicAssetUrls(state: PersistedState): PersistedState {
   return {
     ...state,
-    schemaVersion: 5,
     game: {
       ...state.game,
       handouts: state.game.handouts.map((handout) => ({

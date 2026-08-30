@@ -98,20 +98,50 @@ export function featureUsageSuggestion(
   featureName = '',
   allFeatures: readonly { name?: string; text: string }[] = []
 ): FeatureUsageLimitEffect | null {
+  return featureUsageSuggestions(text, featureName, allFeatures)[0] ?? null;
+}
+
+export function featureUsageSuggestions(
+  text: string,
+  featureName = '',
+  allFeatures: readonly { name?: string; text: string }[] = []
+): FeatureUsageLimitEffect[] {
   const normalizedName = normalizeFeatureName(featureName);
-  const override = normalizedName ? allFeatures.flatMap((feature) => analyzeFeatureRules(feature.text).effects).find((effect): effect is FeatureUsageLimitEffect => (
+  const allUsageEffects = allFeatures.flatMap((feature) => analyzeFeatureRules(feature.text).effects).filter((effect): effect is FeatureUsageLimitEffect => (
+    effect.kind === 'usageLimit'
+  ));
+  const overrides = normalizedName ? allUsageEffects.filter((effect) => (
     effect.kind === 'usageLimit' &&
     effect.scope === 'targetFeature' &&
-    normalizeFeatureName(effect.targetLabel ?? '') === normalizedName
+    featureNamesMatch(effect.targetLabel ?? '', normalizedName)
+  )).map((effect) => ({ ...effect, scope: 'feature' as const })) : [];
+  const ownEffects = analyzeFeatureRules(text).effects.filter((effect): effect is FeatureUsageLimitEffect => (
+    effect.kind === 'usageLimit' && (effect.scope === 'feature' || effect.scope === 'perOption')
+  ));
+  const optionOverride = normalizedName ? allUsageEffects.find((effect) => (
+    effect.scope === 'perOption' &&
+    !effect.options?.length &&
+    featureNamesMatch(effect.targetLabel ?? '', normalizedName)
   )) : null;
-  if (override) return { ...override, scope: 'feature' };
-  return analyzeFeatureRules(text).effects.find((effect): effect is FeatureUsageLimitEffect => (
-    effect.kind === 'usageLimit' && effect.scope === 'feature'
-  )) ?? null;
+  return [
+    ...(overrides.length > 0 ? overrides : ownEffects.filter((effect) => effect.scope === 'feature')),
+    ...ownEffects.filter((effect) => effect.scope === 'perOption').map((effect) => (
+      optionOverride ? { ...effect, max: optionOverride.max, reset: optionOverride.reset } : effect
+    ))
+  ].sort((left, right) => left.evidence.start - right.evidence.start);
 }
 
 function normalizeFeatureName(value: string): string {
   return value.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/[^а-яa-z0-9]+/g, ' ').trim();
+}
+
+function featureNamesMatch(left: string, normalizedRight: string): boolean {
+  const leftWords = normalizeFeatureName(left).split(' ');
+  const rightWords = normalizedRight.split(' ');
+  return leftWords.length === rightWords.length && leftWords.every((word, index) => (
+    word.slice(0, Math.min(6, word.length, rightWords[index]?.length ?? 0)) ===
+    rightWords[index]?.slice(0, Math.min(6, word.length, rightWords[index]?.length ?? 0))
+  ));
 }
 
 export interface FeatureUsageAllowanceEffect extends FeatureRuleEffectBase {
@@ -504,11 +534,15 @@ export function analyzeFeatureRules(value: string): FeatureRuleAnalysis {
 
   collectUsageLimit(effects, text, normalized, 'longRest', [
     /(один|два|три|\d+)\s+раз(?:а)?\s+до\s+следующ[а-яa-z]*\s+продолжительн[а-яa-z]*\s+отдых[а-яa-z]*/i,
+    /(один|два|три|\d+)\s+раз(?:а)?\s+за\s+продолжительн[а-яa-z]*\s+отдых[а-яa-z]*/i,
+    /(one|two|three|\d+)\s+times?\s+per\s+long rest/i,
     /(one|two|three|\d+)\s+times?\s+(?:before|until)\s+(?:your\s+)?next\s+long rest/i
   ]);
   collectUsageLimit(effects, text, normalized, 'rest', [
     /(один|два|три|\d+)\s+раз(?:а)?\s+до\s+следующ[а-яa-z]*\s+отдых[а-яa-z]*/i,
+    /(один|два|три|\d+)\s+раз(?:а)?\s+за\s+коротк[а-яa-z]*\s+отдых[а-яa-z]*/i,
     /(один|два|три|\d+)\s+раз(?:а)?\s+за\s+отдых/i,
+    /(one|two|three|\d+)\s+times?\s+per\s+short rest/i,
     /(one|two|three|\d+)\s+times?\s+(?:before|until)\s+(?:your\s+)?next\s+rest/i
   ]);
   collectUsageLimit(effects, text, normalized, 'session', [
@@ -724,7 +758,8 @@ function normalizeResourceName(value: string): string {
 function isIllustrativeRuleMention(text: string, matchIndex: number): boolean {
   const prefix = text.slice(Math.max(0, matchIndex - 160), matchIndex);
   const clauseStart = Math.max(prefix.lastIndexOf('.'), prefix.lastIndexOf('\n'), prefix.lastIndexOf(';'));
-  return prefix.slice(clauseStart + 1).includes('например');
+  const clause = prefix.slice(clauseStart + 1);
+  return clause.includes('например') || /некотор[а-яa-z]*\s+свойств[а-яa-z]*\s+говор[а-яa-z]*,?\s+что|some\s+(?:features?|rules?)\s+say\s+that/i.test(clause);
 }
 
 /**

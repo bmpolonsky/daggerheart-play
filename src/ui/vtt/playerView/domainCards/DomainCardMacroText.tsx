@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { parseDomainCardTextMacros } from "../../../../domain/rules/domainCards";
+import { analyzeFeatureRules } from "../../../../domain/rules/featureEffects";
 import { cleanRulesTextForInlineMacros } from "../sheetText";
 import type { TableViewRole } from "../types";
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from "./types";
@@ -11,9 +12,17 @@ export function DomainCardMacroText({
 }: {
   card: PlayerViewDomainCard;
   role: TableViewRole;
-  onMacro: (card: PlayerViewDomainCard, macro: PlayerViewDomainCardMacro) => void;
+  onMacro?: (card: PlayerViewDomainCard, macro: PlayerViewDomainCardMacro) => void;
 }) {
-  const text = cleanRulesTextForInlineMacros(card.text);
+  const analysis = analyzeFeatureRules(cleanRulesTextForInlineMacros(card.text));
+  const { text, effects } = analysis;
   const parsedCard = { ...card, text };
-  return <RulesMacroText text={text} macros={parseDomainCardTextMacros(text)} onMacro={(macro) => onMacro(parsedCard, macro)} />;
+  return (
+    <RulesMacroText
+      text={text}
+      macros={parseDomainCardTextMacros(text)}
+      effects={effects}
+      onMacro={onMacro ? (macro) => onMacro(parsedCard, macro) : undefined}
+    />
+  );
 }

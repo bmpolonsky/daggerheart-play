@@ -420,8 +420,9 @@ test('level-up can exchange one owned domain card for a new card of the same or 
   const character = service.createCharacter({
     level: 2,
     domains: ['Blade', 'Bone'],
-    domainCards: [createDomainCard({ id: 'old-card', sourceId: 'old-card', name: 'Старая', domain: 'Blade', level: 2, inLoadout: true })]
+    domainCards: [createDomainCard({ id: 'old-card', sourceId: 'old-card', name: 'Старая', domain: 'Blade', level: 2, inLoadout: true, text: 'Один раз за короткий отдых получите преимущество.' })]
   });
+  service.configureUsageTracker(character.id, { id: 'old-card-manual', targetKind: 'card', targetId: 'old-card', max: 4 });
   const input = {
     level: 3,
     advancementChoices: ['hp', 'stress'] as const,
@@ -431,7 +432,7 @@ test('level-up can exchange one owned domain card for a new card of the same or 
     domainCards: [createDomainCard({ id: 'mandatory-card', sourceId: 'mandatory-card', domain: 'Bone', level: 3 })],
     domainCardExchange: {
       removeCardId: 'old-card',
-      replacement: createDomainCard({ id: 'replacement-card', sourceId: 'replacement-card', name: 'Замена', domain: 'Blade', level: 1 })
+      replacement: createDomainCard({ id: 'replacement-card', sourceId: 'replacement-card', name: 'Замена', domain: 'Blade', level: 1, text: 'Два раза за продолжительный отдых получите преимущество.' })
     },
     thresholdBonus: { major: character.thresholds.major + 1, severe: character.thresholds.severe + 1 },
     traitBonuses: {},
@@ -444,4 +445,6 @@ test('level-up can exchange one owned domain card for a new card of the same or 
   const updated = service.getCharacter(character.id)!;
   assert.equal(updated.domainCards.some((card) => card.id === 'old-card'), false);
   assert.equal(updated.domainCards.find((card) => card.id === 'replacement-card')?.inLoadout, true);
+  assert.equal(updated.usageTrackers?.some((tracker) => tracker.targetId === 'old-card'), false);
+  assert.deepEqual(updated.usageTrackers?.filter((tracker) => tracker.targetId === 'replacement-card').map((tracker) => [tracker.max, tracker.reset]), [[2, 'long']]);
 });

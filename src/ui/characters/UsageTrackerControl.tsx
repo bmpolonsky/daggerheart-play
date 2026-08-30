@@ -8,6 +8,7 @@ import { Dialog } from '../components/common/Dialog';
 import { NumberField, SelectField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
 import { Notice } from '../components/common/Notice';
+import { ResourcePips } from '../components/common/ResourcePips';
 import { SectionHeader } from '../components/common/SectionHeader';
 import styles from './UsageTrackerControl.module.css';
 
@@ -20,6 +21,7 @@ export function UsageTrackerControl({
   actor,
   compact = false,
   suggestedUsage,
+  suggestedId,
   onlyWhenSuggested = false
 }: {
   characterId: string;
@@ -30,6 +32,7 @@ export function UsageTrackerControl({
   actor?: CharacterChangeActor;
   compact?: boolean;
   suggestedUsage?: FeatureUsageLimitEffect | null;
+  suggestedId?: string;
   onlyWhenSuggested?: boolean;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -69,7 +72,7 @@ export function UsageTrackerControl({
               setSettingsOpen(true);
             }}
           >
-            Трекер
+            Добавить счётчик
           </Button>
         )}
         {settingsOpen && (
@@ -78,7 +81,7 @@ export function UsageTrackerControl({
             suggestion={suggestion}
             onClose={() => setSettingsOpen(false)}
             onSave={(input) => {
-              characterService.configureUsageTracker(characterId, { targetKind, targetId, ...input }, context);
+              characterService.configureUsageTracker(characterId, { id: suggestedId, targetKind, targetId, ...input }, context);
               setSettingsOpen(false);
             }}
           />
@@ -89,13 +92,20 @@ export function UsageTrackerControl({
 
   return (
     <div className={styles.root} onClick={(event) => event.stopPropagation()} aria-label={`${tracker.label}: ${tracker.current} из ${tracker.max}`}>
-      <IconButton size="xs" variant="ghost" title="Уменьшить" aria-label={`Уменьшить ${tracker.label}`} disabled={tracker.current <= 0} onClick={() => updateCurrent(tracker.current - 1)}>
-        <Minus size={12} aria-hidden="true" />
-      </IconButton>
-      <span className={styles.value}>{tracker.current}/{tracker.max}</span>
-      <IconButton size="xs" variant="ghost" title="Увеличить" aria-label={`Увеличить ${tracker.label}`} disabled={tracker.current >= tracker.max} onClick={() => updateCurrent(tracker.current + 1)}>
-        <Plus size={12} aria-hidden="true" />
-      </IconButton>
+      {tracker.max <= 12 ? (
+        <ResourcePips className={styles.track} current={tracker.current} label={tracker.label} max={tracker.max} tone="hope" variant="token" showHeader={!compact} onChange={updateCurrent} />
+      ) : (
+        <div className={styles.numeric}>
+          {!compact && <span>{tracker.label}</span>}
+          <IconButton size="xs" variant="ghost" title="Уменьшить" aria-label={`Уменьшить ${tracker.label}`} disabled={tracker.current <= 0} onClick={() => updateCurrent(tracker.current - 1)}>
+            <Minus size={12} aria-hidden="true" />
+          </IconButton>
+          <strong>{tracker.current}/{tracker.max}</strong>
+          <IconButton size="xs" variant="ghost" title="Увеличить" aria-label={`Увеличить ${tracker.label}`} disabled={tracker.current >= tracker.max} onClick={() => updateCurrent(tracker.current + 1)}>
+            <Plus size={12} aria-hidden="true" />
+          </IconButton>
+        </div>
+      )}
       <IconButton size="xs" variant="ghost" title="Настроить трекер" aria-label={`Настроить трекер ${targetName}`} onClick={() => setSettingsOpen(true)}>
         <SlidersHorizontal size={12} aria-hidden="true" />
       </IconButton>

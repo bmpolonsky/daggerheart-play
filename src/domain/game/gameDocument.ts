@@ -10,6 +10,7 @@ import type {
 } from '../content/types';
 import { createId } from '../../core/utils/id';
 import { normalizePersistedPublicAssetUrls } from '../migrations/persistedState/v4-to-v5-persisted-state-migration';
+import { CURRENT_PERSISTED_STATE_VERSION } from '../migrations/persistedState';
 import { portablePublicAssetPath } from '../content/publicAssets';
 
 export const GAME_DOCUMENT_KIND = 'daggerheart-play:game';
@@ -18,7 +19,7 @@ export const LEGACY_GAME_ARCHIVE_KIND = 'daggerheart-play:game-archive';
 
 export interface GameManifest {
   kind: typeof GAME_DOCUMENT_KIND | typeof LEGACY_GAME_PROJECT_KIND;
-  version: 1;
+  version: 1 | 2;
   name: string;
   updatedAt: string;
 }
@@ -79,7 +80,7 @@ export function createGameDocument(state: PersistedState, customContent: GameCus
   const updatedAt = state.game.updatedAt || state.sceneTable.updatedAt || new Date().toISOString();
   const manifest: GameManifest = {
     kind: GAME_DOCUMENT_KIND,
-    version: 1,
+    version: 2,
     name: state.game.name || 'Без названия',
     updatedAt
   };
@@ -112,7 +113,7 @@ export function createGameDocument(state: PersistedState, customContent: GameCus
 export function gameDocumentToPersistedState(document: GameDocument): PersistedState {
   const sceneTable = document.files['data/scene-table.json'];
   return normalizePersistedPublicAssetUrls({
-    schemaVersion: 5,
+    schemaVersion: document.manifest.version >= 2 ? CURRENT_PERSISTED_STATE_VERSION : 5,
     game: document.files['data/game.json'],
     characters: document.files['data/characters.json'],
     encounter: document.files['data/encounter.json'],
@@ -195,7 +196,7 @@ export function gameDocumentCustomContent(document: GameDocument): GameCustomCon
 export function isGameDocument(value: unknown): value is GameDocument {
   if (!isRecord(value) || !isRecord(value.manifest) || !isRecord(value.files)) return false;
   return (value.manifest.kind === GAME_DOCUMENT_KIND || value.manifest.kind === LEGACY_GAME_PROJECT_KIND) &&
-    value.manifest.version === 1 &&
+    (value.manifest.version === 1 || value.manifest.version === 2) &&
     isRecord(value.files['data/game.json']) &&
     isRecord(value.files['data/characters.json']) &&
     isRecord(value.files['data/encounter.json']) &&

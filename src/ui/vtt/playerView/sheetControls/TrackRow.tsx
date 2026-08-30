@@ -1,6 +1,8 @@
 /** @jsxImportSource preact */
 import type { ComponentChildren } from 'preact';
-import { TrackDots, type TrackDotsTone } from './TrackDots';
+import { ResourcePips, type ResourcePipsTone } from '../../../components/common';
+
+type TrackTone = Exclude<ResourcePipsTone, 'fear'>;
 
 export function TrackRow({
   icon,
@@ -16,7 +18,7 @@ export function TrackRow({
   labelText?: string;
   value: number;
   max: number;
-  tone?: TrackDotsTone;
+  tone?: TrackTone;
   onSet?: (value: number) => void;
 }) {
   const accessibleLabel = labelText ?? (typeof label === 'string' ? label : 'Ресурс');
@@ -24,7 +26,7 @@ export function TrackRow({
     <div className="player-track-row">
       {icon}
       <span>{label}</span>
-      <TrackDots value={value} max={max} tone={tone} label={accessibleLabel} onSet={onSet} />
+      <ResourcePips current={value} max={max} tone={tone} variant="token" label={accessibleLabel} showHeader={false} onChange={onSet} />
       <strong>{value}/{max}</strong>
     </div>
   );

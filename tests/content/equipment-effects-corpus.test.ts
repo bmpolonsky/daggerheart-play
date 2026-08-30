@@ -6,6 +6,7 @@ import { test } from 'vitest';
 import { mapRawEquipmentItem } from '../../src/domain/content/mappers';
 import type { RawEquipmentItem } from '../../src/domain/content/types';
 import { equipmentFeatureModifiers, type EquipmentFeatureModifiers } from '../../src/domain/rules/equipmentFeatureModifiers';
+import { analyzeFeatureRules } from '../../src/domain/rules/featureEffects';
 
 const EMPTY_MODIFIERS = { armorScoreModifier: 0, evasionModifier: 0, traitModifiers: {} };
 const expectedModifiers = (overrides: Partial<EquipmentFeatureModifiers>): EquipmentFeatureModifiers => ({ ...EMPTY_MODIFIERS, ...overrides });
@@ -85,5 +86,35 @@ test('audits recognized stat modifiers for every current equipment item', () => 
       EXPECTED_MODIFIERS[item.slug] ?? EMPTY_MODIFIERS,
       `${item.slug} equipment modifiers changed`
     );
+  }
+});
+
+test('pins equipment usage limits and dedicated consumable uses', () => {
+  const path = fileURLToPath(new URL('../../public/data/equipment.json', import.meta.url));
+  const payload = JSON.parse(readFileSync(path, 'utf8')) as { data?: RawEquipmentItem[] };
+  const equipment = (payload.data ?? []).map(mapRawEquipmentItem);
+  const usage = Object.fromEntries(equipment.flatMap((item) => {
+    const limits = analyzeFeatureRules(item.featureText).effects.filter((effect) => effect.kind === 'usageLimit');
+    return limits.length > 0 ? [[item.slug, limits.map((effect) => `${effect.reset}:${effect.max}`)]] : [];
+  }));
+  assert.deepEqual(usage, {
+    'dragonscale-armor': ['rest:1'],
+    'airblade-charm': ['rest:3'],
+    'elusive-amulet': ['longRest:1'],
+    'corrector-sprite': ['rest:1'],
+    'ring-of-unbreakable-resolve': ['session:1'],
+    'ring-of-resistance': ['longRest:1'],
+    'box-of-many-goods': ['longRest:1'],
+    'shard-of-memory': ['longRest:1'],
+    'belt-of-unity': ['session:1'],
+    'piercing-arrows': ['rest:3'],
+    'paragons-chain': ['longRest:1']
+  });
+
+  const consumables = equipment.filter((item) => item.type === 'consumable');
+  assert.equal(consumables.length, 60, 'consumable count changed');
+  for (const item of consumables) assert.equal(item.uses, 1, `${item.slug} consumable uses changed`);
+  for (const item of equipment.filter((entry) => entry.type !== 'consumable')) {
+    assert.equal(item.uses, null, `${item.slug} unexpectedly gained dedicated uses`);
   }
 });

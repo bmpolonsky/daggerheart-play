@@ -31,9 +31,7 @@ export function DomainCardFeedCard({
           <strong>{card.name}</strong>
           <p>
             {previewCard.text
-              ? onMacro
-                ? <DomainCardMacroText card={previewCard} role={role} onMacro={onMacro} />
-                : renderRulesText(previewCard.text)
+              ? <DomainCardMacroText card={previewCard} role={role} onMacro={onMacro} />
               : renderRulesText(item.body)}
           </p>
         </div>

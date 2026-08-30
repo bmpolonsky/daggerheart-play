@@ -5,7 +5,7 @@ import { IconButton } from '../components/common/IconButton';
 import { RichChoicePicker } from '../components/common/RichChoicePicker';
 import { DAMAGE_TYPE_LABELS, DOMAIN_LABELS, RANGES, TRAITS, TRAIT_LABELS, rangeLabel } from '../../domain/rules/constants';
 import type { ContentState, GenericLibraryItem, LibraryEquipmentItem } from '../../domain/content/types';
-import { cleanRulesText, domainCardFromLibrary, isDomainCardForDomains } from '../../domain/characterBuilder';
+import { cleanRulesText, domainCardFromLibrary } from '../../domain/characterBuilder';
 import { buildEquipmentAttachmentPlan } from '../../domain/rules/equipment';
 import type { Character, DamageType, TraitId } from '../../domain/rules/types';
 import { useStream } from '../../core/hooks/useStream';
@@ -15,9 +15,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
   const game = useStream(gameService.game$);
   const weaponOptions = content?.equipment.filter((item) => item.type === 'primary-weapon' || item.type === 'secondary-weapon') ?? [];
   const inventoryOptions = content?.equipment.filter((item) => item.type === 'consumable' || item.type === 'item' || item.type === 'combat-wheelchair') ?? [];
-  const domainCardOptions = (content?.generic.domainCards ?? [])
-    .filter((item) => isDomainCardForDomains(item, character.domains))
-    .filter((item) => cardLevel(item) <= character.level);
+  const domainCardOptions = content?.generic.domainCards ?? [];
 
   return (
     <div className="stack gap-lg">
@@ -308,10 +306,6 @@ function equipmentIdByName(items: LibraryEquipmentItem[], name: string): string 
 function domainCardIdByRecord(items: GenericLibraryItem[], sourceId: string | number | undefined, name: string): string {
   const source = sourceId === undefined ? null : String(sourceId);
   return items.find((item) => String(item.sourceId ?? item.id) === source || item.name === name)?.id ?? '';
-}
-
-function cardLevel(item: GenericLibraryItem): number {
-  return Number(item.level ?? item.raw.level ?? 1) || 1;
 }
 
 function equipmentPickerItem(item: LibraryEquipmentItem) {

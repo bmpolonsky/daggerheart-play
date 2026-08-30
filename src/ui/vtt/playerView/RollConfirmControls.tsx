@@ -1,21 +1,5 @@
 /** @jsxImportSource preact */
-import { X } from 'lucide-react';
-import { Checkbox, IconButton } from '../../components/common';
-
-export function rollConfirmDefaultPosition() {
-  return {
-    x: typeof window === 'undefined' ? 320 : Math.max(16, window.innerWidth - 472),
-    y: 118
-  };
-}
-
-export function RollConfirmCloseButton({ onClose }: { onClose: () => void }) {
-  return (
-    <IconButton variant="ghost" size="sm" type="button" title="Закрыть" aria-label="Закрыть" onClick={onClose}>
-      <X size={15} aria-hidden="true" />
-    </IconButton>
-  );
-}
+import { Checkbox } from '../../components/common';
 
 export function RollPrivateToggle({
   checked,

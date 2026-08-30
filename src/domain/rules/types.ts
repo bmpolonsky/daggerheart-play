@@ -146,7 +146,7 @@ export interface DomainCardRecord {
   };
 }
 
-export type CharacterUsageTrackerTargetKind = 'feature' | 'card';
+export type CharacterUsageTrackerTargetKind = 'feature' | 'card' | 'armor' | 'inventory';
 export type CharacterUsageTrackerReset = 'manual' | 'short' | 'long';
 
 export interface CharacterUsageTracker {

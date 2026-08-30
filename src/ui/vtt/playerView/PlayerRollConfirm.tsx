@@ -1,15 +1,15 @@
 /** @jsxImportSource preact */
-import { createPortal } from 'preact/compat';
 import { useState } from 'preact/hooks';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { addAdvantageDie, buildActionComposerRollOptions, type ActionComposerRollOptions, type AdvantageMode } from '../../../domain/rules/actionComposer';
 import type { Experience, RollPublication, TraitId } from '../../../domain/rules/types';
 import { signed } from './helpers';
-import { RollConfirmCloseButton, RollPrivateToggle, rollConfirmDefaultPosition } from './RollConfirmControls';
+import { RollPrivateToggle } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
 import type { PlayerRollDraft, PlayerRollType } from './types';
-import { Button, Checkbox, DraggableSurface, SelectControl, SegmentedControl } from '../../components/common';
+import { Button, Checkbox, SelectControl, SegmentedControl } from '../../components/common';
 import { CompendiumRuleTerm } from './CompendiumRuleTerm';
+import { PlayerContextPanel } from './PlayerContextPanel';
 
 export function PlayerRollConfirm({
   character,
@@ -62,16 +62,8 @@ export function PlayerRollConfirm({
     setAdvantageCount(0);
     setDisadvantageCount(0);
   };
-  const content = (
-    <div className="dh-portal-scope player-roll-confirm-portal">
-      <DraggableSurface
-        className="player-roll-confirm"
-        aria-label="Подтверждение броска"
-        title={draft.kind === 'weapon' ? 'Атака' : draft.kind === 'card' ? 'Карта домена' : draft.kind === 'companion' ? 'Атака компаньона' : 'Характеристика'}
-        actions={<RollConfirmCloseButton onClose={onClose} />}
-        defaultPosition={rollConfirmDefaultPosition}
-        bounds={{ top: 72, right: 12, bottom: 18, left: 12 }}
-      >
+  return (
+    <PlayerContextPanel className="player-roll-confirm" ariaLabel="Подтверждение броска" onClose={onClose}>
       <div className="player-roll-confirm__intro">
         <strong>{draft.title}</strong>
         <p>{draft.subtitle}</p>
@@ -143,8 +135,6 @@ export function PlayerRollConfirm({
         >{rollType === 'reaction' ? 'Бросить реакцию' : 'Бросить действие'}</Button>
         {onDamage && <Button type="button" onClick={() => onDamage({ publication })}>Бросить урон</Button>}
       </div>
-      </DraggableSurface>
-    </div>
+    </PlayerContextPanel>
   );
-  return typeof document === 'undefined' ? content : createPortal(content, document.body);
 }

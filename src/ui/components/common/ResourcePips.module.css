@@ -74,3 +74,46 @@ button.pip:focus-visible {
 .fear .active {
   background: #7f5fc8;
 }
+
+.token .pips {
+  gap: 4px;
+}
+
+.token .pip {
+  width: 10px;
+  height: 18px;
+  background: rgba(255, 247, 231, 0.11);
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 231, 0.24);
+}
+
+.token .active {
+  background: var(--dh-gold-400);
+  box-shadow: 0 0 12px rgba(240, 201, 106, 0.3);
+}
+
+.token.hope .pip {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  transform: rotate(45deg);
+}
+
+.token.hope .active {
+  background: var(--dh-gold-400);
+  box-shadow: 0 0 12px rgba(240, 201, 106, 0.38);
+}
+
+.token.hp .active {
+  background: var(--dh-danger-500);
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 231, 0.16), 0 0 12px rgba(220, 79, 79, 0.28);
+}
+
+.token.stress .active {
+  background: #7c3aed;
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 231, 0.14), 0 0 12px rgba(124, 58, 237, 0.34);
+}
+
+.token.armor .active {
+  background: #d97706;
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 231, 0.14), 0 0 12px rgba(217, 119, 6, 0.34);
+}

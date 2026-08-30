@@ -215,7 +215,11 @@ export async function openSharedGmGame(page: Page, roomId = 'E2EROOM'): Promise<
   }, roomId);
   await page.goto('/#/game');
   await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: /Сетевая игра:/ }).click();
+  const networkButton = page.getByRole('button', { name: /Сетевая игра:/ });
+  if (!await networkButton.isVisible()) {
+    await page.getByLabel('Слой интерфейса').getByRole('button', { name: /Чат/ }).click();
+  }
+  await networkButton.click();
   const networkDialog = page.getByRole('dialog', { name: 'Сетевая игра' });
   const openRoom = networkDialog.getByRole('button', { name: 'Запустить сетевую игру' });
   if (await openRoom.isVisible()) await openRoom.click();

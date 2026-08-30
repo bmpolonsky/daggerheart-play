@@ -18,7 +18,7 @@ export interface RuleTermProps {
  */
 export function RuleTerm({ children, title, summary, onOpen }: RuleTermProps) {
   const anchorRef = useRef<HTMLElement>(null);
-  const tooltipId = useId();
+  const tooltipId = `rule-term-${useId()}`;
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<RuleTermTooltipPlacement | null>(null);
 

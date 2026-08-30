@@ -563,7 +563,6 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       {contentPreviewItem && (
         <ContentPreviewPanel
           item={contentPreviewItem}
-          mobile={!desktopLayout}
           role={role}
           onClose={() => setContentPreviewItem(null)}
           onEditHandout={role === 'gm' ? openHandoutEditor : undefined}

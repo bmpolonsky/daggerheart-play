@@ -1,13 +1,13 @@
 /** @jsxImportSource preact */
-import { createPortal } from 'preact/compat';
 import { useState } from 'preact/hooks';
 import type { PlayerViewAdversarySummary } from '../../../domain/tabletop/playerView';
 import { addAdvantageDie, buildActionComposerRollOptions } from '../../../domain/rules/actionComposer';
 import type { RollPublication } from '../../../domain/rules/types';
 import { compactDamageTypeLabel, signed } from './helpers';
-import { RollConfirmCloseButton, RollPrivateToggle, rollConfirmDefaultPosition } from './RollConfirmControls';
+import { RollPrivateToggle } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
-import { Button, Checkbox, DraggableSurface, SegmentedControl } from '../../components/common';
+import { Button, Checkbox, SegmentedControl } from '../../components/common';
+import { PlayerContextPanel } from './PlayerContextPanel';
 
 export interface AdversaryAttackRollOptions {
   advantageCount: number;
@@ -64,16 +64,8 @@ export function AdversaryAttackConfirm({
     });
   };
 
-  const content = (
-    <div className="dh-portal-scope player-roll-confirm-portal">
-      <DraggableSurface
-        className="player-roll-confirm"
-        aria-label="Подтверждение атаки противника"
-        title="Атака противника"
-        actions={<RollConfirmCloseButton onClose={onClose} />}
-        defaultPosition={rollConfirmDefaultPosition}
-        bounds={{ top: 72, right: 12, bottom: 18, left: 12 }}
-      >
+  return (
+    <PlayerContextPanel className="player-roll-confirm" ariaLabel="Подтверждение атаки противника" onClose={onClose}>
       <div className="player-roll-confirm__intro">
         <strong>{adversary.standardAttack.name}</strong>
         <p>{signed(adversary.attackModifier)} / {adversary.standardAttack.range} / {adversary.standardAttack.damage} {compactDamageTypeLabel(adversary.standardAttack.damageType)}</p>
@@ -154,8 +146,6 @@ export function AdversaryAttackConfirm({
           {mode === 'attack' ? 'Бросить атаку' : 'Бросить урон'}
         </Button>
       </div>
-      </DraggableSurface>
-    </div>
+    </PlayerContextPanel>
   );
-  return typeof document === 'undefined' ? content : createPortal(content, document.body);
 }

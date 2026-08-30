@@ -8,6 +8,8 @@ import {
 } from '../../src/domain/rules/characterHistory';
 import { createCharacter, createDomainCard, createSheetCard } from '../../src/domain/rules/factories';
 import {
+  addMissingAutomaticUsageTrackers,
+  automaticUsageTrackerCandidates,
   createCharacterUsageTracker,
   resetCharacterUsageTrackers,
   updateCharacterUsageTracker
@@ -229,6 +231,109 @@ test('CharacterService only configures trackers for real targets and audits upda
   assert.equal(updated.changeHistory?.at(-1)?.kind, 'tracker');
   assert.equal(updated.changeHistory?.length, structuralHistoryLength);
   assert.equal(diffCharacterChanges(character, updated).some((change) => change.path[0] === 'usageTrackers'), true);
+});
+
+test('CharacterService creates safe usage trackers on acquisition, supports several per target and removes orphans', () => {
+  resetAllStores();
+  const service = new CharacterService();
+  const character = service.createCharacter({
+    domainCards: [createDomainCard({
+      id: 'book',
+      name: 'Книга',
+      text: 'Один раз до следующего отдыха откройте проход. Один раз до следующего продолжительного отдыха откройте врата.'
+    })],
+    usageTrackers: [{ id: 'manual-book-short', targetKind: 'card', targetId: 'book', label: 'Мой счётчик', current: 0, max: 1, reset: 'short' }]
+  });
+  assert.deepEqual(service.getCharacter(character.id)?.usageTrackers?.map((tracker) => [tracker.targetId, tracker.reset]), [
+    ['book', 'short'], ['book', 'long']
+  ]);
+
+  const removedId = service.getCharacter(character.id)!.usageTrackers![0]!.id;
+  assert.equal(service.removeUsageTracker(character.id, removedId), true);
+  service.addDomainCard(character.id, createDomainCard({ id: 'other', name: 'Без лимита', text: 'Получите преимущество.' }));
+  assert.equal(service.getCharacter(character.id)?.usageTrackers?.some((tracker) => tracker.id === removedId), false, 'deleted tracker must not resurrect');
+
+  service.addInventoryItem(character.id, { id: 'amulet', name: 'Амулет', kind: 'item', text: 'Один раз за продолжительный отдых активируйте амулет.' });
+  assert.equal(service.getCharacter(character.id)?.usageTrackers?.some((tracker) => tracker.targetKind === 'inventory' && tracker.targetId === 'amulet'), true);
+  service.addInventoryItem(character.id, { id: 'potion', name: 'Зелье', kind: 'consumable', uses: { current: 1, max: 1 }, text: 'Один раз за продолжительный отдых.' });
+  assert.equal(service.getCharacter(character.id)?.usageTrackers?.some((tracker) => tracker.targetId === 'potion'), false, 'dedicated uses must not get a second tracker');
+
+  service.updateArmor(character.id, { name: 'Обычная броня', sourceSlug: 'plain', featureText: 'Гибкая: +1 к Уклонению.' });
+  assert.equal(service.getCharacter(character.id)?.usageTrackers?.some((tracker) => tracker.targetKind === 'armor'), false);
+  service.updateArmor(character.id, { name: 'Драконья броня', sourceSlug: 'dragon', featureText: 'Один раз за короткий отдых уменьшите урон.' });
+  assert.equal(service.getCharacter(character.id)?.usageTrackers?.some((tracker) => tracker.targetKind === 'armor' && tracker.reset === 'short'), true);
+
+  service.removeInventoryItem(character.id, 'amulet');
+  service.removeDomainCard(character.id, 'book');
+  const finalTrackers = service.getCharacter(character.id)?.usageTrackers ?? [];
+  assert.equal(finalTrackers.some((tracker) => tracker.targetId === 'amulet' || tracker.targetId === 'book'), false);
+});
+
+test('automatic tracker matching is one-to-one and content edits preserve manual tracker state', () => {
+  const [candidate] = automaticUsageTrackerCandidates({
+    targetKind: 'card', targetId: 'duplicates', targetName: 'Два лимита', text: 'Один раз за короткий отдых.'
+  });
+  assert.ok(candidate);
+  assert.equal(addMissingAutomaticUsageTrackers([], [candidate, {
+    ...candidate,
+    tracker: { ...candidate.tracker, id: `${candidate.tracker.id}-second` }
+  }]).length, 2);
+
+  resetAllStores();
+  const service = new CharacterService();
+  const character = service.createCharacter({
+    domainCards: [createDomainCard({ id: 'editable-card', name: 'Карта', text: 'Один раз за короткий отдых получите преимущество.' })],
+    sheetCards: [createSheetCard({ id: 'editable-feature', kind: 'custom', name: 'Свойство', text: 'Один раз за короткий отдых получите преимущество.' })]
+  });
+  service.addInventoryItem(character.id, { id: 'editable-item', name: 'Предмет', kind: 'item', text: 'Один раз за короткий отдых получите преимущество.' });
+  service.updateArmor(character.id, { name: 'Драконья броня', sourceSlug: 'dragon', featureText: 'Один раз за короткий отдых уменьшите урон.' });
+  const armorAuto = service.getCharacter(character.id)!.usageTrackers!.find((tracker) => tracker.targetKind === 'armor')!;
+  service.updateUsageTracker(character.id, armorAuto.id, { current: 1 });
+  service.configureUsageTracker(character.id, { id: 'manual-armor', targetKind: 'armor', targetId: 'armor', label: 'Ручной', max: 7 });
+
+  service.updateDomainCard(character.id, 'editable-card', { text: 'Три раза за продолжительный отдых получите преимущество.' });
+  service.updateSheetCard(character.id, 'editable-feature', { text: 'Два раза за продолжительный отдых получите преимущество.' });
+  service.updateInventoryItem(character.id, 'editable-item', { text: 'Три раза за продолжительный отдых получите преимущество.' });
+  service.updateArmor(character.id, { featureText: 'Один раз за короткий отдых уменьшите урон. Затем опишите результат.' }, false);
+
+  const trackers = service.getCharacter(character.id)!.usageTrackers!;
+  assert.deepEqual(trackers.filter((tracker) => tracker.targetKind === 'card').map((tracker) => [tracker.max, tracker.reset]), [[3, 'long']]);
+  assert.deepEqual(trackers.filter((tracker) => tracker.targetKind === 'feature').map((tracker) => [tracker.max, tracker.reset]), [[2, 'long']]);
+  assert.deepEqual(trackers.filter((tracker) => tracker.targetKind === 'inventory').map((tracker) => [tracker.max, tracker.reset]), [[3, 'long']]);
+  assert.equal(trackers.find((tracker) => tracker.id === armorAuto.id)?.current, 1);
+  assert.equal(trackers.some((tracker) => tracker.id === 'manual-armor'), true);
+});
+
+test('level-up refreshes existing option trackers when mastery changes their limit', () => {
+  resetAllStores();
+  const service = new CharacterService();
+  const character = service.createCharacter({
+    level: 1,
+    sheetCards: [createSheetCard({
+      id: 'troubadour-songs',
+      kind: 'subclassFeature',
+      name: 'Одарённый исполнитель',
+      text: 'Вы можете исполнить каждую песню один раз до следующего Продолжительного отдыха:\n- Расслабляющая песня: снимите Рану.\n- Эпическая песня: цель Уязвима.\n- Душераздирающая песня: получите Надежду.'
+    })]
+  });
+  assert.deepEqual(service.getCharacter(character.id)?.usageTrackers?.map((tracker) => tracker.max), [1, 1, 1]);
+
+  assert.equal(service.applyLevelUpDetailed(character.id, {
+    level: 2,
+    advancementChoices: ['manual'],
+    subclassCards: [{
+      id: 'troubadour-mastery',
+      kind: 'subclassFeature',
+      name: 'Виртуоз',
+      text: 'Вы можете исполнить каждую из ваших песен “Одаренного Исполнителя” не один, а два раза до следующего Продолжительного отдыха.'
+    }],
+    freeformOverride: {
+      enabled: true,
+      actor: { id: 'gm', name: 'Мастер', role: 'gm' },
+      reason: 'Проверка мастерства'
+    }
+  }).applied, true);
+  assert.deepEqual(service.getCharacter(character.id)?.usageTrackers?.filter((tracker) => tracker.targetId === 'troubadour-songs').map((tracker) => tracker.max), [2, 2, 2]);
 });
 
 test('runtime resource clicks do not flood structural character history', () => {

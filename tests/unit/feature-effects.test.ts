@@ -41,6 +41,25 @@ test('recognizes feature-local, target, per-option, additional, and scene usage 
   }]);
 });
 
+test('recognizes exact short and long rest frequency wording without treating durations as uses', () => {
+  const cases = [
+    ['Один раз за короткий отдых вы можете получить преимущество.', 'rest'],
+    ['Один раз за Продолжительный Отдых вы можете активировать амулет.', 'longRest'],
+    ['You can use this two times per short rest.', 'rest'],
+    ['You can use this three times per long rest.', 'longRest']
+  ] as const;
+  for (const [text, reset] of cases) {
+    assert.equal(semanticEffects(text)[0]?.kind, 'usageLimit', text);
+    assert.equal((semanticEffects(text)[0] as { reset?: string }).reset, reset, text);
+  }
+
+  for (const text of [
+    'Эффект действует до следующего отдыха.',
+    'Вы не можете лечить ту же цель снова до следующего продолжительного отдыха.',
+    'Некоторые свойства говорят, что вы можете использовать их один раз за сессию.'
+  ]) assert.deepEqual(semanticEffects(text), [], text);
+});
+
 test('recognizes generic creation, inventory, companion, resource, and rest structures without content ids', () => {
   const text = [
     'При создании персонажа выберите один из Опытов и получите постоянный бонус +1 к нему.',

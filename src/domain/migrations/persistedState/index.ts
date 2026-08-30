@@ -2,17 +2,21 @@ import { runVersionedMigrations } from '../migration-runner';
 import type { PersistedState } from '../../rules/types';
 import type { PersistedStateMigration } from './types';
 import { normalizePersistedPublicAssetUrls, v4ToV5PersistedStateMigration } from './v4-to-v5-persisted-state-migration';
+import { v5ToV6PersistedStateMigration } from './v5-to-v6-persisted-state-migration';
 import { createCharacter, createGameState, createSceneTableState } from '../../rules/factories';
 
 export { migrateV4ToV5PersistedState } from './v4-to-v5-persisted-state-migration';
+export { migrateV5ToV6PersistedState } from './v5-to-v6-persisted-state-migration';
 export type { PersistedStateMigration } from './types';
 
 const persistedStateMigrations: readonly PersistedStateMigration[] = [
-  v4ToV5PersistedStateMigration
+  v4ToV5PersistedStateMigration,
+  v5ToV6PersistedStateMigration
 ];
 
 const PERSISTED_STATE_V4_VERSION = 4;
-export const CURRENT_PERSISTED_STATE_VERSION = 5;
+const PERSISTED_STATE_V5_VERSION = 5;
+export const CURRENT_PERSISTED_STATE_VERSION = 6;
 
 export function migratePersistedState(state: unknown): PersistedState {
   if (!isPersistedStatePayload(state)) {
@@ -35,11 +39,12 @@ export function canMigratePersistedState(value: unknown): boolean {
     : true;
 }
 
-function isPersistedStatePayload(value: unknown): value is { schemaVersion: 4 | 5 } {
+function isPersistedStatePayload(value: unknown): value is { schemaVersion: 4 | 5 | 6 } {
   return Boolean(
     isRecord(value) &&
     (
       value.schemaVersion === PERSISTED_STATE_V4_VERSION ||
+      value.schemaVersion === PERSISTED_STATE_V5_VERSION ||
       value.schemaVersion === CURRENT_PERSISTED_STATE_VERSION
     ) &&
     'game' in value &&

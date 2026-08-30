@@ -1,6 +1,7 @@
 import styles from './ResourcePips.module.css';
 
 export type ResourcePipsTone = 'hope' | 'hp' | 'stress' | 'armor' | 'fear';
+export type ResourcePipsVariant = 'default' | 'token';
 
 const toneStyles: Record<ResourcePipsTone, string> = {
   hope: styles.hope,
@@ -15,15 +16,16 @@ export interface ResourcePipsProps {
   current: number;
   max: number;
   tone?: ResourcePipsTone;
+  variant?: ResourcePipsVariant;
   filledMeansMarked?: boolean;
   onChange?: (next: number) => void;
   className?: string;
   showHeader?: boolean;
 }
 
-export function ResourcePips({ label, current, max, tone = 'hp', filledMeansMarked = true, onChange, className = '', showHeader = true }: ResourcePipsProps) {
+export function ResourcePips({ label, current, max, tone = 'hp', variant = 'default', filledMeansMarked = true, onChange, className = '', showHeader = true }: ResourcePipsProps) {
   return (
-    <div className={`${styles.root} ${toneStyles[tone]} resource-pips resource-pips--${tone} ${className}`.trim()}>
+    <div className={`${styles.root} ${toneStyles[tone]} ${variant === 'token' ? styles.token : ''} resource-pips resource-pips--${tone} resource-pips--${variant} ${className}`.trim()}>
       {showHeader && (
         <div className={`${styles.title} resource-title`}>
           <span>{label}</span>
