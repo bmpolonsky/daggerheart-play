@@ -57,12 +57,12 @@ export async function importGameDocument(page: Page, document: unknown, fileName
   const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
   await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Настройки' }).click();
   await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Миры' }).click();
-  await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles({
+  await workspace.locator('input[type="file"][accept*=".dhworld"]').setInputFiles({
     name: fileName,
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(document))
   });
-  await expect(workspace.getByText(`Игра импортирована: ${fileName}`)).toBeVisible({ timeout: 15_000 });
+  await expect(workspace.getByText(`Мир импортирован: ${fileName}`)).toBeVisible({ timeout: 15_000 });
   await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
   await expect(page.getByRole('button', { name: filledCharacterName, exact: true }).first()).toBeVisible({ timeout: 15_000 });
   if (!activityWasOpen && await page.locator('[data-vtt-root].player-view--activity-open').count()) {

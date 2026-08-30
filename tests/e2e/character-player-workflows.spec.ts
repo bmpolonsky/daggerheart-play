@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
-import { createPopulatedGameDocument, filledCharacterName, filledCharacterResources } from './filled-game-helpers';
+import { createPopulatedGameDocument, filledCharacterName, filledCharacterResources, importGameDocument } from './filled-game-helpers';
 import {
   createIsolatedDeterministicP2PRelay,
   openSharedGmGame,
@@ -66,17 +66,7 @@ async function importCharacterWorkflowFixture(gm: Page, configureCharacter?: (ch
   };
   configureCharacter?.(character);
 
-  await openGameLibrary(gm);
-  const workspace = gm.getByRole('dialog', { name: 'Библиотека игры' });
-  await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Настройки' }).click();
-  await workspace.getByLabel('Разделы настроек').getByRole('button', { name: 'Миры' }).click();
-  await workspace.locator('input[type="file"][accept*=".dhgame"]').setInputFiles({
-    name: fixtureName,
-    mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify(document))
-  });
-  await expect(workspace.getByText(`Игра импортирована: ${fixtureName}`)).toBeVisible({ timeout: 15_000 });
-  await workspace.getByRole('button', { name: 'Закрыть библиотеку' }).click();
+  await importGameDocument(gm, document, fixtureName);
 }
 
 async function openCardSection(player: Page): Promise<Locator> {
