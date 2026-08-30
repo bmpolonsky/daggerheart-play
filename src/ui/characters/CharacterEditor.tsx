@@ -547,6 +547,7 @@ function LevelUpPanel({
   const [newExperienceName, setNewExperienceName] = useState('');
   const [experienceIncreaseIds, setExperienceIncreaseIds] = useState<string[]>([]);
   const [selectedDomainCardIds, setSelectedDomainCardIds] = useState<string[]>([]);
+  const [domainCardHandReplacements, setDomainCardHandReplacements] = useState<Record<string, string>>({});
   const [exchangeOutCardId, setExchangeOutCardId] = useState('');
   const [exchangeInCardId, setExchangeInCardId] = useState('');
   const [multiclassClass, setMulticlassClass] = useState<DaggerheartClass | ''>('');
@@ -615,6 +616,11 @@ function LevelUpPanel({
     .map((id) => domainCardOptions.find((item) => item.id === id))
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
     .map((item) => domainCardFromLibrary(item, true));
+  const handCards = character.domainCards.filter((card) => card.inLoadout && !card.permanentlyVaulted);
+  const overflowDomainCards = selectedDomainCards.slice(Math.max(0, characterHandSize(ruleModifiers) - handCards.length));
+  const selectedHandReplacementIds = overflowDomainCards
+    .map((card) => domainCardHandReplacements[card.id])
+    .filter(Boolean);
   const exchangeOutCard = character.domainCards.find((card) => card.id === exchangeOutCardId) ?? null;
   const exchangeInLibraryCard = (allowedContent?.domainCards ?? []).find((card) => card.id === exchangeInCardId) ?? null;
   const exchangeInCard = exchangeInLibraryCard ? domainCardFromLibrary(exchangeInLibraryCard, true) : null;
@@ -661,6 +667,9 @@ function LevelUpPanel({
     experiences: newExperienceName.trim() ? [{ name: newExperienceName.trim(), modifier: 2, notes: 'Достижение ранга / повышение уровня' }] : [],
     experienceIncreases: experienceIncreaseIds.filter(Boolean).map((experienceId) => ({ experienceId })),
     domainCards: selectedDomainCards,
+    domainCardHandReplacements: Object.fromEntries(overflowDomainCards
+      .map((card) => [card.id, domainCardHandReplacements[card.id]] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))),
     ...(exchangeOutCard && exchangeInCard ? {
       domainCardExchange: { removeCardId: exchangeOutCard.id, replacement: exchangeInCard }
     } : {}),
@@ -731,7 +740,7 @@ function LevelUpPanel({
   const issueCodesByStep: Record<LevelUpStep, CharacterLevelUpIssueCode[]> = {
     choices: ['choices.required', 'choices.manualForbidden', 'choices.unavailable', 'choices.exhausted'],
     details: ['traits.invalid', 'experience.rankAchievement', 'experience.increaseInvalid', 'multiclass.detailsRequired', 'multiclass.alreadyTaken', 'multiclass.featuresRequired', 'subclass.invalid'],
-    cards: ['domainCards.count', 'domainCards.invalid', 'domainCards.exchangeInvalid'],
+    cards: ['domainCards.count', 'domainCards.invalid', 'domainCards.exchangeInvalid', 'domainCards.loadoutInvalid'],
     review: validation?.issues.map((issue) => issue.code) ?? []
   };
   const issuesForStep = (targetStep: LevelUpStep) => validation?.issues.filter((issue) => issueCodesByStep[targetStep].includes(issue.code)) ?? [];
@@ -958,14 +967,39 @@ function LevelUpPanel({
                     />
                   );
                 })}
+                {overflowDomainCards.length > 0 && (
+                  <Notice tone="info">Рука заполнена. Новые карты останутся в Хранилище, если сейчас бесплатно не заменить ими карты в Руке.</Notice>
+                )}
+                {overflowDomainCards.map((card) => (
+                  <RichChoicePicker
+                    key={`hand-replacement-${card.id}`}
+                    label={`В Руку: ${card.name}`}
+                    value={domainCardHandReplacements[card.id] ?? ''}
+                    placeholder="Оставить в Хранилище"
+                    emptyOptionLabel="Оставить в Хранилище"
+                    items={handCards
+                      .filter((candidate) => candidate.id !== exchangeOutCardId)
+                      .filter((candidate) => domainCardHandReplacements[card.id] === candidate.id || !selectedHandReplacementIds.includes(candidate.id))
+                      .map((candidate) => ({
+                        id: candidate.id,
+                        title: candidate.name,
+                        subtitle: `${DOMAIN_LABELS[candidate.domain] ?? candidate.domain} — уровень ${candidate.level}`,
+                        description: cleanRulesText(candidate.text),
+                        imageUrl: candidate.imageUrl
+                      }))}
+                    onChange={(replacementId) => setDomainCardHandReplacements((current) => ({ ...current, [card.id]: replacementId }))}
+                  />
+                ))}
                 {character.domainCards.length > 0 && (
                   <div className="grid-2">
                     <RichChoicePicker
-                      label="Заменить карту (необязательно)"
+                      label="Обменять карту из коллекции (необязательно)"
                       value={exchangeOutCardId}
                       placeholder="Без замены"
                       emptyOptionLabel="Без замены"
-                      items={character.domainCards.map((card) => ({
+                      items={character.domainCards
+                        .filter((card) => !selectedHandReplacementIds.includes(card.id))
+                        .map((card) => ({
                         id: card.id,
                         title: card.name,
                         subtitle: `${DOMAIN_LABELS[card.domain] ?? card.domain} — уровень ${card.level}`,
@@ -973,13 +1007,13 @@ function LevelUpPanel({
                         imageUrl: card.imageUrl
                       }))}
                       onChange={(itemId) => {
-                      setExchangeOutCardId(itemId);
-                      setExchangeInCardId('');
+                        setExchangeOutCardId(itemId);
+                        setExchangeInCardId('');
                       }}
                     />
                     {exchangeOutCard && (
                       <RichChoicePicker
-                        label="Новая карта"
+                        label="Карта взамен"
                         value={exchangeInCardId}
                         placeholder="Выберите карту"
                         items={exchangeCardOptions.map(domainCardPickerItem)}
@@ -1015,9 +1049,15 @@ function LevelUpPanel({
                     const experience = character.experiences.find((item) => item.id === experienceId);
                     return experience ? <ListItem key={experienceId} title={`Опыт: ${experience.name}`} value={`${experience.modifier} → ${experience.modifier + 1}`} /> : null;
                   })}
-                  {selectedDomainCards.map((card) => <ListItem key={card.id} title="Новая карта" value={`${card.name} — ${DOMAIN_LABELS[card.domain]} ${card.level}`} />)}
+                  {selectedDomainCards.map((card) => {
+                    const replacement = handCards.find((item) => item.id === domainCardHandReplacements[card.id]);
+                    const placement = overflowDomainCards.some((item) => item.id === card.id)
+                      ? replacement ? `Рука вместо «${replacement.name}»` : 'Хранилище'
+                      : 'Рука';
+                    return <ListItem key={card.id} title="Новая карта" value={`${card.name} — ${placement}`} />;
+                  })}
                   {exchangeOutCard && exchangeInCard && (
-                    <ListItem title={`Замена: ${exchangeOutCard.name}`} value={exchangeInCard.name} />
+                    <ListItem title={`Обмен карты: ${exchangeOutCard.name}`} value={exchangeInCard.name} />
                   )}
                   {isMulticlass && selectedMulticlassSubclass && (
                     <ListItem title="Мультикласс" value={`${CLASS_LABELS[multiclassClass as DaggerheartClass]} — ${selectedMulticlassSubclass.name}`} />

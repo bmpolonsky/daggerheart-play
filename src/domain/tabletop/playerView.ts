@@ -100,7 +100,6 @@ export interface PlayerViewDomainCardSummary {
   imageUrl: string;
   inHand: boolean;
   permanentlyVaulted: boolean;
-  loadoutChoicePending: boolean;
   tokens: { value: number; max: number };
   macros: DomainCardTextMacro[];
 }
@@ -424,7 +423,6 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       imageUrl: card.imageUrl ?? '',
       inHand: Boolean(card.inLoadout) && !card.permanentlyVaulted,
       permanentlyVaulted: Boolean(card.permanentlyVaulted),
-      loadoutChoicePending: Boolean(card.loadoutChoicePending) && !card.permanentlyVaulted && !card.inLoadout,
       tokens: {
         value: Math.min(card.tokens.value, tokenMax),
         max: tokenMax

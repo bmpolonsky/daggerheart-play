@@ -38,7 +38,7 @@ function DomainCardRow({ card, onPreview }: {
   card: PlayerViewDomainCard;
   onPreview: (cardId: string) => void;
 }) {
-  const status = card.permanentlyVaulted ? 'Навсегда — вернуть нельзя' : card.loadoutChoicePending ? 'Новая — ждёт выбора' : '';
+  const status = card.permanentlyVaulted ? 'Навсегда — вернуть нельзя' : '';
   return (
     <ListItem
       aria-label={card.name}

@@ -4,7 +4,7 @@ import { parseDomainCardCost } from './domainCards';
 import { buildEffectiveCharacterStats } from './effects';
 import type { Character, DomainCardRecord } from './types';
 
-export type DomainCardMoveContext = 'rest' | 'adventure' | 'levelUp';
+export type DomainCardMoveContext = 'rest' | 'adventure';
 export type DomainCardZone = 'hand' | 'vault';
 
 export interface DomainCardMoveRequest {
@@ -56,13 +56,12 @@ export function planDomainCardMove(character: Character, request: DomainCardMove
     ? character.domainCards.find((item) => item.id === request.replaceCardId)
     : undefined;
   const toHand = request.to === 'hand';
-  const resolvingAcquisition = Boolean(card?.loadoutChoicePending) && request.context === 'levelUp';
-  const stressCost = toHand && request.context === 'adventure' && card && !card.loadoutChoicePending
+  const stressCost = toHand && request.context === 'adventure' && card
     ? domainCardRecallStressCost(card)
     : 0;
 
   if (!card) addIssue(issues, 'card.notFound', 'Карта не найдена у персонажа.');
-  if (card && card.inLoadout === toHand && !(resolvingAcquisition && !toHand)) {
+  if (card && card.inLoadout === toHand) {
     addIssue(issues, 'card.alreadyInZone', 'Карта уже находится в выбранной зоне.');
   }
   if (card?.permanentlyVaulted && toHand) addIssue(issues, 'card.permanentlyVaulted', 'Карта навсегда помещена в Хранилище и не может вернуться в Руку.');
@@ -102,7 +101,7 @@ export function applyDomainCardMove(character: Character, request: DomainCardMov
   const plan = planDomainCardMove(character, request);
   if (!plan.canApply) return { character, plan, applied: false };
   const domainCards = character.domainCards.map((card) => {
-    if (card.id === plan.cardId) return { ...card, inLoadout: plan.to === 'hand', loadoutChoicePending: false };
+    if (card.id === plan.cardId) return { ...card, inLoadout: plan.to === 'hand' };
     if (card.id === plan.replacementCardId) return { ...card, inLoadout: false };
     return card;
   });
@@ -126,7 +125,7 @@ export function permanentlyVaultDomainCard(character: Character, cardId: string)
   return {
     ...character,
     domainCards: character.domainCards.map((card) => (
-      card.id === cardId ? { ...card, inLoadout: false, permanentlyVaulted: true, loadoutChoicePending: false } : card
+      card.id === cardId ? { ...card, inLoadout: false, permanentlyVaulted: true } : card
     ))
   };
 }
@@ -140,8 +139,7 @@ export function enforceCharacterHandLimit(
   return cards.map((card) => {
     const normalized = {
       ...card,
-      inLoadout: Boolean(card.inLoadout) && !card.permanentlyVaulted,
-      loadoutChoicePending: Boolean(card.loadoutChoicePending) && !card.permanentlyVaulted && !card.inLoadout
+      inLoadout: Boolean(card.inLoadout) && !card.permanentlyVaulted
     };
     if (!normalized.inLoadout) return normalized;
     activeCount += 1;
@@ -149,31 +147,37 @@ export function enforceCharacterHandLimit(
   });
 }
 
-/**
- * Places freshly acquired cards without losing the decision created by a full Hand.
- * Excess new cards stay playable in the Vault and are marked until the player
- * explicitly keeps them there or performs a free level-up replacement.
- */
 export function placeAcquiredDomainCards(
   existingCards: readonly DomainCardRecord[],
   acquiredCards: readonly DomainCardRecord[],
-  modifiers: readonly CharacterRuleModifier[] = []
+  modifiers: readonly CharacterRuleModifier[] = [],
+  handReplacements: Readonly<Record<string, string>> = {}
 ): DomainCardRecord[] {
   const limit = characterHandSize(modifiers);
   const existing = enforceCharacterHandLimit(existingCards, modifiers);
   let handSize = existing.filter((card) => card.inLoadout).length;
+  const handIds = new Set(existing.filter((card) => card.inLoadout).map((card) => card.id));
+  const movedToVault = new Set<string>();
   const acquired = acquiredCards.map((card) => {
     const normalized = { ...card, permanentlyVaulted: Boolean(card.permanentlyVaulted) };
     if (normalized.permanentlyVaulted || !normalized.inLoadout) {
-      return { ...normalized, inLoadout: false, loadoutChoicePending: false };
+      return { ...normalized, inLoadout: false };
     }
     if (handSize < limit) {
       handSize += 1;
-      return { ...normalized, inLoadout: true, loadoutChoicePending: false };
+      return { ...normalized, inLoadout: true };
     }
-    return { ...normalized, inLoadout: false, loadoutChoicePending: true };
+    const replacementId = handReplacements[normalized.id];
+    if (replacementId && handIds.has(replacementId) && !movedToVault.has(replacementId)) {
+      movedToVault.add(replacementId);
+      return { ...normalized, inLoadout: true };
+    }
+    return { ...normalized, inLoadout: false };
   });
-  return [...existing, ...acquired];
+  return [
+    ...existing.map((card) => movedToVault.has(card.id) ? { ...card, inLoadout: false } : card),
+    ...acquired
+  ];
 }
 
 export function domainCardRecallStressCost(card: Pick<DomainCardRecord, 'recallCost'>): number {

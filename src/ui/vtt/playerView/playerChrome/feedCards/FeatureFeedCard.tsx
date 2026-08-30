@@ -63,7 +63,6 @@ function toFeaturePreviewCard(feature: NonNullable<TableFeedItem['feature']>, te
     imageUrl: '',
     inHand: false,
     permanentlyVaulted: false,
-    loadoutChoicePending: false,
     tokens: { value: 0, max: 0 },
     macros: parseDomainCardTextMacros(text)
   };

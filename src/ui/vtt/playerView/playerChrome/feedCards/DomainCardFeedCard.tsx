@@ -53,7 +53,6 @@ function toPreviewCard(card: NonNullable<TableFeedItem['card']>): PlayerViewDoma
     imageUrl: card.imageUrl ?? '',
     inHand: false,
     permanentlyVaulted: false,
-    loadoutChoicePending: false,
     tokens: card.tokens,
     macros: parseDomainCardTextMacros(card.text)
   };

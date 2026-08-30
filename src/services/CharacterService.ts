@@ -297,15 +297,19 @@ export class CharacterService {
           ? createDomainCard({
               ...input.domainCardExchange.replacement,
               inLoadout: card.inLoadout,
-              permanentlyVaulted: false,
-              loadoutChoicePending: false
+              permanentlyVaulted: false
             })
           : card)
         : current.domainCards;
       const exchangedDomainCard = input.domainCardExchange
         ? exchangedDomainCards.find((_, index) => current.domainCards[index]?.id === input.domainCardExchange?.removeCardId)
         : undefined;
-      const nextDomainCards = placeAcquiredDomainCards(exchangedDomainCards, newDomainCards, current.ruleModifiers);
+      const nextDomainCards = placeAcquiredDomainCards(
+        exchangedDomainCards,
+        newDomainCards,
+        current.ruleModifiers,
+        input.domainCardHandReplacements
+      );
       const nextSheetCards = [
         ...current.sheetCards,
         ...(input.multiclassClassCards ?? []).map((card) => createSheetCard({ ...card, kind: 'classFeature' })),
@@ -698,9 +702,7 @@ export class CharacterService {
       kind: 'cardMove',
       summary: request.to === 'hand'
         ? 'Карта перемещена в Руку'
-        : character.domainCards.find((card) => card.id === request.cardId)?.loadoutChoicePending
-          ? 'Новая карта оставлена в Хранилище'
-          : 'Карта перемещена в Хранилище'
+        : 'Карта перемещена в Хранилище'
     });
     return { ...result, character: this.getCharacter(id) ?? result.character };
   }

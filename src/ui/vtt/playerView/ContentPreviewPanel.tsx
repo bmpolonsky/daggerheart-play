@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { ArrowDownToLine, ArrowUpFromLine, Ellipsis, Eye, EyeOff, LockKeyhole, Pencil, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Ellipsis, Eye, EyeOff, LockKeyhole, Pencil, Trash2, X } from 'lucide-react';
 import type { ComponentChildren } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
@@ -138,7 +138,6 @@ function DomainCardPreviewControls({ character, card, controls }: { character: C
   const hand = character.domainCards.filter((candidate) => Boolean(candidate.inLoadout) && !candidate.permanentlyVaulted);
   const handLimit = characterHandSize(character.ruleModifiers);
   const inHand = Boolean(card.inLoadout) && !card.permanentlyVaulted;
-  const resolvingAcquisition = Boolean(card.loadoutChoicePending);
   const plan = useMemo(() => pendingRecall ? planDomainCardMove(character, {
     cardId: pendingRecall.cardId,
     to: 'hand',
@@ -173,10 +172,6 @@ function DomainCardPreviewControls({ character, card, controls }: { character: C
             <Button size="sm" variant="secondary" iconBefore={<ArrowDownToLine size={14} aria-hidden="true" />} onClick={() => characterService.moveDomainCard(character.id, { cardId: card.id, to: 'vault', context: 'adventure' })}>
               В Хранилище
             </Button>
-          ) : resolvingAcquisition ? (
-            <Button size="sm" variant="primary" iconBefore={<Sparkles size={14} aria-hidden="true" />} onClick={() => setPendingRecall({ cardId: card.id, context: 'levelUp', replaceCardId: '' })}>
-              Выбрать
-            </Button>
           ) : (
             <>
               <Button size="sm" variant="secondary" iconBefore={<ArrowUpFromLine size={14} aria-hidden="true" />} onClick={beginRecall}>В Руку</Button>
@@ -190,10 +185,10 @@ function DomainCardPreviewControls({ character, card, controls }: { character: C
         </div>
       </div>
       {pendingRecall && plan && (
-        <Dialog className="player-domain-card-recall" aria-label={resolvingAcquisition ? `Новая карта: ${card.name}` : `Вернуть в Руку: ${card.name}`} onClose={() => setPendingRecall(null)}>
-          <SectionHeader title={resolvingAcquisition ? `Новая карта: ${card.name}` : card.name} actions={<IconButton variant="ghost" size="sm" title="Закрыть" aria-label="Закрыть перемещение карты" onClick={() => setPendingRecall(null)}><X size={16} /></IconButton>} />
-          {resolvingAcquisition ? <Notice tone="info">Новая карта остаётся в Хранилище или бесплатно заменяет одну карту в полной Руке.</Notice> : plan.stressCost > 0 ? <Notice tone="info">Цена возврата: {plan.stressCost} Стресс.</Notice> : null}
-          {!resolvingAcquisition && domainCardRecallStressCost(card) > 0 && (
+        <Dialog className="player-domain-card-recall" aria-label={`Вернуть в Руку: ${card.name}`} onClose={() => setPendingRecall(null)}>
+          <SectionHeader title={card.name} actions={<IconButton variant="ghost" size="sm" title="Закрыть" aria-label="Закрыть перемещение карты" onClick={() => setPendingRecall(null)}><X size={16} /></IconButton>} />
+          {plan.stressCost > 0 ? <Notice tone="info">Цена возврата: {plan.stressCost} Стресс.</Notice> : null}
+          {domainCardRecallStressCost(card) > 0 && (
             <Checkbox layout="row" checked={pendingRecall.context === 'rest'} label="Во время отдыха — без Стресса" onChange={(event) => setPendingRecall((current) => current ? { ...current, context: event.currentTarget.checked ? 'rest' : 'adventure' } : current)} />
           )}
           {plan.handSize >= plan.handLimit && (
@@ -208,8 +203,7 @@ function DomainCardPreviewControls({ character, card, controls }: { character: C
           {plan.issues.length > 0 && <p className="form-hint">{plan.issues.map((issue) => issue.message).join(' ')}</p>}
           <div className="player-domain-card-dialog-actions">
             <Button onClick={() => setPendingRecall(null)}>Отмена</Button>
-            {resolvingAcquisition && <Button onClick={() => { characterService.moveDomainCard(character.id, { cardId: card.id, to: 'vault', context: 'levelUp' }); setPendingRecall(null); }}>Оставить в Хранилище</Button>}
-            <Button variant="primary" disabled={!plan.canApply} onClick={recall}>{resolvingAcquisition ? (plan.handSize >= plan.handLimit ? 'Заменить в Руке' : 'Добавить в Руку') : 'Вернуть в Руку'}</Button>
+            <Button variant="primary" disabled={!plan.canApply} onClick={recall}>Вернуть в Руку</Button>
           </div>
         </Dialog>
       )}

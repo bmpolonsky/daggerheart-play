@@ -188,14 +188,14 @@ test.describe('strict character level-up', () => {
 
     await chooseRichOption(page, 'Обязательная карта домена');
     await chooseRichOption(page, 'Дополнительная карта домена 1', 1);
-    await chooseRichOption(page, 'Заменить карту (необязательно)', 1);
-    await chooseRichOption(page, 'Новая карта');
+    await chooseRichOption(page, 'Обменять карту из коллекции (необязательно)', 1);
+    await chooseRichOption(page, 'Карта взамен');
     await levelUp.getByRole('button', { name: 'Дальше' }).click();
 
     await expect(levelUp.getByText('Победительница рощи +2')).toBeVisible();
     await expect(levelUp.getByText('Архивистка')).toBeVisible();
     await expect(levelUp.getByText('Охотница за тайнами')).toBeVisible();
-    await expect(levelUp.getByText(/Замена:/)).toBeVisible();
+    await expect(levelUp.getByText(/Обмен карты:/)).toBeVisible();
     await levelUp.getByRole('button', { name: 'Применить повышение' }).click();
     await expect(levelUp).toHaveCount(0);
     await expect(editor.getByText(/уровень 5/i)).toBeVisible();

@@ -71,19 +71,17 @@ test('outside rest recalling a card pays Recall Cost and replaces a card when Ha
   assert.equal(result.character.domainCards.filter((card) => card.inLoadout).length, 5);
 });
 
-test('rest and level-up swaps are free, but insufficient Stress blocks an adventure recall', () => {
+test('rest swaps are free, but insufficient Stress blocks an adventure recall', () => {
   const character = createCharacter({ domainCards: cards(), stress: { marked: 5, max: 6 } });
   assert.equal(planDomainCardMove(character, {
     cardId: 'card-6', to: 'hand', context: 'adventure', replaceCardId: 'card-1'
   }).issues.some((issue) => issue.code === 'stress.insufficient'), true);
-  for (const context of ['rest', 'levelUp'] as const) {
-    const result = applyDomainCardMove(character, {
-      cardId: 'card-6', to: 'hand', context, replaceCardId: 'card-1'
-    });
-    assert.equal(result.applied, true);
-    assert.equal(result.plan.stressCost, 0);
-    assert.equal(result.character.stress.marked, 5);
-  }
+  const result = applyDomainCardMove(character, {
+    cardId: 'card-6', to: 'hand', context: 'rest', replaceCardId: 'card-1'
+  });
+  assert.equal(result.applied, true);
+  assert.equal(result.plan.stressCost, 0);
+  assert.equal(result.character.stress.marked, 5);
 });
 
 test('Recall Cost can use a permanent extra Stress slot derived from feature text', () => {
@@ -110,27 +108,25 @@ test('permanent Vault removes a card from play and forbids every recall context'
   const character = permanentlyVaultDomainCard(createCharacter({ domainCards: cards(2) }), 'card-1');
   assert.equal(character.domainCards.find((card) => card.id === 'card-1')?.permanentlyVaulted, true);
   assert.equal(character.domainCards.find((card) => card.id === 'card-1')?.inLoadout, false);
-  for (const context of ['rest', 'adventure', 'levelUp'] as const) {
+  for (const context of ['rest', 'adventure'] as const) {
     const plan = planDomainCardMove(character, { cardId: 'card-1', to: 'hand', context });
     assert.equal(plan.canApply, false);
     assert.equal(plan.issues.some((issue) => issue.code === 'card.permanentlyVaulted'), true);
   }
 });
 
-test('CharacterService keeps excess acquisitions in Vault and audits legal moves', () => {
+test('CharacterService keeps excess acquisitions in Vault and later uses ordinary recall rules', () => {
   resetAllStores();
   const service = new CharacterService();
   const character = service.createCharacter({ domainCards: cards(5) });
   service.addDomainCard(character.id, createDomainCard({ id: 'vault-card', domain: 'Codex', recallCost: 'Стресс 1' }));
   const acquired = service.getCharacter(character.id)?.domainCards.find((card) => card.id === 'vault-card');
   assert.equal(acquired?.inLoadout, false);
-  assert.equal(acquired?.loadoutChoicePending, true);
   const moved = service.moveDomainCard(character.id, {
-    cardId: 'vault-card', to: 'hand', context: 'levelUp', replaceCardId: 'card-1'
+    cardId: 'vault-card', to: 'hand', context: 'adventure', replaceCardId: 'card-1'
   }, { actor: { id: 'player', name: 'Player', role: 'player' } });
   assert.equal(moved?.applied, true);
-  assert.equal(moved?.plan.stressCost, 0);
-  assert.equal(service.getCharacter(character.id)?.domainCards.find((card) => card.id === 'vault-card')?.loadoutChoicePending, false);
+  assert.equal(moved?.plan.stressCost, 1);
   assert.equal(service.getCharacter(character.id)?.changeHistory?.at(-1)?.kind, 'cardMove');
 });
 
@@ -154,26 +150,20 @@ test('permanent Vault stays auditable and can be restored through history undo',
   assert.equal(restored.domainCards.find((card) => card.id === 'card-1')?.inLoadout, true);
 });
 
-test('a full-Hand acquisition remains an explicit free choice and can be kept in Vault', () => {
+test('level-up acquisition can replace different Hand cards immediately and leaves the rest in Vault', () => {
   const existing = cards(5);
-  const [newCard] = cards(1).map((card) => ({ ...card, id: 'new-card', name: 'New card', recallCost: 'Стресс 3' }));
-  const domainCards = placeAcquiredDomainCards(existing, [newCard]);
-  const character = createCharacter({ domainCards, stress: { marked: 5, max: 6 } });
-  assert.equal(character.domainCards.find((card) => card.id === 'new-card')?.loadoutChoicePending, true);
-
-  const replacement = applyDomainCardMove(character, {
-    cardId: 'new-card', to: 'hand', context: 'levelUp', replaceCardId: 'card-1'
+  const newCards = cards(3).map((card, index) => ({ ...card, id: `new-${index + 1}`, name: `New ${index + 1}` }));
+  const domainCards = placeAcquiredDomainCards(existing, newCards, [], {
+    'new-1': 'card-1',
+    'new-2': 'card-2'
   });
-  assert.equal(replacement.applied, true);
-  assert.equal(replacement.plan.stressCost, 0);
-  assert.equal(replacement.character.stress.marked, 5);
-  assert.equal(replacement.character.domainCards.find((card) => card.id === 'new-card')?.inLoadout, true);
-  assert.equal(replacement.character.domainCards.find((card) => card.id === 'new-card')?.loadoutChoicePending, false);
 
-  const kept = applyDomainCardMove(character, { cardId: 'new-card', to: 'vault', context: 'levelUp' });
-  assert.equal(kept.applied, true);
-  assert.equal(kept.character.domainCards.find((card) => card.id === 'new-card')?.inLoadout, false);
-  assert.equal(kept.character.domainCards.find((card) => card.id === 'new-card')?.loadoutChoicePending, false);
+  assert.equal(domainCards.filter((card) => card.inLoadout).length, 5);
+  assert.equal(domainCards.find((card) => card.id === 'new-1')?.inLoadout, true);
+  assert.equal(domainCards.find((card) => card.id === 'new-2')?.inLoadout, true);
+  assert.equal(domainCards.find((card) => card.id === 'new-3')?.inLoadout, false);
+  assert.equal(domainCards.find((card) => card.id === 'card-1')?.inLoadout, false);
+  assert.equal(domainCards.find((card) => card.id === 'card-2')?.inLoadout, false);
 });
 
 test('CharacterService uses the persisted Hand modifier for every move and ignores request-only escalation', () => {

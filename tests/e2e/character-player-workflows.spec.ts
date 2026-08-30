@@ -64,9 +64,6 @@ async function importCharacterWorkflowFixture(gm: Page, configureCharacter?: (ch
     ...character.domainCards[0],
     imageUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="112"%3E%3Crect width="80" height="112" fill="%23c69b52"/%3E%3C/svg%3E'
   };
-  // Emulates the durable result of acquiring a new level-up card while the Hand
-  // is full. The player must resolve this choice explicitly and for free.
-  character.domainCards[6] = { ...character.domainCards[6], loadoutChoicePending: true };
   configureCharacter?.(character);
 
   await openGameLibrary(gm);
@@ -197,22 +194,6 @@ test.describe('filled-game player character workflows', () => {
       await materialPreview.getByRole('button', { name: 'Закрыть предпросмотр' }).click();
       await expect(materialPreview).toHaveCount(0);
 
-      const pendingAcquisition = cardRow(vault, 'Заклинание 7');
-      await expect(pendingAcquisition).toContainText('Новая — ждёт выбора');
-      await pendingAcquisition.click();
-      await materialPreview.getByRole('button', { name: 'Выбрать' }).click();
-      const acquisitionDialog = player.getByRole('dialog', { name: 'Новая карта: Заклинание 7' });
-      await expect(acquisitionDialog).toContainText('бесплатно заменяет одну карту');
-      await expect(acquisitionDialog.getByRole('button', { name: 'Заменить в Руке' })).toBeDisabled();
-      await acquisitionDialog.getByRole('button', { name: 'Заменить карту в Руке', exact: true }).click();
-      const acquisitionPicker = player.getByRole('dialog', { name: 'Выбор: Заменить карту в Руке' });
-      await acquisitionPicker.getByRole('option', { name: /Заклинание 5/ }).click();
-      await acquisitionPicker.getByRole('button', { name: 'Выбрать', exact: true }).click();
-      await acquisitionDialog.getByRole('button', { name: 'Заменить в Руке' }).click();
-      await expect(cardRow(hand, 'Заклинание 7')).toBeVisible();
-      await expect(cardRow(vault, 'Заклинание 5')).toBeVisible();
-      await expect(cardRow(vault, 'Заклинание 7')).toHaveCount(0);
-
       await cardRow(hand, 'Заклинание 1').click();
       await materialPreview.getByRole('button', { name: 'В Хранилище' }).click();
       await expect(hand.locator('.dh-list-item')).toHaveCount(4);
@@ -260,12 +241,12 @@ test.describe('filled-game player character workflows', () => {
       await expect(cardRow(vault, 'Заклинание 2')).toBeVisible();
       await expect.poll(() => markedStress(player)).toBe(stressBeforeAdventureRecall + 1);
 
-      const permanentCandidate = cardRow(vault, 'Заклинание 5');
+      const permanentCandidate = cardRow(vault, 'Заклинание 2');
       await expect(permanentCandidate.getByRole('button', { name: 'Навсегда' })).toHaveCount(0);
       await permanentCandidate.click();
-      await materialPreview.getByLabel('Другие действия карты Заклинание 5').click();
-      await player.getByRole('menu', { name: 'Другие действия карты Заклинание 5' }).getByRole('menuitem', { name: 'Убрать навсегда' }).click();
-      const permanentDialog = player.getByRole('dialog', { name: 'Навсегда убрать «Заклинание 5»?' });
+      await materialPreview.getByLabel('Другие действия карты Заклинание 2').click();
+      await player.getByRole('menu', { name: 'Другие действия карты Заклинание 2' }).getByRole('menuitem', { name: 'Убрать навсегда' }).click();
+      const permanentDialog = player.getByRole('dialog', { name: 'Навсегда убрать «Заклинание 2»?' });
       await expect(permanentDialog).toContainText('обычным действием вернуть её больше нельзя');
       await permanentDialog.getByRole('button', { name: 'Убрать навсегда' }).click();
       await expect(permanentCandidate).toContainText('Навсегда — вернуть нельзя');
@@ -758,9 +739,16 @@ test.describe('filled-game player character workflows', () => {
 
       await levelUp.getByRole('button', { name: 'Дальше' }).click();
       await chooseRichOption(player, 'Обязательная карта домена');
+      await expect(levelUp.getByText(/Рука заполнена/)).toBeVisible();
+      const handReplacement = levelUp.getByRole('button', { name: /^В Руку:/ });
+      await handReplacement.click();
+      const handReplacementPicker = player.getByRole('dialog', { name: /Выбор: В Руку:/ });
+      await handReplacementPicker.getByRole('option').filter({ hasText: 'Заклинание 1' }).click();
+      await handReplacementPicker.getByRole('button', { name: 'Выбрать', exact: true }).click();
 
       await levelUp.getByRole('button', { name: 'Дальше' }).click();
       await expect(levelUp.getByText('Всё готово к повышению.')).toBeVisible();
+      await expect(levelUp.getByText(/Рука вместо «Заклинание 1»/)).toBeVisible();
       await levelUp.getByRole('button', { name: 'Применить повышение' }).click();
       await expect(levelUp).toHaveCount(0);
       await expect(playerEditor.getByText(/уровень 2/i)).toBeVisible();

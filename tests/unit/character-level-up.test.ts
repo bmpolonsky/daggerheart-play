@@ -59,7 +59,7 @@ test('strict level-up applies one level, rank achievement, two improvements and 
   assert.equal(updated.changeHistory?.at(-1)?.kind, 'levelUp');
 });
 
-test('level-up leaves a new card pending an explicit free Hand choice when the Hand is full', () => {
+test('level-up resolves the optional free Hand replacement before it is applied', () => {
   resetAllStores();
   const service = new CharacterService();
   const character = service.createCharacter({
@@ -90,6 +90,7 @@ test('level-up leaves a new card pending an explicit free Hand choice when the H
       level: 2,
       recallCost: 'Стресс 3'
     })],
+    domainCardHandReplacements: { 'new-at-level-up': 'hand-1' },
     thresholdBonus: { major: character.thresholds.major + 1, severe: character.thresholds.severe + 1 },
     traitBonuses: { agility: 1, strength: 1 },
     hpMax: character.hp.max + 1,
@@ -97,20 +98,16 @@ test('level-up leaves a new card pending an explicit free Hand choice when the H
     evasion: character.evasion
   };
 
+  const invalidReplacement = service.validateLevelUp(character.id, {
+    ...input,
+    domainCardHandReplacements: { 'new-at-level-up': 'missing-card' }
+  });
+  assert.equal(invalidReplacement?.issues.some((issue) => issue.code === 'domainCards.loadoutInvalid'), true);
+
   assert.equal(service.applyLevelUp(character.id, input), true);
   const acquired = service.getCharacter(character.id)?.domainCards.find((card) => card.id === 'new-at-level-up');
-  assert.equal(acquired?.inLoadout, false);
-  assert.equal(acquired?.loadoutChoicePending, true);
-
-  const selected = service.moveDomainCard(character.id, {
-    cardId: 'new-at-level-up',
-    to: 'hand',
-    context: 'levelUp',
-    replaceCardId: 'hand-1'
-  });
-  assert.equal(selected?.applied, true);
-  assert.equal(selected?.plan.stressCost, 0);
-  assert.equal(service.getCharacter(character.id)?.domainCards.find((card) => card.id === 'new-at-level-up')?.loadoutChoicePending, false);
+  assert.equal(acquired?.inLoadout, true);
+  assert.equal(service.getCharacter(character.id)?.domainCards.find((card) => card.id === 'hand-1')?.inLoadout, false);
 });
 
 test('strict level-up rejects arbitrary resources, legacy manual choice and omitted mandatory card', () => {

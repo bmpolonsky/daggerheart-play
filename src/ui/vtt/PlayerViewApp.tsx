@@ -647,7 +647,6 @@ function toDomainCardRecord(card: PlayerViewDomainCard): DomainCardRecord {
     text: card.text,
     inLoadout: card.inHand,
     permanentlyVaulted: card.permanentlyVaulted,
-    loadoutChoicePending: card.loadoutChoicePending,
     imageUrl: card.imageUrl || null,
     tokens: card.tokens
   };

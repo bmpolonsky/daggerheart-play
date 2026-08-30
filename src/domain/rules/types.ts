@@ -135,8 +135,6 @@ export interface DomainCardRecord {
   text: string;
   inLoadout: boolean;
   permanentlyVaulted?: boolean;
-  /** A newly acquired card that could not enter a full Hand still needs an explicit free loadout choice. */
-  loadoutChoicePending?: boolean;
   imageUrl?: string | null;
   cardType?: string;
   sourceId?: string | number;

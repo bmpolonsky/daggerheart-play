@@ -1,6 +1,7 @@
 import { clamp, toSafeInteger } from '../../core/utils/clamp';
 import {
   advancementChoiceLimitAdjustment,
+  characterHandSize,
   levelUpAdvancementChoiceCount,
   levelUpDomainCardCount,
   levelUpStatDelta,
@@ -64,6 +65,7 @@ export interface CharacterLevelUpApplicationInput extends CharacterLevelUpPlanIn
   experienceIncreases?: Array<{ experienceId: string }>;
   domainCards?: Array<Partial<DomainCardRecord>>;
   domainCardExchange?: { removeCardId: string; replacement: Partial<DomainCardRecord> };
+  domainCardHandReplacements?: Record<string, string>;
   multiclassClassCards?: Array<Partial<CharacterSheetCard>>;
   thresholdBonus?: Partial<Thresholds>;
   traitBonuses?: Partial<Record<TraitId, number>>;
@@ -91,6 +93,7 @@ export type CharacterLevelUpIssueCode =
   | 'domainCards.count'
   | 'domainCards.invalid'
   | 'domainCards.exchangeInvalid'
+  | 'domainCards.loadoutInvalid'
   | 'evasion.invalid'
   | 'subclass.invalid'
   | 'proficiency.invalid'
@@ -275,6 +278,7 @@ export function validateCharacterLevelUp(
   validateExperiences(character, targetLevel, choices, input, issues);
   validateDomainCards(character, targetLevel, choices, input, modifiers, issues);
   validateDomainCardExchange(character, targetLevel, input, issues);
+  validateDomainCardHandReplacements(character, input, modifiers, issues);
   validateSubclassCards(character, choices, input, issues);
   validateMulticlassFeatures(choices, input, issues);
 
@@ -577,6 +581,30 @@ function validateDomainCardExchange(
   ) {
     addIssue(issues, 'domainCards.exchangeInvalid', 'Замена должна взять новую карту доступного домена того же или меньшего уровня.');
   }
+}
+
+function validateDomainCardHandReplacements(
+  character: Character,
+  input: CharacterLevelUpApplicationInput,
+  modifiers: CharacterRuleModifier[],
+  issues: CharacterLevelUpIssue[]
+): void {
+  const replacements = Object.entries(input.domainCardHandReplacements ?? {});
+  if (replacements.length === 0) return;
+  const hand = character.domainCards.filter((card) => card.inLoadout && !card.permanentlyVaulted);
+  const freeSlots = Math.max(0, characterHandSize(modifiers) - hand.length);
+  const overflowCardIds = new Set((input.domainCards ?? [])
+    .filter((card) => card.inLoadout !== false && !card.permanentlyVaulted)
+    .slice(freeSlots)
+    .map((card) => String(card.id ?? '')));
+  const handIds = new Set(hand.map((card) => card.id));
+  const replacementIds = replacements.map(([, cardId]) => cardId);
+  const valid = new Set(replacementIds).size === replacementIds.length && replacements.every(([cardId, replacementId]) => (
+    overflowCardIds.has(cardId) &&
+    handIds.has(replacementId) &&
+    replacementId !== input.domainCardExchange?.removeCardId
+  ));
+  if (!valid) addIssue(issues, 'domainCards.loadoutInvalid', 'Бесплатно заменить можно только разные карты полной Руки на новые карты этого повышения.');
 }
 
 function validateSubclassCards(
