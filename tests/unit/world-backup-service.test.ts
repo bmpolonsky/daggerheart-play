@@ -16,8 +16,19 @@ test('lists, saves and restores complete world archives in the owner backup fold
             return { data: [{
               name: 'world-1.dhworld',
               updated_at: '2026-08-30T10:00:00.000Z',
-              metadata: { worldId: 'world-1', worldName: 'Изгои', gameCount: 2, size: 5 }
+              metadata: { size: 5 }
             }], error: null };
+          },
+          info: async (path: string) => {
+            calls.push({ operation: 'info', path });
+            return {
+              data: {
+                lastModified: '2026-08-30T10:00:00.000Z',
+                size: 5,
+                metadata: { worldId: 'world-1', worldName: 'Изгои', gameCount: 2 }
+              },
+              error: null
+            };
           },
           upload: async (path: string, _body: Blob, options: unknown) => {
             calls.push({ operation: 'upload', path, options });
@@ -59,6 +70,7 @@ test('lists, saves and restores complete world archives in the owner backup fold
   assert.equal(imported, archive);
   assert.deepEqual(calls.map(({ operation, path }) => [operation, path]), [
     ['list', 'owner-1'],
+    ['info', 'owner-1/world-1.dhworld'],
     ['upload', 'owner-1/world-1.dhworld'],
     ['download', 'owner-1/world-1.dhworld'],
     ['remove', 'owner-1/world-1.dhworld']

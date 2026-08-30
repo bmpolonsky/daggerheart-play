@@ -25,23 +25,25 @@ export class WorldBackupService {
 
   async list(): Promise<ServerWorldSummary[]> {
     const userId = await this.userId();
-    const { data, error } = await this.storage().list(userId, {
+    const storage = this.storage();
+    const { data, error } = await storage.list(userId, {
       limit: 100,
       sortBy: { column: 'updated_at', order: 'desc' }
     });
     if (error) throw this.failure(error, 'list', 'Не удалось загрузить список миров с сервера.');
-    return (data ?? []).flatMap((file) => {
-      if (!file.name.endsWith('.dhworld')) return [];
-      const metadata = (file.metadata ?? {}) as Record<string, unknown>;
+    const files = (data ?? []).filter((file) => file.name.endsWith('.dhworld'));
+    return Promise.all(files.map(async (file) => {
+      const { data: info } = await storage.info(`${userId}/${file.name}`);
+      const metadata = (info?.metadata ?? {}) as Record<string, unknown>;
       const id = text(metadata.worldId) || file.name.slice(0, -'.dhworld'.length);
-      return [{
+      return {
         id,
         name: text(metadata.worldName) || 'Без названия',
-        updatedAt: file.updated_at,
+        updatedAt: info?.lastModified ?? file.updated_at,
         gameCount: positiveInteger(metadata.gameCount),
-        byteSize: positiveInteger(metadata.size)
-      }];
-    });
+        byteSize: positiveInteger(info?.size ?? file.metadata?.size)
+      };
+    }));
   }
 
   async save(world: StoredWorldSummary): Promise<void> {
