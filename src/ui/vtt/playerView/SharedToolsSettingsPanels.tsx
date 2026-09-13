@@ -32,6 +32,7 @@ import { SelectControl, SelectField, TextControl, TextField } from '../../compon
 import { IconButton } from '../../components/common/IconButton';
 import { SegmentedControl } from '../../components/common/SegmentedControl';
 import type { TableViewRole } from './types';
+import { OfflineSettings } from './sharedTools/OfflineSettings';
 
 export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
   const sceneTable = useStream(sceneTableService.sceneTable$);
@@ -72,6 +73,7 @@ export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
         <option value="download">Сначала загрузить файл</option>
         <option value="broadcast">Передавать во время воспроизведения</option>
       </SelectField>
+      <OfflineSettings />
     </section>
   );
 }

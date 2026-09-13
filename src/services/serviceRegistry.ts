@@ -1,4 +1,5 @@
 import { AssetService } from './AssetService';
+import { OfflineService } from './OfflineService';
 import { AudioService } from './AudioService';
 import { GameService } from './GameService';
 import { GmLobbyService } from './GmLobbyService';
@@ -33,6 +34,7 @@ import { UiService } from './UiService';
 import { WorldBackupService } from './WorldBackupService';
 
 export const assetService = new AssetService();
+export const offlineService = new OfflineService(assetService);
 export const persistenceService = new PersistenceService(undefined, assetService);
 export const importExportService = new ImportExportService(assetService, persistenceService);
 export const audioService = new AudioService();

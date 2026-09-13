@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { offlineBuild } from './scripts/offline-build';
 
 const workspaceRoot = fileURLToPath(new URL('.', import.meta.url));
 const appRelease = execSync('git rev-parse --short HEAD', { cwd: workspaceRoot, encoding: 'utf8' }).trim();
@@ -15,7 +16,7 @@ export default defineConfig({
     __APP_RELEASE__: JSON.stringify(`daggerheart-play@${appRelease}`),
     __SENTRY_DSN__: JSON.stringify(process.env.SENTRY_DSN ?? '')
   },
-  plugins: [preact(), tailwindcss()],
+  plugins: [preact(), tailwindcss(), offlineBuild()],
   build: {
     outDir: sitesBuild ? 'dist/client' : 'dist',
     // Pages is public already, so public source maps are the lowest-maintenance
