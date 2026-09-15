@@ -420,7 +420,7 @@ Props:
 - `leftAccessory`: left accessory slot for avatars, icons, status dots, or several inline accessories.
 - `value`: right-aligned compact value.
 - `rightAccessory`: right accessory slot for values, icons, buttons, or a small action group.
-- `density`: `compact | regular`
+- `density`: `dense | compact | regular`; use `dense` for short text lists with `xs` icon actions, such as generated names.
 - `lines`: `1 | 2` for subtitle line clamp.
 - `align`: `center | start`
 - `tone`: `default | featured`

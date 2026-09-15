@@ -32,7 +32,9 @@ import { SyncService } from './SyncService';
 import { TabletopService } from './TabletopService';
 import { UiService } from './UiService';
 import { WorldBackupService } from './WorldBackupService';
+import { NameGeneratorService } from './NameGeneratorService';
 
+export const nameGeneratorService = new NameGeneratorService();
 export const assetService = new AssetService();
 export const offlineService = new OfflineService(assetService);
 export const persistenceService = new PersistenceService(undefined, assetService);

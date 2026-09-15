@@ -4,7 +4,7 @@ import type { PlayerPresence } from '../../../services/PlayerPresenceService';
 
 export type TableViewRole = 'player' | 'gm';
 export type PlayerSheetSectionId = 'overview' | 'traits' | 'actions' | 'features' | 'cards' | 'gear';
-export type SharedToolsTab = 'scenes' | 'characters' | 'combat' | 'cards' | 'library' | 'notes' | 'handouts' | 'generators' | 'settings';
+export type SharedToolsTab = 'scenes' | 'characters' | 'combat' | 'cards' | 'library' | 'notes' | 'handouts' | 'names' | 'generators' | 'settings';
 
 export type PlayerRosterActor = {
   tokenId: string;

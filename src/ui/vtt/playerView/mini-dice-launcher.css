@@ -406,6 +406,7 @@
   }
 
   .player-view--mobile-feed .mini-dice-launcher,
+  .player-view--mobile-tools .mini-dice-launcher,
   .player-view--mobile-sheet .mini-dice-launcher {
     display: none;
   }
