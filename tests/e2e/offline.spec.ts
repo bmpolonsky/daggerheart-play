@@ -10,6 +10,8 @@ let origin: string;
 let customImageUrl: string;
 let online = true;
 let failAudio = false;
+let failImage = false;
+let failShell = false;
 let title = 'Daggerheart Play';
 const basePath = (process.env.OFFLINE_TEST_BASE ?? '').replace(/\/$/, '');
 // A real HTTP server lets tests cut off worker-owned traffic too, without
@@ -23,6 +25,7 @@ const server = createServer(async (request, response) => {
     return;
   }
   const path = pathname.slice(basePath.length);
+  if (failShell && path === '/data/adversaries.json') { response.writeHead(503).end(); return; }
   const relative = path === '/' ? 'index.html' : path.slice(1);
   if (relative.includes('..')) { response.writeHead(400).end(); return; }
   try {
@@ -35,6 +38,11 @@ const server = createServer(async (request, response) => {
 
 const mediaServer = createServer((request, response) => {
   if (!online) { request.socket.destroy(); return; }
+  if (failImage) {
+    response.writeHead(200, { 'Content-Type': 'text/html', 'Access-Control-Allow-Origin': '*' });
+    response.end('<html>Missing image fallback</html>');
+    return;
+  }
   response.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
   response.end('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="red"/></svg>');
 });
@@ -45,7 +53,7 @@ test.beforeAll(async () => {
   await new Promise<void>((resolve) => mediaServer.listen(0, '127.0.0.1', resolve));
   customImageUrl = `http://127.0.0.1:${(mediaServer.address() as { port: number }).port}/custom-adversary.svg`;
 });
-test.beforeEach(() => { online = true; failAudio = false; title = 'Daggerheart Play'; });
+test.beforeEach(() => { online = true; failAudio = false; failImage = false; failShell = false; title = 'Daggerheart Play'; });
 test.afterAll(async () => {
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -90,6 +98,7 @@ test('default cache stays fresh; explicit preparation launches offline and disab
 
 test('selected media survives offline; a failed refresh preserves the complete previous cache', async ({ page }) => {
   const document = createPopulatedGameDocument();
+  document.files['data/characters.json'].entities['e2e-character-cadsuane'].portraitUrl = '/image/subclass/small/troubadour.avif';
   document.files['content/custom-adversaries.json'] = [{ id: 'offline-custom', name: 'Офлайн-страж', image_url: customImageUrl }];
   const scene = Object.values(document.files['data/scene-table.json'].scenes)[0];
   // Root-relative media sits outside the worker scope in the nested-base run.
@@ -101,10 +110,11 @@ test('selected media survives offline; a failed refresh preserves the complete p
   await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён', { timeout: 60_000 });
   const before = await page.evaluate(() => caches.keys());
+  expect(await page.evaluate(async (url) => Boolean(await caches.match(url)), `${origin}/image/subclass/troubadour.webp`)).toBe(true);
   expect(await page.evaluate(async (url) => Boolean(await caches.match(url)), customImageUrl)).toBe(false);
-  failAudio = true;
+  failShell = true;
   await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('offline-test-audio.mp3', { timeout: 60_000 });
+  await expect(page.getByRole('alert')).toContainText('adversaries.json', { timeout: 60_000 });
   expect(await page.evaluate(() => caches.keys())).toEqual(before);
   online = false;
   await page.reload();
@@ -114,7 +124,50 @@ test('selected media survives offline; a failed refresh preserves the complete p
   }, new URL('/offline-test-audio.mp3', origin).href);
   expect(audio).toEqual({ status: 206, range: 'bytes 2-5/10', body: '2345' });
   await page.goto(`${origin}/#/game`);
-  await expect(page.getByRole('region', { name: 'Игровая сцена', exact: true }).getByRole('button', { name: 'Кадсуанэ', exact: true })).toBeVisible();
+  const portrait = page.getByRole('region', { name: 'Игровая сцена', exact: true }).getByRole('button', { name: 'Кадсуанэ', exact: true }).locator('img');
+  await expect(portrait).toHaveAttribute('src', `${origin}/image/subclass/troubadour.webp`);
+  expect(await portrait.evaluate(async (image: HTMLImageElement) => {
+    await image.decode();
+    return image.naturalWidth > 0;
+  })).toBe(true);
+});
+
+test('unavailable media is skipped, reported after reopening, and can be retried', async ({ page, context }) => {
+  const document = createPopulatedGameDocument();
+  document.files['data/characters.json'].entities['e2e-character-cadsuane'].portraitUrl = customImageUrl;
+  Object.values(document.files['data/scene-table.json'].scenes)[0].music.sourceUrl = '/offline-test-audio.mp3';
+  await page.goto(`${origin}/#/game`);
+  await importGameDocument(page, document);
+  await page.goto(`${origin}/#/library/settings/game`);
+  failAudio = true;
+  failImage = true;
+  await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
+  const region = page.getByRole('region', { name: 'Офлайн', exact: true });
+  await expect(region.getByRole('status')).toHaveText('Офлайн включён', { timeout: 60_000 });
+  await expect(region).toContainText('Не сохранено файлов: 2');
+  await expect(region.getByRole('alert')).toHaveCount(0);
+  expect(await page.evaluate(async (url) => Boolean(await caches.match(url)), customImageUrl)).toBe(false);
+  online = false;
+  await page.close();
+  const reopened = await context.newPage();
+  await reopened.goto(`${origin}/#/game`);
+  await expect(reopened.locator('[data-vtt-root]')).toBeVisible();
+  await reopened.goto(`${origin}/#/library/settings/game`);
+  await expect(reopened.getByRole('region', { name: 'Офлайн', exact: true })).toContainText('Не сохранено файлов: 2');
+  online = true;
+  failAudio = false;
+  failImage = false;
+  await reopened.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
+  await expect(reopened.getByRole('button', { name: 'Подготовить офлайн', exact: true })).toBeEnabled({ timeout: 60_000 });
+  await expect(reopened.getByRole('region', { name: 'Офлайн', exact: true })).not.toContainText('Не сохранено файлов');
+  online = false;
+  await reopened.reload();
+  expect(await reopened.evaluate(async (url) => {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    return image.naturalWidth;
+  }, customImageUrl)).toBe(8);
 });
 
 test('two master windows sync the offline board while keeping panels independent', async ({ page, context }) => {

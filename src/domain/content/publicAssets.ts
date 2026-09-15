@@ -28,7 +28,7 @@ export function portablePublicAssetPath(input: string, basePath = configuredBase
   );
   if (!suffix) return input;
   const trailing = url ? `${url.search}${url.hash}` : input.slice(pathname.length);
-  return normalizePublicImageExtension(`.${suffix}${trailing}`);
+  return normalizePublicImagePath(`.${suffix}${trailing}`);
 }
 
 function configuredBasePath(): string {
@@ -51,10 +51,13 @@ function publicImageSuffix(pathname: string, basePath: string, sameOrigin: boole
 }
 
 function normalizePublicImageUrl(url: URL): URL {
-  url.pathname = normalizePublicImageExtension(url.pathname);
+  url.pathname = normalizePublicImagePath(url.pathname);
   return url;
 }
 
-function normalizePublicImageExtension(value: string): string {
-  return value.replace(/(\/image\/.+)\.(?:avif|jpe?g|png)([?#].*)?$/i, '$1.webp$2');
+function normalizePublicImagePath(value: string): string {
+  // Older exports used thumbnail directories; the local catalog ships originals.
+  return value
+    .replace(/(\/image\/(?:subclass|(?:ancestry|community|domain)\/card))\/small\//i, '$1/')
+    .replace(/(\/image\/.+)\.(?:avif|jpe?g|png)([?#].*)?$/i, '$1.webp$2');
 }

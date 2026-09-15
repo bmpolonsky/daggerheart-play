@@ -2,6 +2,19 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { portablePublicAssetPath, publicAssetUrl } from "../../src/domain/content/publicAssets";
 
+test('legacy compendium thumbnails resolve to local originals without changing external images', () => {
+  for (const path of ['subclass/troubadour', 'ancestry/card/human', 'community/card/loreborne', 'domain/card/rain-of-blades']) {
+    const split = path.lastIndexOf('/');
+    const thumbnail = `${path.slice(0, split)}/small/${path.slice(split + 1)}`;
+    for (const extension of ['avif', 'webp']) {
+      assert.equal(publicAssetUrl(`/image/${thumbnail}.${extension}?v=1#art`, '/daggerheart-play'), `http://localhost/daggerheart-play/image/${path}.webp?v=1#art`);
+      assert.equal(portablePublicAssetPath(`https://bmpolonsky.github.io/daggerheart-play/image/${thumbnail}.${extension}`), `./image/${path}.webp`);
+    }
+    assert.equal(publicAssetUrl(`https://example.test/image/${thumbnail}.avif`), `https://example.test/image/${thumbnail}.avif`);
+  }
+  assert.equal(publicAssetUrl('/image/custom/small/portrait.webp'), 'http://localhost/image/custom/small/portrait.webp');
+});
+
 test('public asset URLs respect GitHub Pages base paths', () => {
   assert.equal(
     publicAssetUrl('/image/environment/cliffside-tavern.png', '/daggerheart-play'),

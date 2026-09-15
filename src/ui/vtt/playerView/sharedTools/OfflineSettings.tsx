@@ -4,6 +4,7 @@ import { Download, WifiOff } from 'lucide-react';
 import { useStream } from '../../../../core/hooks/useStream';
 import { offlineService } from '../../../../services/serviceRegistry';
 import { Button, Checkbox, Notice, SectionHeader, Toolbar } from '../../../components/common';
+import styles from './OfflineSettings.module.css';
 
 export function OfflineSettings() {
   const state = useStream(offlineService.state$);
@@ -15,22 +16,27 @@ export function OfflineSettings() {
   }, []);
   if (!offlineService.supported) return null;
   return (
-    <section className="player-tools-settings-panel" aria-label="Офлайн">
+    <section className={styles.root} aria-label="Офлайн">
       <SectionHeader title="Офлайн" subtitle="Сохранить приложение и материалы текущей игры для игры без интернета на этом устройстве." />
       <Checkbox
-        label="Все иллюстрации справочника"
-        meta={offlineService.artworkSizeLabel(state.artworkBytes)}
+        size="sm"
+        boxPosition="start"
+        label={<span className={styles.optionCopy}>
+          <span>Все иллюстрации справочника</span>
+          <span className={styles.hint}>{offlineService.artworkSizeLabel(state.artworkBytes)}</span>
+        </span>}
         checked={state.includeArtwork}
-        disabled={state.busy}
+        disabled={state.busy || !offlineService.canPrepare}
         onChange={(event) => offlineService.setIncludeArtwork(event.currentTarget.checked)}
       />
-      <Toolbar>
-        <Button size="sm" disabled={state.busy} iconBefore={<Download size={15} aria-hidden="true" />} onClick={() => void offlineService.prepare()}>
+      <Toolbar className={styles.actions}>
+        <Button size="sm" disabled={state.busy || !offlineService.canPrepare} iconBefore={<Download size={15} aria-hidden="true" />} onClick={() => void offlineService.prepare()}>
           {state.busy ? 'Подготовка…' : 'Подготовить офлайн'}
         </Button>
         {state.enabled && <Button size="sm" variant="ghost" disabled={state.busy} iconBefore={<WifiOff size={15} aria-hidden="true" />} onClick={() => void offlineService.disable()}>Отключить офлайн</Button>}
       </Toolbar>
       {state.message && <Notice role="status">{state.message}</Notice>}
+      {state.skippedMedia > 0 && <Notice tone="warning">Не сохранено файлов: {state.skippedMedia}. Они будут недоступны без интернета.</Notice>}
       {state.enabled && <Notice>Для обновления приложения отключите офлайн и перезагрузите страницу. После добавления материалов повторите подготовку.</Notice>}
       {state.error && <Notice tone="error" role="alert">{state.error}</Notice>}
     </section>

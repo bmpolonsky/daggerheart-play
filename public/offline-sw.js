@@ -18,12 +18,13 @@ self.addEventListener('message', (event) => {
   // and WebKit retains these entries after the last page releases its caches.
   operation = operation.then(async () => {
     try {
-      if (event.data.type === 'prepare') await prepare(event.data, port);
+      let skippedMedia = 0;
+      if (event.data.type === 'prepare') skippedMedia = await prepare(event.data, port);
       else {
         await caches.delete(stateCache);
         await cleanPreparedCaches();
       }
-      port.postMessage({ done: true });
+      port.postMessage({ done: true, skippedMedia });
     } catch (error) {
       port.postMessage({ error: error.name === 'QuotaExceededError' ? 'Недостаточно места для офлайн-копии.' : error.message });
     } finally { port.close(); }
@@ -31,29 +32,43 @@ self.addEventListener('message', (event) => {
   event.waitUntil(operation);
 });
 
-async function prepare({ urls, html, includeArtwork }, port) {
+async function prepare({ urls, requiredUrls = urls, html, includeArtwork, missingLocalFiles = 0 }, port) {
   if (!Array.isArray(urls) || !urls.every((url) => typeof url === 'string' && /^https?:\/\//.test(url)) || typeof html !== 'string') {
     throw new Error('Некорректный список файлов для подготовки.');
   }
+  if (!Array.isArray(requiredUrls) || !requiredUrls.every((url) => urls.includes(url)) || !Number.isSafeInteger(missingLocalFiles) || missingLocalFiles < 0) {
+    throw new Error('Некорректный список обязательных файлов.');
+  }
+  const required = new Set(requiredUrls);
+  let skippedMedia = missingLocalFiles;
   const cacheName = `${prefix}${crypto.randomUUID()}`;
   const cache = await caches.open(cacheName);
   let committed = false;
   try {
     for (const [index, url] of urls.entries()) {
       port.postMessage({ completed: index + 1, total: urls.length });
-      const response = url === new URL('index.html', self.registration.scope).href
+      let response;
+      try {
+        response = url === new URL('index.html', self.registration.scope).href
         ? new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
         : await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(60_000) }).catch(() => {
           throw new Error(`Не удалось скачать файл: ${new URL(url).pathname}. Проверьте доступ к нему и повторите подготовку.`);
         });
-      if (!response.ok || response.status === 206 || (url !== new URL('index.html', self.registration.scope).href && response.headers.get('content-type')?.includes('text/html'))) {
-        throw new Error(`Не удалось сохранить файл: ${new URL(url).pathname}`);
+        if (!response.ok || response.status === 206 || (url !== new URL('index.html', self.registration.scope).href && response.headers.get('content-type')?.includes('text/html'))) {
+          throw new Error(`Не удалось сохранить файл: ${new URL(url).pathname}`);
+        }
+      } catch (error) {
+        if (required.has(url)) throw error;
+        skippedMedia += 1;
+        continue;
       }
+      // Storage/quota failures are fatal even for media: do not claim a usable copy.
       await cache.put(url, response);
     }
-    await (await caches.open(stateCache)).put(stateUrl, new Response(JSON.stringify({ cacheName, includeArtwork: includeArtwork === true })));
+    await (await caches.open(stateCache)).put(stateUrl, new Response(JSON.stringify({ cacheName, includeArtwork: includeArtwork === true, skippedMedia })));
     committed = true;
     await cleanPreparedCaches(cacheName).catch(() => undefined);
+    return skippedMedia;
   } finally {
     if (!committed) await caches.delete(cacheName);
   }

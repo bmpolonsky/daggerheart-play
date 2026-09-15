@@ -1,0 +1,27 @@
+.root {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: 100%;
+  max-width: 36rem;
+  min-width: 0;
+}
+
+.optionCopy {
+  display: grid;
+  gap: 3px;
+  white-space: normal;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.hint {
+  color: var(--dh-paper-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.actions {
+  justify-content: flex-start;
+}
