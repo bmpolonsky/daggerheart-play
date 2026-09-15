@@ -1,9 +1,9 @@
 /** @jsxImportSource preact */
-import { BookOpenText, LibraryBig, WandSparkles } from 'lucide-react';
+import { BookOpenText, LibraryBig, CaseSensitive, WandSparkles } from 'lucide-react';
 import { TabButton, Tabs } from '../../components/common';
 import type { TableViewRole } from './types';
 
-export type PlayerRailTab = 'chronicle' | 'library' | 'npc';
+export type PlayerRailTab = 'chronicle' | 'library' | 'npc' | 'names';
 
 export function PlayerRailTabs({ active, role, onSelect }: {
   active: PlayerRailTab;
@@ -18,11 +18,14 @@ export function PlayerRailTabs({ active, role, onSelect }: {
       <TabButton active={active === 'library'} title="Справочник" aria-label="Справочник" onClick={() => onSelect('library')}>
         <LibraryBig size={16} aria-hidden="true" />
       </TabButton>
-      {role === 'gm' && (
+      {role === 'gm' && <>
+        <TabButton active={active === 'names'} title="Имена и названия" aria-label="Имена и названия" onClick={() => onSelect('names')}>
+          <CaseSensitive size={16} aria-hidden="true" />
+        </TabButton>
         <TabButton active={active === 'npc'} title="Генератор NPC" aria-label="Генератор NPC" onClick={() => onSelect('npc')}>
           <WandSparkles size={16} aria-hidden="true" />
         </TabButton>
-      )}
+      </>}
     </Tabs>
   );
 }

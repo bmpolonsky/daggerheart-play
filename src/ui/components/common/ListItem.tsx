@@ -3,7 +3,7 @@ import styles from './ListItem.module.css';
 
 type UiNode = any;
 
-export type ListItemDensity = 'compact' | 'regular';
+export type ListItemDensity = 'dense' | 'compact' | 'regular';
 export type ListItemTone = 'default' | 'featured';
 export type ListItemLines = 1 | 2;
 export type ListItemAlign = 'center' | 'start';
@@ -45,7 +45,7 @@ export function ListItem({
     'dh-list-item',
     styles.root,
     align === 'start' ? styles.alignStart : '',
-    density === 'compact' ? styles.compact : '',
+    density === 'dense' ? styles.dense : density === 'compact' ? styles.compact : '',
     tone === 'featured' ? styles.featured : '',
     lines === 2 ? styles.twoLine : '',
     onClick ? styles.interactive : '',

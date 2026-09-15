@@ -5,7 +5,9 @@ import { formatNpc, generateNpc, type GeneratedNpc } from '../../../../domain/ge
 import { feedService, gameService } from '../../../../services/serviceRegistry';
 import { Button, ListItem, Notice, SectionHeader, Surface, Toolbar } from '../../../components/common';
 
-export function SharedToolsGeneratorsTab({ npc, onNpcChange }: { npc: GeneratedNpc; onNpcChange: (npc: GeneratedNpc) => void }) {
+type Props = { npc: GeneratedNpc; onNpcChange: (npc: GeneratedNpc) => void };
+
+export function SharedToolsGeneratorsTab({ npc, onNpcChange }: Props) {
   const [message, setMessage] = useState('');
   const text = formatNpc(npc);
 
@@ -24,7 +26,7 @@ export function SharedToolsGeneratorsTab({ npc, onNpcChange }: { npc: GeneratedN
   };
 
   return (
-    <section className="player-tools-section player-tools-generators-section">
+    <section className="player-tools-section">
       <SectionHeader title="NPC" subtitle="Локальный генератор для быстрой импровизации" />
       <Surface className="player-tools-npc" tone="subtle">
         <strong>{npc.name}</strong>

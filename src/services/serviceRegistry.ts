@@ -31,7 +31,9 @@ import { SyncService } from './SyncService';
 import { TabletopService } from './TabletopService';
 import { UiService } from './UiService';
 import { WorldBackupService } from './WorldBackupService';
+import { NameGeneratorService } from './NameGeneratorService';
 
+export const nameGeneratorService = new NameGeneratorService();
 export const assetService = new AssetService();
 export const persistenceService = new PersistenceService(undefined, assetService);
 export const importExportService = new ImportExportService(assetService, persistenceService);

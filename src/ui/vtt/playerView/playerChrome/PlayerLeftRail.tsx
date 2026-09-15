@@ -167,6 +167,7 @@ export function PlayerLeftRail({
         <PlayerRailTabs active="chronicle" role={role} onSelect={(tab) => {
           if (tab === 'library') onOpenTool('library');
           if (tab === 'npc') onOpenTool('generators');
+          if (tab === 'names') onOpenTool('names');
         }} />
         <PlayerRailHeaderActions role={role} onOpenTool={onOpenTool} />
       </header>

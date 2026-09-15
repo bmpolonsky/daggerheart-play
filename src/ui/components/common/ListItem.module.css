@@ -21,6 +21,11 @@
   padding: 8px 11px;
 }
 
+.dense {
+  min-height: 32px;
+  padding: 4px 8px;
+}
+
 .alignStart {
   align-items: flex-start;
 }
