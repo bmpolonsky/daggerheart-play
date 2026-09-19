@@ -4,8 +4,8 @@ import { composedNames } from './namePatterns';
 export type CharacterNameStyle = keyof typeof CHARACTER_NAME_STYLES;
 export type NameGender = 'any' | 'male' | 'female';
 export type NameOptions =
-  | { kind: 'character'; style: CharacterNameStyle; gender: NameGender; withSurname: boolean }
-  | { kind: 'settlement'; style: 'russian' | 'english' };
+  | { kind: 'character'; style: CharacterNameStyle | 'any'; gender: NameGender; withSurname: boolean }
+  | { kind: 'settlement'; style: 'russian' | 'english' | 'any' };
 export interface GeneratedName { name: string; surname: string; meaning?: string }
 
 export function formatGeneratedName(value: GeneratedName): string {
@@ -13,10 +13,12 @@ export function formatGeneratedName(value: GeneratedName): string {
 }
 
 export function nameCandidates(options: NameOptions): GeneratedName[] {
+  if (options.style === 'any') return styleOptions(options).flatMap(nameCandidates);
   if (options.kind === 'character') {
-    const style = CHARACTER_NAME_STYLES[options.style];
+    const styleKey = options.style;
+    const style = CHARACTER_NAME_STYLES[styleKey];
     const genders = options.gender === 'any' ? ['male', 'female'] as const : [options.gender];
-    return genders.flatMap((gender) => [...new Set([...style[gender], ...composedNames(options.style, gender)])].flatMap((name) => {
+    return genders.flatMap((gender) => [...new Set([...style[gender], ...composedNames(styleKey, gender)])].flatMap((name) => {
       const surnames = options.withSurname ? style.surnames.map((forms) => forms[gender === 'male' ? 0 : 1]) : [''];
       return surnames.map((surname) => ({ name, surname }));
     }));
@@ -40,23 +42,31 @@ export function generateNames(
   { previous = [] }: { previous?: GeneratedName[] } = {},
   rng: () => number = Math.random
 ): GeneratedName[] {
+  if (options.style === 'any') {
+    const batches = shuffle(styleOptions(options), rng).map((option) => generateNames(option, { previous }, rng));
+    const selected = new Map<string, GeneratedName>();
+    // Чередуем стили, чтобы размер словаря не определял состав подборки.
+    for (let i = 0; i < 10; i++) {
+      for (const batch of batches) {
+        const value = batch[i];
+        if (!value) continue;
+        const key = options.kind === 'character' ? value.name : formatGeneratedName(value);
+        if (!selected.has(key)) selected.set(key, value);
+        if (selected.size === 10) return shuffle([...selected.values()], rng);
+      }
+    }
+    return shuffle([...selected.values()], rng);
+  }
   const candidates = [...new Map(nameCandidates(options)
     .map((value) => [formatGeneratedName(value), value])).values()];
   const key = (value: GeneratedName) => options.kind === 'character' ? value.name : formatGeneratedName(value);
   const seen = new Set(previous.map(key));
   const fresh = candidates.filter((value) => !seen.has(key(value)));
   const repeated = candidates.filter((value) => seen.has(key(value)));
-  const shuffle = (values: GeneratedName[]) => {
-    for (let i = values.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [values[i], values[j]] = [values[j]!, values[i]!];
-    }
-    return values;
-  };
   const selected = new Set<string>();
   const beginnings = new Map<string, number>();
   const result: GeneratedName[] = [];
-  for (const pool of [shuffle(fresh), shuffle(repeated)]) {
+  for (const pool of [shuffle(fresh, rng), shuffle(repeated, rng)]) {
     // Сначала разнообразим начала имён, затем добираем из того же пула.
     for (const diverse of [true, false]) {
       for (const value of pool) {
@@ -71,4 +81,18 @@ export function generateNames(
     }
   }
   return result;
+}
+
+function styleOptions(options: NameOptions): NameOptions[] {
+  return options.kind === 'character'
+    ? (Object.keys(CHARACTER_NAME_STYLES) as CharacterNameStyle[]).map((style) => ({ ...options, style }))
+    : (['russian', 'english'] as const).map((style) => ({ ...options, style }));
+}
+
+function shuffle<T>(values: T[], rng: () => number): T[] {
+  for (let i = values.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [values[i], values[j]] = [values[j]!, values[i]!];
+  }
+  return values;
 }

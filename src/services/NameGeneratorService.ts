@@ -13,7 +13,7 @@ export class NameGeneratorService {
   private fullNames: GeneratedName[] = [];
 
   constructor(private rng: () => number = Math.random) {
-    const options: NameOptions = { kind: 'character', style: 'latin', gender: 'any', withSurname: false };
+    const options: NameOptions = { kind: 'character', style: 'any', gender: 'any', withSurname: false };
     this.store = new Store<NameGeneratorState>({ options, results: this.draw(options) });
     this.state$ = this.store.toStream();
   }
@@ -31,8 +31,8 @@ export class NameGeneratorService {
   selectKind(kind: NameOptions['kind']): void {
     if (kind === this.store.get().options.kind) return;
     this.configure(kind === 'character'
-      ? { kind, style: 'latin', gender: 'any', withSurname: false }
-      : { kind, style: 'russian' });
+      ? { kind, style: 'any', gender: 'any', withSurname: false }
+      : { kind, style: 'any' });
   }
 
   regenerate(): void {

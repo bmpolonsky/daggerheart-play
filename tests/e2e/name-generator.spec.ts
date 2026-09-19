@@ -15,6 +15,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720
     const generator = page.getByRole('region', { name: 'Генератор имён и названий' });
     const rows = generator.getByRole('listitem');
     await expect(rows).toHaveCount(10);
+    await expect(generator.getByRole('combobox', { name: 'Стиль', exact: true })).toHaveValue('any');
     await expect(page).toHaveURL(/#\/library\/names$/);
     const expectResultsFit = async () => {
       expect(await generator.evaluate((el) => el.parentElement!.scrollHeight <= el.parentElement!.clientHeight)).toBe(true);
@@ -75,7 +76,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720
     expect(await rows.allTextContents()).toEqual(beforeClose);
     await generator.getByRole('combobox', { name: 'Тип', exact: true }).selectOption('settlement');
     await expect(generator.getByRole('combobox', { name: 'Род', exact: true })).toHaveCount(0);
-    await expect(generator.getByRole('combobox', { name: 'Стиль', exact: true })).toHaveValue('russian');
+    await expect(generator.getByRole('combobox', { name: 'Стиль', exact: true })).toHaveValue('any');
+    expect((await rows.allTextContents()).filter((name) => name.includes('('))).toHaveLength(5);
     await expect(rows).toHaveCount(10);
     await generator.getByRole('combobox', { name: 'Стиль', exact: true }).selectOption('english');
     await expect(rows).toHaveCount(10);
@@ -104,6 +106,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720
     await expect(generator.getByRole('combobox', { name: 'Стиль', exact: true })).toHaveValue('english');
     await page.reload();
     await expect(generator).toBeVisible();
+    await expect(generator.getByRole('combobox', { name: 'Стиль', exact: true })).toHaveValue('any');
     await expect(page.getByRole('button', { name: 'Имена и названия', exact: true })).toHaveAttribute('aria-pressed', 'true');
   });
 }

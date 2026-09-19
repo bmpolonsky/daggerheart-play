@@ -34,10 +34,11 @@ export function NameGenerator() {
       <SelectField label="Стиль" value={options.style} onChange={(event) => {
         const style = event.currentTarget.value;
         nameGeneratorService.configure(options.kind === 'character'
-          ? { ...options, style: style as CharacterNameStyle }
-          : { ...options, style: style as 'russian' | 'english' });
+          ? { ...options, style: style as CharacterNameStyle | 'any' }
+          : { ...options, style: style as 'russian' | 'english' | 'any' });
         setFeedback(undefined);
       }}>
+        <option value="any">Любой стиль</option>
         {Object.entries(nameStyles).map(([value, style]) => <option key={value} value={value}>{style.label}</option>)}
       </SelectField>
       {options.kind === 'character' && <>
@@ -49,7 +50,7 @@ export function NameGenerator() {
         </SelectField>
       </>}
       </div>
-      {options.kind === 'settlement' && options.style === 'english' &&
+      {options.kind === 'settlement' && options.style !== 'russian' &&
         <p className={styles.hint}>В скобках — примерный смысл частей названия.</p>}
       {options.kind === 'character' && <Checkbox size="sm" boxPosition="start" label="С фамилией или отчеством" checked={options.withSurname} onChange={(event) => {
           nameGeneratorService.configure({ ...options, withSurname: event.currentTarget.checked });
