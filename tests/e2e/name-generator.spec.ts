@@ -16,6 +16,9 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720
     const rows = generator.getByRole('listitem');
     await expect(rows).toHaveCount(10);
     await expect(generator.getByRole('combobox', { name: 'Стиль', exact: true })).toHaveValue('any');
+    await expect(generator.getByRole('combobox', { name: 'Стиль', exact: true }).getByRole('option')).toHaveText([
+      'Любой стиль', 'Английский', 'Латинский', 'Французский', 'Скандинавский', 'Эльфийский'
+    ]);
     await expect(page).toHaveURL(/#\/library\/names$/);
     const expectResultsFit = async () => {
       expect(await generator.evaluate((el) => el.parentElement!.scrollHeight <= el.parentElement!.clientHeight)).toBe(true);
