@@ -7,9 +7,9 @@ import { NameGeneratorService } from '../../src/services/NameGeneratorService';
 
 test('all name styles produce ten distinct, readable results and refresh without immediate repeats', () => {
   const options: NameOptions[] = [
-    ...Object.keys(CHARACTER_NAME_STYLES).flatMap((style) => (['male', 'female', 'any'] as const).flatMap((gender) =>
-      [false, true].map((withSurname): NameOptions => ({ kind: 'character', style: style as CharacterNameStyle, gender, withSurname })))),
-    { kind: 'settlement', style: 'russian' }, { kind: 'settlement', style: 'english' }
+    ...[...Object.keys(CHARACTER_NAME_STYLES), 'any'].flatMap((style) => (['male', 'female', 'any'] as const).flatMap((gender) =>
+      [false, true].map((withSurname): NameOptions => ({ kind: 'character', style: style as CharacterNameStyle | 'any', gender, withSurname })))),
+    { kind: 'settlement', style: 'russian' }, { kind: 'settlement', style: 'english' }, { kind: 'settlement', style: 'any' }
   ];
   for (const option of options) {
     const results = generateNames(option, {}, () => 0);
@@ -19,7 +19,7 @@ test('all name styles produce ten distinct, readable results and refresh without
       assert.match(formatGeneratedName(value), /^[А-ЯЁа-яё -]+$/u);
       if (option.kind === 'character') {
         assert.equal(Boolean(value.surname), option.withSurname);
-        if (option.gender !== 'any') assert.ok([...CHARACTER_NAME_STYLES[option.style][option.gender], ...composedNames(option.style, option.gender)].includes(value.name));
+        if (option.gender !== 'any' && option.style !== 'any') assert.ok([...CHARACTER_NAME_STYLES[option.style][option.gender], ...composedNames(option.style, option.gender)].includes(value.name));
       }
     }
     const fresh = generateNames(option, { previous: results }, () => 0);
@@ -76,16 +76,54 @@ test('exhausted history still yields ten distinct names', () => {
 test('composed names include short fantasy variants and hundreds of alternatives per style', () => {
   const english = composedNames('english', 'male');
   for (const name of ['Брэм', 'Брэк', 'Брэд']) assert.ok(english.includes(name));
+  for (const name of ['Лем', 'Вель', 'Рен', 'Морен', 'Рувен', 'Борен']) assert.ok(english.includes(name));
+  for (const name of ['Вельда', 'Мора', 'Руна', 'Бонни']) assert.ok(composedNames('english', 'female').includes(name));
+  assert.ok(composedNames('french', 'male').includes('Савер'));
+  assert.ok(composedNames('scandinavian', 'male').includes('Бори'));
+  assert.ok(composedNames('latin', 'female').includes('Тава'));
+  for (const name of ['Виран', 'Вириан']) assert.ok(composedNames('latin', 'male').includes(name));
+  assert.ok(composedNames('latin', 'female').includes('Вирина'));
+  for (const name of ['Нима', 'Нэра', 'Лира']) assert.ok(composedNames('elven', 'female').includes(name));
   for (const style of Object.keys(CHARACTER_NAME_STYLES) as CharacterNameStyle[]) {
     for (const gender of ['male', 'female'] as const) {
-      assert.ok(new Set(composedNames(style, gender)).size > 300, style + gender);
+      assert.ok(new Set(composedNames(style, gender)).size > 200, style + gender);
     }
   }
 });
 
+test('compatible groups avoid malformed joins while preserving short names and style-specific endings', () => {
+  const names = new Set(nameCandidates({ kind: 'character', style: 'any', gender: 'any', withSurname: false }).map((value) => value.name));
+  for (const name of ['Боль', 'Моль', 'Руль', 'Вирус', 'Кома', 'Рот', 'Нет', 'Ноль', 'Флоль', 'Люль', 'Арнд', 'Альнхильд', 'Альввейг', 'Роввин', 'Им', 'Ис', 'Рагнрун', 'Ульфульф', 'Хольмаранд', 'Лаэлилор', 'Эйивар']) {
+    assert.ok(!names.has(name), name);
+  }
+  for (const name of ['Том', 'Сам', 'Вера', 'Нил', 'Вельда', 'Лем', 'Нима', 'Нэра', 'Ира', 'Ина', 'Флоран', 'Люсьен', 'Рован', 'Ровина', 'Хакон', 'Альвида', 'Рагнильда', 'Фаэлан', 'Лира', 'Лиорен', 'Гаррик', 'Эллен', 'Кассия']) {
+    assert.ok(names.has(name), name);
+  }
+});
+
+test('any style mixes traditions while keeping each full name and its gender valid', () => {
+  for (const gender of ['male', 'female', 'any'] as const) {
+    const options = { kind: 'character', style: 'any', gender, withSurname: true } as const;
+    const pools = (Object.keys(CHARACTER_NAME_STYLES) as CharacterNameStyle[]).map((style) =>
+      new Set(nameCandidates({ ...options, style }).map(formatGeneratedName)));
+    const results = generateNames(options, {}, () => 0.37);
+    assert.equal(new Set(results.map((value) => value.name)).size, 10);
+    for (const value of results) assert.ok(pools.some((pool) => pool.has(formatGeneratedName(value))));
+    for (const pool of pools) assert.ok(results.some((value) => pool.has(formatGeneratedName(value))));
+  }
+  const settlements = generateNames({ kind: 'settlement', style: 'any' }, {}, () => 0.37);
+  assert.equal(settlements.filter((value) => value.meaning).length, 5);
+  const service = new NameGeneratorService(() => 0.37);
+  assert.equal(service.state$.get().options.style, 'any');
+  service.selectKind('settlement');
+  assert.equal(service.state$.get().options.style, 'any');
+  service.selectKind('character');
+  assert.equal(service.state$.get().options.style, 'any');
+});
+
 test('twenty consecutive batches avoid repeating given names, even with different surnames', () => {
   const service = new NameGeneratorService(() => 0.37);
-  service.configure({ kind: 'character', style: 'english', gender: 'male', withSurname: true });
+  service.configure({ kind: 'character', style: 'any', gender: 'male', withSurname: true });
   const seen = new Set<string>();
   for (let batch = 0; batch < 20; batch++) {
     for (const value of service.state$.get().results) {
@@ -98,26 +136,28 @@ test('twenty consecutive batches avoid repeating given names, even with differen
 });
 
 test('surname toggles preserve the batch and patronymics without consuming randomness', () => {
-  for (const gender of ['male', 'female', 'any'] as const) {
-    let draws = 0;
-    const service = new NameGeneratorService(() => { draws++; return 0.37; });
-    const options = { kind: 'character', style: 'scandinavian', gender, withSurname: false } as const;
-    service.configure(options);
-    const plain = service.state$.get().results;
-    const drawsBeforeToggle = draws;
-    service.configure({ ...options, withSurname: true });
-    const full = service.state$.get().results;
-    assert.deepEqual(full.map((value) => value.name), plain.map((value) => value.name));
-    assert.ok(full.every((value) => value.surname));
-    if (gender !== 'any') {
-      assert.ok(full.every((value) => value.surname.endsWith(gender === 'female' ? 'доттир' : 'сон')));
+  for (const style of ['scandinavian', 'any'] as const) {
+    for (const gender of ['male', 'female', 'any'] as const) {
+      let draws = 0;
+      const service = new NameGeneratorService(() => { draws++; return 0.37; });
+      const options = { kind: 'character', style, gender, withSurname: false } as const;
+      service.configure(options);
+      const plain = service.state$.get().results;
+      const drawsBeforeToggle = draws;
+      service.configure({ ...options, withSurname: true });
+      const full = service.state$.get().results;
+      assert.deepEqual(full.map((value) => value.name), plain.map((value) => value.name));
+      assert.ok(full.every((value) => value.surname));
+      if (style === 'scandinavian' && gender !== 'any') {
+        assert.ok(full.every((value) => value.surname.endsWith(gender === 'female' ? 'доттир' : 'сон')));
+      }
+      service.configure(options);
+      assert.deepEqual(service.state$.get().results, plain);
+      service.configure({ ...options, withSurname: true });
+      assert.deepEqual(service.state$.get().results, full);
+      assert.equal(draws, drawsBeforeToggle);
+      service.regenerate();
+      assert.ok(service.state$.get().results.every((value) => !plain.some((old) => old.name === value.name)));
     }
-    service.configure(options);
-    assert.deepEqual(service.state$.get().results, plain);
-    service.configure({ ...options, withSurname: true });
-    assert.deepEqual(service.state$.get().results, full);
-    assert.equal(draws, drawsBeforeToggle);
-    service.regenerate();
-    assert.ok(service.state$.get().results.every((value) => !plain.some((old) => old.name === value.name)));
   }
 });
