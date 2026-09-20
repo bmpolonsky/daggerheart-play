@@ -113,7 +113,7 @@ async function fetchJson(url) {
   return await response.json();
 }
 
-async function downloadAsset(pathname) {
+async function downloadAsset(pathname, { optional = false } = {}) {
   const normalized = normalizeAssetPath(pathname);
   const url = resolveDownloadUrl(pathname);
   if (!normalized || !url) return;
@@ -128,6 +128,10 @@ async function downloadAsset(pathname) {
   let response;
   try {
     response = await fetch(url);
+    if (optional && response.status === 404 && !hasCachedTarget) {
+      console.warn(`Skipping missing optional asset ${url} (404)`);
+      return;
+    }
     if (!response.ok) {
       throw new Error(`Failed to download ${url} (${response.status})`);
     }
@@ -151,14 +155,14 @@ async function downloadAsset(pathname) {
   await writeFile(targetPath, buffer);
 }
 
-async function downloadAssets(assetUrls) {
+async function downloadAssets(assetUrls, options) {
   const urls = Array.from(assetUrls);
   let nextIndex = 0;
   const workers = Array.from({ length: Math.min(ASSET_CONCURRENCY, urls.length) }, async () => {
     while (nextIndex < urls.length) {
       const assetUrl = urls[nextIndex];
       nextIndex += 1;
-      await downloadAsset(assetUrl);
+      await downloadAsset(assetUrl, options);
     }
   });
   await Promise.all(workers);
@@ -207,6 +211,7 @@ async function cacheCssFiles() {
 function collectAssetUrls(payload) {
   const items = Array.isArray(payload?.data) ? payload.data : [];
   const urls = new Set();
+  const optionalUrls = new Set();
 
   for (const item of items) {
     if (typeof item?.image_url === 'string' && item.image_url.trim()) {
@@ -220,24 +225,25 @@ function collectAssetUrls(payload) {
     }
     if (typeof item?.class_slug === 'string' && item.class_slug.trim()) {
       const classSlug = item.class_slug.replace(/^playtest-/, '');
-      urls.add(`/image/class/divider/${classSlug}.avif`);
-      urls.add(`/image/class/banner/${classSlug}.avif`);
+      optionalUrls.add(`/image/class/divider/${classSlug}.avif`);
+      optionalUrls.add(`/image/class/banner/${classSlug}.avif`);
     }
     if (typeof item?.domain_slug === 'string' && item.domain_slug.trim()) {
       const domainSlug = item.domain_slug.replace(/^playtest-/, '');
-      urls.add(`/image/domain/divider/${domainSlug}.avif`);
-      urls.add(`/image/domain/banner/${domainSlug}.avif`);
-      urls.add(`/image/domain/emblems/${domainSlug}.svg`);
+      optionalUrls.add(`/image/domain/divider/${domainSlug}.avif`);
+      optionalUrls.add(`/image/domain/banner/${domainSlug}.avif`);
+      optionalUrls.add(`/image/domain/emblems/${domainSlug}.svg`);
     }
     if (Array.isArray(item?.domain_slugs)) {
       for (const domainSlug of item.domain_slugs) {
         if (typeof domainSlug !== 'string' || !domainSlug.trim()) continue;
-        urls.add(`/image/domain/emblems/${domainSlug.replace(/^playtest-/, '')}.svg`);
+        optionalUrls.add(`/image/domain/emblems/${domainSlug.replace(/^playtest-/, '')}.svg`);
       }
     }
   }
 
-  return urls;
+  // Explicit API references remain required even when also inferred from a slug.
+  return { assetUrls: urls, optionalAssetUrls: new Set([...optionalUrls].filter((url) => !urls.has(url))) };
 }
 
 function rewritePayloadAssetReferences(payload) {
@@ -282,7 +288,7 @@ async function loadCollection(collection) {
     if (!isUsablePayload(payload)) {
       throw new Error(`Fetched ${collection.key} is empty or invalid`);
     }
-    const sourceAssetUrls = collection.assets ? collectAssetUrls(payload) : new Set();
+    const sourceAssets = collection.assets ? collectAssetUrls(payload) : { assetUrls: new Set() };
     const normalizedPayload = rewritePayloadAssetReferences({
       ...payload,
       meta: {
@@ -304,7 +310,7 @@ async function loadCollection(collection) {
     }
     return {
       payload: normalizedPayload,
-      assetUrls: sourceAssetUrls
+      ...sourceAssets
     };
   } catch (error) {
     if (REVIEW_ONLY) throw error;
@@ -341,7 +347,7 @@ async function main() {
   };
 
   for (const collection of COLLECTIONS) {
-    const { payload, assetUrls } = await loadCollection(collection);
+    const { payload, assetUrls, optionalAssetUrls = [] } = await loadCollection(collection);
     const count = Array.isArray(payload?.data) ? payload.data.length : 0;
     manifest.collections.push({
       key: collection.key,
@@ -354,6 +360,7 @@ async function main() {
     if (REVIEW_ONLY || !collection.assets) continue;
 
     await downloadAssets(assetUrls);
+    await downloadAssets(optionalAssetUrls, { optional: true });
   }
 
   if (!REVIEW_ONLY) {
