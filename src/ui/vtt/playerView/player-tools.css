@@ -74,21 +74,6 @@
   overflow: hidden;
 }
 
-.player-tools-npc {
-  display: grid;
-  gap: 12px;
-}
-
-.player-tools-npc > strong {
-  font-family: "DH Eveleth", "DH Overpass", sans-serif;
-  font-size: 1.1rem;
-}
-
-.player-tools-npc__traits {
-  display: grid;
-  gap: 4px;
-}
-
 .player-quick-tools-card {
   height: 100%;
 }

@@ -66,7 +66,7 @@ export function SharedToolsModal({
   onHandoutChange?: (handoutId: string) => void;
   onTabChange: (tab: SharedToolsTab) => void;
 }) {
-  const tabs: SharedToolsTab[] = sharedToolsTabsForRole(role).filter((item) => item !== 'generators' && item !== 'names');
+  const tabs: SharedToolsTab[] = sharedToolsTabsForRole(role).filter((item) => item !== 'npc' && item !== 'names');
   const content = useStream(contentService.content$);
   const game = useStream(gameService.game$);
   const libraryView = contentService.buildLibraryView(content);

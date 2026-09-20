@@ -14,7 +14,6 @@ import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2
 import { resolveTableSessionContext } from '../../domain/p2p/sessionPresentation';
 import { diceAnimationContextKey, shouldAnimateInitialDiceRoll } from '../../domain/tabletop/diceAnimation';
 import { nowIso } from '../../core/utils/date';
-import { generateNpc } from '../../domain/generators/npc';
 import { normalizeSceneBackgroundFraming, sceneBackgroundTransform } from '../../domain/tabletop/sceneBackground';
 import { gameService, characterService, contentService, encounterService, feedService, p2pSessionService, rollLogService, sceneTableService } from '../../services/serviceRegistry';
 import { CharacterBuilderModal } from '../characters/CharacterBuilderModal';
@@ -84,11 +83,10 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const [activityOpen, setActivityOpen] = useState(defaultActivityPanelOpen);
   const [panelOpen, setPanelOpen] = useState(defaultDetailPanelOpen);
   const [rosterRequestId, setRosterRequestId] = useState(0);
-  const [generatedNpc, setGeneratedNpc] = useState(generateNpc);
   const [routedUi, setRoutedUi] = useState(() => parseRoutedPlayerViewState(currentRoutePathname(), role));
   const [sharedToolsEditorDirty, setSharedToolsEditorDirty] = useState(false);
   const acceptedRouteUrlRef = useRef(typeof window === 'undefined' ? '' : locationSignature());
-  const quickToolsOpen = role === 'gm' && routedUi.toolsOpen && (routedUi.toolsTab === 'generators' || routedUi.toolsTab === 'names');
+  const quickToolsOpen = role === 'gm' && routedUi.toolsOpen && (routedUi.toolsTab === 'npc' || routedUi.toolsTab === 'names');
   const [playerCharacterBuilderOpen, setPlayerCharacterBuilderOpen] = useState(false);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [contentPreviewItem, setContentPreviewItem] = useState<TableFeedItem | null>(null);
@@ -207,7 +205,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       const next = parseRoutedPlayerViewState(currentRoutePathname(), role);
       setRoutedUi(next);
       if (!desktopLayout) {
-        setMobileLayer((current) => next.toolsOpen && (next.toolsTab === 'generators' || next.toolsTab === 'names') ? 'tools' : current === 'tools' ? 'feed' : current);
+        setMobileLayer((current) => next.toolsOpen && (next.toolsTab === 'npc' || next.toolsTab === 'names') ? 'tools' : current === 'tools' ? 'feed' : current);
       }
     };
     syncRouteState();
@@ -276,7 +274,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     return () => window.removeEventListener('daggerheart-play:open-rule-article', openRuleArticle);
   }, [commitRoutedUi]);
   const openTool = useCallback((tab: SharedToolsTab) => {
-    if ((tab === 'generators' || tab === 'names') && role === 'gm') {
+    if ((tab === 'npc' || tab === 'names') && role === 'gm') {
       setActivityOpen(true);
       if (!desktopLayout) setMobileLayer('tools');
     }
@@ -568,7 +566,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onEditHandout={role === 'gm' ? openHandoutEditor : undefined}
         />
       )}
-      {quickToolsOpen && <QuickToolsRail tab={routedUi.toolsTab === 'names' ? 'names' : 'generators'} npc={generatedNpc} onNpcChange={setGeneratedNpc} onClose={closeTools} onOpenTool={openTool} />}
+      {quickToolsOpen && <QuickToolsRail tab={routedUi.toolsTab === 'names' ? 'names' : 'npc'} onClose={closeTools} onOpenTool={openTool} />}
       {routedUi.toolsOpen && !quickToolsOpen && (
         <SharedToolsModal
           onEditorDirtyChange={setSharedToolsEditorDirty}

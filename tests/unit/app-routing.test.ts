@@ -131,6 +131,16 @@ test('player shared tools expose the owned-character area without GM-only tabs',
   assert.equal(sharedToolsTabsForRole('player').includes('notes'), false);
 });
 
+test('NPC has its own canonical route while old generator links remain compatible', () => {
+  const npc = parseRoutedPlayerViewState('/library/npc', 'gm');
+  assert.equal(npc.toolsOpen, true);
+  assert.equal(npc.toolsTab, 'npc');
+  assert.deepEqual(parseRoutedPlayerViewState('/library/generators', 'gm'), npc);
+  assert.equal(buildRoutedPlayerViewLocation('gm', npc).hash, '#/library/npc');
+  assert.equal(sharedToolsTabsForRole('player').includes('npc'), false);
+  assert.notEqual(parseRoutedPlayerViewState('/library/generators', 'player').toolsTab, 'npc');
+});
+
 test('handout routes preserve the selected editor through Back and Forward state', () => {
   assert.deepEqual(parseRoutedPlayerViewState('/library/handouts/handout%3Aclue', 'gm'), {
     toolsOpen: true,

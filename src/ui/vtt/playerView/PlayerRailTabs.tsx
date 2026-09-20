@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { BookOpenText, LibraryBig, CaseSensitive, WandSparkles } from 'lucide-react';
+import { BookOpenText, LibraryBig, CaseSensitive, ContactRound } from 'lucide-react';
 import { TabButton, Tabs } from '../../components/common';
 import type { TableViewRole } from './types';
 
@@ -22,8 +22,8 @@ export function PlayerRailTabs({ active, role, onSelect }: {
         <TabButton active={active === 'names'} title="Имена и названия" aria-label="Имена и названия" onClick={() => onSelect('names')}>
           <CaseSensitive size={16} aria-hidden="true" />
         </TabButton>
-        <TabButton active={active === 'npc'} title="Генератор NPC" aria-label="Генератор NPC" onClick={() => onSelect('npc')}>
-          <WandSparkles size={16} aria-hidden="true" />
+        <TabButton active={active === 'npc'} title="NPC" aria-label="NPC" onClick={() => onSelect('npc')}>
+          <ContactRound size={16} aria-hidden="true" />
         </TabButton>
       </>}
     </Tabs>

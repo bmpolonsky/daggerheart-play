@@ -51,7 +51,7 @@ const SETTINGS_BY_SLUG = Object.fromEntries(
 
 export function sharedToolsTabsForRole(role: TableViewRole): SharedToolsTab[] {
   return role === 'gm'
-    ? ['scenes', 'characters', 'combat', 'library', 'notes', 'handouts', 'names', 'generators', 'settings']
+    ? ['scenes', 'characters', 'combat', 'library', 'notes', 'handouts', 'names', 'npc', 'settings']
     : ['characters', 'handouts', 'library', 'settings'];
 }
 
@@ -60,6 +60,7 @@ export function defaultSharedToolsTab(role: TableViewRole): SharedToolsTab {
 }
 
 export function normalizeSharedToolsTab(tab: string | null | undefined, role: TableViewRole): SharedToolsTab {
+  if (tab === 'generators') tab = 'npc'; // Older links still open the NPC tool.
   const tabs = sharedToolsTabsForRole(role);
   return tabs.includes(tab as SharedToolsTab) ? tab as SharedToolsTab : defaultSharedToolsTab(role);
 }

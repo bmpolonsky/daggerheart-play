@@ -191,7 +191,7 @@ export function toolTabLabel(tab: SharedToolsTab): string {
     notes: 'Заметки',
     handouts: 'Раздатка',
     names: 'Имена и названия',
-    generators: 'Генератор NPC',
+    npc: 'NPC',
     settings: 'Настройки'
   };
   return labels[tab];

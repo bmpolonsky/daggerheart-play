@@ -101,10 +101,10 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', viewport.width);
-    await page.getByRole('button', { name: 'Генератор NPC', exact: true }).click();
-    await expect(page).toHaveURL(/#\/library\/generators$/);
+    await page.getByRole('button', { name: 'NPC', exact: true }).click();
+    await expect(page).toHaveURL(/#\/library\/npc$/);
     await expect(generator).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Добавить NPC в чат приватно' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Генератор NPC', exact: true }).getByRole('button', { name: 'Сгенерировать', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Имена и названия', exact: true }).click();
     await expect(generator.getByRole('combobox', { name: 'Стиль', exact: true })).toHaveValue('english');
     await page.reload();

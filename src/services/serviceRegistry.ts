@@ -33,6 +33,7 @@ import { TabletopService } from './TabletopService';
 import { UiService } from './UiService';
 import { WorldBackupService } from './WorldBackupService';
 import { NameGeneratorService } from './NameGeneratorService';
+import { NpcGeneratorService } from './NpcGeneratorService';
 
 export const nameGeneratorService = new NameGeneratorService();
 export const assetService = new AssetService();
@@ -43,6 +44,7 @@ export const audioService = new AudioService();
 export const gameService = new GameService();
 export const characterService = new CharacterService();
 export const contentService = new ContentService();
+export const npcGeneratorService = new NpcGeneratorService(contentService, gameService.game$);
 export const diceService = new DiceService();
 export const encounterService = new EncounterService();
 export const feedService = new FeedService();

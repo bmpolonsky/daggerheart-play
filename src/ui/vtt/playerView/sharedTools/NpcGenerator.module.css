@@ -1,0 +1,61 @@
+.npc {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.name h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.fields {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.gender {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  color: var(--dh-paper-muted);
+  font-size: 0.75rem;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 3px;
+  align-items: center;
+}
+
+.field dt {
+  color: var(--dh-paper-faint);
+  font-size: 0.7rem;
+}
+
+.field dd {
+  grid-column: 1;
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.reroll {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
