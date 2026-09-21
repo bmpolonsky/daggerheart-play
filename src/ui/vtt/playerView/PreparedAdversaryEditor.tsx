@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { p2pSessionService } from '../../../services/serviceRegistry';
 import { Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'preact/hooks';
 import { createId } from '../../../core/utils/id';
@@ -6,7 +7,6 @@ import { ADVERSARY_TYPES, DAMAGE_TYPE_LABELS, RANGES, adversaryTypeLabel } from 
 import type { Adversary, AdversaryFeature, DamageType } from '../../../domain/rules/types';
 import { preparedActorService } from '../../../services/serviceRegistry';
 import { Button, Dialog, IconButton, ImageFilePicker, NumberControl, SelectControl, TextAreaControl, TextControl } from '../../components/common';
-import { readFileAsDataUrl } from './sharedTools/readFileAsDataUrl';
 
 export function PreparedAdversaryEditor({ adversary, onClose }: { adversary: Adversary; onClose: () => void }) {
   const [draft, setDraft] = useState<Adversary>(() => ({
@@ -64,7 +64,7 @@ export function PreparedAdversaryEditor({ adversary, onClose }: { adversary: Adv
               size="compact"
               previewStyle={{ objectFit: 'contain' }}
               onFileSelect={async (file) => {
-                const imageUrl = await readFileAsDataUrl(file);
+                const imageUrl = await p2pSessionService.savePortraitFile(file);
                 setDraft((current) => ({ ...current, imageUrl }));
               }}
               onClear={() => setDraft((current) => ({ ...current, imageUrl: null }))}

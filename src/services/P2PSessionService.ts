@@ -1,3 +1,6 @@
+import { PortraitUploadService } from './PortraitUploadService';
+import { assetIdFromReference } from '../domain/game/assetReferences';
+import { publicAssetUrl } from '../domain/content/publicAssets';
 import { Store } from '../core/store/Store';
 import { createKeyValueStore, type KeyValueDocumentStore } from '../core/persistence/keyValueStore';
 import { P2P_CHARACTER_OUTBOX_STORAGE } from '../core/persistence/storageKeys';
@@ -179,6 +182,8 @@ export class P2PSessionService {
   private activeRoomConnection: P2PRoomConnection | null = null;
   private startInFlight: { role: P2PSessionRole; roomId: string; promise: Promise<void> } | null = null;
   private assetTransferService: P2PAssetTransferService;
+  private portraitUploadService: PortraitUploadService;
+  private assetDownloads = new Map<string, Promise<boolean>>();
   private publishedPlayerFeedEntrySignatures = new Map<string, string>();
   private publishingPlayerFeedEntryIds = new Set<string>();
   private playerCharacterFullSignatures = new Map<string, string>();
@@ -224,6 +229,11 @@ export class P2PSessionService {
       () => this.sessionStore.get(),
       () => this.activeRoomConnection,
       (patch) => this.patchSession(patch)
+    );
+    this.portraitUploadService = new PortraitUploadService(
+      assetService, syncService, () => this.activeRoomConnection, () => this.sessionStore.get(),
+      (participantId, actorId, context) => this.authorizePortraitUpload(participantId, actorId, context),
+      supabaseAssetService
     );
     this.scheduleRoomCodeRefreshCooldown(this.inviteStore.get().roomCodeRefreshBlockedUntil);
   }
@@ -499,6 +509,7 @@ export class P2PSessionService {
       void this.receivePlayerCharacterUpdate(message, context);
     }));
     this.subscriptions.add(this.assetTransferService.subscribeGm());
+    this.subscriptions.add(this.portraitUploadService.subscribe(transport));
     subscribeToSyncedGameStores(() => this.scheduleSnapshot()).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
     this.subscriptions.add(subscribeCustomContentChanges('all', () => this.scheduleSnapshot()));
     this.sessionStore.update((state) => {
@@ -600,6 +611,7 @@ export class P2PSessionService {
         }
       });
       this.assetTransferService.subscribePlayer(transport).forEach((unsubscribe) => this.subscriptions.add(unsubscribe));
+      this.subscriptions.add(this.portraitUploadService.subscribe(transport));
       this.subscriptions.add(this.syncService.subscribePlayerCharacterUpdateAcks((message, _event, context) => {
         this.receivePlayerCharacterUpdateAck(message, context);
       }));
@@ -747,6 +759,8 @@ export class P2PSessionService {
     this.stopPlayerProductRecoveryPolling();
     this.activeRoomConnection = null;
     this.assetTransferService.clear(false);
+    this.portraitUploadService.clear();
+    this.assetDownloads.clear();
     this.publishedPlayerFeedEntrySignatures.clear();
     this.publishingPlayerFeedEntryIds.clear();
     this.playerCharacterFullSignatures.clear();
@@ -852,15 +866,43 @@ export class P2PSessionService {
     }, 0);
   }
 
+  async savePortraitFile(file: File, actorId?: string): Promise<string> {
+    const participantId = this.playerActorContext.participantId || this.localParticipantId;
+    const actor = actorId ? this.requirePlayerActorContext(actorId)
+      : participantId ? { participantId, actorId: '' } : undefined;
+    return this.portraitUploadService.save(file, actor ?? undefined);
+  }
+
+  async resolveAssetUrl(reference: string): Promise<string | null> {
+    const id = assetIdFromReference(reference);
+    if (!id) return publicAssetUrl(reference);
+    const local = await this.assetService.getObjectUrl(id);
+    if (local) return local;
+    if (!await this.requestAsset(id, 'portrait')) return null;
+    return this.assetService.getObjectUrl(id);
+  }
+
   async requestAsset(assetId: string, reason: AssetRequestReason = 'scene-background'): Promise<boolean> {
+    const existing = this.assetDownloads.get(assetId);
+    if (existing) return existing;
+    const download = this.downloadAsset(assetId, reason);
+    this.assetDownloads.set(assetId, download);
+    try { return await download; }
+    finally { if (this.assetDownloads.get(assetId) === download) this.assetDownloads.delete(assetId); }
+  }
+
+  private async downloadAsset(assetId: string, reason: AssetRequestReason): Promise<boolean> {
+    if (await this.assetService.getBlob(assetId)) return true;
+    const connection = this.activeRoomConnection;
     const session = this.sessionStore.get();
     if (session.transportMode === 'hybrid') {
       const asset = this.sceneTableService.sceneTable$.get().assets[assetId];
       if (session.role === 'player' && asset && this.supabaseAssetService) {
         const blob = await this.supabaseAssetService.download(session.roomId, gameStore.get().id, assetId);
+        if (connection !== this.activeRoomConnection) return false;
         if (blob) {
-          await this.assetService.putAssetBlob(asset, blob);
-          return true;
+          await this.assetService.putAssetBlob(asset, blob, { updateSceneTable: false });
+          return connection === this.activeRoomConnection;
         }
       }
     }
@@ -2114,6 +2156,16 @@ export class P2PSessionService {
   private participantOwnsActor(participantId: string, actorId: string): boolean {
     const participant = this.sceneTableService.sceneTable$.get().participants[participantId];
     return participant?.role === 'player' && participant.actorIds.includes(actorId);
+  }
+
+  private authorizePortraitUpload(participantId: string, actorId: string, context: SyncEventContext): boolean {
+    if (actorId) return this.authorizePlayerActor(participantId, actorId, remotePeerContext(context));
+    // A builder draft has no actor yet. Allow a fresh file for a connected player
+    // with an empty seat; the upload protocol cannot replace an existing asset.
+    const participant = this.sceneTableService.sceneTable$.get().participants[participantId];
+    return Boolean(context.sourcePeerId && this.activeRoomConnection?.peers().includes(context.sourcePeerId)
+      && (!participant || (participant.role === 'player' && !participant.actorIds.some(id => charactersStore.get().entities[id])))
+      && (!participant?.peerId || participant.peerId === context.sourcePeerId));
   }
 
   private authorizePlayerActor(participantId: string, actorId: string, peerContext?: RemotePeerContext): boolean {

@@ -1,4 +1,6 @@
 /** @jsxImportSource preact */
+import { useAssetUrl } from '../../components/common/useAssetUrl';
+import { AssetImage } from '../../components/common/AssetImage';
 import type { ComponentChildren, JSX } from "preact";
 import { useMemo, useRef, useState } from "preact/hooks";
 import { ChevronLeft, Crosshair, Heart, MapPlus, PawPrint, Pencil, Shield, Swords, Trash2, Zap } from "lucide-react";
@@ -87,7 +89,7 @@ export function CharacterSheet({
   );
   const activeScene = sceneTable.scenes[sceneTable.activeSceneId] ?? null;
   const companionToken = activeScene?.tokens.find((token) => token.actor.kind === 'companion' && token.actor.id === character.id) ?? null;
-  const portraitUrl = defaultCharacterPortraitUrl(character);
+  const portraitUrl = useAssetUrl(defaultCharacterPortraitUrl(character));
   const heroStyle = {
     '--player-character-portrait': `url("${cssImageUrl(portraitUrl)}")`
   } as JSX.CSSProperties;
@@ -149,7 +151,7 @@ export function CharacterSheet({
               Редактировать
             </Button>
           )}
-          <img src={cssImageUrl(portraitUrl)} alt="" />
+          <img src={portraitUrl || undefined} alt="" />
           <div className="player-character-panel__hero-copy">
             <strong>{character.name}</strong>
             <span>Уровень {character.level} / {character.subtitle || character.className}</span>
@@ -419,7 +421,7 @@ export function CharacterSheet({
                 <div className="player-companion-panel__identity">
                   <div className="player-companion-panel__avatar">
                     {character.companion.imageUrl
-                      ? <img src={cssImageUrl(character.companion.imageUrl)} alt="" />
+                      ? <AssetImage src={character.companion.imageUrl} alt="" />
                       : <PawPrint size={16} aria-hidden="true" />}
                   </div>
                   <div className="player-companion-panel__copy">
@@ -467,6 +469,7 @@ export function CharacterSheet({
         )}
         {companionEditorOpen && (
           <CompanionEditorDialog
+            actorId={character.id}
             companion={character.companion}
             onClose={() => setCompanionEditorOpen(false)}
             onSave={(input) => {

@@ -1,3 +1,5 @@
+import { AssetImage } from '../components/common/AssetImage';
+import { p2pSessionService } from '../../services/serviceRegistry';
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Avatar } from '../components/common/Avatar';
@@ -43,7 +45,6 @@ import { advancementChoiceLabel, buildCharacterLevelUpPlan, CHARACTER_ADVANCEMEN
 import type { Character, CharacterChangeActor, CharacterSheetCard, DaggerheartClass, DomainName, TraitId } from '../../domain/rules/types';
 import { characterService, gameService, tabletopService } from '../../services/serviceRegistry';
 import { useStream } from '../../core/hooks/useStream';
-import { readFileAsDataUrl } from '../vtt/playerView/sharedTools/readFileAsDataUrl';
 import { TraitGrid } from './TraitGrid';
 import { ResourcePanel } from './ResourcePanel';
 import { ExperienceList } from './ExperienceList';
@@ -794,7 +795,7 @@ function LevelUpPanel({
         <div className="cinematic-builder-panel dh-scroll" role="region" aria-label="Шаг повышения уровня">
           <header className="cinematic-builder-stage" aria-label="Сводка повышения уровня">
             <div className="cinematic-builder-stage-art">
-              {character.portraitUrl ? <img src={character.portraitUrl} alt="" /> : <span>{character.name.slice(0, 2).toUpperCase()}</span>}
+              {character.portraitUrl ? <AssetImage src={character.portraitUrl} alt="" /> : <span>{character.name.slice(0, 2).toUpperCase()}</span>}
             </div>
             <div className="cinematic-builder-stage-copy">
               <span className="cinematic-card-meta">Шаг {currentStepIndex + 1} из {steps.length}</span>
@@ -1121,7 +1122,7 @@ function updateCharacterRuleTotal(
 
 function PortraitPicker({ character }: { character: Character }) {
   const handlePortraitChange = async (file: File) => {
-    const portraitUrl = await readFileAsDataUrl(file);
+    const portraitUrl = await p2pSessionService.savePortraitFile(file, character.id);
     characterService.updateIdentity(character.id, { portraitUrl });
   };
 

@@ -1,3 +1,4 @@
+import { p2pSessionService } from '../../services/serviceRegistry';
 import { Sparkles, X } from 'lucide-react';
 import { useState } from 'preact/hooks';
 import { clamp } from '../../core/utils/clamp';
@@ -25,7 +26,6 @@ import { EditableBuilderStat } from './builder/EditableBuilderStat';
 import { domainLabel, initials, signed } from './builder/formatting';
 import { BUILDER_TRAIT_IDS } from './builder/traits';
 import { useCharacterBuilder } from './useCharacterBuilder';
-import { readFileAsDataUrl } from '../vtt/playerView/sharedTools/readFileAsDataUrl';
 
 export function CharacterBuilderModal({
   content,
@@ -83,7 +83,7 @@ export function CharacterBuilderModal({
     onCreate(builderResult.draft);
   };
   const handlePortraitUpload = async (file: File) => {
-    handlers.setPortraitUrl(await readFileAsDataUrl(file));
+    handlers.setPortraitUrl(await p2pSessionService.savePortraitFile(file));
   };
 
   return (

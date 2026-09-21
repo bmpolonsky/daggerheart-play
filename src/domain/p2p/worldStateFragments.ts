@@ -110,7 +110,12 @@ export function changedWorldStateFragments(
 }
 
 function jsonSignature(value: unknown): string {
-  return JSON.stringify(value);
+  // PostgreSQL jsonb does not preserve object key order. Array order matters.
+  return JSON.stringify(value, (_key, item) => (
+    item && typeof item === 'object' && !Array.isArray(item)
+      ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, item[key]]))
+      : item
+  ));
 }
 
 function toJsonValue<T>(value: T): T {

@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { p2pSessionService } from '../../../../services/serviceRegistry';
 import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { EditableContentCollectionKey, EditableRawContent, RawAdversaryFeature } from '../../../../domain/content/types';
@@ -194,7 +195,7 @@ function AdversaryFields({ draft, setField }: EditorFieldsProps) {
           hideLabel
           size="compact"
           previewStyle={{ objectFit: 'contain' }}
-          onFileSelect={async (file) => setField('image_url', await readFileAsDataUrl(file))}
+          onFileSelect={async (file) => setField('image_url', await p2pSessionService.savePortraitFile(file))}
           onClear={() => setField('image_url', null)}
         />
       </div>

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyCustomContent } from '../../src/domain/game/gameDocument';
 import { createTableScene, createTokenState } from '../../src/domain/tabletop/factories';
 import { snapshotPersistedState } from '../../src/stores/persistedState';
+import { createCharacter } from '../../src/domain/rules/factories';
 import {
   changedWorldStateFragments,
   decodeWorldState,
@@ -85,5 +86,24 @@ describe('world state fragments', () => {
 
     expect(diff.upserts[WORLD_STATE_KEYS.sceneTable]).toBeDefined();
     expect(diff.deletes).toEqual([sceneFragmentKey(scene.id), sceneTokensFragmentKey(scene.id)]);
+  });
+
+  it('does not resend unchanged fragments after PostgreSQL jsonb reorders object keys', () => {
+    const state = structuredClone(snapshotPersistedState());
+    const character = createCharacter({ id: 'hero', portraitUrl: 'data:image/png;base64,portrait' });
+    state.characters.entities = { [character.id]: character };
+    state.characters.order = [character.id];
+    const local = encodeWorldState(state);
+    const stored = JSON.parse(JSON.stringify(local, (_key, value) => (
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]]))
+        : value
+    )));
+    const next = encodeWorldState({ ...state, game: { ...state.game, name: 'Changed name' } });
+
+    expect(Object.keys(changedWorldStateFragments(stored, next).upserts)).toEqual(['game']);
+    const reorderedArray = { ...stored, rollLog: [{ a: 1 }, { a: 2 }] };
+    expect(changedWorldStateFragments(reorderedArray, { ...reorderedArray, rollLog: [{ a: 2 }, { a: 1 }] }).upserts)
+      .toEqual({ rollLog: [{ a: 2 }, { a: 1 }] });
   });
 });

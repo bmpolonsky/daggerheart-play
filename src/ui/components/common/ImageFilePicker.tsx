@@ -1,3 +1,6 @@
+import { useState } from 'preact/hooks';
+import { toastService } from '../../../services/ToastService';
+import { AssetImage } from './AssetImage';
 import { ImagePlus, Music, X } from 'lucide-react';
 import type { CSSProperties, ChangeEvent } from 'react';
 import { publicAssetUrl } from '../../../domain/content/publicAssets';
@@ -40,6 +43,7 @@ export function FilePicker({
   onFileSelect,
   onClear
 }: FilePickerProps) {
+  const [pending, setPending] = useState(false);
   const resolvedPreviewUrl = previewUrl?.trim() ?? '';
   const resolvedValueLabel = valueLabel?.trim() ?? '';
   const hasFile = Boolean(previewContent || resolvedPreviewUrl || resolvedValueLabel);
@@ -49,8 +53,10 @@ export function FilePicker({
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    await onFileSelect(file);
-    input.value = '';
+    setPending(true);
+    try { await onFileSelect(file); }
+    catch (error) { toastService.show(error instanceof Error ? error.message : 'Не удалось загрузить файл.', 'error'); }
+    finally { input.value = ''; setPending(false); }
   };
   const renderedIcon = icon === 'music' ? <Music size={22} /> : <ImagePlus size={22} />;
   const rootClassName = [
@@ -67,17 +73,17 @@ export function FilePicker({
       <div className={`image-file-picker__frame ${styles.frame}`}>
         <label className={`image-file-picker__upload-target ${styles.uploadTarget}`}>
           {previewContent ?? (resolvedPreviewUrl ? (
-            <img src={resolvedPreviewUrl} alt="" style={previewStyle} />
+            <AssetImage src={resolvedPreviewUrl} alt="" style={previewStyle} />
           ) : (
             <span className={hasFile ? `image-file-picker__file ${styles.file}` : `image-file-picker__empty ${styles.empty}`}>
               {renderedIcon}
               {hasFile ? resolvedValueLabel : emptyLabel}
             </span>
           ))}
-          <input type="file" accept={accept} onChange={handleChange} aria-label={label} />
+          <input disabled={pending} aria-busy={pending} type="file" accept={accept} onChange={handleChange} aria-label={label} />
         </label>
         {hasFile && onClear && (
-          <IconButton className={`image-file-picker__clear ${styles.clear}`} variant="danger" size="sm" type="button" onClick={onClear} aria-label={`Убрать ${label.toLowerCase()}`}>
+          <IconButton disabled={pending} className={`image-file-picker__clear ${styles.clear}`} variant="danger" size="sm" type="button" onClick={onClear} aria-label={`Убрать ${label.toLowerCase()}`}>
             <X size={14} aria-hidden="true" />
           </IconButton>
         )}

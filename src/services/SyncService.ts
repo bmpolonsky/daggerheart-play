@@ -1,3 +1,4 @@
+import { isPortraitUploadMessage, type PortraitUploadMessage } from '../domain/p2p/portraitUpload';
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
 import { hasStringFields, isRecord } from '../core/utils/guards';
@@ -159,7 +160,7 @@ export interface PlayerDecisionMessage {
   decision: PlayerDecision;
 }
 
-export type AssetRequestReason = 'scene-background' | 'scene-music';
+export type AssetRequestReason = 'scene-background' | 'scene-music' | 'portrait';
 
 export interface AssetRequestMessage {
   type: 'request';
@@ -177,6 +178,7 @@ export interface AssetUnavailableMessage {
 }
 
 export type AssetMessage =
+  | PortraitUploadMessage
   | AssetRequestMessage
   | AssetUnavailableMessage;
 
@@ -743,6 +745,7 @@ function isFeedEntry(value: unknown): value is FeedEntry {
 
 function isAssetMessage(value: unknown): value is AssetMessage {
   if (!isRecord(value) || typeof value.type !== 'string') return false;
+  if (isPortraitUploadMessage(value)) return true;
   switch (value.type) {
     case 'request':
       return (
@@ -757,5 +760,5 @@ function isAssetMessage(value: unknown): value is AssetMessage {
 }
 
 function isAssetRequestReason(value: unknown): value is AssetRequestReason {
-  return value === 'scene-background' || value === 'scene-music';
+  return value === 'scene-background' || value === 'scene-music' || value === 'portrait';
 }

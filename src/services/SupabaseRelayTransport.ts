@@ -60,6 +60,13 @@ interface WorldStateRow {
   revision: number;
 }
 
+interface StateChange {
+  eventType: string;
+  new: Partial<WorldStateRow>;
+  old: Partial<WorldStateRow>;
+  errors?: string[];
+}
+
 export class SupabaseRelayTransport implements P2PTransportAdapter {
   readonly id = 'supabase-relay';
   readonly label = 'Daggerheart Supabase';
@@ -72,6 +79,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   private worldId = '';
   private cursor = 0;
   private connected = false;
+  private connectionGeneration = 0;
   private channels: RealtimeChannel[] = [];
   private fragments: WorldStateFragments = {};
   private revisions = new Map<string, number>();
@@ -127,6 +135,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   }
 
   async disconnect(): Promise<void> {
+    this.connectionGeneration += 1;
     this.connected = false;
     globalThis.clearInterval(this.heartbeatTimer);
     globalThis.clearTimeout(this.stateDeliveryTimer);
@@ -225,7 +234,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'dh_world_state',
         filter: `owner_id=eq.${this.ownerId}`
-      }, (payload) => this.handleStateChange(payload as unknown as { eventType: string; new: WorldStateRow; old: WorldStateRow }))
+      }, (payload) => this.handleStateChange(payload as StateChange))
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'dh_room_events',
         filter: `room_id=eq.${this.roomId}`
@@ -243,12 +252,23 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     this.channels.push(stateChannel);
   }
 
-  private handleStateChange(payload: { eventType: string; new: WorldStateRow; old: WorldStateRow }): void {
+  private handleStateChange(payload: StateChange): void {
     const row = payload.eventType === 'DELETE' ? payload.old : payload.new;
     if (!row || row.owner_id !== this.ownerId || row.world_id !== this.worldId) return;
+    if (typeof row.key !== 'string') return;
     if (payload.eventType === 'DELETE') {
       delete this.fragments[row.key];
       this.revisions.delete(row.key);
+    } else if (payload.errors?.length || row.value === undefined || typeof row.revision !== 'number') {
+      // Realtime can omit large JSON columns (Error 413). Advancing the revision
+      // with an absent value poisons every subsequent snapshot. HTTP has the full row.
+      const generation = this.connectionGeneration;
+      void this.refreshState().then((refreshed) => {
+        if (refreshed && this.connected && this.context.role === 'player') this.scheduleStateDelivery();
+      }).catch((error) => {
+        if (generation === this.connectionGeneration) this.emitError(error instanceof Error ? error.message : 'Не удалось обновить данные игры.');
+      });
+      return;
     } else if ((this.revisions.get(row.key) ?? 0) < row.revision) {
       this.fragments[row.key] = row.value;
       this.revisions.set(row.key, row.revision);
@@ -264,17 +284,20 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     this.deliver(row.envelope);
   }
 
-  private async refreshState(): Promise<void> {
+  private async refreshState(): Promise<boolean> {
+    const generation = this.connectionGeneration;
     const { data, error } = await this.client.from('dh_world_state')
       .select('key,value,revision')
       .eq('owner_id', this.ownerId)
       .eq('world_id', this.worldId);
+    if (generation !== this.connectionGeneration) return false;
     if (error) {
       const failure = this.relayError(error.message);
       this.report(failure, 'refresh-state');
       throw failure;
     }
     this.mergeState((data ?? []) as StateRow[]);
+    return true;
   }
 
   private async refreshEvents(): Promise<void> {

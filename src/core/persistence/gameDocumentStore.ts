@@ -1,3 +1,4 @@
+import { assetReferenceIds } from '../../domain/game/assetReferences';
 import {
   createGameDocument,
   gameDocumentCustomContent,
@@ -104,12 +105,14 @@ export interface WorldArchiveDocument {
   world: StoredWorld;
 }
 
-export function worldAssetUsageCounts(world: Pick<StoredWorld, 'games'>): Record<string, number> {
+export function worldAssetUsageCounts(world: Pick<StoredWorld, 'games'> & Partial<Pick<StoredWorld, 'shared'>>): Record<string, number> {
   const counts: Record<string, number> = {};
   const add = (assetId: string | undefined) => {
     if (assetId) counts[assetId] = (counts[assetId] ?? 0) + 1;
   };
+  assetReferenceIds(world.shared?.customContent).forEach(add);
   for (const game of Object.values(world.games)) {
+    assetReferenceIds(game.state).forEach(add);
     for (const scene of Object.values(game.state.sceneTable.scenes)) {
       add(scene.backgroundAssetId);
       add(scene.music.assetId);

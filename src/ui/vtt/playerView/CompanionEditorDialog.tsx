@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { p2pSessionService } from '../../../services/serviceRegistry';
 import { useState } from 'preact/hooks';
 import { X } from 'lucide-react';
 import type { CharacterCompanionState, DamageType } from '../../../domain/rules/types';
@@ -9,14 +10,15 @@ import { IconButton } from '../../components/common/IconButton';
 import { ImageFilePicker } from '../../components/common/ImageFilePicker';
 import { SectionHeader } from '../../components/common/SectionHeader';
 import { Toolbar } from '../../components/common/Toolbar';
-import { readFileAsDataUrl } from './sharedTools/readFileAsDataUrl';
 
 export function CompanionEditorDialog({
   companion,
+  actorId,
   onClose,
   onSave
 }: {
   companion: CharacterCompanionState | null;
+  actorId: string;
   onClose: () => void;
   onSave: (input: Partial<CharacterCompanionState>) => void;
 }) {
@@ -49,7 +51,7 @@ export function CompanionEditorDialog({
           imageUrl={imageUrl}
           aspectRatio="1 / 1"
           size="compact"
-          onFileSelect={async (file) => setImageUrl(await readFileAsDataUrl(file))}
+          onFileSelect={async (file) => setImageUrl(await p2pSessionService.savePortraitFile(file, actorId))}
           onClear={() => setImageUrl('')}
         />
         <div className="player-companion-editor__fields">

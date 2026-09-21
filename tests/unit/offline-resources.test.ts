@@ -1,3 +1,4 @@
+import { createCharacter } from '../../src/domain/rules/factories';
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { offlineAssetIds, offlineResourceUrls } from '../../src/domain/offline/offlineResources';
@@ -45,4 +46,15 @@ test('optional artwork includes media from custom compendium entries outside the
   assert.ok(!urls.includes('https://example.test/not-media'));
   assert.ok(!urls.some((url) => url.startsWith('data:')));
   assert.equal(urls.filter((url) => url === imageUrl).length, 1);
+});
+
+
+test('offline preparation includes stored portraits without treating asset references as HTTP URLs', () => {
+  const state = structuredClone(snapshotPersistedState());
+  const hero = createCharacter({ id: 'hero', portraitUrl: 'asset:portrait' });
+  state.characters = { ...state.characters, entities: { hero }, order: ['hero'] };
+  const custom = { ...emptyCustomContent(), adversaries: [{ image_url: 'asset:enemy' }] };
+  assert.ok(offlineAssetIds(state, custom).includes('portrait'));
+  assert.ok(offlineAssetIds(state, custom).includes('enemy'));
+  assert.ok(!offlineResourceUrls(state, undefined, custom).some(url => url.includes('asset:')));
 });

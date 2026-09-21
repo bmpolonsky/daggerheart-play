@@ -1,16 +1,16 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { createSceneTableState } from "../../src/domain/rules/factories";
+import { createCharacter, createSceneTableState } from "../../src/domain/rules/factories";
 import { readZipEntries, writeZip, zipTextEntry } from "../../src/core/archive/zip";
 import { setSceneMusicTrack } from "../../src/domain/audio/sceneAudio";
-import { resetAllStores, sceneTableStore } from "../../src/stores/gameStores";
+import { resetAllStores, sceneTableStore, charactersStore } from "../../src/stores/gameStores";
 import { snapshotPersistedState } from "../../src/stores/persistedState";
 import { gameService, importExportService, sceneTableService } from "../../src/services/serviceRegistry";
 import { AssetService } from "../../src/services/AssetService";
 import { ImportExportService } from "../../src/services/ImportExportService";
 import { PersistenceService } from "../../src/services/PersistenceService";
 import { applyBrowserCustomContent, readBrowserCustomContent } from "../../src/core/persistence/browserProjectContent";
-import { emptyCustomContent } from "../../src/domain/game/gameDocument";
+import { emptyCustomContent, type GameDocument, gameDocumentToPersistedState } from "../../src/domain/game/gameDocument";
 import type { WorldArchiveDocument } from "../../src/core/persistence/gameDocumentStore";
 import { CURRENT_PERSISTED_STATE_VERSION } from "../../src/domain/migrations/persistedState";
 
@@ -120,6 +120,8 @@ test('world bundles contain all games, shared content and binary assets', async 
   };
   await assets.putAssetBlob(asset, new Blob([new Uint8Array([7, 8, 9])], { type: 'image/png' }), { updateSceneTable: false });
   const state = snapshotPersistedState();
+  const character = createCharacter({ id: 'portrait-hero', portraitUrl: `asset:${asset.id}` });
+  state.characters = { ...state.characters, entities: { [character.id]: character }, order: [character.id] };
   const { assets: _assets, ...sceneTable } = state.sceneTable;
   const archive: WorldArchiveDocument = {
     kind: 'daggerheart-play:world-archive',
@@ -130,7 +132,7 @@ test('world bundles contain all games, shared content and binary assets', async 
       name: 'Эстория',
       createdAt: '2026-08-30T00:00:00.000Z',
       updatedAt: '2026-08-30T00:00:00.000Z',
-      shared: { customContent: { ...emptyCustomContent(), ancestries: [{ id: 'custom-ancestry', name: 'Своя родословная' }] }, assets: { [asset.id]: asset } },
+      shared: { customContent: { ...emptyCustomContent(), ancestries: [{ id: 'custom-ancestry', name: 'Своя родословная', image_url: `asset:${asset.id}` }] }, assets: { [asset.id]: asset } },
       activeGameId: 'game-1',
       order: ['game-1', 'game-2'],
       games: {
@@ -163,6 +165,8 @@ test('world bundles contain all games, shared content and binary assets', async 
   assert.notEqual(importedGameIds[0], 'game-1');
   assert.notEqual(importedWorld.games[importedGameIds[0]].state.game.id, state.game.id);
   assert.notEqual(importedAssetId, asset.id);
+  assert.equal(importedWorld.games[importedGameIds[0]].state.characters.entities['portrait-hero'].portraitUrl, `asset:${importedAssetId}`);
+  assert.equal(importedWorld.shared.customContent.ancestries[0]?.image_url, `asset:${importedAssetId}`);
   assert.deepEqual(Array.from(new Uint8Array(await (blobs.get(importedAssetId)?.arrayBuffer() ?? new ArrayBuffer(0)))), [7, 8, 9]);
   assert.equal(importedWorld.shared.customContent.ancestries[0]?.name, 'Своя родословная');
   assert.equal(CURRENT_PERSISTED_STATE_VERSION, state.schemaVersion);
@@ -235,4 +239,34 @@ test('zip archive helper round-trips utf8 paths and binary payloads', async () =
 
   assert.equal(zipTextEntry(entries, 'manifest.json'), '{"ok":true}');
   assert.deepEqual(Array.from(entries.find((entry) => entry.path === 'resources/images/карта.bin')?.bytes ?? []), [1, 2, 3, 4]);
+});
+
+
+test('game copies remap portrait and undo references and preserve legacy data URLs', async () => {
+  resetAllStores();
+  const blobs = new Map<string, Blob>();
+  const assets = new AssetService({ get: async id => blobs.get(id) ?? null, put: async (id, blob) => { blobs.set(id, blob); }, delete: async id => { blobs.delete(id); } });
+  const image = await assets.saveFile(new File(['portrait bytes'], 'hero.webp', { type: 'image/webp' }));
+  const legacy = 'data:image/png;base64,AQID';
+  const hero = createCharacter({ id: 'hero', portraitUrl: `asset:${image.id}`, changeHistory: [{
+    id: 'change', actor: { id: 'gm', name: 'GM', role: 'gm' }, changedAt: '2026-09-20', kind: 'edit', summary: 'Portrait',
+    changes: [{ path: ['portraitUrl'], beforeExists: true, afterExists: true, before: legacy, after: `asset:${image.id}` }]
+  }] });
+  charactersStore.set({ ...charactersStore.get(), entities: { hero }, order: ['hero'] });
+  let imported: GameDocument | undefined;
+  const service = new ImportExportService(assets, {
+    importGameDocument: async document => { imported = document; }, importGameAsWorldDocument: async () => {},
+    exportWorldDocument: async () => null, importWorldDocument: async () => {}
+  });
+  const bundle = await service.exportGameBundle();
+  assert.deepEqual(await service.importFile(bundle, { regenerateGameId: true }), { ok: true });
+  assert.ok(imported);
+  const state = gameDocumentToPersistedState(imported);
+  const id = Object.keys(state.sceneTable.assets)[0];
+  assert.notEqual(id, image.id);
+  assert.equal(state.characters.entities.hero.portraitUrl, `asset:${id}`);
+  assert.equal(state.characters.entities.hero.changeHistory?.[0].changes[0].after, `asset:${id}`);
+  assert.equal(state.characters.entities.hero.changeHistory?.[0].changes[0].before, legacy);
+  assert.equal(await blobs.get(id)?.text(), 'portrait bytes');
+  assert.equal(charactersStore.get().entities.hero.portraitUrl, `asset:${image.id}`);
 });

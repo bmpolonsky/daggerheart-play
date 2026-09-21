@@ -1,5 +1,5 @@
 export function publicAssetUrl(input: string, basePath = configuredBasePath()): string {
-  if (!input || /^(blob:|data:)/i.test(input)) return input;
+  if (!input || /^(blob:|data:|asset:)/i.test(input)) return input;
   const portablePath = portablePublicAssetPath(input, basePath);
   if (/^https?:\/\//i.test(portablePath)) return portablePath;
   const normalizedBase = basePath.replace(/\/+$/, '');

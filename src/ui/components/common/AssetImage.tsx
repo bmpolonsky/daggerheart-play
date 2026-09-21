@@ -1,5 +1,5 @@
 import type { ImgHTMLAttributes } from 'react';
-import { publicAssetUrl } from '../../../domain/content/publicAssets';
+import { useAssetUrl } from './useAssetUrl';
 import styles from './AssetImage.module.css';
 
 export type AssetImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'decoding' | 'loading' | 'src'> & {
@@ -9,13 +9,14 @@ export type AssetImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'decodin
 };
 
 export function AssetImage({ className = '', decoding = 'async', loading = 'lazy', src, ...props }: AssetImageProps) {
+  const url = useAssetUrl(src);
   return (
     <img
       {...props}
       className={`dh-asset-image ${styles.root} ${className}`.trim()}
       decoding={decoding}
       loading={loading}
-      src={publicAssetUrl(src)}
+      src={url || undefined}
     />
   );
 }

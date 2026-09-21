@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import { createPopulatedGameDocument, filledCharacterName, filledCharacterResources, importGameDocument } from './filled-game-helpers';
 import {
@@ -11,6 +12,14 @@ import { backfillAutomaticUsageTrackers } from '../../src/domain/rules/usageTrac
 import { openGameLibrary } from './tools-helpers';
 
 const fixtureName = 'e2e-character-player-workflows.dhgame';
+
+async function portraitFile(width: number) {
+  return {
+    name: 'portrait.png', mimeType: 'image/png',
+    buffer: await sharp({ create: { width, height: 40, channels: 4, background: '#008080' } }).png().toBuffer()
+  };
+}
+
 
 interface JoinedTable {
   relay: IsolatedDeterministicP2PRelay;
@@ -120,6 +129,66 @@ async function openGmCharacterEditor(gm: Page): Promise<Locator> {
 
 test.describe('filled-game player character workflows', () => {
   test.describe.configure({ timeout: 120_000 });
+
+  test('stores new portraits as files and transfers them in both directions', async ({ browser }) => {
+    const { relay, gm, player } = await openJoinedFilledTable(browser, 'art');
+    try {
+      await player.getByLabel('Персонаж игрока').getByRole('button', { name: 'Редактировать' }).click();
+      const editor = player.getByRole('dialog', { name: 'Редактор моего персонажа' });
+      await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Образ' }).click();
+      await editor.getByRole('button', { name: 'Свободное редактирование' }).click();
+      await editor.getByLabel('Портрет', { exact: true }).setInputFiles(await portraitFile(43));
+      const preview = editor.locator('.image-file-picker img');
+      await expect(preview).toHaveAttribute('src', /^blob:/, { timeout: 15_000 });
+      await expect.poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(43);
+      const gmEditor = await openGmCharacterEditor(gm);
+      await gmEditor.getByRole('button', { name: 'Редактировать', exact: true }).click();
+      const gmPreview = gmEditor.locator('.image-file-picker img');
+      await expect(gmPreview).toHaveAttribute('src', /^blob:/, { timeout: 15_000 });
+      await expect.poll(() => gmPreview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(43);
+      await gmEditor.getByLabel('Портрет', { exact: true }).setInputFiles(await portraitFile(61));
+      await expect.poll(() => gmPreview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(61);
+      await expect.poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(61);
+      await gm.reload();
+      await expect(gm.getByRole('dialog', { name: 'Библиотека игры' })).toBeVisible();
+      const reopened = await openGmCharacterEditor(gm);
+      const restored = reopened.locator('.character-editor-hero img');
+      await expect(restored).toHaveAttribute('src', /^blob:/);
+      await expect.poll(() => restored.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(61);
+    } finally { await relay.close(); }
+  });
+
+  test('uploads a portrait while a connected player is still creating their first character', async ({ browser }) => {
+    const relay = await createIsolatedDeterministicP2PRelay(browser, ['e2e-gm-portrait-draft', 'e2e-player-portrait-draft']);
+    const [gm, player] = relay.clients.map(client => client.page);
+    try {
+      const roomId = `ART${Date.now().toString().slice(-5)}`;
+      await openSharedGmGame(gm, roomId);
+      const document = createPopulatedGameDocument();
+      document.files['data/scene-table.json'].participants['e2e-seat-1'].actorIds = [];
+      await importGameDocument(gm, document, 'portrait-draft.dhgame');
+      await openSharedPlayerGame(player, roomId);
+      await player.getByRole('region', { name: 'Выбор игрока' }).getByRole('button', { name: 'Игрок 1 Персонаж не назначен' }).click();
+      await player.getByRole('button', { name: 'Создать персонажа', exact: true }).click();
+      const builder = player.getByRole('dialog', { name: 'Новый герой' });
+      await builder.getByRole('button', { name: 'Случайный герой' }).click();
+      await builder.getByRole('button', { name: 'Личность', exact: true }).click();
+      await builder.getByLabel('Имя', { exact: true }).fill('Портретный герой');
+      await builder.getByLabel('Портрет', { exact: true }).setInputFiles(await portraitFile(47));
+      const preview = builder.locator('.image-file-picker img');
+      await expect(preview).toHaveAttribute('src', /^blob:/, { timeout: 15_000 });
+      await expect.poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(47);
+      await builder.getByRole('button', { name: 'Итог', exact: true }).click();
+      await builder.getByRole('button', { name: 'Создать', exact: true }).click();
+      const sheet = player.getByLabel('Персонаж игрока');
+      await expect(sheet).toContainText('Портретный герой');
+      await expect.poll(() => sheet.locator('.player-character-panel__hero > img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(47);
+      await openGameLibrary(gm);
+      const library = gm.getByRole('dialog', { name: 'Библиотека игры' });
+      await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
+      await expect(library.getByLabel('Ростер персонажей')).toContainText('Портретный герой');
+    } finally { await relay.close(); }
+  });
 
   test('keeps connected off-scene players in the people list and focuses a raised hand from the dock', async ({ browser }) => {
     const { relay, gm, player } = await openJoinedFilledTable(browser, 'hand');

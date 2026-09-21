@@ -50,6 +50,19 @@ export class SupabaseAssetService {
     return data;
   }
 
+  async createUploadTicket(worldId: string, assetId: string): Promise<{ path: string; token: string }> {
+    const path = assetPath(await this.userId(), worldId, assetId);
+    const { data, error } = await this.uploadClient().storage.from(ASSET_BUCKET).createSignedUploadUrl(path);
+    if (error || !data) throw new Error('Не удалось разрешить загрузку портрета.');
+    return { path, token: data.token };
+  }
+
+  async uploadWithTicket(ticket: { path: string; token: string }, blob: Blob): Promise<void> {
+    const { error } = await this.dataClient().storage.from(ASSET_BUCKET)
+      .uploadToSignedUrl(ticket.path, ticket.token, blob, { contentType: blob.type });
+    if (error) throw new Error('Не удалось загрузить портрет на сервер.');
+  }
+
   private async userId(): Promise<string> {
     if (this.readUserId) return this.readUserId();
     const { data, error } = await getSupabaseAuthClient(this.config).auth.getUser();

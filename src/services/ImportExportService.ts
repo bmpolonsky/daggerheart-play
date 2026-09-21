@@ -17,6 +17,7 @@ import type { AssetService } from './AssetService';
 import type { PersistenceService } from './PersistenceService';
 import { isWorldArchiveDocument, type WorldArchiveDocument } from '../core/persistence/gameDocumentStore';
 import { createId } from '../core/utils/id';
+import { remapAssetReferences } from '../domain/game/assetReferences';
 
 export interface GameImportPreview {
   ok: boolean;
@@ -328,10 +329,10 @@ function forkGameForImport(document: GameDocument, suffix: string): { document: 
   };
   return {
     document: createGameDocument({
-      ...state,
+      ...remapAssetReferences(state, ids),
       game,
       sceneTable: remapSceneAssets({ ...state.sceneTable, assets }, ids)
-    }, gameDocumentCustomContent(document)),
+    }, remapAssetReferences(gameDocumentCustomContent(document), ids)),
     sourcePaths
   };
 }
@@ -346,7 +347,7 @@ function forkWorldForImport(document: WorldArchiveDocument): { document: WorldAr
       ...record,
       id,
       state: {
-        ...record.state,
+        ...remapAssetReferences(record.state, ids),
         game: { ...record.state.game, id },
         sceneTable: remapSceneAssets(record.state.sceneTable, ids)
       }
@@ -358,7 +359,7 @@ function forkWorldForImport(document: WorldArchiveDocument): { document: WorldAr
       world: {
         ...document.world,
         id: createId('world'),
-        shared: { ...document.world.shared, assets },
+        shared: { ...document.world.shared, customContent: remapAssetReferences(document.world.shared.customContent, ids), assets },
         activeGameId: document.world.activeGameId ? gameIds[document.world.activeGameId] : null,
         order: document.world.order.map((id) => gameIds[id]),
         games

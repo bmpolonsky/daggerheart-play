@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { createGameDocument, emptyCustomContent, gameDocumentToPersistedState } from "../../src/domain/game/gameDocument";
-import { createEncounterState, createGameState, createSceneTableState, createUiState } from "../../src/domain/rules/factories";
+import { createCharacter, createEncounterState, createGameState, createSceneTableState, createUiState } from "../../src/domain/rules/factories";
 import { BrowserGameDocumentStore, isProjectDocument, isWorldArchiveDocument, isWorldLibraryDocument, prepareWorldLibraryDocument, worldAssetUsageCounts, type ProjectDocument, type ProjectGameState } from "../../src/core/persistence/gameDocumentStore";
 import { prepareProjectDocument } from "../../src/core/persistence/migrations/gameDocumentStore";
 import { migratePersistedState } from "../../src/domain/migrations/persistedState";
@@ -155,7 +155,13 @@ test('world asset usage counts include backgrounds, music and layers across game
   scene.music.assetId = 'music';
   scene.layers = [{ ...scene.layers[0], id: 'overlay', name: 'Overlay', kind: 'overlay', assetId: 'map' } as never];
 
-  assert.deepEqual(worldAssetUsageCounts(world), { map: 2, music: 1 });
+  const hero = createCharacter({ id: 'hero', portraitUrl: 'asset:portrait', changeHistory: [{
+    id: 'change', actor: { id: 'gm', name: 'GM', role: 'gm' }, changedAt: now, kind: 'edit', summary: 'Portrait',
+    changes: [{ path: ['portraitUrl'], beforeExists: true, afterExists: true, before: 'asset:old_portrait', after: 'asset:portrait' }]
+  }] });
+  world.games['game-1'].state.characters = { ...world.games['game-1'].state.characters, entities: { hero }, order: ['hero'] };
+  world.shared.customContent.adversaries = [{ id: 'enemy', image_url: 'asset:enemy_portrait' }];
+  assert.deepEqual(worldAssetUsageCounts(world), { map: 2, music: 1, portrait: 2, old_portrait: 1, enemy_portrait: 1 });
 });
 
 test('world archive validation rejects a world without an active game', () => {

@@ -1,3 +1,4 @@
+import { useAssetUrl } from './useAssetUrl';
 import styles from './Avatar.module.css';
 
 export type AvatarSize = 'sm' | 'md' | 'lg';
@@ -17,11 +18,12 @@ const sizeClass: Record<AvatarSize, string> = {
 };
 
 export function Avatar({ alt = '', fallback, src, size = 'md', className = '' }: AvatarProps) {
-  if (src) {
+  const url = useAssetUrl(src);
+  if (url) {
     return (
       <img
         className={`dh-avatar ${styles.root} ${styles.image} ${sizeClass[size]} ${className}`.trim()}
-        src={src}
+        src={url}
         alt={alt}
         draggable={false}
         onDragStart={(event) => event.preventDefault()}

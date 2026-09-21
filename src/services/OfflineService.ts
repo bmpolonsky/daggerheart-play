@@ -71,8 +71,10 @@ export class OfflineService {
     if (!this.canPrepare || this.store.get().busy) return;
     await this.run(async () => {
       const state = snapshotPersistedState();
+      const includeArtwork = this.store.get().includeArtwork;
+      const customContent = includeArtwork ? await reloadBrowserCustomContent() : undefined;
       let missingLocalFiles = 0;
-      for (const id of offlineAssetIds(state)) {
+      for (const id of offlineAssetIds(state, customContent)) {
         const asset = state.sceneTable.assets[id];
         if (!asset || (asset.storage === 'indexeddb' && !await this.assets.getBlob(asset.id))) {
           missingLocalFiles += 1;
@@ -92,9 +94,7 @@ export class OfflineService {
       if (!currentScripts.length || currentScripts.some((url) => !shellUrls.includes(url))) {
         throw new Error('На сайте появилась новая версия. Перезагрузите страницу; если офлайн включён, сначала отключите его.');
       }
-      const includeArtwork = this.store.get().includeArtwork;
       const artwork = includeArtwork ? await this.readArtworkManifest(true) : null;
-      const customContent = includeArtwork ? await reloadBrowserCustomContent() : undefined;
       if (artwork) this.store.update((value) => ({ ...value, artworkBytes: artwork.bytes }));
       const urls = [...new Set([...shellUrls, ...offlineResourceUrls(state, undefined, customContent), ...(artwork?.files ?? []).map((path) => new URL(path, this.scope).href)])];
       const existingRegistration = await navigator.serviceWorker.getRegistration(this.scope);

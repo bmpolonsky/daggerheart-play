@@ -94,7 +94,7 @@ Allowed exceptions:
 
 ### AssetImage
 
-Use for repeated public content images from the cached content library.
+Use for public content images and stored asset images.
 
 ```tsx
 <AssetImage src={item.imageUrl} alt="" />
@@ -109,8 +109,8 @@ Props:
 Guidance:
 
 - Good: library thumbnails, adversary cards, handout previews, domain card art.
-- Bad: avatar identity images, user-selected file previews, card creator render surfaces, icons.
-- Source URLs are normalized through `publicAssetUrl`, including public `/image/...` paths and WebP conversion.
+- Use `Avatar` for round identity images. Keep card creator render surfaces and icons separate.
+- Source URLs are normalized through `publicAssetUrl`, including public `/image/...` paths and WebP conversion; `asset:<id>` resolves to a local object URL.
 
 ### Badge
 
@@ -813,3 +813,5 @@ Before merging UI work:
 - Text fits at mobile widths.
 - The page has no horizontal overflow.
 - Card creator print/card preview styles remain isolated from editor chrome.
+
+`AssetImage`, `Avatar`, and `ImageFilePicker` resolve `asset:<id>` references through the existing local/cloud asset storage. Use `useAssetUrl` for CSS backgrounds; it releases object URLs when the view changes. File pickers disable selection during an upload and show failures without clearing the previous value.

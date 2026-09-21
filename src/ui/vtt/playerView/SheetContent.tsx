@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { useAssetUrl } from '../../components/common/useAssetUrl';
 import type { JSX } from "preact";
 import { parseDomainCardTextMacros, type DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import { cssImageUrl, initials } from "./helpers";
@@ -28,7 +29,7 @@ export function SheetHero({
   subtitle?: string;
   title: string;
 }) {
-  const safeImageUrl = imageUrl.trim();
+  const safeImageUrl = useAssetUrl(imageUrl.trim());
   const heroStyle = {
     '--player-character-portrait': safeImageUrl ? `url("${cssImageUrl(safeImageUrl)}")` : 'none'
   } as JSX.CSSProperties;

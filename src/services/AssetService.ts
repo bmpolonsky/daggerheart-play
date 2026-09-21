@@ -12,7 +12,7 @@ interface PutAssetBlobOptions {
 export class AssetService {
   constructor(private blobStore: AssetBlobStore | null = createAssetBlobStore()) {}
 
-  async saveFile(file: File): Promise<MapAsset> {
+  async saveFile(file: File, options: PutAssetBlobOptions = {}): Promise<MapAsset> {
     const optimized = await optimizeImageForStorage(file, file.name);
     // Safari/WebKit may reject a File instance when Dexie sends it through
     // IndexedDB's structured clone. Persist a plain Blob for every asset while
@@ -27,10 +27,12 @@ export class AssetService {
       storage: 'indexeddb'
     });
     await this.putBlob(asset.id, storedBlob);
-    sceneTableStore.update((state) => ({
-      ...state,
-      assets: { ...state.assets, [asset.id]: asset }
-    }));
+    if (options.updateSceneTable !== false) {
+      sceneTableStore.update((state) => ({
+        ...state,
+        assets: { ...state.assets, [asset.id]: asset }
+      }));
+    }
     return asset;
   }
 
@@ -229,7 +231,8 @@ export class AssetService {
   }
 
   private async putBlob(id: string, blob: Blob): Promise<void> {
-    await this.blobStore?.put(id, blob);
+    if (!this.blobStore) throw new Error('Хранилище файлов недоступно в этом браузере.');
+    await this.blobStore.put(id, blob);
   }
 
   private async deleteBlob(id: string): Promise<void> {

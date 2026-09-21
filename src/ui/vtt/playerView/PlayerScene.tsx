@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { AssetImage } from '../../components/common/AssetImage';
 import type { JSX } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { PlayerViewModel, PlayerViewToken } from '../../../domain/tabletop/playerView';
@@ -183,7 +184,7 @@ export function PlayerScene({
                 )
               } as JSX.CSSProperties}
             >
-              {token.imageUrl ? <img src={cssImageUrl(token.imageUrl)} alt="" draggable={false} onDragStart={(event) => event.preventDefault()} /> : <span>{initials(token.name)}</span>}
+              {token.imageUrl ? <AssetImage src={token.imageUrl} alt="" draggable={false} onDragStart={(event) => event.preventDefault()} /> : <span>{initials(token.name)}</span>}
               <footer className={token.subtitle ? '' : 'player-token__label--compact'}>
                 <strong>{token.name}</strong>
                 {hasDefeatedStatus ? <small>{defeatedLabel}</small> : token.subtitle && <small>{token.subtitle}</small>}
