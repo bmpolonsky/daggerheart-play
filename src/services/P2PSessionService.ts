@@ -873,13 +873,42 @@ export class P2PSessionService {
     return this.portraitUploadService.save(file, actor ?? undefined);
   }
 
-  async resolveAssetUrl(reference: string): Promise<string | null> {
+  async resolveAssetUrl(reference: string, signal?: AbortSignal): Promise<string | null> {
     const id = assetIdFromReference(reference);
     if (!id) return publicAssetUrl(reference);
-    const local = await this.assetService.getObjectUrl(id);
-    if (local) return local;
-    if (!await this.requestAsset(id, 'portrait')) return null;
-    return this.assetService.getObjectUrl(id);
+    const connection = this.activeRoomConnection;
+    const worldId = gameStore.get().id;
+    const isCurrent = () => !signal?.aborted && connection === this.activeRoomConnection && worldId === gameStore.get().id;
+    let retryDelay = 1_000;
+    while (isCurrent()) {
+      let url = await this.assetService.getObjectUrl(id);
+      if (!url && isCurrent()) {
+        const downloaded = await this.requestAsset(id, 'portrait').catch(() => false);
+        if (downloaded && isCurrent()) url = await this.assetService.getObjectUrl(id);
+      }
+      if (!isCurrent()) {
+        if (url) URL.revokeObjectURL(url);
+        return null;
+      }
+      if (url) return url;
+      const session = this.sessionStore.get();
+      if (!signal || signal.aborted || !session.connected || session.role !== 'player'
+        || session.transportMode !== 'hybrid' || !this.supabaseAssetService
+        || !this.sceneTableService.sceneTable$.get().assets[id]) return null;
+      // Snapshots can arrive before the GM's background upload. Retry only while
+      // the view is mounted, backing off to one attempt every 30 seconds.
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          window.clearTimeout(timer);
+          signal.removeEventListener('abort', finish);
+          resolve();
+        };
+        const timer = window.setTimeout(finish, retryDelay);
+        signal.addEventListener('abort', finish, { once: true });
+      });
+      retryDelay = Math.min(retryDelay * 2, 30_000);
+    }
+    return null;
   }
 
   async requestAsset(assetId: string, reason: AssetRequestReason = 'scene-background'): Promise<boolean> {

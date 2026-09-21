@@ -13,15 +13,17 @@ export function useAssetUrl(source = ''): string {
   const [resolved, setResolved] = useState({ source: '', url: '' });
   useEffect(() => {
     if (!id) return;
+    const controller = new AbortController();
     let cancelled = false;
     let objectUrl: string | null = null;
-    void p2pSessionService.resolveAssetUrl(source).then((url) => {
+    void p2pSessionService.resolveAssetUrl(source, controller.signal).then((url) => {
       if (cancelled) { if (url) URL.revokeObjectURL(url); return; }
       objectUrl = url;
       setResolved({ source, url: url ?? '' });
     }).catch(() => { if (!cancelled) setResolved({ source, url: '' }); });
     return () => {
       cancelled = true;
+      controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [source, id, available, session.connected, session.roomId]);
