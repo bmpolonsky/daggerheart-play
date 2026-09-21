@@ -236,6 +236,7 @@ export class PersistenceService {
   }
 
   async getWorldAssetUsageCounts(): Promise<Record<string, number>> {
+    await this.flushPersistNow();
     const worlds = await this.listStoredWorlds();
     const active = worlds.find((world) => world.active);
     if (!active) return {};

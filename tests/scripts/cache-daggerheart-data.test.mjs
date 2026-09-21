@@ -61,7 +61,12 @@ test('content caching tolerates only missing inferred assets and preserves cache
         child.stderr.on('data', (chunk) => { output += chunk; });
         const [code] = await once(child, 'close');
         assert.equal(code, scenario.success ? 0 : 1, output);
-        assert.ok(requests.has(missing), output);
+        if (scenario.status === 500) {
+          // Parallel downloads may fail before the emblem request starts.
+          assert.match(output, /Failed to download .* \(500\)/);
+        } else {
+          assert.ok(requests.has(missing), output);
+        }
         if (scenario.cached) {
           assert.equal(await readFile(cachedPath, 'utf8'), '<svg>cached</svg>');
           assert.match(output, /Using cached asset/);

@@ -523,3 +523,20 @@ test('own world-store notifications preserve custom edits made while a save is i
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }
 });
+
+test('asset usage flushes the first world save before listing worlds', async () => {
+  resetAllStores();
+  applyBrowserCustomContent(emptyCustomContent());
+  const originalWindow = globalThis.window;
+  Object.defineProperty(globalThis, 'window', { value: createFakeWindow(), configurable: true });
+  const service = new PersistenceService(new MemoryGameDocumentStore());
+  try {
+    service.start();
+    await service.whenReady();
+    sceneTableService.updateScene(sceneTableStore.get().activeSceneId, { backgroundAssetId: 'map' });
+    assert.deepEqual(await service.getWorldAssetUsageCounts(), { map: 1 });
+  } finally {
+    service.stop();
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});
