@@ -1,3 +1,4 @@
+import { BrowserGameDocumentStore } from '../../src/core/persistence/gameDocumentStore';
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { createSceneTableState } from "../../src/domain/rules/factories";
@@ -473,6 +474,51 @@ test('persistence hydration switches the custom content mirror to the stored wor
     assert.deepEqual(readBrowserCustomContent(), emptyCustomContent());
   } finally {
     service?.stop();
+    applyBrowserCustomContent(emptyCustomContent());
+    Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
+  }
+});
+
+
+test('own world-store notifications preserve custom edits made while a save is in flight', async () => {
+  resetAllStores();
+  const originalWindow = globalThis.window;
+  let stored: unknown = null;
+  let notify: ((value: unknown) => void) | undefined;
+  let editBeforeNotification: (() => void) | undefined;
+  const documentStore = new BrowserGameDocumentStore({
+    get: async <T>() => stored as T | null,
+    put: async (_key, value) => {
+      stored = value;
+      const edit = editBeforeNotification;
+      editBeforeNotification = undefined;
+      edit?.();
+      notify?.(value);
+    },
+    delete: async () => { stored = null; },
+    subscribe: (_key, listener) => {
+      notify = listener as (value: unknown) => void;
+      return () => { notify = undefined; };
+    }
+  }, undefined);
+  Object.defineProperty(globalThis, 'window', { value: createFakeWindow(), configurable: true });
+  const service = new PersistenceService(documentStore);
+  try {
+    applyBrowserCustomContent({ ...emptyCustomContent(), adversaries: [{ id: 'test', name: 'Before' }] });
+    service.start();
+    await service.whenReady();
+    editBeforeNotification = () => applyBrowserCustomContent({
+      ...emptyCustomContent(), adversaries: [{ id: 'test', name: 'After' }]
+    });
+    service.persistNow();
+    await service.exportWorldDocument();
+    assert.equal(readBrowserCustomContent().adversaries[0]?.name, 'After');
+    // The next save must also pass the stored-document conflict check.
+    service.persistNow();
+    await service.exportWorldDocument();
+    assert.equal((await documentStore.load())?.files['content/custom-adversaries.json'][0]?.name, 'After');
+  } finally {
+    service.stop();
     applyBrowserCustomContent(emptyCustomContent());
     Object.defineProperty(globalThis, 'window', { value: originalWindow, configurable: true });
   }

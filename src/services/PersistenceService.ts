@@ -568,7 +568,13 @@ async function withPersistenceLock(work: () => Promise<void>): Promise<void> {
 
 function stableJsonSignature(value: unknown): string {
   try {
-    return JSON.stringify(value) ?? 'undefined';
+    // The world store reconstructs objects with a different key order.
+    // Its own save notification must not overwrite newer in-memory edits.
+    return JSON.stringify(value, (_key, item) => (
+      item && typeof item === 'object' && !Array.isArray(item)
+        ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, item[key]]))
+        : item
+    )) ?? 'undefined';
   } catch {
     return String(value);
   }
