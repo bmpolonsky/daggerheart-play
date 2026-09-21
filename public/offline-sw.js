@@ -1,6 +1,7 @@
 /* Normal browsing: fresh HTML, cached static resources, no API traffic.
    Explicit offline preparation pins one complete application version. */
-const prefix = `daggerheart-offline:${self.registration.scope}:`;
+const mediaOnly = new URL(self.location.href).searchParams.get('media-only') === '1';
+const prefix = `daggerheart-offline:${self.registration.scope}:${mediaOnly ? 'media:' : ''}`;
 const stateCache = `${prefix}state`;
 const stateUrl = new URL('offline-state', self.registration.scope).href;
 const runtimeCache = `${prefix}runtime-v1`;
@@ -49,13 +50,16 @@ async function prepare({ urls, requiredUrls = urls, html, includeArtwork, missin
       port.postMessage({ completed: index + 1, total: urls.length });
       let response;
       try {
-        response = url === new URL('index.html', self.registration.scope).href
+        response = !mediaOnly && url === new URL('index.html', self.registration.scope).href
         ? new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
         : await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(60_000) }).catch(() => {
           throw new Error(`Не удалось скачать файл: ${new URL(url).pathname}. Проверьте доступ к нему и повторите подготовку.`);
         });
         if (!response.ok || response.status === 206 || (url !== new URL('index.html', self.registration.scope).href && response.headers.get('content-type')?.includes('text/html'))) {
           throw new Error(`Не удалось сохранить файл: ${new URL(url).pathname}`);
+        }
+        if (mediaOnly && !/^(?:(?:image|audio|video|font)\/|application\/(?:font-|vnd\.ms-fontobject|x-font-))/i.test(response.headers.get('content-type') ?? '')) {
+          throw new Error(`Ожидался медиафайл: ${new URL(url).pathname}`);
         }
       } catch (error) {
         if (required.has(url)) throw error;
@@ -91,7 +95,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   event.respondWith(readPrepared(event.request)
-    .then((response) => response || readRuntime(event))
+    .then((response) => response || (mediaOnly ? fetch(event.request) : readRuntime(event)))
     .catch(() => fetch(event.request))); // Unavailable storage must not break online browsing.
 });
 

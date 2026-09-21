@@ -7,6 +7,7 @@ import { P2PHealthIndicator } from '../../p2p/P2PHealthIndicator';
 import { ActionMenu, ConfirmDialog, IconButton } from '../../components/common';
 import { playerViewUi$, playerViewUiActions } from './playerViewUiState';
 import type { SharedToolsTab, TableViewRole } from './types';
+import { OfflineCopyIndicator } from './playerChrome/OfflineCopyIndicator';
 
 export function PlayerRailHeaderActions({ role, onOpenTool }: { role: TableViewRole; onOpenTool?: (tab: SharedToolsTab) => void }) {
   const [clearChronicleOpen, setClearChronicleOpen] = useState(false);
@@ -18,6 +19,7 @@ export function PlayerRailHeaderActions({ role, onOpenTool }: { role: TableViewR
     <>
       <div className="player-chronicle-header__actions">
         <P2PHealthIndicator placement="chronicle" role={role} roomControls />
+        <OfflineCopyIndicator />
         {role === 'gm' && (
           <ActionMenu
             ariaLabel="Ещё"

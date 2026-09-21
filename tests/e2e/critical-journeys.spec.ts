@@ -490,13 +490,16 @@ test.describe('critical persisted journeys', () => {
       mimeType: 'image/png',
       buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
     });
-    await expect(workspace.getByText('карта-мира.webp', { exact: true })).toBeVisible();
+    // WebKit can retain the original PNG when its canvas cannot encode WebP.
+    const uploadedImage = workspace.getByRole('heading', { name: /^карта-мира\.(?:png|webp)$/ });
+    await expect(uploadedImage).toBeVisible();
+    const imageName = (await uploadedImage.textContent())!.trim();
 
     await selectWorkspaceTab(workspace, 'Сцены');
-    await workspace.getByLabel('Из хранилища').first().selectOption({ label: 'карта-мира.webp' });
+    await workspace.getByLabel('Из хранилища').first().selectOption({ label: imageName });
     await selectSettingsSection(workspace, 'Файлы');
     await expect(workspace.getByText('1 использование')).toBeVisible();
-    await expect(workspace.getByRole('button', { name: 'Удалить карта-мира.webp' })).toBeDisabled();
+    await expect(workspace.getByRole('button', { name: `Удалить ${imageName}` })).toBeDisabled();
   });
 
   test('switches between independent project games without mixing their data', async ({ page }) => {

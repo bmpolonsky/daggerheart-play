@@ -1,0 +1,12 @@
+.dialog {
+  width: min(100%, 36rem);
+  place-self: center;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.explanation {
+  margin: 0;
+  color: var(--dh-paper-muted);
+  line-height: 1.5;
+}

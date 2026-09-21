@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
 import { createPopulatedGameDocument, importGameDocument } from './filled-game-helpers';
+import { installDeterministicP2PTransport } from './game-route-helpers';
 
 test.setTimeout(120_000);
 
@@ -61,11 +62,12 @@ test.afterAll(async () => {
   await new Promise<void>((resolve) => mediaServer.close(() => resolve()));
 });
 
-test('default cache stays fresh; explicit preparation launches offline and disable restores updates', async ({ page, context }) => {
+test('default cache stays fresh; explicit preparation launches offline and disable restores updates', async ({ page, context }, testInfo) => {
   await page.goto(`${origin}/`);
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await expect(page.getByRole('button', { name: 'Подготовить офлайн', exact: true })).toHaveCount(0);
   await page.goto(`${origin}/#/library/settings/game`);
+  await expect(page.getByRole('button', { name: 'Офлайн-копия', exact: true })).toHaveCount(0);
   await expect(page.getByRole('checkbox', { name: /Все иллюстрации справочника/ })).not.toBeChecked();
   await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён', { timeout: 60_000 });
@@ -83,17 +85,48 @@ test('default cache stays fresh; explicit preparation launches offline and disab
   await expect(offlinePage.locator('[data-vtt-root]')).toBeVisible();
   await offlinePage.reload();
   await expect(offlinePage.locator('[data-vtt-root]')).toBeVisible();
+  // The saved copy must be visible on startup, before ever opening settings.
+  const indicator = offlinePage.getByRole('button', { name: 'Офлайн-копия', exact: true });
+  await expect(indicator).toBeVisible();
+  await expect(offlinePage.locator('.player-chronicle-header__actions').getByRole('button', { name: 'Офлайн-копия', exact: true })).toBeVisible();
+  await offlinePage.screenshot({ path: testInfo.outputPath('offline-indicator-desktop.png') });
+  await offlinePage.setViewportSize({ width: 390, height: 844 });
+  await offlinePage.getByLabel('Слой интерфейса').getByRole('button', { name: /^Чат/ }).click();
+  await expect(indicator).toBeVisible();
+  await offlinePage.screenshot({ path: testInfo.outputPath('offline-indicator-mobile.png') });
+  const playerPage = await context.newPage();
+  await playerPage.setViewportSize({ width: 320, height: 740 });
+  await installDeterministicP2PTransport(playerPage);
+  await playerPage.addInitScript(() => {
+    const state = JSON.parse(localStorage.getItem('daggerheart-play') || '{"version":1}');
+    state.p2p = { ...state.p2p, activeSession: { version: 1, role: 'player', roomId: 'OFFLINE-INDICATOR', participantName: 'Игрок', updatedAt: new Date().toISOString() } };
+    localStorage.setItem('daggerheart-play', JSON.stringify(state));
+  });
+  await playerPage.goto(`${origin}/#/game`);
+  await expect(playerPage.locator('[data-vtt-root]')).toHaveClass(/player-view--player/);
+  await playerPage.getByLabel('Слой интерфейса').getByRole('button', { name: /^Чат/ }).click();
+  await playerPage.getByRole('button', { name: 'Офлайн-копия', exact: true }).click();
+  const playerDialog = playerPage.getByRole('dialog', { name: 'Офлайн-копия', exact: true });
+  await expect(playerDialog.getByRole('button', { name: 'Отключить офлайн', exact: true })).toBeVisible();
+  await playerPage.screenshot({ path: testInfo.outputPath('offline-dialog-player-320.png') });
+  await playerPage.close();
   // Unknown assets must not receive the cached HTML fallback.
   expect(await offlinePage.evaluate((url) => fetch(url).then(() => true, () => false), `${origin}/missing.json`)).toBe(false);
-  await offlinePage.goto(`${origin}/#/library/settings/game`);
   online = true;
-  await offlinePage.getByRole('button', { name: 'Отключить офлайн', exact: true }).click();
-  await expect(offlinePage.getByRole('status')).toContainText('Офлайн отключён');
+  await indicator.click();
+  const dialog = offlinePage.getByRole('dialog', { name: 'Офлайн-копия', exact: true });
+  await expect(dialog).toContainText('даже когда есть интернет');
+  await expect(dialog.getByRole('button', { name: 'Перезагрузить страницу', exact: true })).toHaveCount(0);
+  await offlinePage.screenshot({ path: testInfo.outputPath('offline-dialog-mobile.png') });
+  await dialog.getByRole('button', { name: 'Отключить офлайн', exact: true }).click();
+  await expect(dialog.getByRole('status')).toContainText('Офлайн отключён');
+  await expect(indicator).toHaveCount(0);
   expect((await offlinePage.evaluate(() => caches.keys())).every((name) => name.endsWith(':runtime-v1'))).toBe(true);
   title = 'Fresh online version';
-  await offlinePage.goto(`${origin}/`);
+  await dialog.getByRole('button', { name: 'Перезагрузить страницу', exact: true }).click();
   await expect(offlinePage).toHaveTitle('Fresh online version');
-  await expect(offlinePage.getByRole('button', { name: 'Открыть игру', exact: true })).toBeVisible();
+  await expect(offlinePage.locator('[data-vtt-root]')).toBeVisible();
+  await expect(indicator).toHaveCount(0);
 });
 
 test('selected media survives offline; a failed refresh preserves the complete previous cache', async ({ page }) => {

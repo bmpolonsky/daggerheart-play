@@ -9,15 +9,13 @@ import styles from './OfflineSettings.module.css';
 export function OfflineSettings() {
   const state = useStream(offlineService.state$);
   useEffect(() => {
-    const refresh = () => void offlineService.refresh();
-    refresh();
-    window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
+    void offlineService.refresh();
   }, []);
   if (!offlineService.supported) return null;
   return (
     <section className={styles.root} aria-label="Офлайн">
       <SectionHeader title="Офлайн" subtitle="Сохранить приложение и материалы текущей игры для игры без интернета на этом устройстве." />
+      {offlineService.mediaOnly && <Notice>Локально сохраняются изображения, звуки и шрифты. Код приложения всегда загружается с dev-сервера.</Notice>}
       <Checkbox
         size="sm"
         boxPosition="start"
@@ -37,7 +35,7 @@ export function OfflineSettings() {
       </Toolbar>
       {state.message && <Notice role="status">{state.message}</Notice>}
       {state.skippedMedia > 0 && <Notice tone="warning">Не сохранено файлов: {state.skippedMedia}. Они будут недоступны без интернета.</Notice>}
-      {state.enabled && <Notice>Для обновления приложения отключите офлайн и перезагрузите страницу. После добавления материалов повторите подготовку.</Notice>}
+      {state.enabled && !offlineService.mediaOnly && <Notice>Для обновления приложения отключите офлайн и перезагрузите страницу. После добавления материалов повторите подготовку.</Notice>}
       {state.error && <Notice tone="error" role="alert">{state.error}</Notice>}
     </section>
   );
