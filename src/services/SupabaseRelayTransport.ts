@@ -23,6 +23,7 @@ import { isP2PWireEnvelope } from './p2p/P2PTransportAdapter';
 import { RelayTransportError } from './p2p/RelayTransportError';
 import { ensureSupabaseGuestSignedIn, getSupabaseAuthClient, getSupabaseClient, setSupabaseDataRole } from './supabaseClient';
 import { reportOperationalError } from '../core/observability/sentry';
+import { RelayEnvelopeAssembler, splitRelayEnvelope } from './p2p/supabaseRelayChunks';
 
 const HEARTBEAT_MS = 15_000;
 const STATE_DELIVERY_DEBOUNCE_MS = 30;
@@ -78,6 +79,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   private ownerId = '';
   private worldId = '';
   private cursor = 0;
+  private seenEventSequences = new Set<number>();
   private connected = false;
   private connectionGeneration = 0;
   private channels: RealtimeChannel[] = [];
@@ -88,6 +90,8 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   private stateDeliveryTimer: number | undefined;
   private pendingSnapshot: unknown = null;
   private snapshotSave: Promise<void> | null = null;
+  private readonly eventAssembler = new RelayEnvelopeAssembler();
+  private chunkSendQueue: Promise<void> = Promise.resolve();
   private listeners = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
   private peerJoinListeners = new Set<(peerId: string) => void>();
   private peerLeaveListeners = new Set<(peerId: string) => void>();
@@ -137,6 +141,8 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   async disconnect(): Promise<void> {
     this.connectionGeneration += 1;
     this.connected = false;
+    this.pendingSnapshot = null;
+    this.snapshotSave = null;
     globalThis.clearInterval(this.heartbeatTimer);
     globalThis.clearTimeout(this.stateDeliveryTimer);
     this.heartbeatTimer = undefined;
@@ -156,8 +162,11 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     this.ownerId = '';
     this.worldId = '';
     this.cursor = 0;
+    this.seenEventSequences.clear();
     this.fragments = {};
     this.revisions.clear();
+    this.eventAssembler.clear();
+    this.chunkSendQueue = Promise.resolve();
     this.updateRoster([]);
   }
 
@@ -168,12 +177,25 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
       await this.queueSnapshot(snapshot);
       return;
     }
-    await this.rpc<number>('dh_submit_room_event', {
-      p_room_id: this.roomId,
-      p_incarnation: this.incarnation,
-      p_envelope: envelope,
-      p_target_peer_id: targetPeer ?? null
-    });
+    const generation = this.connectionGeneration;
+    const parts = splitRelayEnvelope(envelope);
+    const send = async () => {
+      for (const part of parts) {
+        if (generation !== this.connectionGeneration) throw new Error('Соединение изменилось во время отправки.');
+        await this.rpc<number>('dh_submit_room_event', {
+          p_room_id: this.roomId,
+          p_incarnation: this.incarnation,
+          p_envelope: part,
+          p_target_peer_id: targetPeer ?? null
+        });
+      }
+    };
+    if (parts.length === 1) return send();
+    // Rapid edits must not interleave many unfinished large documents. Small
+    // events (especially heartbeats and ACKs) can still pass immediately.
+    const queued = this.chunkSendQueue.then(send, send);
+    this.chunkSendQueue = queued.catch(() => undefined);
+    await queued;
   }
 
   subscribe(listener: (envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void): () => void {
@@ -230,6 +252,8 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   }
 
   private async subscribeRealtime(): Promise<void> {
+    const generation = this.connectionGeneration;
+    let subscribed = false;
     const stateChannel = this.client.channel(`dh-state:${this.roomId}:${this.incarnation}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'dh_world_state',
@@ -243,13 +267,27 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
         event: '*', schema: 'public', table: 'dh_room_members',
         filter: `room_id=eq.${this.roomId}`
       }, () => void this.refreshRoster());
+    this.channels.push(stateChannel);
     try {
-      await subscribeChannel(stateChannel);
+      await subscribeChannel(stateChannel, (status) => {
+        if (generation !== this.connectionGeneration) return;
+        if (status === 'SUBSCRIBED') {
+          if (subscribed && this.connected) {
+            void Promise.all([this.refreshState(), this.refreshEvents(), this.refreshRoster()]).then(() => {
+              if (generation === this.connectionGeneration && this.connected && this.context.role === 'player') this.scheduleStateDelivery();
+            }).catch((error) => {
+              if (generation === this.connectionGeneration) this.emitError(error instanceof Error ? error.message : 'Не удалось восстановить данные игры.');
+            });
+          }
+          subscribed = true;
+        } else if (subscribed && (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED')) {
+          this.emitError('Облачное соединение прервано. Ожидаем восстановления.');
+        }
+      });
     } catch (error) {
       this.report(error, 'subscribe-realtime');
       throw error;
     }
-    this.channels.push(stateChannel);
   }
 
   private handleStateChange(payload: StateChange): void {
@@ -277,11 +315,18 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   }
 
   private handleEventRow(row: RoomEventRow): void {
-    if (!row || row.incarnation !== this.incarnation || row.sequence <= this.cursor) return;
-    this.cursor = row.sequence;
+    if (!row || row.incarnation !== this.incarnation || row.sequence <= this.cursor || this.seenEventSequences.has(row.sequence)) return;
+    // Live delivery must not move the catch-up cursor past missed earlier rows.
+    this.seenEventSequences.add(row.sequence);
     if (row.target_peer_id && row.target_peer_id !== this.peerId) return;
     if (row.author_peer_id === this.peerId || !isP2PWireEnvelope(row.envelope)) return;
-    this.deliver(row.envelope);
+    try {
+      const envelope = this.eventAssembler.accept(row.envelope);
+      if (envelope) this.deliver(envelope);
+    } catch (error) {
+      this.report(error, 'assemble-event');
+      this.emitError(error instanceof Error ? error.message : 'Не удалось собрать сообщение игры.');
+    }
   }
 
   private async refreshState(): Promise<boolean> {
@@ -301,25 +346,33 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   }
 
   private async refreshEvents(): Promise<void> {
+    const generation = this.connectionGeneration;
     const { data, error } = await this.client.from('dh_room_events')
       .select('sequence,room_id,incarnation,author_peer_id,target_peer_id,envelope')
       .eq('room_id', this.roomId)
       .eq('incarnation', this.incarnation)
       .gt('sequence', this.cursor)
       .order('sequence');
+    if (generation !== this.connectionGeneration) return;
     if (error) {
       const failure = this.relayError(error.message);
       this.report(failure, 'refresh-events');
       throw failure;
     }
-    (data as unknown as RoomEventRow[] | null)?.forEach((row) => this.handleEventRow(row));
+    (data as unknown as RoomEventRow[] | null)?.forEach((row) => {
+      this.handleEventRow(row);
+      this.cursor = Math.max(this.cursor, row.sequence);
+    });
+    for (const sequence of this.seenEventSequences) if (sequence <= this.cursor) this.seenEventSequences.delete(sequence);
   }
 
   private async refreshRoster(): Promise<void> {
+    const generation = this.connectionGeneration;
     const { data, error } = await this.client.from('dh_room_members')
       .select('peer_id,display_name,role,last_seen_at')
       .eq('room_id', this.roomId)
       .eq('incarnation', this.incarnation);
+    if (generation !== this.connectionGeneration) return;
     if (error) {
       this.report(error, 'refresh-roster');
       this.emitError(error.message);
@@ -349,15 +402,16 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   private queueSnapshot(state: unknown): Promise<void> {
     this.pendingSnapshot = state;
     if (!this.snapshotSave) {
-      this.snapshotSave = this.drainSnapshots().finally(() => {
-        this.snapshotSave = null;
+      const save = this.drainSnapshots(this.connectionGeneration).finally(() => {
+        if (this.snapshotSave === save) this.snapshotSave = null;
       });
+      this.snapshotSave = save;
     }
     return this.snapshotSave;
   }
 
-  private async drainSnapshots(): Promise<void> {
-    while (this.pendingSnapshot) {
+  private async drainSnapshots(generation: number): Promise<void> {
+    while (this.pendingSnapshot && generation === this.connectionGeneration) {
       const state = this.pendingSnapshot;
       this.pendingSnapshot = null;
       await this.saveSnapshot(state);
@@ -365,6 +419,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   }
 
   private async saveSnapshot(state: unknown): Promise<void> {
+    const generation = this.connectionGeneration;
     if (!isPersistedState(state)) return;
     const next = encodeWorldState(
       state as PersistedState,
@@ -378,7 +433,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
       p_fragments: diff.upserts,
       p_deletes: diff.deletes
     });
-    this.replaceState(rows);
+    if (generation === this.connectionGeneration) this.replaceState(rows);
   }
 
   private scheduleStateDelivery(): void {
@@ -432,6 +487,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   }
 
   private startHeartbeat(): void {
+    const generation = this.connectionGeneration;
     globalThis.clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = globalThis.setInterval(() => {
       void this.rpc('dh_heartbeat', {
@@ -439,8 +495,9 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
         p_incarnation: this.incarnation,
         p_peer_id: this.peerId
       })
-        .then(() => this.refreshRoster())
+        .then(() => generation === this.connectionGeneration ? Promise.all([this.refreshRoster(), this.refreshEvents()]) : undefined)
         .catch((error) => {
+          if (generation !== this.connectionGeneration) return;
           this.report(error, 'heartbeat');
           this.emitError(error instanceof Error ? error.message : 'Supabase heartbeat failed');
         });
@@ -491,9 +548,10 @@ function snapshotValue(envelope: P2PWireEnvelope): unknown | null {
   return envelope.channel === 'data' && payload?.kind === 'snapshot' ? payload.value : null;
 }
 
-async function subscribeChannel(channel: RealtimeChannel): Promise<void> {
+async function subscribeChannel(channel: RealtimeChannel, onStatus: (status: string) => void): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     channel.subscribe((status, error) => {
+      onStatus(status);
       if (status === 'SUBSCRIBED') resolve();
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') reject(error ?? new Error(`Realtime ${status}`));
     });

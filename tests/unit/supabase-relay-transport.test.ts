@@ -15,6 +15,149 @@ vi.mock('../../src/services/supabaseClient', () => ({
 }));
 
 describe('SupabaseRelayTransport', () => {
+  it('does not lose older catch-up events when a newer live event arrives during the HTTP read', async () => {
+    let finish!: (response: unknown) => void;
+    const response = new Promise(resolve => { finish = resolve; });
+    const query = { select() { return this; }, eq() { return this; }, gt() { return this; }, order() { return this; }, then: response.then.bind(response) };
+    const transport = createTransport({ from: () => query });
+    const received: string[] = [];
+    transport.subscribe(message => received.push(message.id));
+    const relay = transport as unknown as { incarnation: string; refreshEvents(): Promise<void>; handleEventRow(row: unknown): void };
+    relay.incarnation = 'current-room';
+    const refresh = relay.refreshEvents();
+    const older = eventRow(1, envelope('gm-peer', 'missed'));
+    const newer = eventRow(2, envelope('gm-peer', 'live'));
+    relay.handleEventRow(newer);
+    finish({ data: [older, newer], error: null });
+    await refresh;
+    assert.deepEqual(received, ['live', 'missed']);
+    relay.handleEventRow(newer);
+    assert.equal(received.length, 2);
+  });
+
+  it('ignores roster responses from a disconnected room', async () => {
+    let finish!: (response: unknown) => void;
+    const response = new Promise(resolve => { finish = resolve; });
+    const query = { select() { return this; }, eq() { return this; }, then: response.then.bind(response) };
+    const transport = createTransport({ from: () => query });
+    const refresh = (transport as unknown as { refreshRoster(): Promise<void> }).refreshRoster();
+    await transport.disconnect();
+    finish({ data: [{ peer_id: 'old-gm', display_name: 'Old GM', role: 'gm', last_seen_at: new Date().toISOString() }], error: null });
+    await refresh;
+    assert.deepEqual(transport.getRoster(), []);
+  });
+  it('audit: queued snapshots cannot overwrite a replacement room after disconnect', async () => {
+    let release!: () => void;
+    const writes: string[] = [];
+    const firstState = structuredClone(snapshotPersistedState());
+    firstState.game.name = 'Old room';
+    const secondState = { ...firstState, game: { ...firstState.game, name: 'Old room queued' } };
+    const transport = createTransport({ rpc: async (name: string, args: { p_room_id: string }) => {
+      if (name !== 'dh_save_world_fragments') return { data: null, error: null };
+      writes.push(args.p_room_id);
+      if (writes.length === 1) await new Promise<void>(resolve => { release = resolve; });
+      return { data: Object.entries(encodeWorldState(firstState)).map(([key, value]) => ({ key, value, revision: 1 })), error: null };
+    } });
+    const relay = transport as unknown as { queueSnapshot(state: unknown): Promise<void>; fragments: Record<string, unknown> };
+    Object.assign(relay, { roomId: 'OLD', incarnation: 'old-room' });
+    const first = relay.queueSnapshot(firstState);
+    const second = relay.queueSnapshot(secondState);
+    await transport.disconnect();
+    Object.assign(relay, { roomId: 'NEW', incarnation: 'new-room' });
+    release();
+    await Promise.all([first, second]);
+    assert.deepEqual(writes, ['OLD']);
+    assert.deepEqual(relay.fragments, {});
+  });
+
+  it('audit: a restored Realtime subscription catches up state and events missed offline', async () => {
+    let status!: (value: string) => void;
+    const reads: string[] = [];
+    const channel = { on() { return this; }, subscribe(callback: (value: string) => void) { status = callback; callback('SUBSCRIBED'); } };
+    const transport = createTransport({
+      channel: () => channel, removeChannel: () => undefined,
+      rpc: async (name: string) => ({ error: null, data: name === 'dh_join_room' ? {
+        incarnation: 'current-room', cursor: 0, ownerId: 'owner', worldId: 'world', roster: [], stateRows: []
+      } : null }),
+      from(table: string) {
+        return { select() { return this; }, eq() { return this; }, gt() { return this; }, order() { return this; },
+          then(resolve: (value: unknown) => unknown) { reads.push(table); return Promise.resolve({ data: [], error: null }).then(resolve); }
+        };
+      }
+    });
+    try {
+      await transport.connect('ABC123');
+      const before = reads.length;
+      status('CHANNEL_ERROR');
+      status('SUBSCRIBED');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      assert.ok(reads.slice(before).includes('dh_world_state'));
+      assert.ok(reads.slice(before).includes('dh_room_events'));
+    } finally { await transport.disconnect(); }
+  });
+  it('delivers a character update larger than one server event without losing its portrait', async () => {
+    const received: P2PWireEnvelope[] = [];
+    const receiver = createTransport();
+    receiver.peerId = 'gm-peer';
+    receiver.subscribe((message) => received.push(message));
+    const receiving = receiver as unknown as { incarnation: string; handleEventRow(row: unknown): void };
+    receiving.incarnation = 'current-room';
+    let sequence = 0;
+    const sent: P2PWireEnvelope[] = [];
+    const sender = createTransport({
+      rpc: async (_name: string, args: { p_envelope: P2PWireEnvelope }) => {
+        const message = args.p_envelope;
+        // dh_submit_room_event rejects JSONB documents above 131072 characters.
+        if (JSON.stringify(message).length > 131072) return { error: { message: 'invalid_event' }, data: null };
+        sent.push(message);
+        receiving.handleEventRow(eventRow(++sequence, message));
+        return { data: sequence, error: null };
+      }
+    });
+    Object.assign(sender, { roomId: 'ABC123', incarnation: 'current-room' });
+    const message = {
+      ...envelope('player-peer', 'large-character-update'),
+      payload: {
+        id: 'character-event', kind: 'actor', createdAt: new Date(0).toISOString(), authorId: 'player-peer',
+        value: { type: 'playerCharacterUpdate', participantId: 'player-peer', actorId: 'hero', revision: 1,
+          updatedAt: new Date(0).toISOString(), character: createCharacter({
+          id: 'hero', portraitUrl: `data:image/png;base64,${'x'.repeat(160_000)}`, hope: { value: 4, max: 6 }
+        }) }
+      }
+    } satisfies P2PWireEnvelope;
+
+    await sender.send(message, 'gm-peer');
+
+    assert.deepEqual(received, [JSON.parse(JSON.stringify(message))]);
+    assert.ok(sent.every((part) => JSON.stringify(part).length < 131072));
+  });
+
+  it('does not send remaining or queued chunks into a replacement connection', async () => {
+    let finish!: () => void;
+    const submitted: unknown[] = [];
+    const sender = createTransport({
+      rpc: async (name: string, args: unknown) => {
+        if (name === 'dh_submit_room_event') {
+          submitted.push(args);
+          await new Promise<void>(resolve => { finish = resolve; });
+        }
+        return { data: null, error: null };
+      }
+    });
+    Object.assign(sender, { roomId: 'ABC123', incarnation: 'current-room' });
+    const message = { ...envelope('player-peer', 'large'), payload: { kind: 'actor', value: 'x'.repeat(160_000) } };
+    const first = sender.send(message).catch(error => error);
+    const queued = sender.send({ ...message, id: 'queued' }).catch(error => error);
+    await Promise.resolve();
+    assert.equal(submitted.length, 1);
+    await sender.disconnect();
+    Object.assign(sender, { roomId: 'NEWROOM', incarnation: 'new-room' });
+    finish();
+    assert.match((await first).message, /Соединение изменилось/);
+    assert.match((await queued).message, /Соединение изменилось/);
+    assert.equal(submitted.length, 1);
+  });
+
   it.each([{ errors: ['Error 413: Payload Too Large'] }, { errors: [] }])('recovers a truncated Realtime fragment (errors: $errors) so later table updates reach the player', async ({ errors }) => {
     vi.useFakeTimers();
     vi.stubGlobal('window', { setInterval, clearInterval });
