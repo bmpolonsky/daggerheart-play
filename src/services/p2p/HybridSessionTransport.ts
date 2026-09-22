@@ -108,7 +108,7 @@ export class HybridSessionTransport implements P2PTransportAdapter {
     }
     if (this.serverFirst) {
       if (envelope.channel === 'control') {
-        const serverCanReachTarget = !targetPeer || (!this.directPeers.has(targetPeer) && this.roster.has(targetPeer));
+        const serverCanReachTarget = !targetPeer || this.roster.has(targetPeer);
         await Promise.allSettled([
           this.direct.send(envelope, targetPeer),
           ...(serverCanReachTarget ? [this.server.send(envelope, targetPeer)] : [])
@@ -118,10 +118,12 @@ export class HybridSessionTransport implements P2PTransportAdapter {
       try {
         await this.server.send(envelope, targetPeer);
       } catch (error) {
-        if (this.directPeers.size === 0) throw error;
-        this.directOnly = true;
-        this.sessionMode = 'p2p';
-        this.emitDiagnostics();
+        const directCanReachTargets = targetPeer
+          ? this.directPeers.has(targetPeer)
+          : this.directPeers.size > 0 && [...this.roster.keys()].every(peerId => this.directPeers.has(peerId));
+        if (!directCanReachTargets) throw error;
+        // Fall back for this message only. Other players may need the cloud,
+        // and the next send must try the server again after a transient failure.
         await this.direct.send(envelope, targetPeer);
       }
       return;

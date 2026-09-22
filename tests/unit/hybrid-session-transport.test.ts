@@ -5,6 +5,33 @@ import { RelayTransportError } from '../../src/services/p2p/RelayTransportError'
 import type { P2PBinaryPayload, P2PTransportAdapter, P2PTransportMessageContext, P2PWireEnvelope } from '../../src/services/p2p/P2PTransportAdapter';
 
 describe('HybridSessionTransport', () => {
+  it('audit: a temporary server failure does not permanently strand cloud-only players', async () => {
+    const direct = new FakeTransport();
+    const server = new FakeTransport();
+    const transport = new HybridSessionTransport(direct, context(), { server, serverFirst: true });
+    await transport.connect('ABC123');
+    direct.join('direct-player');
+    server.sendError = new Error('temporary failure');
+    await transport.send(envelope('gm-peer', 'first'), 'direct-player');
+    server.sendError = null;
+    await transport.send(envelope('gm-peer', 'second'), 'cloud-player');
+    assert.equal(server.sent, 2);
+    assert.equal(direct.sent, 1);
+    assert.equal(transport.sessionMode, 'hybrid');
+    await transport.disconnect();
+  });
+
+  it('audit: another direct peer cannot stand in for an unreachable target', async () => {
+    const direct = new FakeTransport();
+    const server = new FakeTransport();
+    const transport = new HybridSessionTransport(direct, context(), { server, serverFirst: true });
+    await transport.connect('ABC123');
+    direct.join('direct-player');
+    server.sendError = new Error('temporary failure');
+    await assert.rejects(transport.send(envelope('gm-peer'), 'cloud-player'), /temporary failure/);
+    assert.equal(direct.sent, 0);
+    await transport.disconnect();
+  });
   it('can keep game state server-first while leaving binary media direct', async () => {
     const direct = new FakeTransport();
     const server = new FakeTransport();
@@ -59,7 +86,7 @@ describe('HybridSessionTransport', () => {
 
     assert.equal(server.sent, 1);
     assert.equal(direct.sent, 1);
-    assert.equal(transport.sessionMode, 'p2p');
+    assert.equal(transport.sessionMode, 'hybrid');
     await transport.disconnect();
   });
 
