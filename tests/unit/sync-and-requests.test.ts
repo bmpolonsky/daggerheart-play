@@ -5,6 +5,20 @@ import { LocalSyncTransport, SyncService } from "../../src/services/SyncService"
 import { PlayerActionRequestService } from "../../src/services/PlayerActionRequestService";
 import { PlayerActivationQueueService } from "../../src/services/PlayerActivationQueueService";
 
+test('audit: retrying an approved request cannot reopen it and execute its roll twice', () => {
+  let rolls = 0;
+  const service = new PlayerActionRequestService({
+    rollManualDice: () => { rolls += 1; return { id: 'roll' } as ReturnType<typeof diceService.rollManualDice>; },
+    rollAction: () => { throw new Error('unused'); },
+    rollDamage: () => { throw new Error('unused'); }
+  });
+  const pending = service.submit({ requesterId: 'player', kind: 'manualRoll', title: 'Бросок', payload: { formula: '1d6' } });
+  const approved = service.approve(pending.id, 'gm');
+  assert.equal(service.receiveRemote(pending), approved);
+  assert.equal(service.approve(pending.id, 'gm'), null);
+  assert.equal(rolls, 1);
+});
+
 test('sync publishes player token move messages', async () => {
   const sync = new SyncService();
   sync.setTransport(new LocalSyncTransport());

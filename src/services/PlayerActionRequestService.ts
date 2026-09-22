@@ -70,8 +70,9 @@ export class PlayerActionRequestService {
     if (!isPlayerActionRequest(request)) {
       return null;
     }
-    const exists = this.requestsStore.get().some((item) => item.id === request.id);
-    if (exists) {
+    const current = this.requestsStore.get().find((item) => item.id === request.id);
+    if (current?.status === 'approved' || current?.status === 'rejected') return current;
+    if (current) {
       this.replaceRequest(request);
       return request;
     }

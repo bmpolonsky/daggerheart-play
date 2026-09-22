@@ -9,6 +9,7 @@ export interface PersistedP2PSession {
   roomId: string;
   participantName: string;
   participantId?: string;
+  transportPeerId?: string;
   actorIds?: string[];
   connectionMode?: 'p2p' | 'server';
   updatedAt: string;
@@ -62,6 +63,7 @@ export function persistActiveSession(input: {
   roomId: string;
   participantName?: string;
   participantId?: string;
+  transportPeerId?: string;
   actorIds?: string[];
   connectionMode?: 'p2p' | 'server';
 }): void {
@@ -74,6 +76,7 @@ export function persistActiveSession(input: {
         roomId: input.roomId,
         participantName: input.participantName?.trim() || (input.role === 'gm' ? 'Мастер' : 'Игрок'),
         ...(input.participantId?.trim() ? { participantId: input.participantId.trim() } : {}),
+        ...(input.transportPeerId?.trim() ? { transportPeerId: input.transportPeerId.trim() } : {}),
         ...(input.actorIds ? { actorIds: input.actorIds.filter(Boolean) } : {}),
         ...(input.connectionMode ? { connectionMode: input.connectionMode } : {}),
         updatedAt: nowIso()

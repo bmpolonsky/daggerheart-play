@@ -14,6 +14,7 @@ export interface StoredP2PSession {
   roomId: string;
   participantName: string;
   participantId?: string;
+  transportPeerId?: string;
   actorIds?: string[];
   connectionMode?: 'p2p' | 'server';
   updatedAt: string;

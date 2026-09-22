@@ -10,6 +10,7 @@ import { isPlayerActivationQueueMessage, type PlayerActivationQueueMessage } fro
 import { isPlayerPresence, isPlayerVoiceControlMessage, type PlayerPresence, type PlayerVoiceControlMessage } from './PlayerPresenceService';
 import { isCallPresenceMessage, type CallPresenceMessage } from './MediaCallService';
 import { reportOperationalError } from '../core/observability/sentry';
+import { isCharacterPatch, type CharacterPatch } from '../domain/p2p/characterPatch';
 
 export type SyncServiceMode = 'authority' | 'readonly';
 type SyncEventKind = SyncEvent['kind'];
@@ -62,15 +63,14 @@ export interface PlayerCharacterResourcesMessage {
   updatedAt: string;
 }
 
-export interface PlayerCharacterUpdateMessage {
+export type PlayerCharacterUpdateMessage = {
   type: 'playerCharacterUpdate';
   participantId: string;
   actorId: string;
   actorName?: string;
-  character: Character;
   revision: number;
   updatedAt: string;
-}
+} & ({ character: Character; patch?: never } | { character?: never; patch: CharacterPatch });
 
 export interface PlayerCharacterUpdateAckMessage {
   type: 'playerCharacterUpdateAck';
@@ -299,11 +299,11 @@ export class SyncService {
     this.mode = 'authority';
   }
 
-  async publishPlayerRequest(request: unknown): Promise<boolean> {
-    return this.publishChannel(syncChannels.playerRequest, request);
+  async publishPlayerRequest(request: unknown, targetPeer?: SyncTargetPeer): Promise<boolean> {
+    return this.publishChannel(syncChannels.playerRequest, request, targetPeer);
   }
 
-  subscribePlayerRequests(listener: (request: unknown, event: SyncEvent) => void): () => void {
+  subscribePlayerRequests(listener: (request: unknown, event: SyncEvent, context?: SyncEventContext) => void): () => void {
     return this.subscribeChannel(syncChannels.playerRequest, listener);
   }
 
@@ -622,13 +622,14 @@ function isPlayerCharacterResourcesMessage(value: unknown): value is PlayerChara
   );
 }
 
-function isPlayerCharacterUpdateMessage(value: unknown): value is PlayerCharacterUpdateMessage {
-  if (!isRecord(value) || value.type !== 'playerCharacterUpdate' || !isRecord(value.character)) return false;
+export function isPlayerCharacterUpdateMessage(value: unknown): value is PlayerCharacterUpdateMessage {
+  if (!isRecord(value) || value.type !== 'playerCharacterUpdate') return false;
   return (
     hasStringFields(value, ['participantId', 'actorId', 'updatedAt']) &&
     (value.actorName === undefined || typeof value.actorName === 'string') &&
-    typeof value.character.id === 'string' &&
-    value.character.id === value.actorId &&
+    (value.patch === undefined
+      ? isRecord(value.character) && value.character.id === value.actorId
+      : value.character === undefined && isCharacterPatch(value.patch)) &&
     typeof value.revision === 'number' &&
     Number.isSafeInteger(value.revision) &&
     value.revision > 0

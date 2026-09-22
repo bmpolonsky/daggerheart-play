@@ -69,6 +69,8 @@ import type { GameCustomContent } from '../domain/game/gameDocument';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { P2PAssetTransferService } from './P2PAssetTransferService';
 import { reportOperationalError } from '../core/observability/sentry';
+import { applyCharacterPatch, createCharacterPatch } from '../domain/p2p/characterPatch';
+import { isPlayerCharacterUpdateMessage } from './SyncService';
 
 export type P2PSessionRole = 'gm' | 'player';
 export type P2PConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'degraded' | 'error';
@@ -108,6 +110,7 @@ export interface P2PSessionInvite {
 }
 
 export interface P2PStoredSessionSummary {
+  transportPeerId?: string;
   role: P2PSessionRole;
   roomId: string;
   participantName: string;
@@ -326,6 +329,7 @@ export class P2PSessionService {
       roomId: normalizeSessionRoomId(saved.roomId, ''),
       participantName: saved.participantName,
       ...(saved.participantId ? { participantId: saved.participantId } : {}),
+      ...(saved.transportPeerId ? { transportPeerId: saved.transportPeerId } : {}),
       ...(saved.actorIds ? { actorIds: saved.actorIds } : {}),
       ...(saved.connectionMode ? { connectionMode: saved.connectionMode } : {})
     };
@@ -432,8 +436,11 @@ export class P2PSessionService {
     }));
     this.patchSession({ status: 'connecting', role: 'gm', roomId, message: 'Запускаем сетевую игру.' });
     await this.syncService.connectAuthority(roomId, participant);
-    this.subscriptions.add(this.syncService.subscribePlayerRequests((request) => {
-      this.playerActionRequestService.receiveRemote(request as PlayerActionRequest);
+    this.subscriptions.add(this.syncService.subscribePlayerRequests((request, _event, context) => {
+      const received = this.playerActionRequestService.receiveRemote(request as PlayerActionRequest);
+      if (received && received.status !== 'pending') {
+        void this.syncService.publishPlayerRequest(received, context?.sourcePeerId).catch(() => undefined);
+      }
       this.patchSession({ lastRequestAt: nowIso(), message: 'Получена заявка игрока.' });
     }));
     this.subscriptions.add(this.syncService.subscribeFeedEntries((entry) => {
@@ -544,7 +551,8 @@ export class P2PSessionService {
       roomId,
       connectionMode: undefined,
       participantId: input.participantId ?? storedPlayerSession?.participantId,
-      participantName: input.participantName ?? storedPlayerSession?.participantName
+      participantName: input.participantName ?? storedPlayerSession?.participantName,
+      transportPeerId: storedPlayerSession?.transportPeerId
     }));
   }
 
@@ -561,7 +569,7 @@ export class P2PSessionService {
     await this.stop().catch(() => undefined);
   }
 
-  private async openPlayerRoom(input: P2PSessionStartInput): Promise<void> {
+  private async openPlayerRoom(input: P2PSessionStartInput & { transportPeerId?: string }): Promise<void> {
     await this.stop({ forgetSession: false });
     this.hasDirectGmSnapshot = false;
     resetAllStores();
@@ -578,7 +586,10 @@ export class P2PSessionService {
     const roomId = normalizeSessionRoomId(input.roomId);
     await this.restorePendingPlayerCharacterUpdates(roomId, participant.id, input.actorIds);
     const p2pTurnReady = await this.prepareP2PTurn(input.connectionMode);
-    const transport = this.createTransport(participant, input.connectionMode, p2pTurnReady);
+    // Choosing a seat changes participantId, but must not change the verified
+    // network identity that the GM bound to this actor before a page reload.
+    const transportParticipant = input.transportPeerId ? { ...participant, id: input.transportPeerId } : participant;
+    const transport = this.createTransport(transportParticipant, input.connectionMode, p2pTurnReady);
     this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
       name: participant.name,
@@ -594,7 +605,7 @@ export class P2PSessionService {
     this.bindCallPresenceSync();
     this.patchSession({ status: 'connecting', role: 'player', roomId, message: 'Подключаемся к игре.' });
     try {
-      await this.syncService.connectReadOnly(roomId, participant, (state, event) => {
+      await this.syncService.connectReadOnly(roomId, transportParticipant, (state, event) => {
         if (!event.id.startsWith('server-snapshot-')) this.hasDirectGmSnapshot = true;
         this.suppressPlayerStoreForwarding = true;
         try {
@@ -625,10 +636,8 @@ export class P2PSessionService {
         void this.forwardPlayerFeedEntries();
       }));
       this.subscriptions.add(charactersStore.subscribe(() => {
-        // A character mutation must travel immediately as one authoritative
-        // document. Sending the legacy resource subset first lets the GM publish
-        // an older snapshot that can overwrite Hand/Vault, trackers, notes, or
-        // level-up changes before the full update is delivered.
+        // Send all changed fields atomically under one revision, including
+        // earlier unacknowledged edits; never split resources from sheet edits.
         void this.forwardPlayerCharacterUpdate();
       }));
       void this.republishPendingPlayerCharacterUpdates();
@@ -1212,7 +1221,10 @@ export class P2PSessionService {
     const latestPublishedRevision = this.playerCharacterRevisions.get(actorId);
     if (!latestPublishedRevision) return state;
     const incoming = state.characters.entities[actorId];
-    const local = this.pendingPlayerCharacterUpdates.get(actorId)?.message.character ?? charactersStore.get().entities[actorId];
+    const pending = this.pendingPlayerCharacterUpdates.get(actorId)?.message;
+    const local = pending?.patch && incoming
+      ? applyCharacterPatch(incoming, pending.patch)
+      : pending?.character ?? charactersStore.get().entities[actorId];
     if (!incoming || !local) return state;
     const incomingRevision = incoming.playerSyncRevision;
     if (incomingRevision && incomingRevision.participantId === this.playerActorContext.participantId && incomingRevision.revision >= latestPublishedRevision) return state;
@@ -1310,10 +1322,12 @@ export class P2PSessionService {
     const signature = playerCharacterFullSignature(character);
     const previousSignature = this.playerCharacterFullSignatures.get(character.id);
     if (previousSignature === signature) return;
+    const pending = this.pendingPlayerCharacterUpdates.get(character.id)?.message;
+    const patch = createCharacterPatch(previousSignature ? JSON.parse(previousSignature) : {}, character, pending?.patch);
     const previousRevision = this.playerCharacterRevisions.get(character.id) ?? character.playerSyncRevision?.revision ?? 0;
     const revision = previousRevision + 1;
     // Reserve this version before awaiting transport so rapid store emissions do
-    // not enqueue duplicate full snapshots. A later local mutation gets a new
+    // not enqueue duplicate updates. A later local mutation gets a new
     // signature and is still published immediately.
     this.playerCharacterFullSignatures.set(character.id, signature);
     this.playerCharacterRevisions.set(character.id, revision);
@@ -1322,7 +1336,8 @@ export class P2PSessionService {
       participantId: context.participantId,
       actorId: character.id,
       actorName: context.actorName ?? (character.playerName || character.name),
-      character,
+      // Legacy persisted full updates remain full until acknowledged.
+      ...(pending?.character ? { character } : { patch }),
       revision,
       updatedAt: nowIso()
     };
@@ -1331,7 +1346,7 @@ export class P2PSessionService {
     try {
       await this.publishPendingPlayerCharacterUpdate(message);
     } catch (error) {
-      // Keep the latest full document pending. A route switch or GM reconnect
+      // Keep all unacknowledged fields pending. A route switch or GM reconnect
       // republishes the same revision until the authority acknowledges it.
       this.patchSession({ status: 'degraded', message: error instanceof Error ? error.message : 'Не удалось отправить изменения персонажа мастеру.' });
     }
@@ -1494,7 +1509,9 @@ export class P2PSessionService {
   private acceptPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, peerContext?: RemotePeerContext): 'applied' | 'duplicate' | 'rejected' {
     if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) return 'rejected';
     if (!this.characterService) return 'rejected';
-    const currentRevision = this.characterService.getCharacter(message.actorId)?.playerSyncRevision;
+    const current = this.characterService.getCharacter(message.actorId);
+    if (!current) return 'rejected';
+    const currentRevision = current.playerSyncRevision;
     if (
       currentRevision?.participantId === message.participantId
       && message.revision <= currentRevision.revision
@@ -1503,7 +1520,7 @@ export class P2PSessionService {
     }
     return this.characterService.applyTrustedPlayerUpdate(
       message.actorId,
-      message.character,
+      message.patch ? applyCharacterPatch(current, message.patch) : message.character,
       this.playerChangeActor(message.participantId, message.actorName),
       { participantId: message.participantId, revision: message.revision }
     ) ? 'applied' : 'rejected';
@@ -1800,6 +1817,8 @@ export class P2PSessionService {
       roomId: buildPlayerInviteRoomCode(roomId, readP2PNetworkSettings()),
       participantName,
       participantId,
+      transportPeerId: role === 'player' && this.sessionStore.get().transportMode === 'hybrid'
+        ? this.sessionStore.get().peerId ?? undefined : undefined,
       actorIds,
       connectionMode
     });
@@ -2319,10 +2338,7 @@ function normalizePersistedPendingPlayerCharacterUpdates(value: unknown): Persis
   return value.filter((item): item is PersistedPendingPlayerCharacterUpdate => {
     if (!item || typeof item !== 'object') return false;
     const pending = item as Partial<PersistedPendingPlayerCharacterUpdate>;
-    const message = pending.message as Partial<PlayerCharacterUpdateMessage> | undefined;
-    return typeof pending.roomId === 'string' && message?.type === 'playerCharacterUpdate' &&
-      typeof message.participantId === 'string' && typeof message.actorId === 'string' &&
-      typeof message.revision === 'number' && message.character?.id === message.actorId;
+    return typeof pending.roomId === 'string' && isPlayerCharacterUpdateMessage(pending.message);
   });
 }
 
