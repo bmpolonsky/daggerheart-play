@@ -267,7 +267,12 @@ export class HybridSessionTransport implements P2PTransportAdapter {
         if (!this.directPeers.has(peerId)) this.removeVisiblePeer(peerId);
       }),
       this.direct.onError(() => this.emitDiagnostics()),
-      this.server.onError(() => this.emitDiagnostics()),
+      this.server.onError((message) => {
+        if (!this.directOnly && ['participant_unauthorized', 'room_not_found', 'master_offline'].includes(message)) {
+          this.errorListeners.forEach(listener => listener(message));
+        }
+        this.emitDiagnostics();
+      }),
       this.direct.onDiagnosticsChange?.(() => this.emitDiagnostics()) ?? (() => undefined),
       this.direct.onRouteSwitch?.((event) => this.routeSwitchListeners.forEach((listener) => listener(event))) ?? (() => undefined)
     );

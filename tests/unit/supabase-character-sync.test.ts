@@ -13,6 +13,9 @@ vi.mock('../../src/services/supabaseClient', () => ({
 // The database boundary is simulated; both clients use real, isolated stores,
 // CharacterService, P2PSessionService, SyncService and SupabaseRelayTransport.
 class RoomDatabase {
+  incarnation = 'room';
+  playerJoins = 0;
+  dropGmEvents = false;
   rows = new Map<string, { key: string; value: unknown; revision: number }>();
   members = new Map<string, { peer_id: string; display_name: string; role: string; last_seen_at: string }>();
   events: Array<Record<string, unknown>> = [];
@@ -39,11 +42,20 @@ class RoomDatabase {
       },
       removeChannel(channel: { handlers: Map<string, (payload: unknown) => void>; cleanup(): void }) { db.channels.delete(channel.handlers); channel.cleanup(); },
       async rpc(name: string, args: Record<string, any>) {
+        if (name === 'dh_heartbeat' && (args.p_incarnation !== db.incarnation || !db.members.has(context.participantId))) {
+          return { data: null, error: { message: 'participant_unauthorized' } };
+        }
+        if (name === 'dh_open_room') {
+          db.incarnation += '-next';
+          db.members.clear();
+          db.events = [];
+        }
+        if (name === 'dh_join_room') db.playerJoins += 1;
         if (name === 'dh_open_room' || name === 'dh_join_room') {
           for (const [key, value] of Object.entries(args.p_fragments ?? {})) db.rows.set(key, { key, value, revision: 1 });
           db.members.set(context.participantId, { peer_id: context.participantId, display_name: context.displayName, role: context.role, last_seen_at: new Date().toISOString() });
           db.emit('dh_room_members', {});
-          return { data: { incarnation: 'room', cursor: db.events.length, ownerId: 'owner', worldId: 'world', gmPeerId: 'gm',
+          return { data: { incarnation: db.incarnation, cursor: db.events.length, ownerId: 'owner', worldId: 'world', gmPeerId: 'gm',
             roster: [...db.members.values()].map(x => ({ peerId: x.peer_id, displayName: x.display_name, role: x.role })),
             stateRows: structuredClone([...db.rows.values()]) }, error: null };
         }
@@ -61,11 +73,12 @@ class RoomDatabase {
           return { data: structuredClone(saved), error: null };
         }
         if (name === 'dh_submit_room_event') {
+          if (db.dropGmEvents && context.role === 'gm') return { data: 0, error: null };
           const message = args.p_envelope as P2PWireEnvelope;
           const length = JSON.stringify(message).length;
           db.eventLengths.push(length);
           if (length > 131072) return { data: null, error: { message: 'invalid_event' } };
-          const row = { sequence: db.events.length + 1, room_id: 'SYNCROOM', incarnation: 'room', author_peer_id: context.participantId,
+          const row = { sequence: db.events.length + 1, room_id: 'SYNCROOM', incarnation: db.incarnation, author_peer_id: context.participantId,
             target_peer_id: args.p_target_peer_id, envelope: JSON.parse(JSON.stringify(message)) };
           db.events.push(row);
           if (db.holdPlayerUpdates && context.role === 'player' && (message.payload as { kind?: string }).kind === 'actor') db.heldPlayerUpdates.push(row);
@@ -93,10 +106,15 @@ async function isolatedClient(db: RoomDatabase) {
   const { characterService } = await import('../../src/services/serviceRegistry');
   const { SceneTableService } = await import('../../src/services/SceneTableService');
   const { SupabaseRelayTransport } = await import('../../src/services/SupabaseRelayTransport');
+  const { HybridSessionTransport } = await import('../../src/services/p2p/HybridSessionTransport');
+  const network = new helpers.ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
   const sceneTable = new SceneTableService();
   const session = helpers.createTestP2PSession(new helpers.ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 }), {
     characterService, sceneTableService: sceneTable,
-    transportFactory: (_options, context) => Object.assign(new SupabaseRelayTransport(context!, { url: 'https://test.supabase.co', publishableKey: 'test' }, db.client(context!) as never), { sessionMode: 'hybrid' as const })
+    transportFactory: (options, context) => new HybridSessionTransport(network.createTransport(options), context!, {
+      server: new SupabaseRelayTransport(context!, { url: 'https://test.supabase.co', publishableKey: 'test' }, db.client(context!) as never),
+      serverFirst: true
+    })
   });
   return { ...helpers, session, characterService, sceneTable };
 }
@@ -195,9 +213,25 @@ test('Hope synchronizes both ways for a legacy portrait without connection recov
     await gm.waitFor(() => assert.equal(gm.characterService.getCharacter(actor.id)?.hope.value, 4));
     gm.characterService.setHope(actor.id, 1);
     await gm.waitFor(() => assert.equal(player.characterService.getCharacter(actor.id)?.hope.value, 1));
+
+    // Opening the GM again creates a new SQL room incarnation and removes all
+    // old memberships. The player's real heartbeat must trigger a fresh join.
+    const joins = db.playerJoins;
+    db.dropGmEvents = true; // abrupt browser reload sends no graceful goodbye
+    await gm.session.stop({ forgetSession: false });
+    db.dropGmEvents = false;
+    await gm.session.startGmRoom({ roomId: 'SYNCROOM', participantName: 'Мастер', participantId: 'gm', connectionMode: 'server' });
+    await gm.waitFor(() => assert.ok(db.playerJoins > joins), 20_000);
+    await gm.waitFor(() => assert.equal(player.session.session$.get().status, 'connected'));
+    await player.session.publishPresence({ requesterId: 'player', actorId: actor.id, actorName: actor.name,
+      playerName: 'Игрок', connected: true, voiceMuted: false, voiceLive: false });
+    player.characterService.setHope(actor.id, 5);
+    await gm.waitFor(() => assert.equal(gm.characterService.getCharacter(actor.id)?.hope.value, 5));
+    gm.characterService.setHope(actor.id, 2);
+    await gm.waitFor(() => assert.equal(player.characterService.getCharacter(actor.id)?.hope.value, 2));
   } finally {
     unsubscribe();
     await player.session.stop(); await gm.session.stop();
     restoreWindow();
   }
-}, 15_000);
+}, 35_000);

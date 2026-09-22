@@ -1944,6 +1944,18 @@ export class P2PSessionService {
     }
     if (event.type === 'error') {
       const session = this.sessionStore.get();
+      if (session.role === 'player' && session.connected && session.transportMode === 'hybrid' && event.message === 'participant_unauthorized') {
+        // A GM reload replaces the SQL room incarnation and invalidates the
+        // player's old membership. Rejoin through the normal serialized flow.
+        this.patchSession({ connected: false, status: 'degraded', message: 'Восстанавливаем подключение к комнате.' });
+        void this.startPlayerRoom({
+          roomId: session.roomId,
+          participantId: this.playerActorContext.participantId ?? undefined,
+          participantName: this.playerActorContext.actorName ?? undefined,
+          actorIds: this.playerActorContext.actorId ? [this.playerActorContext.actorId] : []
+        }).catch(() => undefined);
+        return;
+      }
       if (session.role === 'player' && (event.message.includes('master_offline') || event.message.includes('room_not_found'))) {
         void this.leavePlayerRoom('Сетевая игра завершена.');
         return;
