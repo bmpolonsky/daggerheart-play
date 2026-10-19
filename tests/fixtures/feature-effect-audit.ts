@@ -32,6 +32,12 @@ function ignored(reason: IgnoredRuleReason, quote: string, because: string, hand
 }
 
 export const FEATURE_EFFECT_AUDIT_KEYS = [
+  "classes/playtest-blood-hunter/features/2130",
+  "classes/playtest-blood-hunter/features/2131",
+  "classes/playtest-blood-hunter/features/2132",
+  "classes/playtest-summoner/features/2128",
+  "classes/playtest-summoner/features/2129",
+
   "classes/playtest-assassin/features/2060",
   "classes/playtest-assassin/features/2061",
   "classes/playtest-assassin/features/2062",
@@ -382,6 +388,12 @@ export const EXPECTED_FEATURE_EFFECTS: Partial<Record<AuditedFeatureKey, readonl
 };
 
 export const IGNORED_FEATURE_RULES: Partial<Record<AuditedFeatureKey, readonly IgnoredRuleFragment[]>> = {
+  "classes/playtest-blood-hunter/features/2130": [ignored("target-facing-effect", "чтобы заставить его перебросить эту атаку с помехой", "Проклятие изменяет бросок выбранного противника; это ручная реакция, а не постоянный бонус листа.")],
+  "classes/playtest-blood-hunter/features/2131": [ignored("conditional-self-effect", "оно наносит дополнительно 1d4 магического урона", "Временное зачарование конкретного оружия и масштабируемый урон пока не автоматизированы.")],
+  "classes/playtest-blood-hunter/features/2132": [ignored("narrative-capability", "При успехе у вас будет видение", "Видение и преимущество при выслеживании конкретного существа требуют решения мастера.")],
+  "classes/playtest-summoner/features/2128": [ignored("manual-action-resolution", "Распределите 2 Надежды между одним или более персонажами игроков", "Распределение ресурса между выбранными союзниками и очистка Стресса выполняются вручную.")],
+  "classes/playtest-summoner/features/2129": [ignored("feature-resource-unmodeled", "Вы можете одновременно удерживать количество Сущностей не более вашего Уровня", "Круги и активные сущности требуют отдельной модели; неполный класс не предлагается конструктором.")],
+
   "classes/playtest-assassin/features/2060": [ignored("manual-action-resolution", "Потратьте 3 Надежды, чтобы очистить 2 Стресса.", "Результат зависит от цели, броска, траты ресурса или решения за столом и остаётся ручным.")],
   "classes/playtest-assassin/features/2061": [ignored("manual-action-resolution", "При успешной атаке оружием вы можете отметить Стресс, чтобы дать цели Метку Смерти.", "Результат зависит от цели, броска, траты ресурса или решения за столом и остаётся ручным.")],
   "classes/playtest-assassin/features/2062": [ignored("manual-action-resolution", "Потратьте Надежду, чтобы попросить Мастера указать либо быстрый, либо незаметный путь внутрь или наружу видимой вами локации.", "Путь выбирает Мастер с учётом текущей локации, поэтому результат нельзя вычислить как состояние листа.")],
@@ -557,7 +569,7 @@ export const IGNORED_FEATURE_RULES: Partial<Record<AuditedFeatureKey, readonly I
   "subclasses/elemental-origin/foundation_features/195": [ignored("manual-action-resolution", "описать, как ваш контроль над этой стихией помогает в броске действия", "Выбор стихии распознан, а одноразовый бонус зависит от описанного игроком действия и остаётся ручным.")],
   "subclasses/elemental-origin/specialization_features/196": [ignored("conditional-self-effect", "Вы можете призвать свой элемент, чтобы защитить себя от вреда.", "Эффект зависит от активного состояния, ресурса или конкретной атаки и не является постоянным бонусом листа.")],
   "subclasses/elemental-origin/mastery_features/197": [ignored("conditional-self-effect", "вы можете превратиться в физическое воплощение своей стихии", "Выбираемые временные преимущества действуют только в состоянии воплощения и не являются постоянными бонусами листа.")],
-  "subclasses/call-of-the-brave/foundation_features/201": [ignored("manual-action-resolution", "Когда вы проваливаете проверку со Страхом, вы получаете Надежду.", "Результат зависит от цели, броска, траты ресурса или решения за столом и остаётся ручным.")],
+  "subclasses/call-of-the-brave/foundation_features/201": [ignored("manual-action-resolution", "Когда вы проваливаете бросок со Страхом, вы получаете Надежду.", "Результат зависит от цели, броска, траты ресурса или решения за столом и остаётся ручным.")],
   "subclasses/call-of-the-brave/foundation_features/202": [ignored("manual-action-resolution", "прежде чем вы попытаетесь сделать что-то невероятно опасное или сразиться с врагом, который явно превосходит вас", "Применимость опасности, описание подготовки и получение ресурсов определяются вручную во время игры.")],
   "subclasses/call-of-the-brave/specialization_features/203": [ignored("manual-action-resolution", "Вы бдительны перед лицом нарастающей опасности.", "Результат зависит от цели, броска, траты ресурса или решения за столом и остаётся ручным.")],
   "subclasses/call-of-the-brave/mastery_features/204": [ignored("baseline-rule-modifier-unmodeled", "ему нужно потратить всего 2 Надежды, чтобы сделать это.", "Дополнительная инициация распознана, но снижение базовой стоимости чужого Командного Броска требует системного модификатора.")],

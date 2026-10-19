@@ -59,5 +59,6 @@ test('cleans every Markdown link in the current content corpus without losing vi
   }
 
   const hash = createHash('sha256').update(JSON.stringify(cleaned)).digest('hex');
-  assert.equal(hash, 'bdda6ab1bfe23bf0257f732c3421e9b3709350be5bf177f4bca42316edc5b2a9', 'cleaned Markdown corpus changed; review the diff before updating the hash');
+  // API review 2026-10-19: the only linked-text delta is call-of-the-brave/201 «проверку» → «бросок».
+  assert.equal(hash, '32d09f8509f8b9a5a8e07f2ab1d6925a07221501512b6562468fda8634f3ea02', 'cleaned Markdown corpus changed; review the diff before updating the hash');
 });

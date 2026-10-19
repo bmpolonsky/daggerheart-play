@@ -33,6 +33,7 @@ const difficultyOptions: Array<{ value: DifficultyMode; label: string }> = [
 
 function sourceLabel(adversary: Adversary) {
   if (adversary.isCustom) return 'Свой';
+  if (adversary.sourceSlugs.includes('hope-and-fear')) return 'Hope & Fear';
   if (adversary.sourceSlugs.includes('playtest-the-void')) return 'The Void';
   return 'Основная книга';
 }

@@ -192,6 +192,15 @@
 
 .player-library-source-filter {
   justify-self: end;
+  flex-wrap: wrap;
+}
+
+.player-library-source-filter > .dh-segment {
+  flex: 0 0 auto;
+}
+
+.player-library-source-notice {
+  grid-column: 1 / -1;
 }
 
 .player-library-scope {

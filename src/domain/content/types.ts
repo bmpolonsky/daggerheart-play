@@ -2,7 +2,7 @@ import type { AdversaryType, DaggerheartClass, DamageType, DomainName, TraitId }
 
 export type ContentCollectionKey = 'adversaries' | 'classes' | 'rules' | 'environments' | 'beastforms' | 'ancestries' | 'communities' | 'subclasses' | 'domainCards' | 'equipment';
 export type EditableContentCollectionKey = Exclude<ContentCollectionKey, 'rules'>;
-export type ContentSourceFilter = 'all' | 'core' | 'void' | 'homebrew';
+export type ContentSourceFilter = 'all' | 'core' | 'hope-and-fear' | 'void' | 'homebrew';
 
 export interface ApiPayload<T> {
   result?: 'ok' | 'error';

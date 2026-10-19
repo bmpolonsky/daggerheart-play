@@ -61,7 +61,7 @@ export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
         <Checkbox
           layout="row"
           checked={game.includeVoidContent}
-          label={<SettingChoiceLabel title="Использовать материалы The Void" body="Добавить классы, подклассы, родословные, сообщества и карты из бета-теста во все сценарии выбора." />}
+          label={<SettingChoiceLabel title="Использовать Hope & Fear и The Void" body="Добавить дополнительные классы, подклассы, родословные, сообщества и карты во все сценарии выбора. The Void содержит материалы бета-теста." />}
           onChange={(event) => gameService.updateSettings({ includeVoidContent: event.currentTarget.checked })}
         />
       </div>

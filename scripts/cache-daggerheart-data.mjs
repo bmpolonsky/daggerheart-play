@@ -18,6 +18,9 @@ const DATA_DIR = resolve(PUBLIC_DIR, 'data');
 const CSS_FILES = [];
 const refreshComparisons = [];
 
+// Bump when a reviewed corpus update must invalidate caches retained by code builds.
+const CONTENT_CACHE_VERSION = '2026-10-19-hf';
+
 const COLLECTIONS = [
   { key: 'adversaries', endpoint: 'adversary', file: 'adversaries.json', required: true, assets: true },
   { key: 'classes', endpoint: 'class', file: 'classes.json', required: false, assets: true },
@@ -58,7 +61,7 @@ function isUsablePayload(payload) {
 }
 
 function isFreshPayload(payload) {
-  if (SHOULD_REFRESH) return false;
+  if (SHOULD_REFRESH || payload?.meta?.cacheVersion !== CONTENT_CACHE_VERSION) return false;
   if (!Number.isFinite(CACHE_TTL_HOURS) || CACHE_TTL_HOURS <= 0) return true;
   const generatedAt = payload?.meta?.generatedAt;
   if (typeof generatedAt !== 'string') return false;
@@ -293,6 +296,7 @@ async function loadCollection(collection) {
       ...payload,
       meta: {
         ...(payload.meta ?? {}),
+        cacheVersion: CONTENT_CACHE_VERSION,
         key: collection.key,
         endpoint: collection.endpoint,
         sourceUrl,

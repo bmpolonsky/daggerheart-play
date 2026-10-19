@@ -11,6 +11,7 @@ import {
   filterBuilderContent,
   isDomainCardForDomains,
   isSrdClassItem,
+  isSupportedClassItem,
   isSubclassForClass
 } from './index';
 
@@ -116,7 +117,7 @@ function randomIndex(length: number, random: () => number): number {
 
 function buildClassOptions(classes: LibraryClassItem[], includePlaytest = false): Array<{ id: string; className: DaggerheartClass; name: string; domains: string[]; imageUrl: string | null; body: string; featureText: string }> {
   const availableClasses = classes.filter((item) => (
-    (includePlaytest || isSrdClassItem(item))
+    isSupportedClassItem(item) && (includePlaytest || isSrdClassItem(item))
   ));
   if (availableClasses.length > 0) {
     return availableClasses.map((item) => ({

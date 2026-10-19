@@ -484,6 +484,7 @@ function sourceMatches(raw: { source_slugs?: unknown }, filter: ContentSourceFil
   if (filter === 'all') return true;
   if (filter === 'homebrew') return isCustomSource(raw.source_slugs);
   if (filter === 'core') return isCorebookSource(raw.source_slugs);
+  if (filter === 'hope-and-fear') return Array.isArray(raw.source_slugs) && raw.source_slugs.includes('hope-and-fear');
   return isVoidSource(raw.source_slugs);
 }
 

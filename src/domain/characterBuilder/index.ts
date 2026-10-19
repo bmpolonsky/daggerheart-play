@@ -137,8 +137,13 @@ export function isSrdClassItem(item: LibraryClassItem): boolean {
   return sources.some((source) => source === 'core' || source === 'srd' || source === 'custom');
 }
 
+/** Unknown domains cannot produce a complete playable character. Keep the source in the library. */
+export function isSupportedClassItem(item: LibraryClassItem): boolean {
+  return item.domainSlugs.length === 0 || (item.domains.length === item.domainSlugs.length && !item.domains.includes('Custom'));
+}
+
 export function classDefinitionFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest = false, classId?: string): LibraryClassItem | null {
-  const available = includePlaytest ? classes ?? [] : (classes ?? []).filter(isSrdClassItem);
+  const available = (classes ?? []).filter(item => isSupportedClassItem(item) && (includePlaytest || isSrdClassItem(item)));
   if (classId) {
     const selected = available.find((item) => item.id === classId);
     if (selected) return selected;

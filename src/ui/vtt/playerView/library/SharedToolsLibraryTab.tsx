@@ -9,6 +9,7 @@ import { SelectControl } from '../../../components/common/Field';
 import { SearchField } from '../../../components/common/SearchField';
 import { SegmentedControl } from '../../../components/common/SegmentedControl';
 import { Toolbar } from '../../../components/common/Toolbar';
+import { Notice } from '../../../components/common/Notice';
 import type { CompendiumEditorTarget } from './CompendiumEntityEditor';
 import { LibraryResults } from './LibraryResults';
 
@@ -40,6 +41,7 @@ export function SharedToolsLibraryTab({
   const sourceOptions = useMemo(() => [
     { value: 'all', label: 'Все' },
     { value: 'core', label: 'Основная книга' },
+    { value: 'hope-and-fear', label: 'Hope & Fear' },
     { value: 'void', label: 'The Void' },
     { value: 'homebrew', label: 'Свои' }
   ], []);
@@ -82,7 +84,10 @@ export function SharedToolsLibraryTab({
           label="Источник материалов"
           value={libraryView.sourceFilter}
           options={sourceOptions}
-          onChange={(value) => contentService.setSourceFilter(value as ContentLibraryView['sourceFilter'])}
+          onChange={(value) => {
+            onEntrySelectionChange?.(null);
+            contentService.setSourceFilter(value as ContentLibraryView['sourceFilter']);
+          }}
         />
         {(libraryView.tierOptions.length > 0 || libraryView.levelOptions.length > 0) && (
           <Toolbar className="player-library-scope" aria-label="Дополнительные фильтры">
@@ -99,6 +104,9 @@ export function SharedToolsLibraryTab({
               </SelectControl>
             )}
           </Toolbar>
+        )}
+        {libraryView.sourceFilter === 'hope-and-fear' && libraryView.selectedCollection === 'domainCards' && libraryView.genericItems.length === 0 && (
+          <Notice className="player-library-source-notice">Карты домена Ужаса на сайте пока относятся к The Void и доступны под этим фильтром.</Notice>
         )}
       </div>
 

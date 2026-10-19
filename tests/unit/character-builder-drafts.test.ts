@@ -404,6 +404,23 @@ test('character builder filters playtest content by default', () => {
   assert.deepEqual(buildCharacterDraft({ content, className: 'Bard', selectedCardIds: ['void-card', 'core-card'] }).draft.domainCards?.map((card) => card.id), ['core-card']);
 });
 
+test('additional content includes H&F but never offers a class with an unknown domain', () => {
+  const released = classItem({ id: 'hf-assassin', slug: 'playtest-assassin', source_slugs: ['hope-and-fear'], domain_slugs: ['blade', 'midnight'] });
+  const incomplete = classItem({ id: 'blood-hunter', slug: 'playtest-blood-hunter', source_slugs: ['playtest-the-void'], domain_slugs: ['blood', 'bone'] });
+  const custom = classItem({ id: 'custom-class', slug: 'custom-class', source_slugs: ['custom'], domain_slugs: ['bone', 'grace'] });
+  const content: ContentState['generic'] = {
+    ancestries: [genericItem({ id: 'hf-ancestry', raw: { source_slugs: ['hope-and-fear'] } })],
+    communities: [], subclasses: [], domainCards: []
+  };
+  const input = { content, classes: [released, incomplete, custom], equipment: [], className: 'Assassin' as const };
+  const enabled = buildCharacterBuilderCatalog({ ...input, includePlaytest: true });
+  assert.deepEqual(enabled.classOptions.map(item => item.id), [released.id, custom.id]);
+  assert.deepEqual(enabled.builderContent.ancestries.map(item => item.id), ['hf-ancestry']);
+  const disabled = buildCharacterBuilderCatalog(input);
+  assert.deepEqual(disabled.classOptions.map(item => item.id), [custom.id]);
+  assert.deepEqual(disabled.builderContent.ancestries, []);
+});
+
 test('The Void setting adds playtest classes and random builder choices', () => {
   const coreClass = classItem({
     slug: 'bard',

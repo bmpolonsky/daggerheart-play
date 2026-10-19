@@ -289,18 +289,22 @@ test('content library view exposes a relevant preview for the ranked search resu
   assert.match(view.searchPreviews[vulnerable.id], /преимущество/i);
 });
 
-test('content library source filter separates corebook void and homebrew', () => {
+test('content library source filter separates corebook Hope & Fear Void and homebrew', () => {
   const service = new ContentService();
   const state = createContentState();
   state.selectedCollection = 'domainCards';
   state.generic.domainCards = [
     genericItem({ id: 'domain-card:core', name: 'Core Card', raw: { source_slugs: ['core', 'srd'] } }),
+    genericItem({ id: 'domain-card:hf', name: 'H&F Card', raw: { source_slugs: ['hope-and-fear'] } }),
     genericItem({ id: 'domain-card:void', name: 'Void Card', raw: { source_slugs: ['playtest-the-void'] } }),
     genericItem({ id: 'domain-card:homebrew', name: 'Homebrew Card', raw: { source_slugs: ['custom'] } })
   ];
 
   state.sourceFilter = 'core';
   assert.deepEqual(service.buildLibraryView(state).genericItems.map((item) => item.id), ['domain-card:core']);
+
+  state.sourceFilter = 'hope-and-fear';
+  assert.deepEqual(service.buildLibraryView(state).genericItems.map((item) => item.id), ['domain-card:hf']);
 
   state.sourceFilter = 'void';
   assert.deepEqual(service.buildLibraryView(state).genericItems.map((item) => item.id), ['domain-card:void']);

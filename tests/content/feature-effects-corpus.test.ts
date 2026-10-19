@@ -38,14 +38,14 @@ interface EnumeratedFeature {
 const FEATURE_GROUPS: FeatureGroup[] = ['features', 'foundation_features', 'specialization_features', 'mastery_features'];
 const RULE_COLLECTIONS: RuleCollection[] = ['classes', 'ancestries', 'communities', 'subclasses'];
 const EXPECTED_ITEM_COUNTS: Record<RuleCollection | 'domain-cards', number> = {
-  classes: 13,
+  classes: 15,
   ancestries: 24,
   communities: 15,
   subclasses: 26,
   'domain-cards': 210
 };
 const EXPECTED_FEATURE_COUNTS: Record<RuleCollection, number> = {
-  classes: 36,
+  classes: 41,
   ancestries: 48,
   communities: 15,
   subclasses: 119
@@ -150,11 +150,12 @@ test('audits every current feature rule without an implicit green default', () =
   const corpusKeys = features.map(({ key }) => key).sort();
   const declaredKeys = [...FEATURE_EFFECT_AUDIT_KEYS].sort();
 
-  assert.equal(features.length, 218);
+  assert.equal(features.length, 223);
   assert.equal(new Set(FEATURE_EFFECT_AUDIT_KEYS).size, FEATURE_EFFECT_AUDIT_KEYS.length, 'feature audit contains duplicate keys');
   assert.deepEqual(declaredKeys, corpusKeys, 'every corpus feature must have exactly one explicit audit key');
   assert.deepEqual(Object.keys(audit).sort(), corpusKeys, 'built audit must cover exactly the current corpus');
-  assert.equal(sha256Corpus(features), '7af7971f66576615ef997203267b41b46fc7272b219e5a591309f78195d82f14');
+  // API review 2026-10-19: call-of-the-brave/201 changes «проверку» to «бросок»; no rule effect changes.
+  assert.equal(sha256Corpus(features), 'fcb42f5bba52d0660cf495f4bf74f868771894829abbb9b3db6921907815c5d9');
 
   for (const feature of features) assertAuditEntry(feature.key, feature.text, audit[feature.key as keyof typeof audit]);
 });
@@ -162,7 +163,7 @@ test('audits every current feature rule without an implicit green default', () =
 test('pins usage limits from the same projected domain-card text used at runtime', () => {
   const cards = enumerateDomainCards();
   assert.equal(cards.length, EXPECTED_ITEM_COUNTS['domain-cards']);
-  assert.equal(sha256Corpus(cards), 'cd04c23812707834f132bf5ca593c3e88b582498c08b8a7f715ed67fab0972bd');
+  assert.equal(sha256Corpus(cards), 'e24e3ff6719f6bb2e5b5fb0512feb41ea1108526e040ac279bebbf85d27f9d53');
   const actual = Object.fromEntries(cards.flatMap((card) => {
     const usage = analyzeContract(card.text).filter((effect) => effect.kind === 'usageLimit');
     return usage.length > 0 ? [[card.key.replace('domain-cards/', ''), usage.map((effect) => `${effect.reset}:${effect.max}`)]] : [];
@@ -184,14 +185,16 @@ test('pins usage limits from the same projected domain-card text used at runtime
   assert.deepEqual(actual, {
     ...Object.fromEntries(rest.map((slug) => [slug, ['rest:1']])),
     ...Object.fromEntries(longRest.map((slug) => [slug, ['longRest:1']])),
+    'nether-flames': ['scene:1'],
+    'summon-horror': ['scene:1'],
     'book-of-homet': ['longRest:1', 'rest:1']
   });
 });
 
 test('pins every current top-level source text, including composite rules outside feature arrays', () => {
   const entries = enumerateTopLevelTexts();
-  assert.equal(entries.length, 78);
-  assert.equal(sha256Corpus(entries), 'f0caac9ba7d3b4575ab68a4ce8c834f30149c03d2ab7dad933594e12fd6dd393');
+  assert.equal(entries.length, 80);
+  assert.equal(sha256Corpus(entries), 'cf306e2aa0af6d5cc57c14a3ea53c55205b2bbc4e9dc5302dec3b941a3be0f0e');
 
   const parsed = Object.fromEntries(entries.flatMap((entry) => {
     const effects = analyzeContract(entry.text);

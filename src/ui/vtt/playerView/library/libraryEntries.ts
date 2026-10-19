@@ -9,6 +9,7 @@ import type {
   RawAdversaryFeature
 } from '../../../../domain/content/types';
 import { TRAIT_LABELS, domainLabel, rangeLabel } from '../../../../domain/rules/constants';
+import { isSupportedClassItem } from '../../../../domain/characterBuilder';
 import type { TraitId } from '../../../../domain/rules/types';
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import { characterService, contentService, feedService, sceneTableService } from '../../../../services/serviceRegistry';
@@ -89,6 +90,7 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
 function classEntry(item: LibraryClassItem): LibraryEntry {
   const stats = [`Уклонение ${item.evasion}`, `Раны ${item.hp}`];
   const sections = compactSections([
+    ['Доступность', isSupportedClassItem(item) ? '' : 'Класс доступен для ознакомления. Не все его домены поддерживаются, поэтому он пока не доступен в конструкторе персонажа.'],
     ['Свойства', featureSections(item.raw.features)],
     ['Описание', item.body],
     ['Начальные предметы', item.classItems.join('\n')],
