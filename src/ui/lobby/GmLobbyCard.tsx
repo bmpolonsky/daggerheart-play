@@ -6,7 +6,7 @@ import { characterService, sceneTableService } from '../../services/serviceRegis
 import { Button, EmptyState, IconButton, SectionHeader, SelectControl, Surface, TextControl, Toolbar } from '../components/common';
 
 interface GmLobbyCardProps {
-  onEnterGm: () => void;
+  onEnterGm: () => void | Promise<void>;
 }
 
 export function GmLobbyCard({ onEnterGm }: GmLobbyCardProps) {
@@ -20,7 +20,7 @@ export function GmLobbyCard({ onEnterGm }: GmLobbyCardProps) {
     if (opening) return;
     setOpening(true);
     try {
-      onEnterGm();
+      await onEnterGm();
     } finally {
       setOpening(false);
     }

@@ -3,6 +3,8 @@ import { normalizeSessionRoomId, parsePlayerSessionLocation } from '../../domain
 import { publicAssetUrl } from '../../domain/content/publicAssets';
 import { DEFAULT_LOBBY_SCENE_IMAGE } from '../../domain/tabletop/defaultArt';
 import type { NavigableRouteId } from '../../app/routing';
+import { p2pSessionService } from '../../services/serviceRegistry';
+import { toastService } from '../../services/ToastService';
 import { PlayerJoinLobby } from './PlayerJoinLobby';
 import { SessionLobby } from './SessionLobby';
 
@@ -33,7 +35,14 @@ export function RoleEntry({ basePath, onSelectRole }: RoleEntryProps) {
       initialPlayerRoomId={playerRoomIdFromSearch()}
       inviteContext={lobbyInviteContext(basePath)}
       sceneImageUrl={sceneImageUrl}
-      onEnterGm={() => onSelectRole('game')}
+      onEnterGm={async () => {
+        try {
+          await p2pSessionService.enterGmWorkspace();
+          onSelectRole('game');
+        } catch (error) {
+          toastService.show(error instanceof Error ? error.message : 'Не удалось открыть игру мастера.', 'error');
+        }
+      }}
       onJoinRoom={(roomId) => onSelectRole('join', '', '', roomId)}
     />
   );

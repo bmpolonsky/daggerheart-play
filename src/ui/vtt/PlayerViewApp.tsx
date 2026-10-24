@@ -12,6 +12,7 @@ import {
 import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildHandoutDraftFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview, type TableFeedItem } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
+import { readWorkspaceRole } from '../../services/p2p/P2PSessionPersistence';
 import { resolveTableSessionContext } from '../../domain/p2p/sessionPresentation';
 import { diceAnimationContextKey, shouldAnimateInitialDiceRoll } from '../../domain/tabletop/diceAnimation';
 import { nowIso } from '../../core/utils/date';
@@ -56,8 +57,9 @@ import './playerView/player-view.css';
 export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   const p2pSession = useStream(p2pSessionService.session$);
   const [storedSessionAtEntry] = useState(() => p2pSessionService.storedSession());
+  const [workspaceRoleAtEntry] = useState(readWorkspaceRole);
   const sessionContext = resolveTableSessionContext({
-    explicitRole: roleProp,
+    explicitRole: roleProp ?? workspaceRoleAtEntry,
     liveSession: p2pSession,
     storedSession: storedSessionAtEntry
   });

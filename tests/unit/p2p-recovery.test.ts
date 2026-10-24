@@ -4,7 +4,7 @@ import { localAppStorageStore, sessionAppStorageStore } from "../../src/core/per
 import { readP2PNetworkSettings, writeP2PNetworkSettings } from "../../src/domain/p2p/networkSettings";
 import { createMapAsset } from "../../src/domain/tabletop/factories";
 import { AssetService } from "../../src/services/AssetService";
-import { readActiveSession } from "../../src/services/p2p/P2PSessionPersistence";
+import { readActiveSession, readWorkspaceRole } from "../../src/services/p2p/P2PSessionPersistence";
 import { resetAllStores } from "../../src/stores/gameStores";
 import { createTestP2PSession, installTimerWindow, ScriptedP2PNetwork, waitFor } from "./helpers";
 
@@ -544,6 +544,39 @@ test('P2P player start keeps clean room codes and auto network settings', async 
   } finally {
     await player.stop().catch(() => undefined);
     writeP2PNetworkSettings({ strategy: 'auto' });
+    restoreWindow();
+  }
+});
+
+test('explicit local GM entry leaves a stale player transport and preserves its saved identity', async () => {
+  resetAllStores();
+  const restoreWindow = installPersistentStorageWindow();
+  const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
+  const session = createTestP2PSession(network);
+  try {
+    assert.equal(readWorkspaceRole(), undefined);
+    await session.startPlayerRoom({ roomId: 'OLD-PLAYER-ROOM', participantName: 'Original player' });
+    const savedPlayer = readActiveSession();
+    assert.equal(readWorkspaceRole(), 'player');
+    const outboxKey = 'daggerheart-pending-player-character-updates';
+    const pendingEdit = JSON.stringify([{ roomId: 'OLD-PLAYER-ROOM', message: { type: 'playerCharacterUpdate', participantId: savedPlayer?.participantId, actorId: 'hero-kept', character: { id: 'hero-kept' }, revision: 1, updatedAt: '2026-10-24T00:00:00.000Z' } }]);
+    window.localStorage.setItem(outboxKey, pendingEdit);
+    await session.enterGmWorkspace();
+    assert.equal(window.localStorage.getItem(outboxKey), pendingEdit);
+    assert.equal(session.session$.get().connected, false);
+    assert.equal(session.session$.get().role, null);
+    assert.deepEqual(readActiveSession(), savedPlayer);
+    assert.equal(readWorkspaceRole(), 'gm');
+    sessionAppStorageStore.reload();
+    assert.equal(readWorkspaceRole(), 'gm');
+    // Following a player invitation in the same tab must override local GM intent.
+    await session.startPlayerRoom({ roomId: 'NEW-PLAYER-ROOM', participantName: 'Player again' });
+    assert.equal(session.session$.get().role, 'player');
+    assert.equal(readWorkspaceRole(), 'player');
+    sessionAppStorageStore.reload();
+    assert.equal(readWorkspaceRole(), 'player');
+  } finally {
+    await session.stop().catch(() => undefined);
     restoreWindow();
   }
 });

@@ -40,6 +40,8 @@ export interface AppLocalStorageState {
 export interface AppSessionStorageState {
   version: typeof APP_BROWSER_STORAGE_VERSION;
   p2p?: {
+    /** Explicit workspace choice for this tab; independent of the saved room identity. */
+    workspaceRole?: 'gm' | 'player';
     resumeRoomId?: string;
     roomCodeRefreshBlockedUntil?: number;
     seats?: Record<string, string>;

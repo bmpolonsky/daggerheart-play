@@ -60,6 +60,7 @@ import {
   persistActiveSession,
   persistInviteDraft,
   persistRoomCodeRefreshBlockedUntil,
+  persistWorkspaceRole,
   readActiveSession
 } from './p2p/P2PSessionPersistence';
 import { P2PRoomConnection, type P2PRoomConnectionConfig, type P2PRoomConnectionEvent } from './p2p/P2PRoomConnection';
@@ -377,6 +378,17 @@ export class P2PSessionService {
     }
   }
 
+  /** Leave a previous player transport without deleting its identity or pending edits. */
+  async enterGmWorkspace(): Promise<void> {
+    if (this.startInFlight?.role === 'player') {
+      await this.startInFlight.promise.catch(() => undefined);
+    }
+    if (this.sessionStore.get().role === 'player') {
+      await this.stop({ forgetSession: false });
+    }
+    persistWorkspaceRole('gm');
+  }
+
   async ensureGmRoom(participantName?: string): Promise<boolean> {
     const session = this.sessionStore.get();
     if (session.role === 'gm' && (session.connected || session.status === 'connecting')) {
@@ -544,6 +556,8 @@ export class P2PSessionService {
   }
 
   async startPlayerRoom(input: P2PSessionStartInput): Promise<void> {
+    // An explicit invitation overrides a previous local GM choice in this tab.
+    persistWorkspaceRole('player');
     const roomId = buildPlayerInviteRoomCode(input.roomId, readP2PNetworkSettings());
     const storedPlayerSession = this.storedSessionForRoom(roomId, 'player');
     await this.startRoom('player', roomId, () => this.openPlayerRoom({

@@ -19,7 +19,7 @@ interface SessionLobbyProps {
   initialPlayerRoomId?: string;
   inviteContext: LobbyInviteContext;
   sceneImageUrl: string;
-  onEnterGm: () => void;
+  onEnterGm: () => void | Promise<void>;
   onJoinRoom: (roomId: string) => void;
 }
 

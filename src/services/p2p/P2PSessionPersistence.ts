@@ -115,3 +115,12 @@ function readSessionNumber(): number {
   const value = sessionAppStorageStore.getState().p2p?.roomCodeRefreshBlockedUntil ?? 0;
   return Number.isFinite(value) && value > Date.now() ? value : 0;
 }
+
+/** The UI role is a tab choice, not an instruction to restore an unrelated room. */
+export function readWorkspaceRole(): P2PSessionRole | undefined {
+  return sessionAppStorageStore.getState().p2p?.workspaceRole;
+}
+
+export function persistWorkspaceRole(role: P2PSessionRole): void {
+  sessionAppStorageStore.update((state) => ({ p2p: { ...state.p2p, workspaceRole: role } }));
+}

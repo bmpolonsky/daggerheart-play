@@ -100,3 +100,8 @@
     min-width: 0;
   }
 }
+
+.renameForm {
+  display: grid;
+  gap: 16px;
+}

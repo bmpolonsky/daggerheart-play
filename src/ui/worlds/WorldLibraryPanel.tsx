@@ -9,6 +9,7 @@ import { importExportService, persistenceService, worldBackupService } from '../
 import { initializeSupabaseMasterAuth, supabaseMasterAuth$ } from '../../services/supabaseClient';
 import type { ServerWorldSummary } from '../../services/WorldBackupService';
 import { ActionMenu, Badge, Button, ConfirmDialog, EmptyState, IconButton, ListItem, Notice, SectionHeader, Surface, Toolbar } from '../components/common';
+import { RenameWorldDialog } from './RenameWorldDialog';
 import styles from './WorldLibraryPanel.module.css';
 
 type PendingDelete =
@@ -26,6 +27,7 @@ export function WorldLibraryPanel({ onOpen }: { onOpen?: () => void }) {
   const [gameImportWorldId, setGameImportWorldId] = useState('');
   const [busyId, setBusyId] = useState('');
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null);
+  const [pendingRename, setPendingRename] = useState<StoredWorldSummary | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
   useEffect(() => { void refreshLocal(); }, []);
@@ -83,12 +85,11 @@ export function WorldLibraryPanel({ onOpen }: { onOpen?: () => void }) {
     setMessage({ tone: 'success', text: 'Игра открыта.' });
     onOpen?.();
   });
-  const renameWorld = async (world: StoredWorldSummary) => {
-    const name = window.prompt('Название мира', world.name);
-    if (!name) return;
+  const renameWorld = async (world: StoredWorldSummary, name: string) => {
     await run(`rename:${world.id}`, async () => {
       if (!await persistenceService.renameStoredWorld(world.id, name)) throw new Error('Не удалось переименовать мир.');
       await refreshLocal();
+      setPendingRename(null);
     });
   };
   const saveToServer = (world: StoredWorldSummary) => run(`backup:${world.id}`, async () => {
@@ -178,7 +179,7 @@ export function WorldLibraryPanel({ onOpen }: { onOpen?: () => void }) {
                       items={[
                         { id: 'new-game', label: 'Новая игра', icon: <Plus size={14} />, onSelect: () => void createGame(world) },
                         { id: 'import-game', label: 'Импорт игры', icon: <Upload size={14} />, onSelect: () => { setGameImportWorldId(world.id); gameImportRef.current?.click(); } },
-                        { id: 'rename', label: 'Переименовать', onSelect: () => void renameWorld(world) },
+                        { id: 'rename', label: 'Переименовать', onSelect: () => { setMessage(null); setPendingRename(world); } },
                         { id: 'export', label: 'Экспортировать', icon: <Download size={14} />, onSelect: () => void importExportService.downloadWorldArchive(world.id) },
                         { id: 'delete', label: 'Удалить с устройства', icon: <Trash2 size={14} />, onSelect: () => setPendingDelete({ kind: 'world', item: world }) }
                       ]}
@@ -250,6 +251,16 @@ export function WorldLibraryPanel({ onOpen }: { onOpen?: () => void }) {
       <input ref={worldImportRef} hidden type="file" accept="application/json,application/zip,.json,.zip,.dhworld,.dhgame" onChange={(event) => void importFile(event, 'world')} />
       <input ref={gameImportRef} hidden type="file" accept="application/json,application/zip,.json,.zip,.dhgame" onChange={(event) => void importFile(event, 'game')} />
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
+      {pendingRename && (
+        <RenameWorldDialog
+          key={pendingRename.id}
+          name={pendingRename.name}
+          busy={busyId === `rename:${pendingRename.id}`}
+          error={message?.tone === 'error' ? message.text : undefined}
+          onCancel={() => setPendingRename(null)}
+          onRename={(name) => void renameWorld(pendingRename, name)}
+        />
+      )}
       {pendingDelete && (
         <ConfirmDialog
           title={`Удалить ${pendingDelete.kind === 'game' ? 'игру' : pendingDelete.kind === 'server' ? 'серверную копию' : 'мир'} «${pendingDelete.item.name || 'Без названия'}»?`}
