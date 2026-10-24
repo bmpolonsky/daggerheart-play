@@ -210,10 +210,11 @@ test('world store creates and switches independent worlds and games', async () =
   assert.equal((await store.setActiveWorld(newWorldId))?.manifest.name, 'Новая игра');
 });
 
-test('current persisted games default The Void materials to disabled when the setting is absent', () => {
+test('current persisted games default to all materials when both settings are absent', () => {
   const state = minimalProjectGameState();
   const legacyGame = { ...state.game } as Partial<typeof state.game>;
   delete legacyGame.includeVoidContent;
+  delete legacyGame.contentAccess;
 
   const migrated = migratePersistedState({
     schemaVersion: 5,
@@ -222,7 +223,8 @@ test('current persisted games default The Void materials to disabled when the se
     characters: { entities: {}, order: [], selectedId: null, updatedAt: now }
   });
 
-  assert.equal(migrated.game.includeVoidContent, false);
+  assert.equal(migrated.game.includeVoidContent, true);
+  assert.equal(migrated.game.contentAccess, 'all');
 });
 
 test('game document store rejects unusable project game records', () => {

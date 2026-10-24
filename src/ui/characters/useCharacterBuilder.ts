@@ -1,3 +1,4 @@
+import { type ContentAccessInput } from '../../domain/content/access';
 import { useMemo } from 'preact/hooks';
 import { useStream } from '../../core/hooks/useStream';
 import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../../domain/content/types';
@@ -12,7 +13,7 @@ export function useCharacterBuilder({
   content: ContentState['generic'];
   classes: LibraryClassItem[];
   equipment: LibraryEquipmentItem[];
-  includePlaytest?: boolean;
+  includePlaytest?: ContentAccessInput;
 }) {
   const service = useMemo(() => new CharacterBuilderService(), []);
   const draft = useStream(service.draft$);

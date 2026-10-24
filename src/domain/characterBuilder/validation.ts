@@ -1,3 +1,4 @@
+import { type ContentAccessInput } from '../content/access';
 import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../content/types';
 import { CLASS_STARTING_ITEMS } from '../rules/equipment';
 import type { DaggerheartClass, TraitId } from '../rules/types';
@@ -50,7 +51,7 @@ export interface CharacterBuilderReadinessInput {
   secondaryWeaponId?: string;
   classItem?: string;
   consumableId?: string;
-  includePlaytest?: boolean;
+  includePlaytest?: ContentAccessInput;
 }
 
 export interface CharacterBuilderReadiness {

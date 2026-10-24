@@ -1,3 +1,4 @@
+import { normalizeContentAccess, contentAccessForGame, type ContentAccessInput } from '../../domain/content/access';
 import { AssetImage } from '../components/common/AssetImage';
 import { p2pSessionService } from '../../services/serviceRegistry';
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
@@ -78,7 +79,7 @@ export function CharacterEditor({
   const [editMode, setEditMode] = useState(false);
   const [section, setSection] = useState<CharacterEditorSection>('resources');
   const game = useStream(gameService.game$);
-  const includePlaytest = game.includeVoidContent;
+  const includePlaytest = contentAccessForGame(game);
   const armorOptions = content?.equipment.filter((item) => item.type === 'armor') ?? [];
   const selectedArmorId = equipmentIdByName(armorOptions, character.armor.name);
   const domains = content
@@ -528,7 +529,7 @@ function LevelUpPanel({
   character: Character;
   content?: ContentState;
   domains: DomainName[];
-  includePlaytest: boolean;
+  includePlaytest: ContentAccessInput;
   role: 'gm' | 'player';
   actor?: CharacterChangeActor;
   onClose: () => void;
@@ -637,7 +638,7 @@ function LevelUpPanel({
     .filter((className) => (
       className !== 'Custom' &&
       className !== character.className &&
-      (includePlaytest || !PLAYTEST_CLASSES.includes(className))
+      (content?.classes.length ? Boolean(classDefinitionFor(content.classes, className, includePlaytest)) : (normalizeContentAccess(includePlaytest) !== 'core' || !PLAYTEST_CLASSES.includes(className)))
     ))
     .map((className) => {
       const definition = classDefinitionFor(content?.classes, className, includePlaytest);

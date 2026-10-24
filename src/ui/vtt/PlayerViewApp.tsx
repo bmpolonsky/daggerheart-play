@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { contentAccessForGame } from '../../domain/content/access';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { currentRoutePathname, locationSignature } from '../../app/routing';
 import { BookOpenText, ScrollText, Swords, X } from 'lucide-react';
@@ -591,7 +592,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           content={content.generic}
           classes={content.classes}
           equipment={content.equipment}
-          includePlaytest={game.includeVoidContent}
+          includePlaytest={contentAccessForGame(game)}
           onCancel={() => setPlayerCharacterBuilderOpen(false)}
           onCreate={createPlayerCharacterFromBuilder}
         />

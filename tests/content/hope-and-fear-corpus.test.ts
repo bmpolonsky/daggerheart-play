@@ -55,3 +55,16 @@ test('reviewed Dread card corrections survive the sheet projection', () => {
     assert.equal(domainCardFromLibrary(item, true).cardType, 'ability');
   }
 });
+
+test('published H&F mode uses only real source tags, leaving all Dread cards in Void', () => {
+  for (const [mode, classCount, cardCount] of [['core', 9, 189], ['hope-and-fear', 13, 189], ['all', 13, 210]] as const) {
+    const catalog = buildCharacterBuilderCatalog({ content, classes, equipment: [], className: 'Witch', includePlaytest: mode });
+    assert.equal(catalog.classOptions.length, classCount);
+    assert.equal(catalog.builderContent.domainCards.length, cardCount);
+    assert.equal(catalog.builderContent.ancestries.length, mode === 'core' ? 18 : 24);
+    assert.equal(catalog.builderContent.communities.length, mode === 'core' ? 9 : 15);
+    assert.equal(catalog.builderContent.subclasses.length, mode === 'core' ? 18 : 26);
+    const dread = catalog.builderContent.domainCards.filter(item => item.raw.source_slugs?.includes('playtest-the-void'));
+    assert.equal(dread.length, mode === 'all' ? 21 : 0);
+  }
+});

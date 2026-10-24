@@ -1,3 +1,4 @@
+import { type ContentAccessInput } from '../../domain/content/access';
 import { p2pSessionService } from '../../services/serviceRegistry';
 import { Sparkles, X } from 'lucide-react';
 import { useState } from 'preact/hooks';
@@ -38,7 +39,7 @@ export function CharacterBuilderModal({
   content: ContentState['generic'];
   classes: ContentState['classes'];
   equipment: LibraryEquipmentItem[];
-  includePlaytest?: boolean;
+  includePlaytest?: ContentAccessInput;
   onCancel: () => void;
   onCreate: (input: Partial<Character> & { className?: DaggerheartClass }) => void;
 }) {

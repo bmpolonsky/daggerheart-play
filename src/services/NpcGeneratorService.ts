@@ -1,3 +1,4 @@
+import { contentAccessForGame } from '../domain/content/access';
 import { Store } from '../core/store/Store';
 import type { StreamLike } from '../core/store/Stream';
 import { buildNpcCatalog, generateNpc, rerollNpcField, type GeneratedNpc, type NpcField } from '../domain/generators/npc';
@@ -16,7 +17,7 @@ export class NpcGeneratorService {
 
   constructor(
     private contentService: Pick<ContentService, 'content$' | 'ensureLoaded' | 'reload'>,
-    private game$: StreamLike<Pick<GameState, 'id' | 'includeVoidContent'>>,
+    private game$: StreamLike<Pick<GameState, 'id' | 'includeVoidContent' | 'contentAccess'>>,
     private rng: () => number = Math.random
   ) {}
 
@@ -37,7 +38,7 @@ export class NpcGeneratorService {
     this.sync();
     const current = this.store.get();
     if (current.status !== 'ready' || !current.npc) return;
-    const catalog = buildNpcCatalog(this.contentService.content$.get().generic, this.game$.get().includeVoidContent);
+    const catalog = buildNpcCatalog(this.contentService.content$.get().generic, contentAccessForGame(this.game$.get()));
     const npc = rerollNpcField(current.npc, catalog, field, this.rng);
     if (npc !== current.npc) this.store.set({ ...current, npc });
   }
@@ -50,7 +51,7 @@ export class NpcGeneratorService {
     const content = this.contentService.content$.get();
     const game = this.game$.get();
     const current = this.store.get();
-    const catalog = buildNpcCatalog(content.generic, game.includeVoidContent);
+    const catalog = buildNpcCatalog(content.generic, contentAccessForGame(game));
     const status = content.isLoading || (!content.lastLoadedAt && !content.error) ? 'loading'
       : content.error ? 'error'
       : !catalog.ancestries.length || !catalog.communities.length ? 'empty' : 'ready';

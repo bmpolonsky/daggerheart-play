@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { contentAccessForGame, normalizeContentAccess } from '../../../domain/content/access';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
@@ -58,13 +59,17 @@ export function SharedToolsGameSettingsPanel({ game }: { game: GameState }) {
           label={<SettingChoiceLabel title="Использовать монеты" body="Показывать кошелёк и учитывать монеты в листах героев." />}
           onChange={(event) => gameService.updateSettings({ showCoins: event.currentTarget.checked })}
         />
-        <Checkbox
-          layout="row"
-          checked={game.includeVoidContent}
-          label={<SettingChoiceLabel title="Использовать Hope & Fear и The Void" body="Добавить дополнительные классы, подклассы, родословные, сообщества и карты во все сценарии выбора. The Void содержит материалы бета-теста." />}
-          onChange={(event) => gameService.updateSettings({ includeVoidContent: event.currentTarget.checked })}
-        />
       </div>
+      <SelectField
+        label="Доступные материалы"
+        hint="The Void — тестовые материалы."
+        value={contentAccessForGame(game)}
+        onChange={(event) => gameService.updateSettings({ contentAccess: normalizeContentAccess(event.currentTarget.value) })}
+      >
+        <option value="core">Только Corebook</option>
+        <option value="hope-and-fear">Corebook + Hope &amp; Fear</option>
+        <option value="all">Все материалы, включая The Void</option>
+      </SelectField>
       <SelectField
         label="Передача музыки сцены"
         value={sceneTable.musicDeliveryMode}

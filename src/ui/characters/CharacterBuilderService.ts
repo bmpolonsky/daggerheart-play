@@ -1,3 +1,4 @@
+import { type ContentAccessInput } from '../../domain/content/access';
 import { Store } from '../../core/store/Store';
 import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../../domain/content/types';
 import {
@@ -51,7 +52,7 @@ interface CharacterBuilderModelInput {
   content: ContentState['generic'];
   classes: LibraryClassItem[];
   equipment: LibraryEquipmentItem[];
-  includePlaytest?: boolean;
+  includePlaytest?: ContentAccessInput;
   draft: CharacterBuilderDraftState;
 }
 
@@ -283,7 +284,7 @@ export class CharacterBuilderService {
     content: ContentState['generic'],
     classes: LibraryClassItem[],
     equipment: LibraryEquipmentItem[],
-    includePlaytest: boolean
+    includePlaytest: ContentAccessInput
   ): void {
     this.draftStore.update((current) => {
       const classOption = catalog.classOptions[Math.floor(Math.random() * catalog.classOptions.length)];

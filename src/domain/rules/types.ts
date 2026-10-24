@@ -1,3 +1,4 @@
+import { type ContentAccess } from '../content/access';
 import type { MapAsset, TableParticipant, TableScene, TableVisibility } from '../tabletop/types';
 import type { SceneMusicDeliveryMode } from '../audio/sceneAudio';
 import type { RestFearPlan, RestType } from './rest';
@@ -443,7 +444,9 @@ export interface GameState {
   autoApplyRollConsequences: boolean;
   showLegacyActionTokens: boolean;
   showCoins: boolean;
+  /** Legacy compatibility mirror; new clients use contentAccess. */
   includeVoidContent: boolean;
+  contentAccess?: ContentAccess;
   safetyNotes: string;
   tableNotes: string;
   handouts: GameHandout[];

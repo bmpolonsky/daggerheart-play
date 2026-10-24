@@ -1,3 +1,4 @@
+import { normalizeContentAccess, type ContentAccessInput } from '../domain/content/access';
 import { nowIso } from '../core/utils/date';
 import { reloadBrowserCustomContent, replaceBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
 import { createId } from '../core/utils/id';
@@ -238,11 +239,11 @@ export class ContentService {
     });
   }
 
-  applyGameSourceDefaults(gameId: string, includeVoidContent: boolean): void {
-    const key = `${gameId}:${includeVoidContent ? 'void' : 'core'}`;
+  applyGameSourceDefaults(gameId: string, includeVoidContent: ContentAccessInput): void {
+    const key = `${gameId}:${normalizeContentAccess(includeVoidContent)}`;
     if (this.gameSourceDefaultsKey === key) return;
     this.gameSourceDefaultsKey = key;
-    this.setSourceFilter(includeVoidContent ? 'all' : 'core');
+    this.setSourceFilter(normalizeContentAccess(includeVoidContent) === 'core' ? 'core' : 'all');
   }
 
   addAdversaryToEncounter(libraryAdversaryId: string): boolean {

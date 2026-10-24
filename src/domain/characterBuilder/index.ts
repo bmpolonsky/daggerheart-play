@@ -1,3 +1,4 @@
+import { contentSourceAllowed, type ContentAccessInput } from '../content/access';
 import type { ContentState, GenericLibraryItem, LibraryClassItem, LibraryEquipmentItem, RawAdversaryFeature } from '../content/types';
 import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { CLASS_DOMAINS, CLASS_LABELS, CLASS_STARTING_STATS, DEFAULT_TRAITS, DOMAIN_LABELS, TRAIT_LABELS } from '../rules/constants';
@@ -55,7 +56,7 @@ export interface CharacterBuilderInput {
   armorId?: string;
   classItem?: string;
   consumableId?: string;
-  includePlaytest?: boolean;
+  includePlaytest?: ContentAccessInput;
   now?: () => number;
 }
 
@@ -142,8 +143,8 @@ export function isSupportedClassItem(item: LibraryClassItem): boolean {
   return item.domainSlugs.length === 0 || (item.domains.length === item.domainSlugs.length && !item.domains.includes('Custom'));
 }
 
-export function classDefinitionFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest = false, classId?: string): LibraryClassItem | null {
-  const available = (classes ?? []).filter(item => isSupportedClassItem(item) && (includePlaytest || isSrdClassItem(item)));
+export function classDefinitionFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest: ContentAccessInput = false, classId?: string): LibraryClassItem | null {
+  const available = (classes ?? []).filter(item => isSupportedClassItem(item) && contentSourceAllowed(item.raw.source_slugs, includePlaytest));
   if (classId) {
     const selected = available.find((item) => item.id === classId);
     if (selected) return selected;
@@ -154,9 +155,9 @@ export function classDefinitionFor(classes: LibraryClassItem[] | undefined, clas
 export function classDefinitionForCharacter(
   classes: LibraryClassItem[] | undefined,
   character: Pick<Character, 'className' | 'classSourceId' | 'classSlug'>,
-  includePlaytest = false
+  _includePlaytest: ContentAccessInput = false
 ): LibraryClassItem | null {
-  const available = includePlaytest ? classes ?? [] : (classes ?? []).filter(isSrdClassItem);
+  const available = classes ?? []; // Existing identities remain readable in every availability mode.
   const exact = available.find((item) => (
     character.classSourceId !== undefined &&
     String(item.sourceId) === String(character.classSourceId) &&
@@ -165,16 +166,16 @@ export function classDefinitionForCharacter(
   return exact ?? classDefinitionFor(available, character.className, true);
 }
 
-export function classDomainsFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest = false): DomainName[] {
+export function classDomainsFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest: ContentAccessInput = false): DomainName[] {
   return classDefinitionFor(classes, className, includePlaytest)?.domains ?? CLASS_DOMAINS[className];
 }
 
-export function classStartingStatsFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest = false): { evasion: number; hp: number } {
+export function classStartingStatsFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest: ContentAccessInput = false): { evasion: number; hp: number } {
   const definition = classDefinitionFor(classes, className, includePlaytest);
   return definition ? { evasion: definition.evasion, hp: definition.hp } : CLASS_STARTING_STATS[className];
 }
 
-export function classStartingItemsFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest = false): string[] {
+export function classStartingItemsFor(classes: LibraryClassItem[] | undefined, className: DaggerheartClass, includePlaytest: ContentAccessInput = false): string[] {
   const definition = classDefinitionFor(classes, className, includePlaytest);
   return definition?.classItems.length ? definition.classItems : [];
 }
@@ -187,13 +188,12 @@ export function connectionQuestionsFor(classDefinition: LibraryClassItem | null 
   return classQuestionsFor(classDefinition, 'connectionQuestions', 'connection_questions');
 }
 
-export function filterBuilderContent(content: ContentState['generic'], includePlaytest = false): ContentState['generic'] {
-  if (includePlaytest) return content;
+export function filterBuilderContent(content: ContentState['generic'], includePlaytest: ContentAccessInput = false): ContentState['generic'] {
   return {
-    ancestries: content.ancestries.filter(isSrdLibraryItem),
-    communities: content.communities.filter(isSrdLibraryItem),
-    subclasses: content.subclasses.filter(isSrdLibraryItem),
-    domainCards: content.domainCards.filter(isSrdLibraryItem)
+    ancestries: content.ancestries.filter(item => contentSourceAllowed(item.raw.source_slugs, includePlaytest)),
+    communities: content.communities.filter(item => contentSourceAllowed(item.raw.source_slugs, includePlaytest)),
+    subclasses: content.subclasses.filter(item => contentSourceAllowed(item.raw.source_slugs, includePlaytest)),
+    domainCards: content.domainCards.filter(item => contentSourceAllowed(item.raw.source_slugs, includePlaytest))
   };
 }
 

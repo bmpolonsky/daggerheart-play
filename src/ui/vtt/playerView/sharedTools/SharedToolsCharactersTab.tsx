@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { type ContentAccessInput } from '../../../../domain/content/access';
 import { useEffect, useState } from 'preact/hooks';
 import { ChevronLeft, MinusCircle, Plus, UserRound } from 'lucide-react';
 import type { ContentState } from '../../../../domain/content/types';
@@ -25,7 +26,7 @@ export function SharedToolsCharactersTab({
   actor: CharacterChangeActor;
   characterOptions: Character[];
   content: ContentState;
-  includePlaytest: boolean;
+  includePlaytest: ContentAccessInput;
   onCharacterBuilderClose: () => void;
   onCharacterBuilderCreate: (input: Partial<Character> & { className?: DaggerheartClass }) => void;
   onCharacterBuilderOpen: () => void;

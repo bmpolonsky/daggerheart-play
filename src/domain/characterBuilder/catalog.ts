@@ -1,3 +1,4 @@
+import { contentSourceAllowed, normalizeContentAccess, type ContentAccessInput } from '../content/access';
 import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../content/types';
 import { CLASS_LABELS, DAGGERHEART_CLASSES, PLAYTEST_CLASSES } from '../rules/constants';
 import type { DaggerheartClass } from '../rules/types';
@@ -10,7 +11,6 @@ import {
   classStartingItemsFor,
   filterBuilderContent,
   isDomainCardForDomains,
-  isSrdClassItem,
   isSupportedClassItem,
   isSubclassForClass
 } from './index';
@@ -21,7 +21,7 @@ export interface CharacterBuilderCatalogInput {
   equipment: LibraryEquipmentItem[];
   className: DaggerheartClass;
   classId?: string;
-  includePlaytest?: boolean;
+  includePlaytest?: ContentAccessInput;
 }
 
 export interface CharacterBuilderQuickStart {
@@ -115,9 +115,9 @@ function randomIndex(length: number, random: () => number): number {
   return Math.min(length - 1, Math.max(0, Math.floor(random() * length)));
 }
 
-function buildClassOptions(classes: LibraryClassItem[], includePlaytest = false): Array<{ id: string; className: DaggerheartClass; name: string; domains: string[]; imageUrl: string | null; body: string; featureText: string }> {
+function buildClassOptions(classes: LibraryClassItem[], includePlaytest: ContentAccessInput = false): Array<{ id: string; className: DaggerheartClass; name: string; domains: string[]; imageUrl: string | null; body: string; featureText: string }> {
   const availableClasses = classes.filter((item) => (
-    isSupportedClassItem(item) && (includePlaytest || isSrdClassItem(item))
+    isSupportedClassItem(item) && contentSourceAllowed(item.raw.source_slugs, includePlaytest)
   ));
   if (availableClasses.length > 0) {
     return availableClasses.map((item) => ({
@@ -131,7 +131,7 @@ function buildClassOptions(classes: LibraryClassItem[], includePlaytest = false)
     }));
   }
   return DAGGERHEART_CLASSES
-    .filter((item) => item !== 'Custom' && (includePlaytest || !PLAYTEST_CLASSES.includes(item)))
+    .filter((item) => item !== 'Custom' && (normalizeContentAccess(includePlaytest) !== 'core' || !PLAYTEST_CLASSES.includes(item)))
     .map((item) => ({
       id: `class:${item.toLowerCase()}`,
       className: item,

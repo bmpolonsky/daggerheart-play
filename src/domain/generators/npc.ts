@@ -1,3 +1,4 @@
+import { type ContentAccessInput } from '../content/access';
 import { filterBuilderContent } from '../characterBuilder';
 import type { ContentState, GenericLibraryItem } from '../content/types';
 import { generateNames } from './names';
@@ -70,7 +71,7 @@ const MOTIVES = [
   'добиться власти'
 ];
 
-export function buildNpcCatalog(content: ContentState['generic'], includePlaytest = false): NpcCatalog {
+export function buildNpcCatalog(content: ContentState['generic'], includePlaytest: ContentAccessInput = false): NpcCatalog {
   const available = filterBuilderContent(content, includePlaytest);
   const origins = (items: GenericLibraryItem[]): NpcOrigin[] => items
     .filter((item) => item.name.trim())

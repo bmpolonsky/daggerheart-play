@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { contentAccessForGame } from '../../../domain/content/access';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { ExternalLink, X } from 'lucide-react';
 import { useStream } from '../../../core/hooks/useStream';
@@ -94,8 +95,8 @@ export function SharedToolsModal({
   }, [onEditorDirtyChange]);
 
   useEffect(() => {
-    contentService.applyGameSourceDefaults(game.id, game.includeVoidContent);
-  }, [game.id, game.includeVoidContent]);
+    contentService.applyGameSourceDefaults(game.id, contentAccessForGame(game));
+  }, [game.id, contentAccessForGame(game)]);
 
   useEffect(() => {
     if (activeTab !== 'library') return;
@@ -290,7 +291,7 @@ function SharedToolsCharactersTabHost() {
       characterBuilderOpen={characterBuilderOpen}
       characterOptions={characterOptions}
       content={content}
-      includePlaytest={game.includeVoidContent}
+      includePlaytest={contentAccessForGame(game)}
       onCharacterBuilderClose={() => setCharacterBuilderOpen(false)}
       onCharacterBuilderCreate={createCharacterFromBuilder}
       onCharacterBuilderOpen={() => setCharacterBuilderOpen(true)}

@@ -1,3 +1,4 @@
+import { normalizeContentAccess, contentAccessForGame } from '../domain/content/access';
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { createGameHandout } from '../domain/rules/factories';
@@ -60,8 +61,13 @@ export class GameService {
     gameStore.update((state) => ({ ...state, presentedHandoutId: null, updatedAt: nowIso() }));
   }
 
-  updateSettings(patch: Partial<Pick<GameState, 'autoApplyRollConsequences' | 'showLegacyActionTokens' | 'showCoins' | 'includeVoidContent'>>): void {
-    gameStore.update((state) => ({ ...state, ...patch, updatedAt: nowIso() }));
+  updateSettings(patch: Partial<Pick<GameState, 'autoApplyRollConsequences' | 'showLegacyActionTokens' | 'showCoins' | 'includeVoidContent' | 'contentAccess'>>): void {
+    gameStore.update((state) => {
+      const contentAccess = patch.contentAccess !== undefined
+        ? normalizeContentAccess(patch.contentAccess)
+        : patch.includeVoidContent !== undefined ? normalizeContentAccess(patch.includeVoidContent) : contentAccessForGame(state);
+      return { ...state, ...patch, contentAccess, includeVoidContent: contentAccess === 'all', updatedAt: nowIso() };
+    });
   }
 
   setFear(value: number): void {

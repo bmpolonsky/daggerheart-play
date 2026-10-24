@@ -1,3 +1,4 @@
+import { contentAccessForGame } from '../../content/access';
 import { runVersionedMigrations } from '../migration-runner';
 import type { PersistedState } from '../../rules/types';
 import type { PersistedStateMigration } from './types';
@@ -103,7 +104,8 @@ function normalizePersistedCharacters(state: PersistedState): PersistedState {
     game: {
       ...createGameState(),
       ...state.game,
-      includeVoidContent: state.game.includeVoidContent === true
+      includeVoidContent: contentAccessForGame(state.game) === 'all',
+      contentAccess: contentAccessForGame(state.game)
     },
     sceneTable: createSceneTableState(state.sceneTable),
     characters: {

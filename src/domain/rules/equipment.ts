@@ -1,3 +1,4 @@
+import { contentSourceAllowed, type ContentAccessInput } from '../content/access';
 import type { LibraryEquipmentItem } from '../content/types';
 import type { ArmorState, CharacterInventoryItem, CharacterSheetCard, DaggerheartClass, DamageType, TraitId, Weapon } from './types';
 import { equipmentFeatureModifiers } from './equipmentFeatureModifiers';
@@ -22,7 +23,7 @@ export interface StartingEquipmentInput {
   classItems?: readonly string[];
   consumableId?: string;
   traits: Record<TraitId, number>;
-  includePlaytest?: boolean;
+  includePlaytest?: ContentAccessInput;
 }
 
 export interface StartingEquipmentLoadout {
@@ -113,8 +114,8 @@ export const STARTING_BASE_INVENTORY = ['Факел', '50 футов верев�
 
 const STARTING_CONSUMABLE_SLUGS = new Set(['minor-health-potion', 'minor-stamina-potion']);
 
-export function buildStartingEquipmentCatalog(equipment: LibraryEquipmentItem[], includePlaytest = false): StartingEquipmentCatalog {
-  const available = includePlaytest ? equipment : equipment.filter(isSrdEquipment);
+export function buildStartingEquipmentCatalog(equipment: LibraryEquipmentItem[], includePlaytest: ContentAccessInput = false): StartingEquipmentCatalog {
+  const available = equipment.filter(item => contentSourceAllowed(item.raw.source_slugs, includePlaytest));
   return {
     armor: available.filter((item) => item.type === 'armor' && item.tier === 1).map(toArmorOption).filter(Boolean) as StartingArmorOption[],
     primaryWeapons: available.filter((item) => item.type === 'primary-weapon' && item.tier === 1).map(toWeaponOption).filter(Boolean) as StartingWeaponOption[],
@@ -331,12 +332,6 @@ function runtimeModifierWarnings(option: StartingArmorOption | StartingWeaponOpt
     }
   }
   return [];
-}
-
-function isSrdEquipment(item: LibraryEquipmentItem): boolean {
-  const sources = item.raw.source_slugs;
-  if (!Array.isArray(sources)) return true;
-  return sources.some((source) => source === 'core' || source === 'srd' || source === 'custom');
 }
 
 function selectByIdOrSlug<T extends { id: string; slug: string }>(items: T[], id: string | undefined): T | null {
