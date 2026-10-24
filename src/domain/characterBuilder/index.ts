@@ -320,8 +320,8 @@ export function buildCharacterBuilderChoicePreview(input: {
       return {
         kicker: 'Карта домена',
         title: card.name,
-        subtitle: [card.subtitle, `Уровень ${domainCardLevel(card)}`, domainCardRecallCost(card) ? `Возврат ${domainCardRecallCost(card)}` : ''].filter(Boolean).join(' — '),
-        body: firstFeatureText(card) || domainCardText(card) || cleanRulesText(card.body),
+        subtitle: [...new Set([...(card.subtitle ? card.subtitle.split(' — ') : []), `Уровень ${domainCardLevel(card)}`, domainCardRecallCost(card) ? `Возврат ${domainCardRecallCost(card)}` : ''].filter(Boolean))].join(' — '),
+        body: domainCardText(card) || cleanRulesText(card.body),
         imageUrl: card.imageUrl,
         facts: [`Выбрано ${input.selectedCards?.length ?? 0}/${input.requiredDomainCardCount ?? 2}`]
       };

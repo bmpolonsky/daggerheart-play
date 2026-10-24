@@ -19,6 +19,7 @@ import { ChoiceCard } from '../components/common/ChoiceCard';
 import { Dialog } from '../components/common/Dialog';
 import { SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
+import { Notice } from '../components/common/Notice';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
 import { RichChoicePicker } from '../components/common/RichChoicePicker';
 import { WizardStepButton } from '../components/common/WizardStepButton';
@@ -378,7 +379,10 @@ export function CharacterBuilderModal({
               <section className="cinematic-builder-step" role="group" aria-label="Шаг: Стартовые карты доменов">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Стартовые карты доменов</h3>
-                  <p className="cinematic-builder-copy">Выберите {options.requiredDomainCardCount} {domainCardCountLabel(options.requiredDomainCardCount)} первого уровня из доменов класса: {options.classDomains.map(domainLabel).join(' + ')}.</p>
+                  <p className="cinematic-builder-copy">Выберите {options.requiredDomainCardCount} {domainCardCountLabel(options.requiredDomainCardCount)} первого уровня. Доступные домены: {options.availableCardDomains.map(domainLabel).join(' + ') || 'нет'}.</p>
+                  {options.restrictedCardDomains.length > 0 && (
+                    <Notice>Стартовые карты исключены выбранными материалами: {options.restrictedCardDomains.map(domainLabel).join(', ')}. Проверьте «Доступные материалы» в настройках игры.</Notice>
+                  )}
                 </header>
                 <div className="dh-choice-grid dh-choice-grid--cards cinematic-builder-choice-area dh-scroll">
                   {options.availableDomainCards.map((item) => (

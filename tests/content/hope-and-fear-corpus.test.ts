@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'vitest';
-import { classDefinitionForCharacter, domainCardFromLibrary } from '../../src/domain/characterBuilder';
+import { classDefinitionForCharacter, domainCardFromLibrary, buildCharacterBuilderChoicePreview } from '../../src/domain/characterBuilder';
 import { buildCharacterBuilderCatalog } from '../../src/domain/characterBuilder/catalog';
 import { mapGenericItem, mapRawClassItem } from '../../src/domain/content/mappers';
 import type { RawClassItem, RawContentItem } from '../../src/domain/content/types';
@@ -67,4 +67,26 @@ test('published H&F mode uses only real source tags, leaving all Dread cards in 
     const dread = catalog.builderContent.domainCards.filter(item => item.raw.source_slugs?.includes('playtest-the-void'));
     assert.equal(dread.length, mode === 'all' ? 21 : 0);
   }
+});
+
+
+test('Warlock card availability explains source restrictions without promoting Void cards to H&F', () => {
+  const hf = buildCharacterBuilderCatalog({ content, classes, equipment: [], className: 'Warlock', includePlaytest: 'hope-and-fear' });
+  assert.deepEqual(hf.availableCardDomains, ['Grace']);
+  assert.deepEqual(hf.restrictedCardDomains, ['Dread']);
+  assert.equal(hf.availableDomainCards.length, 3);
+  const all = buildCharacterBuilderCatalog({ content, classes, equipment: [], className: 'Warlock', includePlaytest: 'all' });
+  assert.equal(all.availableDomainCards.length, 6);
+  assert.deepEqual(all.availableCardDomains, ['Dread', 'Grace']);
+  assert.deepEqual(all.restrictedCardDomains, []);
+});
+
+test('Inspirational Words complete detail includes the source ending with one level label', () => {
+  const card = content.domainCards.find(item => item.slug === 'inspirational-words');
+  assert.ok(card);
+  const preview = buildCharacterBuilderChoicePreview({ step: 'cards', selectedCards: [card] });
+  assert.ok(preview);
+  assert.equal(preview.body, domainCardFromLibrary(card, true).text);
+  assert.ok(preview.body.endsWith('снимите все неиспользованные жетоны.'));
+  assert.equal((preview.subtitle?.match(/Уровень 1/g) ?? []).length, 1);
 });

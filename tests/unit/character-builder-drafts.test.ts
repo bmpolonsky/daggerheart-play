@@ -6,6 +6,7 @@ import {
   backgroundQuestionsFor,
   buildCharacterDraft,
   buildCharacterBuilderChoicePreview,
+  domainCardFromLibrary,
   classDefinitionForCharacter,
   connectionQuestionsFor,
   featureListText,
@@ -535,4 +536,24 @@ test('character builder keeps multiple custom classes and their subclasses separ
     classSourceId: 'ember-class',
     classSlug: 'ember-knight'
   })?.id, ember.id);
+});
+
+
+test('full domain-card detail retains all features beyond compact excerpt and shows level once', () => {
+  const card = genericItem({
+    id: 'long-card', name: 'Полное правило', subtitle: 'Грация — Уровень 1',
+    body: '', raw: { domain_slug: 'grace', level: 1, stress_cost: 1, features: [
+      { main_body: 'Начало. ' + 'Правило без сокращения. '.repeat(30) + 'Конец первого свойства.' },
+      { name: 'Второе свойство', main_body: 'Последняя строка должна сохраниться.' }
+    ] }
+  });
+  const preview = buildCharacterBuilderChoicePreview({ step: 'cards', selectedCards: [card], selectedCardIds: [card.id] });
+  assert.ok(preview);
+  assert.equal(firstFeatureText(card).length, 320);
+  assert.equal(preview.body, domainCardFromLibrary(card, true).text);
+  assert.match(preview.body, /Конец первого свойства/);
+  assert.ok(preview.body.endsWith('Последняя строка должна сохраниться.'));
+  assert.equal((preview.subtitle?.match(/Уровень 1/g) ?? []).length, 1);
+  const fallback = buildCharacterBuilderChoicePreview({ step: 'cards', selectedCards: [{ ...card, subtitle: 'Грация' }] });
+  assert.match(fallback?.subtitle ?? '', /Грация — Уровень 1/);
 });

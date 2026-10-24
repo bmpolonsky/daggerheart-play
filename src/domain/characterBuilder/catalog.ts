@@ -48,6 +48,10 @@ export function buildCharacterBuilderCatalog(input: CharacterBuilderCatalogInput
     .filter((item) => isDomainCardForDomains(item, classDomains))
     .filter((item) => (item.level ?? Number(item.raw.level ?? 1)) === 1)
     .slice(0, 48);
+  const availableCardDomains = classDomains.filter(domain => availableDomainCards.some(card => isDomainCardForDomains(card, [domain])));
+  const restrictedCardDomains = classDomains.filter(domain => !availableCardDomains.includes(domain) && input.content.domainCards.some(card =>
+    isDomainCardForDomains(card, [domain]) && (card.level ?? Number(card.raw.level ?? 1)) === 1
+  ));
   const subclassRuleModifiers = Object.fromEntries(classSubclasses.map((subclass) => [
     subclass.id,
     characterBuilderRuleModifiersForSubclass(subclass)
@@ -63,6 +67,8 @@ export function buildCharacterBuilderCatalog(input: CharacterBuilderCatalogInput
     classSubclasses,
     subclassRuleModifiers,
     availableDomainCards,
+    availableCardDomains,
+    restrictedCardDomains,
     equipmentCatalog
   };
 }

@@ -185,6 +185,8 @@ export class CharacterBuilderService {
         classSubclasses: catalog.classSubclasses,
         subclassRuleModifiers: catalog.subclassRuleModifiers,
         availableDomainCards: catalog.availableDomainCards,
+        availableCardDomains: catalog.availableCardDomains,
+        restrictedCardDomains: catalog.restrictedCardDomains,
         requiredDomainCardCount,
         armor: equipmentCatalog.armor,
         primaryWeapons: equipmentCatalog.primaryWeapons,
