@@ -3,6 +3,7 @@ import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { X } from 'lucide-react';
+import { registerMobilePreviewHistory } from '../../../app/mobilePreviewHistory';
 import { Dialog, IconButton, Surface } from '../../components/common';
 
 let closeActivePanel: (() => void) | null = null;
@@ -59,21 +60,21 @@ export function PlayerContextPanel({ ariaLabel, children, className = '', closeL
       // App navigation also dispatches synthetic popstate. Only a browser
       // history traversal may dismiss this mobile preview.
       if (!event.isTrusted || closeActivePanel !== activeCloseRef.current
-        || window.location.origin !== returnUrl.origin) return;
+        || window.location.origin !== returnUrl.origin) return false;
       const ownDialog = bodyRef.current?.closest('[role="dialog"]');
       const visibleDialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))
         .filter((element) => element.getClientRects().length > 0);
       // Do not consume navigation on behalf of a confirmation or child dialog.
-      if (!ownDialog || visibleDialogs.at(-1) !== ownDialog) return;
+      if (!ownDialog || visibleDialogs.at(-1) !== ownDialog) return false;
       // No history entry is added when opening a preview. After Back, restore
       // its existing route before parent bubble listeners read it, then close.
       // A second Back follows the original route history normally. Traversals
       // to another document/origin cannot be intercepted by this local guard.
       window.history.pushState(returnState, '', returnUrl.href);
       closeRef.current();
+      return true;
     };
-    window.addEventListener('popstate', closeOnHistoryTraversal, true);
-    return () => window.removeEventListener('popstate', closeOnHistoryTraversal, true);
+    return registerMobilePreviewHistory(closeOnHistoryTraversal);
   }, [mobile, currentLocation]);
 
   const content = (

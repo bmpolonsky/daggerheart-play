@@ -1,3 +1,4 @@
+import { consumeMobilePreviewHistory } from './mobilePreviewHistory';
 import { useEffect, useState } from 'preact/hooks';
 import {
   locationSignature,
@@ -32,7 +33,8 @@ export function useAppRouting() {
   useEffect(() => {
     syncCurrentRoute();
 
-    const handlePopState = () => {
+    const handlePopState = (event: Event) => {
+      if (consumeMobilePreviewHistory(event)) return;
       syncCurrentRoute();
     };
     const handleOpenWorkspace = (event: Event) => {

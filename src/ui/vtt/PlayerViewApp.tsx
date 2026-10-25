@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { consumeMobilePreviewHistory } from '../../app/mobilePreviewHistory';
 import { contentAccessForGame } from '../../domain/content/access';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { currentRoutePathname, locationSignature } from '../../app/routing';
@@ -187,6 +188,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const syncRouteState = (event?: Event) => {
+      if (event && consumeMobilePreviewHistory(event)) return;
       const nextUrl = locationSignature();
       if (event && sharedToolsEditorDirty && nextUrl !== acceptedRouteUrlRef.current && !window.confirm('Отменить несохранённые изменения?')) {
         window.history.pushState({}, '', acceptedRouteUrlRef.current);
