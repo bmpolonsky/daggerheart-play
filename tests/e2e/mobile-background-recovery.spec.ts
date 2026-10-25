@@ -143,10 +143,9 @@ test('mocked transport: mobile foreground restores latest resources and complete
     await expect(playerRest.getByText(/Получено Надежды: 1/)).toBeVisible();
     await expect(playerRest.getByRole('button', { name: 'Применить', exact: true })).toHaveCount(0);
     // Connected player views are hydrated live; their saved local world is
-    // not the authoritative room state. Verify the actual displayed resources
-    // and the GM's persisted canonical result rather than that old local save.
-    await expect(playerSheet.getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(4);
-    await expect(playerSheet.getByRole('button', { name: 'Раны 1 из 5', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    // not the authoritative room state. GUI assertions above verify the player;
+    // the GM canonical state must also remain unchanged after foregrounding.
+    await expect.poll(() => snapshotState(gm)).toEqual(expected);
 
     // New envelope/sync IDs intentionally bypass transport dedupe, exercising
     // snapshot hydration of the completed rest twice rather than a duplicate
