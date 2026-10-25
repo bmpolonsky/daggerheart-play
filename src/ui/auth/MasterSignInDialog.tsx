@@ -69,8 +69,8 @@ export function MasterSignInDialog({ config, onClose }: { config: SupabaseSessio
     try {
       await signInSupabaseMasterByEmail(config, email, window.location.href);
       setEmailSent(true);
-    } catch {
-      setError('Не удалось отправить ссылку для входа.');
+    } catch (failure) {
+      setError(emailSignInErrorMessage(failure));
     } finally {
       setBusy(false);
     }
@@ -112,7 +112,7 @@ export function MasterSignInDialog({ config, onClose }: { config: SupabaseSessio
             </div>
             <div className={styles.divider}>или по почте</div>
             {emailSent ? (
-              <Notice tone="success">Ссылка для входа отправлена.</Notice>
+              <Notice tone="success">Запрос принят сервисом входа. Проверьте почту и спам; доставка письма может занять несколько минут.</Notice>
             ) : (
               <div className={styles.email}>
                 <TextControl
@@ -131,4 +131,25 @@ export function MasterSignInDialog({ config, onClose }: { config: SupabaseSessio
       </div>
     </Dialog>
   );
+}
+
+function emailSignInErrorMessage(failure: unknown): string {
+  const fallback = 'Не удалось отправить ссылку для входа.';
+  if (!failure || typeof failure !== 'object') return fallback;
+  const { code, status } = failure as { code?: unknown; status?: unknown };
+  // Only documented public error codes/status are shown. Provider messages may
+  // contain addresses or configuration details and are deliberately omitted.
+  const reasons: Record<string, string> = {
+    over_email_send_rate_limit: 'Слишком много запросов на письмо. Повторите позже.',
+    over_request_rate_limit: 'Слишком много запросов. Повторите позже.',
+    email_provider_disabled: 'Вход по почте отключён у сервиса входа.',
+    email_address_not_authorized: 'Отправка на этот адрес не разрешена почтовым провайдером.',
+    email_address_invalid: 'Проверьте адрес почты.',
+    captcha_failed: 'Сервис входа не принял проверку CAPTCHA.',
+    request_timeout: 'Сервис входа не ответил вовремя. Повторите позже.'
+  };
+  const knownCode = typeof code === 'string' && Object.hasOwn(reasons, code) ? code : null;
+  const publicStatus = typeof status === 'number' && Number.isInteger(status) && status >= 400 && status <= 599 ? status : null;
+  const diagnostics = [knownCode, publicStatus ? `HTTP ${publicStatus}` : null].filter(Boolean).join(', ');
+  return [fallback, knownCode ? reasons[knownCode] : '', diagnostics ? `(${diagnostics})` : ''].filter(Boolean).join(' ');
 }
