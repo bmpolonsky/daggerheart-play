@@ -39,3 +39,29 @@ test('explicit Master entry overrides stale player identity, survives reload, an
   await page.getByRole('button', { name: 'Открыть игру', exact: true }).click();
   await expect(root).toHaveClass(/player-view--gm/);
 });
+
+for (const staleIntent of ['none', 'legacy-gm', 'other-player-context-gm'] as const) {
+  test(`saved player resume and game reload stay player with ${staleIntent}`, async ({ page }) => {
+    await installDeterministicP2PTransport(page);
+    await page.addInitScript((intent) => {
+      if (sessionStorage.getItem('player-role-seeded')) return;
+      sessionStorage.setItem('player-role-seeded', 'yes');
+      const activeSession = { version: 1, role: 'player', roomId: 'CURRENT-PLAYER', participantName: 'Player', participantId: 'current-seat', updatedAt: '2026-10-25T00:01:00Z' };
+      localStorage.setItem('daggerheart-play', JSON.stringify({ version: 1, p2p: { connectionMode: 'p2p', activeSession } }));
+      if (intent !== 'none') {
+        sessionStorage.setItem('daggerheart-play', JSON.stringify({ version: 1, p2p: {
+          workspaceRole: 'gm',
+          ...(intent === 'other-player-context-gm' ? { workspaceSessionKey: JSON.stringify(['player', 'OLD-PLAYER', 'old-seat', null, '2026-10-25T00:00:00Z']) } : {})
+        } }));
+      }
+    }, staleIntent);
+    await page.goto('/#/game');
+    const root = page.locator('[data-vtt-root]');
+    await expect(root).toHaveClass(/player-view--player/);
+    await page.reload();
+    await expect(root).toHaveClass(/player-view--player/);
+    const identity = await page.evaluate(() => JSON.parse(localStorage.getItem('daggerheart-play') || '{}').p2p.activeSession);
+    expect(identity.role).toBe('player');
+    expect(identity.roomId).toBe('CURRENT-PLAYER');
+  });
+}

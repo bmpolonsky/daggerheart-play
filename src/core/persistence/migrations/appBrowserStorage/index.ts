@@ -77,6 +77,7 @@ function parseSessionStorageState(value: unknown): AppSessionStorageState | null
     version: APP_BROWSER_STORAGE_VERSION,
     p2p: p2p ? {
       workspaceRole: p2p.workspaceRole === 'gm' || p2p.workspaceRole === 'player' ? p2p.workspaceRole : undefined,
+      workspaceSessionKey: typeof p2p.workspaceSessionKey === 'string' ? p2p.workspaceSessionKey : undefined,
       resumeRoomId: typeof p2p.resumeRoomId === 'string' ? p2p.resumeRoomId : undefined,
       roomCodeRefreshBlockedUntil: typeof p2p.roomCodeRefreshBlockedUntil === 'number' ? p2p.roomCodeRefreshBlockedUntil : undefined,
       seats: isStringRecord(p2p.seats) ? p2p.seats : undefined

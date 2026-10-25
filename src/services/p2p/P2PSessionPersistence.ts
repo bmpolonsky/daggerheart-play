@@ -116,11 +116,22 @@ function readSessionNumber(): number {
   return Number.isFinite(value) && value > Date.now() ? value : 0;
 }
 
-/** The UI role is a tab choice, not an instruction to restore an unrelated room. */
+/** Only the explicit GM choice for this saved session may override a player resume. */
 export function readWorkspaceRole(): P2PSessionRole | undefined {
-  return sessionAppStorageStore.getState().p2p?.workspaceRole;
+  const intent = sessionAppStorageStore.getState().p2p;
+  if (intent?.workspaceRole === 'gm' && intent.workspaceSessionKey !== workspaceSessionKey()) return undefined;
+  return intent?.workspaceRole;
 }
 
 export function persistWorkspaceRole(role: P2PSessionRole): void {
-  sessionAppStorageStore.update((state) => ({ p2p: { ...state.p2p, workspaceRole: role } }));
+  sessionAppStorageStore.update((state) => ({ p2p: {
+    ...state.p2p,
+    workspaceRole: role,
+    workspaceSessionKey: role === 'gm' ? workspaceSessionKey() : undefined
+  } }));
+}
+
+function workspaceSessionKey(): string {
+  const session = readActiveSession();
+  return JSON.stringify(session ? [session.role, session.roomId, session.participantId, session.transportPeerId, session.updatedAt] : null);
 }

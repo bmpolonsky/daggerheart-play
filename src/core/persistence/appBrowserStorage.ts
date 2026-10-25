@@ -42,6 +42,8 @@ export interface AppSessionStorageState {
   p2p?: {
     /** Explicit workspace choice for this tab; independent of the saved room identity. */
     workspaceRole?: 'gm' | 'player';
+    /** Saved session incarnation at the explicit GM entry; stale choices cannot override a new player session. */
+    workspaceSessionKey?: string;
     resumeRoomId?: string;
     roomCodeRefreshBlockedUntil?: number;
     seats?: Record<string, string>;

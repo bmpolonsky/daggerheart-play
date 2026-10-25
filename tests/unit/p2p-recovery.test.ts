@@ -4,7 +4,7 @@ import { localAppStorageStore, sessionAppStorageStore } from "../../src/core/per
 import { readP2PNetworkSettings, writeP2PNetworkSettings } from "../../src/domain/p2p/networkSettings";
 import { createMapAsset } from "../../src/domain/tabletop/factories";
 import { AssetService } from "../../src/services/AssetService";
-import { readActiveSession, readWorkspaceRole } from "../../src/services/p2p/P2PSessionPersistence";
+import { readActiveSession, readWorkspaceRole, persistWorkspaceRole } from "../../src/services/p2p/P2PSessionPersistence";
 import { resetAllStores } from "../../src/stores/gameStores";
 import { createTestP2PSession, installTimerWindow, ScriptedP2PNetwork, waitFor } from "./helpers";
 
@@ -579,6 +579,21 @@ test('explicit local GM entry leaves a stale player transport and preserves its 
     await session.stop().catch(() => undefined);
     restoreWindow();
   }
+});
+
+test('stale GM tab intent cannot override a later player session from another context', () => {
+  const restore = installPersistentStorageWindow();
+  try {
+    const player = { version: 1 as const, role: 'player' as const, roomId: 'FIRST-ROOM', participantName: 'Player', participantId: 'seat-1', updatedAt: '2026-10-25T00:00:00Z' };
+    localAppStorageStore.update((state) => ({ p2p: { ...state.p2p, activeSession: player } }));
+    persistWorkspaceRole('gm');
+    assert.equal(readWorkspaceRole(), 'gm');
+    // A new join in another tab changes shared localStorage but not this tab's sessionStorage.
+    localAppStorageStore.update((state) => ({ p2p: { ...state.p2p, activeSession: { ...player, updatedAt: '2026-10-25T00:01:00Z' } } }));
+    assert.equal(readWorkspaceRole(), undefined);
+    sessionAppStorageStore.update((state) => ({ p2p: { ...state.p2p, workspaceRole: 'gm', workspaceSessionKey: undefined } }));
+    assert.equal(readWorkspaceRole(), undefined);
+  } finally { restore(); }
 });
 
 function installPersistentStorageWindow(): () => void {

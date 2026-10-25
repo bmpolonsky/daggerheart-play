@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { CloudDownload, CloudUpload, Download, Ellipsis, FolderOpen, Globe2, Plus, Trash2, Upload } from 'lucide-react';
+import { CloudDownload, CloudUpload, Download, Ellipsis, FolderOpen, Globe2, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import type { StoredGameSummary, StoredWorldSummary } from '../../core/persistence/gameDocumentStore';
 import { useStream } from '../../core/hooks/useStream';
 import { formatDateTime } from '../../core/utils/date';
@@ -179,7 +179,7 @@ export function WorldLibraryPanel({ onOpen }: { onOpen?: () => void }) {
                       items={[
                         { id: 'new-game', label: 'Новая игра', icon: <Plus size={14} />, onSelect: () => void createGame(world) },
                         { id: 'import-game', label: 'Импорт игры', icon: <Upload size={14} />, onSelect: () => { setGameImportWorldId(world.id); gameImportRef.current?.click(); } },
-                        { id: 'rename', label: 'Переименовать', onSelect: () => { setMessage(null); setPendingRename(world); } },
+                        { id: 'rename', label: 'Переименовать', icon: <Pencil size={14} />, onSelect: () => { setMessage(null); setPendingRename(world); } },
                         { id: 'export', label: 'Экспортировать', icon: <Download size={14} />, onSelect: () => void importExportService.downloadWorldArchive(world.id) },
                         { id: 'delete', label: 'Удалить с устройства', icon: <Trash2 size={14} />, onSelect: () => setPendingDelete({ kind: 'world', item: world }) }
                       ]}
