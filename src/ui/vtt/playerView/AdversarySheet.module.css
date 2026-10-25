@@ -1,0 +1,14 @@
+.incomingDamage {
+  margin-top: 12px;
+}
+
+.incomingDamage > summary {
+  cursor: pointer;
+  color: var(--dh-paper-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.incomingDamage > :not(summary) {
+  margin-top: 8px;
+}

@@ -1,3 +1,6 @@
+import styles from './AdversarySheet.module.css';
+import { previewAdversaryDamage } from '../../../domain/rules/adversaryDamage';
+import { NumberField, Notice } from '../../components/common';
 /** @jsxImportSource preact */
 import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
@@ -25,6 +28,16 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
   const setFeatureDiceDraft = (draft: PreparedDiceRoll | null) => setFeatureDiceState(draft ? { actorId: adversary.id, draft } : null);
   const runFeatureMacro = (feature: SheetFeatureView, macro: DomainCardTextMacro) => {
     runAdversaryFeatureMacro(adversary, feature, macro, setFeatureDiceDraft);
+  };
+  const [incomingDamage, setIncomingDamage] = useState<{ actorId: string; value: string }>({ actorId: adversary.id, value: '' });
+  const [damageResult, setDamageResult] = useState<{ actorId: string; message: string } | null>(null);
+  const damageValue = incomingDamage.actorId === adversary.id ? incomingDamage.value : '';
+  const damagePreview = previewAdversaryDamage(adversary, damageValue.trim() === '' ? null : Number(damageValue));
+  const applyIncomingDamage = () => {
+    if (!damagePreview.valid) return;
+    const result = encounterService.applyAdversaryDamage(damagePreview);
+    setDamageResult({ actorId: adversary.id, message: result.message });
+    if (result.applied) setIncomingDamage({ actorId: adversary.id, value: '' });
   };
   const addStatus = (name: string) => {
     if (normalizeStatusTag(name) === ActorStatus.Defeated) {
@@ -94,6 +107,17 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
               <strong>{adversary.thresholds.severe}+</strong>
             </div>
           </section>
+          {!readOnly && <details className={styles.incomingDamage}>
+            <summary>Входящий урон</summary>
+            <NumberField label="Полученный урон" min={0} step={1} inputMode="numeric" value={damageValue}
+              hint="После поправок на особые свойства и сопротивления, которые учитывает мастер."
+              onInput={(event) => { setIncomingDamage({ actorId: adversary.id, value: event.currentTarget.value }); setDamageResult(null); }} />
+            <p aria-live="polite">{damagePreview.valid
+              ? `Ран к отметке: ${damagePreview.appliedWounds}. Раны: ${damagePreview.markedBefore} → ${damagePreview.markedAfter} из ${damagePreview.hpMax}.`
+              : damagePreview.reason}</p>
+            <Button size="sm" disabled={!damagePreview.valid || damagePreview.appliedWounds === 0} onClick={applyIncomingDamage}>Применить урон</Button>
+            {damageResult?.actorId === adversary.id && <Notice role="status">{damageResult.message}</Notice>}
+          </details>}
           <section className="player-sheet-status-block">
             <header>
               <span>Состояния</span>

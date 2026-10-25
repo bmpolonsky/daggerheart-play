@@ -1,3 +1,4 @@
+import { previewAdversaryDamage, matchesAdversaryDamageBasis, type AdversaryDamagePlan } from '../domain/rules/adversaryDamage';
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { removeFromRecord, replaceInRecord } from '../core/utils/object';
@@ -140,6 +141,17 @@ export class EncounterService {
       ...adversary,
       thresholds: { ...adversary.thresholds, [key]: Math.max(0, toSafeInteger(value, adversary.thresholds[key])) }
     }));
+  }
+
+  applyAdversaryDamage(plan: AdversaryDamagePlan): { applied: boolean; message: string; appliedWounds?: number } {
+    const current = encounterStore.get().adversaries[plan.actorId];
+    if (!current) return { applied: false, message: 'Противник больше недоступен.' };
+    if (!matchesAdversaryDamageBasis(current, plan)) return { applied: false, message: 'Состояние противника изменилось. Проверьте расчёт и примените снова.' };
+    const next = previewAdversaryDamage(current, plan.amount);
+    if (!next.valid) return { applied: false, message: next.reason };
+    if (next.appliedWounds <= 0) return { applied: false, message: 'Дополнительных Ран не отмечено.' };
+    this.updateAdversarySlots(current.id, 'hp', { marked: next.markedAfter });
+    return { applied: true, appliedWounds: next.appliedWounds, message: `Получено урона: ${next.amount}. Отмечено Ран: ${next.appliedWounds} (${next.markedAfter}/${next.hpMax}).` };
   }
 
   updateAdversarySlots(id: string, resource: 'hp' | 'stress', patch: Partial<{ marked: number; max: number }>): void {
