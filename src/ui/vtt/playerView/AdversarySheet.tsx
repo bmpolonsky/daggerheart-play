@@ -1,7 +1,7 @@
+/** @jsxImportSource preact */
 import styles from './AdversarySheet.module.css';
 import { previewAdversaryDamage } from '../../../domain/rules/adversaryDamage';
 import { NumberField, Notice } from '../../components/common';
-/** @jsxImportSource preact */
 import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import { ChevronLeft, Heart, Zap } from "lucide-react";
