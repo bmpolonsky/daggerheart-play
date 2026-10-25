@@ -5,9 +5,15 @@ import type { DiceService } from './DiceService';
 import type { P2PSessionService } from './P2PSessionService';
 import type { PlayerRollIntent } from './SyncService';
 
+export interface UnifiedRollExecutionResult { ok: boolean; error?: string; rollId?: string }
+export interface EventRollDelegate {
+  error(draft: UnifiedRollDraft, role: 'gm' | 'player', allowedActorIds: readonly string[]): string | null;
+  execute(draft: UnifiedRollDraft, role: 'gm' | 'player', publication: RollPublication, allowedActorIds: readonly string[]): UnifiedRollExecutionResult | Promise<UnifiedRollExecutionResult>;
+}
+
 export class UnifiedRollExecutionService {
   constructor(private dice: Pick<DiceService, 'rollAction' | 'rollReaction' | 'rollDamage' | 'rollManualDice' | 'rollGmAttackCheck'>,
-    private session: Pick<P2PSessionService, 'isConnectedPlayerSession' | 'submitPlayerRollIntent' | 'session$'>, private currentScope: () => string) {}
+    private session: Pick<P2PSessionService, 'isConnectedPlayerSession' | 'submitPlayerRollIntent' | 'session$'>, private currentScope: () => string, private eventRolls?: EventRollDelegate) {}
 
   error(draft: UnifiedRollDraft, role: 'gm' | 'player', allowedActorIds: readonly string[]): string | null {
     if (draft.scopeKey !== this.currentScope()) return 'Игра или сессия изменилась. Подготовьте бросок заново.';
@@ -20,6 +26,10 @@ export class UnifiedRollExecutionService {
     if (actor.kind === 'character' && (!actor.id || !charactersStore.get().entities[actor.id])) return 'Персонаж этого броска больше недоступен.';
     if (actor.kind === 'adversary' && (!actor.id || !encounterStore.get().adversaries[actor.id])) return 'Противник этого броска больше недоступен.';
     if (actor.kind === 'environment' && (!actor.id || !encounterStore.get().environments[actor.id])) return 'Окружение этого броска больше недоступно.';
+    if (draft.eventContext) {
+      if (!this.eventRolls) return 'Обработка событийного броска недоступна. Бросок не выполнен.';
+      return this.eventRolls.error(draft, role, allowedActorIds);
+    }
     if ((draft.mode === 'action' || draft.mode === 'reaction') && actor.kind !== 'character' && actor.id) return 'Проверка Дуальности требует персонажа. Выберите атаку противника или ручной бросок.';
     if (draft.mode === 'gmAttack' && (role !== 'gm' || actor.kind !== 'adversary')) return 'Атака противника доступна мастеру от лица противника.';
     if (draft.mode === 'action' || draft.mode === 'reaction') {
@@ -37,9 +47,14 @@ export class UnifiedRollExecutionService {
     return null;
   }
 
-  async execute(draft: UnifiedRollDraft, role: 'gm' | 'player', publication: RollPublication, allowedActorIds: readonly string[]): Promise<{ ok: boolean; error?: string }> {
+  async execute(draft: UnifiedRollDraft, role: 'gm' | 'player', publication: RollPublication, allowedActorIds: readonly string[]): Promise<UnifiedRollExecutionResult> {
     const error = this.error(draft, role, allowedActorIds);
     if (error) return { ok: false, error };
+    if (draft.eventContext) {
+      if (!this.eventRolls) return { ok: false, error: 'Обработка событийного броска недоступна. Бросок не выполнен.' };
+      try { return await this.eventRolls.execute(draft, role, publication, allowedActorIds); }
+      catch { return { ok: false, error: 'Не удалось применить событийный бросок. Обычный бросок не выполнен.' }; }
+    }
     const actor = { actorId: draft.actor.id, actorName: draft.actor.name, publication };
     const formula = draft.manualModifier ? `${draft.formula}${draft.manualModifier > 0 ? '+' : ''}${draft.manualModifier}` : draft.formula;
     let intent: PlayerRollIntent;

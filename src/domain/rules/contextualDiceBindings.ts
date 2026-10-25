@@ -1,4 +1,6 @@
 import type { TraitId } from './types';
+import { parseDomainCardTextMacros, type DomainCardTextMacro } from './domainCards';
+import { parseDiceFormula } from './diceFormula';
 
 /** Context is supplied by the source of the text, never inferred from its title. */
 export interface ContextualDiceSource {
@@ -8,6 +10,8 @@ export interface ContextualDiceSource {
   collection?: string;
   slug?: string;
   name?: string;
+  weaponFormula?: string;
+  countdownValue?: number;
   /** Must be the same cleaned text used to produce macro.start/end. */
   text: string;
 }
@@ -16,6 +20,7 @@ export interface ContextualDiceMacro {
   formula: string;
   start: number;
   end: number;
+  contextualBinding?: string;
 }
 
 export interface ContextualDiceActor {
@@ -23,6 +28,8 @@ export interface ContextualDiceActor {
   level: number;
   spellcastTrait?: TraitId | null;
   traits?: Partial<Record<TraitId, number>> | Array<{ id: TraitId; value: number }>;
+  features?: Array<{ id: string; sourceId?: string | number; featureId?: string | number; collection?: string; slug?: string; text?: string; name?: string }>;
+  companion?: { stress: { marked: number; max: number }; attackFormula?: string } | null;
 }
 
 export interface ContextualDiceQuantity {
@@ -378,6 +385,659 @@ const DOMAIN_SOURCE_FINGERPRINTS: Record<string, readonly string[]> = {
   ]
 };
 
+interface SupplementalRule {
+  key: string;
+  collection: string;
+  slug: string;
+  featureId?: number;
+  parentId?: number;
+  behavior: string;
+  fingerprints: readonly string[];
+}
+
+// Existing source metadata only: no catalog content or user data is added.
+const SUPPLEMENTAL_RULES: readonly SupplementalRule[] = [
+  {
+    "key": "class:seraph:135",
+    "collection": "class",
+    "slug": "seraph",
+    "featureId": 135,
+    "behavior": "prayer",
+    "fingerprints": [
+      "532:ff207659",
+      "547:a721c102",
+      "645:781ed059",
+      "611:d787da7c",
+      "651:61f9d7af"
+    ]
+  },
+  {
+    "key": "subclass:divine-wielder:189",
+    "collection": "subclass",
+    "slug": "divine-wielder",
+    "featureId": 189,
+    "behavior": "prayerUpgrade",
+    "fingerprints": [
+      "229:67954641",
+      "239:928f9cca",
+      "904:f1298bbb",
+      "840:f9f2715c",
+      "916:1fbf9919"
+    ]
+  },
+  {
+    "key": "class:playtest-assassin:2061",
+    "collection": "class",
+    "slug": "playtest-assassin",
+    "featureId": 2061,
+    "behavior": "assassin",
+    "fingerprints": [
+      "450:76fce3de",
+      "464:cbfcce2d",
+      "768:0a5b6101",
+      "715:dbe0a703",
+      "777:3618177e"
+    ]
+  },
+  {
+    "key": "subclass:executioners-guild:2068",
+    "collection": "subclass",
+    "slug": "executioners-guild",
+    "featureId": 2068,
+    "behavior": "assassinUpgrade",
+    "fingerprints": [
+      "60:1728c2c3",
+      "77:39d2615d",
+      "641:84f79e6f",
+      "550:1499eb6d",
+      "659:f3633961"
+    ]
+  },
+  {
+    "key": "subclass:executioners-guild:2067",
+    "collection": "subclass",
+    "slug": "executioners-guild",
+    "featureId": 2067,
+    "behavior": "assassinUpgrade",
+    "fingerprints": [
+      "60:94b53403",
+      "74:e42833c8",
+      "641:84f79e6f",
+      "550:1499eb6d",
+      "659:f3633961"
+    ]
+  },
+  {
+    "key": "class:bard:123",
+    "collection": "class",
+    "slug": "bard",
+    "featureId": 123,
+    "behavior": "rally",
+    "fingerprints": [
+      "435:d659c8df",
+      "446:ac3e399a",
+      "578:4cb1d111",
+      "551:2ddcdd90",
+      "584:c675d9c7"
+    ]
+  },
+  {
+    "key": "subclass:wordsmith:153",
+    "collection": "subclass",
+    "slug": "wordsmith",
+    "featureId": 153,
+    "behavior": "rallyUpgrade",
+    "fingerprints": [
+      "244:20e44054",
+      "262:50158054",
+      "972:fff496f4",
+      "906:62499bed",
+      "984:081d774a"
+    ]
+  },
+  {
+    "key": "class:playtest-warlock:1972",
+    "collection": "class",
+    "slug": "playtest-warlock",
+    "featureId": 1972,
+    "behavior": "patronSingle",
+    "fingerprints": [
+      "557:b3a81940",
+      "578:0e166de6",
+      "1033:8ce741cb",
+      "986:d8fffac7",
+      "1042:3379520c"
+    ]
+  },
+  {
+    "key": "subclass:playtest-pact-of-the-wraithful:1978",
+    "collection": "subclass",
+    "slug": "playtest-pact-of-the-wraithful",
+    "featureId": 1978,
+    "behavior": "patronTier",
+    "fingerprints": [
+      "282:85537253",
+      "302:40030253",
+      "1472:fd44a56a",
+      "1353:97f15a58",
+      "1490:0cd5f0dc"
+    ]
+  },
+  {
+    "key": "subclass:playtest-pact-of-the-wraithful:2123",
+    "collection": "subclass",
+    "slug": "playtest-pact-of-the-wraithful",
+    "featureId": 2123,
+    "behavior": "patronWounds",
+    "fingerprints": [
+      "217:45f763b2",
+      "236:307c97c3",
+      "1472:fd44a56a",
+      "1353:97f15a58",
+      "1490:0cd5f0dc"
+    ]
+  },
+  {
+    "key": "subclass:playtest-pact-of-the-wraithful:2109",
+    "collection": "subclass",
+    "slug": "playtest-pact-of-the-wraithful",
+    "featureId": 2109,
+    "behavior": "patronGrace",
+    "fingerprints": [
+      "284:420ccea2",
+      "301:f21c91b6",
+      "1472:fd44a56a",
+      "1353:97f15a58",
+      "1490:0cd5f0dc"
+    ]
+  },
+  {
+    "key": "subclass:playtest-pact-of-the-endless:1974",
+    "collection": "subclass",
+    "slug": "playtest-pact-of-the-endless",
+    "featureId": 1974,
+    "behavior": "patronGrace",
+    "fingerprints": [
+      "170:7d6fe3ef",
+      "188:c8098248",
+      "1352:83f3b51c",
+      "1242:a5b83c33",
+      "1370:89d5a996"
+    ]
+  },
+  {
+    "key": "class:playtest-fighter:1969",
+    "collection": "class",
+    "slug": "playtest-fighter",
+    "featureId": 1969,
+    "behavior": "fighterWeapon",
+    "fingerprints": [
+      "364:f6f7e53c",
+      "381:74b17b61",
+      "1120:6c7317a4",
+      "1076:4c8633f9",
+      "1129:51945d7b"
+    ]
+  },
+  {
+    "key": "class:playtest-fighter:1970",
+    "collection": "class",
+    "slug": "playtest-fighter",
+    "featureId": 1970,
+    "behavior": "combo",
+    "fingerprints": [
+      "611:b1a6471c",
+      "624:97aad1f5",
+      "1120:6c7317a4",
+      "1076:4c8633f9",
+      "1129:51945d7b"
+    ]
+  },
+  {
+    "key": "subclass:beastbound",
+    "collection": "subclass",
+    "slug": "beastbound",
+    "behavior": "companion",
+    "fingerprints": [
+      "4381:e592700f",
+      "290:87127543",
+      "69:df10838e",
+      "111:74021246",
+      "73:e5798772",
+      "297:736d6d1b",
+      "936:ae284d66",
+      "844:31ba7606",
+      "951:dd4d9985",
+      "5333:a1e8153d"
+    ]
+  },
+  {
+    "key": "ancestry:drakona:223",
+    "collection": "ancestry",
+    "slug": "drakona",
+    "featureId": 223,
+    "behavior": "mastery",
+    "fingerprints": [
+      "271:b133d0b7",
+      "294:62fa4623",
+      "440:76b9f00c",
+      "410:1500a308",
+      "1050:1b58bd4a",
+      "446:65825cfc",
+      "1497:e6ac3dc3"
+    ]
+  },
+  {
+    "key": "ancestry:firbolg:232",
+    "collection": "ancestry",
+    "slug": "firbolg",
+    "featureId": 232,
+    "behavior": "fixed",
+    "fingerprints": [
+      "222:a4b31989",
+      "229:5579017c",
+      "328:9edc4503",
+      "305:fb9c59f1",
+      "1272:b75ab3b4",
+      "334:9c01f283",
+      "1607:68d44e22"
+    ]
+  },
+  {
+    "key": "ancestry:firbolg:233",
+    "collection": "ancestry",
+    "slug": "firbolg",
+    "featureId": 233,
+    "behavior": "fixed",
+    "fingerprints": [
+      "82:943836a3",
+      "98:de90f7fe",
+      "328:9edc4503",
+      "305:fb9c59f1",
+      "1272:b75ab3b4",
+      "334:9c01f283",
+      "1607:68d44e22"
+    ]
+  },
+  {
+    "key": "subclass:winged-sentinel:194",
+    "collection": "subclass",
+    "slug": "winged-sentinel",
+    "featureId": 194,
+    "behavior": "fixed",
+    "fingerprints": [
+      "101:4fa64fdd",
+      "113:e1e27ed1",
+      "712:ea7fa8ed",
+      "658:e1886ee3",
+      "724:7bba6633"
+    ]
+  },
+  {
+    "key": "subclass:winged-sentinel:191",
+    "collection": "subclass",
+    "slug": "winged-sentinel",
+    "featureId": 191,
+    "behavior": "fixed",
+    "fingerprints": [
+      "243:5180c904",
+      "257:dfba4f59",
+      "712:ea7fa8ed",
+      "658:e1886ee3",
+      "724:7bba6633"
+    ]
+  },
+  {
+    "key": "beastform:mighty-strider:2007",
+    "collection": "beastform",
+    "slug": "mighty-strider",
+    "featureId": 2007,
+    "parentId": 280,
+    "behavior": "mastery",
+    "fingerprints": [
+      "288:fc586aea",
+      "299:75de37e6",
+      "369:2f6577ab",
+      "346:b7c27044",
+      "375:dd169c51",
+      "527:33a9223f"
+    ]
+  },
+  {
+    "key": "beastform:massive-behemoth:2032",
+    "collection": "beastform",
+    "slug": "massive-behemoth",
+    "featureId": 2032,
+    "parentId": 270,
+    "behavior": "mastery",
+    "fingerprints": [
+      "264:9ab32155",
+      "270:f3d05a2c",
+      "402:7999bda8",
+      "370:3f0c4938",
+      "411:b704b7f1",
+      "576:fcf722fb"
+    ]
+  },
+  {
+    "key": "environment:cliffside-ascent:1870",
+    "collection": "environment",
+    "slug": "cliffside-ascent",
+    "featureId": 1870,
+    "parentId": 248,
+    "behavior": "countdownBranch",
+    "fingerprints": [
+      "417:5a4cfd6f",
+      "437:e8924a24",
+      "1429:f3e4aba9",
+      "1354:bc1bc324",
+      "1438:110d7fee"
+    ]
+  },
+  {
+    "key": "equipment:mythic-dust",
+    "collection": "equipment",
+    "slug": "mythic-dust",
+    "parentId": 6928,
+    "behavior": "fixed",
+    "fingerprints": [
+      "130:2f7773b6"
+    ]
+  },
+  {
+    "key": "equipment:redthorn-saliva",
+    "collection": "equipment",
+    "slug": "redthorn-saliva",
+    "parentId": 6930,
+    "behavior": "fixed",
+    "fingerprints": [
+      "132:2ed40460"
+    ]
+  },
+  {
+    "key": "equipment:dragonbloom-tea",
+    "collection": "equipment",
+    "slug": "dragonbloom-tea",
+    "parentId": 6915,
+    "behavior": "uncertainMastery",
+    "fingerprints": [
+      "252:b494d31e"
+    ]
+  },
+  {
+    "key": "equipment:hammer-of-wrath",
+    "collection": "equipment",
+    "slug": "hammer-of-wrath",
+    "parentId": 7196,
+    "behavior": "weaponReplacement",
+    "fingerprints": [
+      "177:1b0b5e98",
+      "112:c52187ff",
+      "126:bcb5debd",
+      "129:9255f636",
+      "307:979e2f0d"
+    ]
+  },
+  {
+    "key": "equipment:greatstaff",
+    "collection": "equipment",
+    "slug": "greatstaff",
+    "parentId": 7156,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "173:ec27ecb0",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "284:da7aa0b2"
+    ]
+  },
+  {
+    "key": "equipment:greatsword",
+    "collection": "equipment",
+    "slug": "greatsword",
+    "parentId": 7247,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "186:2a87a9fd",
+      "115:32a9ab54",
+      "126:a7c1aaa2",
+      "129:841005e9",
+      "316:99ba35ff"
+    ]
+  },
+  {
+    "key": "equipment:elder-bow",
+    "collection": "equipment",
+    "slug": "elder-bow",
+    "parentId": 7140,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "169:51026db3",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "280:dbf01eab"
+    ]
+  },
+  {
+    "key": "equipment:yutari-bloodbow",
+    "collection": "equipment",
+    "slug": "yutari-bloodbow",
+    "parentId": 7141,
+    "behavior": "weaponSequence",
+    "fingerprints": [
+      "161:441c4704",
+      "95:69780a36",
+      "105:38ccfd91",
+      "108:504f0e72",
+      "270:2d10b1ef"
+    ]
+  },
+  {
+    "key": "equipment:improved-greatstaff",
+    "collection": "equipment",
+    "slug": "improved-greatstaff",
+    "parentId": 7146,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "175:d36d4dea",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "286:21577eb8"
+    ]
+  },
+  {
+    "key": "equipment:greatbow",
+    "collection": "equipment",
+    "slug": "greatbow",
+    "parentId": 7215,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "169:f5a24738",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "280:b72beb7a"
+    ]
+  },
+  {
+    "key": "equipment:knuckle-blades",
+    "collection": "equipment",
+    "slug": "knuckle-blades",
+    "parentId": 7221,
+    "behavior": "weaponSequence",
+    "fingerprints": [
+      "165:a8dd8826",
+      "95:69780a36",
+      "105:38ccfd91",
+      "108:504f0e72",
+      "274:70d79ce5"
+    ]
+  },
+  {
+    "key": "equipment:gilded-falchion",
+    "collection": "equipment",
+    "slug": "gilded-falchion",
+    "parentId": 7222,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "172:a4533a86",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "283:d558d0ac"
+    ]
+  },
+  {
+    "key": "equipment:improved-greatsword",
+    "collection": "equipment",
+    "slug": "improved-greatsword",
+    "parentId": 7234,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "186:4ac5745e",
+      "115:32a9ab54",
+      "126:a7c1aaa2",
+      "129:841005e9",
+      "316:a758fb78"
+    ]
+  },
+  {
+    "key": "equipment:mage-orb",
+    "collection": "equipment",
+    "slug": "mage-orb",
+    "parentId": 7120,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "170:c053f906",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "281:d42ee02c"
+    ]
+  },
+  {
+    "key": "equipment:advanced-greatstaff",
+    "collection": "equipment",
+    "slug": "advanced-greatstaff",
+    "parentId": 7128,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "175:7ec44e15",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "286:75552641"
+    ]
+  },
+  {
+    "key": "equipment:double-flail",
+    "collection": "equipment",
+    "slug": "double-flail",
+    "parentId": 7192,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "176:2d890eac",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "287:6f8fa1c6"
+    ]
+  },
+  {
+    "key": "equipment:talon-blades",
+    "collection": "equipment",
+    "slug": "talon-blades",
+    "parentId": 7191,
+    "behavior": "weaponSequence",
+    "fingerprints": [
+      "164:fad9990d",
+      "95:69780a36",
+      "105:38ccfd91",
+      "108:504f0e72",
+      "273:f9d62614"
+    ]
+  },
+  {
+    "key": "equipment:advanced-greatsword",
+    "collection": "equipment",
+    "slug": "advanced-greatsword",
+    "parentId": 7210,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "186:74ea665f",
+      "115:32a9ab54",
+      "126:a7c1aaa2",
+      "129:841005e9",
+      "316:379c3951"
+    ]
+  },
+  {
+    "key": "equipment:legendary-greatstaff",
+    "collection": "equipment",
+    "slug": "legendary-greatstaff",
+    "parentId": 7109,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "175:5b267a88",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "286:e72485ca"
+    ]
+  },
+  {
+    "key": "equipment:floating-bladeshards",
+    "collection": "equipment",
+    "slug": "floating-bladeshards",
+    "parentId": 7106,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "171:309e14b5",
+      "99:b4f514dd",
+      "107:5201e744",
+      "110:a3be57a7",
+      "282:aebd79a1"
+    ]
+  },
+  {
+    "key": "equipment:legendary-greatsword",
+    "collection": "equipment",
+    "slug": "legendary-greatsword",
+    "parentId": 7185,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "187:f340e517",
+      "115:32a9ab54",
+      "126:a7c1aaa2",
+      "129:841005e9",
+      "317:e956b8d9"
+    ]
+  },
+  {
+    "key": "equipment:bloodstone",
+    "collection": "equipment",
+    "slug": "bloodstone",
+    "parentId": 6996,
+    "behavior": "weaponSequence",
+    "fingerprints": [
+      "226:0794eff6"
+    ]
+  },
+  {
+    "key": "equipment:greatstone",
+    "collection": "equipment",
+    "slug": "greatstone",
+    "parentId": 6995,
+    "behavior": "weaponExtra",
+    "fingerprints": [
+      "222:99ce654f"
+    ]
+  }
+];
+
 /** Declarative coverage, not a claim that every custom/edited text can be bound. */
 export const contextualDiceBindingDomainSlugs: readonly string[] = Object.freeze(Object.keys(DOMAIN_RULES));
 
@@ -387,14 +1047,17 @@ export function resolveContextualDiceBinding(
   macro: ContextualDiceMacro,
   actor: ContextualDiceActor
 ): ContextualDiceBinding {
+  if (macro.contextualBinding) return resolveNamedBinding(source, macro, actor);
   const formula = normalizeFormula(macro.formula);
   const fragment = fragmentContext(source.text, macro, formula);
   if (!fragment) return fallback(formula);
+  const supplemental = supplementalNotationBinding(source, macro, actor, formula);
+  if (supplemental) return supplemental;
   const outside = outsideBinding(source, formula, fragment, actor, cleanText(source.text.slice(macro.end, macro.end + 180)));
   if (outside) return outside;
   const slug = domainSlug(source);
   const rule = slug ? DOMAIN_RULES[slug] : undefined;
-  if (!rule || !matchesCanonicalDomainText(slug!, source.text) || !rule.guard.test(fragment) || (rule.formulas && !rule.formulas.includes(formula))) return fallback(formula);
+  if (!rule || !matchesCanonicalDomainText(slug!, source.text) || !rule.guard.test(fragment) || (rule.formulas && !rule.formulas.includes(formula))) return fallback(formula, fragment);
   if (rule.kind === 'reference' || rule.kind === 'tracker') return { formula, nonRoll: true, hint: rule.hint };
   if (rule.kind === 'fixed') return { formula, hint: rule.hint };
   if (rule.kind === 'single') return { formula: explicitSingle(formula), hint: rule.hint };
@@ -483,15 +1146,18 @@ function cleanText(text: string): string {
   return text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`]/g, '').replace(/ё/giu, 'е').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-function matchesCanonicalDomainText(slug: string, text: string): boolean {
+function sourceFingerprint(text: string): string {
   const normalized = cleanText(text);
   let hash = 0x811c9dc5;
   for (let index = 0; index < normalized.length; index++) {
     hash ^= normalized.charCodeAt(index);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
-  const fingerprint = `${normalized.length}:${hash.toString(16).padStart(8, '0')}`;
-  return DOMAIN_SOURCE_FINGERPRINTS[slug]?.includes(fingerprint) ?? false;
+  return `${normalized.length}:${hash.toString(16).padStart(8, '0')}`;
+}
+
+function matchesCanonicalDomainText(slug: string, text: string): boolean {
+  return DOMAIN_SOURCE_FINGERPRINTS[slug]?.includes(sourceFingerprint(text)) ?? false;
 }
 
 function normalizeFormula(formula: string): string {
@@ -538,8 +1204,156 @@ function quantityBinding(formula: string, label: string, hint?: string, flatPerC
   };
 }
 
-function fallback(formula: string): ContextualDiceBinding {
+function fallback(formula: string, fragment?: string): ContextualDiceBinding {
+  if (fragment && /за кажд|равное количеству|равное числу|столько же|бросьте количество|бросьте число/.test(fragment)) return { formula: '', hint: 'Количество зависит от контекста этого применения. Укажите полную формулу вручную; число из отдельного упоминания не является готовым количеством.' };
   const template = implicitTemplate(formula);
   if (template !== formula) return quantityBinding(formula, 'Количество костей: уточните по тексту', 'Контекст не распознан. Укажите количество явно; оно применяется ко всем костям без числа. Для разных количеств настройте полную формулу вручную.');
   return { formula, hint: 'Формула взята из текста. Условия и эффекты способности применяются вручную.' };
+}
+
+/** Carries durable source identifiers through view models without using names. */
+export function contextualFeatureOrigin(feature: { id: string; sourceId?: string | number; kind?: string }): Pick<ContextualDiceSource, 'sourceId' | 'featureId' | 'collection' | 'slug'> {
+  const id = feature.id;
+  const generated = id.match(/^sheet-class-(.+)-(\d+)$/)
+    ?? id.match(/^sheet-ancestryFeature-(.+)-(\d+)$/)
+    ?? id.match(/^sheet-communityFeature-(.+)-(\d+)$/)
+    ?? id.match(/^sheet-subclass-(.+)-(?:foundation|specialization|mastery)-(\d+)$/);
+  const collection = id.startsWith('sheet-class-') || feature.kind === 'classFeature' ? 'class'
+    : id.startsWith('sheet-ancestry') || feature.kind?.startsWith('ancestry') ? 'ancestry'
+      : id.startsWith('sheet-subclass') || feature.kind?.startsWith('subclass') ? 'subclass'
+        : feature.kind === 'weapon' || feature.kind === 'item' ? 'equipment' : undefined;
+  const canonical = typeof feature.sourceId === 'string' ? feature.sourceId.match(/^(class|subclass|ancestry|community|beastform|equipment|environment):(.+)$/) : null;
+  return { sourceId: feature.sourceId, ...(generated ? { slug: generated[1], featureId: Number(generated[2]) } : {}),
+    ...(collection ? { collection } : {}), ...(canonical ? { collection: canonical[1], slug: canonical[2] } : {}) };
+}
+
+/** Notation remains generic; named dice are linked only inside a known source. */
+export function parseContextualDiceMacros(source: ContextualDiceSource, actor: ContextualDiceActor = { proficiency: 1, level: 1 }): DomainCardTextMacro[] {
+  const macros = parseDomainCardTextMacros(source.text);
+  for (const rule of matchingSupplementalRules(source)) {
+    const pattern = namedPattern(rule.behavior);
+    if (!pattern) continue;
+    for (const match of source.text.matchAll(pattern)) {
+      const label = match[1];
+      const start = match.index! + match[0].indexOf(label);
+      const end = start + label.length;
+      if (macros.some(macro => macro.start < end && macro.end > start)) continue;
+      macros.push({ id: `context:${rule.key}:${start}`, kind: 'diceRoll', start, end, label, formula: '', scalesWithProficiency: false, contextualBinding: rule.key });
+    }
+  }
+  return macros.map((macro) => {
+    if (macro.kind !== 'diceRoll' && macro.kind !== 'damageRoll') return macro;
+    return resolveContextualDiceBinding(source, macro, actor).nonRoll ? { ...macro, kind: 'reference' as const } : macro;
+  }).sort((a, b) => a.start - b.start);
+}
+
+function matchingSupplementalRules(source: ContextualDiceSource): readonly SupplementalRule[] {
+  const fingerprint = sourceFingerprint(source.text);
+  return SUPPLEMENTAL_RULES.filter(rule => matchesFeature(source, rule.collection, rule.slug, rule.featureId ?? 0, rule.parentId) && rule.fingerprints.includes(fingerprint));
+}
+
+function namedPattern(behavior: string): RegExp | null {
+  switch (behavior) {
+    case 'rally': return /свою\s+(Кость\s+Сплочения)\s+и\s+бросить/giu;
+    case 'patronSingle': return /бросить\s+(кость\s+Покровителя)/giu;
+    case 'patronTier': return /бросьте\s+(кости\s+Покровителя)/giu;
+    case 'patronWounds': return /бросить\s+(кости\s+Покровителя)/giu;
+    case 'patronGrace': return /бросить\s+столько\s+же\s+(костей\s+Покровителя)/giu;
+    case 'prayerUpgrade': return /бросаете\s+свои\s+(Кости\s+Молитвы)/giu;
+    case 'combo': return /бросьте\s+(Кость\s+Комбо)/giu;
+    case 'weaponExtra': case 'weaponSequence': return /бросьте\s+(дополнительную\s+кость\s+урона)/giu;
+    default: return null;
+  }
+}
+
+function namedSpanIsValid(source: ContextualDiceSource, macro: ContextualDiceMacro, rule: SupplementalRule): boolean {
+  const pattern = namedPattern(rule.behavior);
+  if (!pattern) return false;
+  return [...source.text.matchAll(pattern)].some(match => {
+    const start = match.index! + match[0].indexOf(match[1]);
+    return start === macro.start && start + match[1].length === macro.end;
+  });
+}
+
+function resolveNamedBinding(source: ContextualDiceSource, macro: ContextualDiceMacro, actor: ContextualDiceActor): ContextualDiceBinding {
+  const rule = matchingSupplementalRules(source).find(item => item.key === macro.contextualBinding);
+  if (!rule || !namedSpanIsValid(source, macro, rule)) return { formula: '', hint: 'Источник именованной кости не подтверждён. Укажите полную формулу вручную.' };
+  const patronSides = actor.level >= 5 ? 8 : 6;
+  switch (rule.behavior) {
+    case 'rally': return { formula: `1d${hasRelatedFeature(actor, 'subclass:wordsmith:153') ? 10 : actor.level >= 5 ? 8 : 6}`, hint: 'Текущая Кость Сплочения; расход и применение результата отмечаются вручную.' };
+    case 'prayerUpgrade': return countedBinding('d4', addKnownCount(spellcastCount(actor), 1), 'Характеристика Заклинателя + 1', 'Бросьте дополнительную Кость Молитвы и отбросьте наименьшее отдельное значение вручную. Здесь кости и ресурсы не тратятся.');
+    case 'patronSingle': return { formula: `1d${patronSides}`, hint: 'Одна текущая Кость Покровителя. Выбранная Милость отмечается отдельно; здесь расход не повторяется.' };
+    case 'patronTier': return countedBinding(`d${patronSides}`, tierCount(actor.level), 'Ранг персонажа', 'Количество Костей Покровителя равно Рангу. Это добавка к урону; расход Милости отмечается отдельно.');
+    case 'patronWounds': return quantityBinding(`d${patronSides}`, 'Ран получено именно от этой атаки', 'Не весь счётчик Ран. За каждую отдельную кость 4+ противник отмечает Рану вручную. Здесь Милость не тратится.');
+    case 'patronGrace': return quantityBinding(`d${patronSides}`, 'Милости выбрано и потрачено для этого применения', rule.slug === 'playtest-pact-of-the-endless' ? 'За каждую отдельную кость 4+ очистите Рану вручную. Здесь Милость не списывается.' : 'По наибольшему отдельному результату выберите число целей вручную. Сумма не является этим числом; здесь Милость не списывается.');
+    case 'combo': return dieChoice('Кость Комбо этого персонажа', 'Один шаг последовательности. Продолжайте вручную, пока новый результат не станет меньше предыдущего; здесь Стресс не отмечается.');
+    case 'weaponExtra': return extraWeaponDie(source, false);
+    case 'weaponSequence': return extraWeaponDie(source, true);
+    default: return { formula: '', hint: 'Уточните формулу этой именованной кости вручную.' };
+  }
+}
+
+function supplementalNotationBinding(source: ContextualDiceSource, macro: ContextualDiceMacro, actor: ContextualDiceActor, formula: string): ContextualDiceBinding | null {
+  for (const rule of matchingSupplementalRules(source)) {
+    const tail = cleanText(source.text.slice(macro.end, macro.end + 180));
+    switch (rule.behavior) {
+      case 'prayer': if (formula === 'd4') {
+        const upgrade = hasRelatedFeature(actor, 'subclass:divine-wielder:189');
+        return countedBinding(formula, addKnownCount(spellcastCount(actor), upgrade ? 1 : 0), upgrade ? 'Характеристика Заклинателя + 1' : 'Характеристика Заклинателя', upgrade ? 'Набожный: отбросьте наименьшую отдельную Кость Молитвы вручную; сумма не является запасом отдельных костей.' : 'Это отдельные Кости Молитвы; сохраняйте и расходуйте их значения вручную, не сумму.');
+      } break;
+      case 'assassin': if (formula === 'd4') {
+        const sides = hasRelatedFeature(actor, 'subclass:executioners-guild:2067') ? 8 : hasRelatedFeature(actor, 'subclass:executioners-guild:2068') ? 6 : 4;
+        return countedBinding(`d${sides}`, tierCount(actor.level), 'Ранг персонажа', 'Количество костей Метки Смерти равно Рангу; текущая кость учитывает выбранные свойства подкласса.');
+      } break;
+      case 'assassinUpgrade': return { formula, nonRoll: true, hint: 'Это изменение размера кости Метки Смерти. Подготовьте бросок из основной способности с текущим размером кости.' };
+      case 'rally': return { formula, nonRoll: true, hint: 'Это описание размера Кости Сплочения по уровню. Для подготовки нажмите именованную Кость Сплочения в предложении о её расходе.' };
+      case 'rallyUpgrade': return /^в качестве вашей кости преимущества/.test(tail)
+        ? { formula: '1d10', hint: 'Одна кость помощи d10. Перенос результата и расход учитываются вручную; здесь Надежда не списывается.' }
+        : { formula, nonRoll: true, hint: 'Это улучшение Кости Сплочения до d10; бросок готовится из основного свойства.' };
+      case 'patronSingle': return { formula, nonRoll: true, hint: 'Это описание размера Кости Покровителя по уровню. Для подготовки нажмите именованную кость в предложении о броске.' };
+      case 'fighterWeapon': return countedBinding(formula, knownCount(actor.proficiency), 'Мастерство этой атаки', 'Мастерство применяется к обеим костям Удара бойца; постоянные бонусы не умножаются.');
+      case 'combo': return { formula, nonRoll: true, hint: 'Это начальный размер или пример повышения Кости Комбо. Текущий размер выбирается явно в подготовке именованной кости.' };
+      case 'companion': if (formula === 'd6' && /^,?\s*равное количеству неотмеченных ячеек стресса/.test(tail)) {
+        const count = actor.companion ? knownCount(actor.companion.stress.max - actor.companion.stress.marked) : null;
+        return countedBinding('d6', count, 'Свободных ячеек Стресса вашего компаньона', 'Используется Стресс компаньона, не персонажа. Проверьте хотя бы одну 6 и отметьте ячейки вручную.');
+      } return { formula, nonRoll: true, hint: 'Это описание размера/повышения кости компаньона. Текущий урон готовится из строки атаки компаньона.' };
+      case 'mastery': return countedBinding(formula, knownCount(actor.proficiency), 'Мастерство этой атаки', 'Количество костей равно Мастерству этой атаки; число целей не умножает пул.');
+      case 'fixed': if (rule.slug === 'winged-sentinel' && rule.featureId === 194 && formula === '1d8') return { formula, nonRoll: true, hint: 'Это ссылка на прежнюю кость 1d8; текущее дополнение — 1d12.' };
+        return { formula: explicitSingle(formula), hint: 'Фиксированное количество из свойства; не умножается Мастерством или числом целей.' };
+      case 'uncertainMastery': return quantityBinding(formula, 'Количество d20 для этой атаки', 'Текст связывает урон с Мастерством; подтвердите количество для этого применения вручную. Здесь расходник не используется.');
+      case 'countdownBranch': {
+        const value = source.countdownValue;
+        if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 12) return { formula: `${value >= 8 ? 1 : value >= 4 ? 2 : 3}d12`, hint: `Падение: значение именно этого отсчёта ${value}.` };
+        return { formula: '', branches: [
+          { id: 'countdown-8-12', label: 'Отсчёт 8–12: 1d12', formula: '1d12' },
+          { id: 'countdown-4-7', label: 'Отсчёт 4–7: 2d12', formula: '2d12' },
+          { id: 'countdown-0-3', label: 'Отсчёт 3 или ниже: 3d12', formula: '3d12' }
+        ], hint: 'Выберите текущее значение отсчёта этого падения; общий отсчёт сцены не подставляется автоматически.' };
+      }
+      case 'weaponExtra': case 'weaponSequence': return { formula, nonRoll: true, hint: 'Это базовая кость в описании оружия. Дополнительная кость готовится из именованного свойства; основной урон — из строки оружия.' };
+      case 'weaponReplacement': return { formula, nonRoll: true, hint: 'Это замена кости урона оружия на d20, а не отдельная d20. Измените полную формулу оружия вручную, сохранив количество костей и постоянный бонус.' };
+    }
+  }
+  return null;
+}
+
+function hasRelatedFeature(actor: ContextualDiceActor, key: string): boolean {
+  return actor.features?.some(feature => matchingSupplementalRules({ cardId: feature.id, ...contextualFeatureOrigin(feature), ...feature, text: feature.text ?? '' }).some(rule => rule.key === key)) ?? false;
+}
+
+function addKnownCount(count: number | null, extra: number): number | null {
+  return count === null ? null : count + extra;
+}
+
+function dieChoice(label: string, hint: string, quantityLabel?: string): ContextualDiceBinding {
+  return { formula: '', branches: [4, 6, 8, 10, 12, 20].map(sides => ({ id: `d${sides}`, label: `${label}: d${sides}`, formula: quantityLabel ? '' : `1d${sides}`,
+    ...(quantityLabel ? { quantity: { label: quantityLabel, value: null, min: 1, max: 100, formulaTemplate: `{count}d${sides}`, explanation: hint } } : {}) })), hint };
+}
+
+function extraWeaponDie(source: ContextualDiceSource, repeated: boolean): ContextualDiceBinding {
+  let sides: number | undefined;
+  try { const dice = source.weaponFormula ? parseDiceFormula(source.weaponFormula).filter(term => term.kind === 'dice' && term.sign > 0) : []; if (dice.length === 1 && dice[0].kind === 'dice') sides = dice[0].sides; } catch { /* Unknown weapon formula requires explicit choice. */ }
+  const hint = repeated ? 'Только дополнительные кости этого срабатывания. Продолжение последовательности и применение к уже брошенному урону выполняются вручную; основной урон не перебрасывается.' : 'Одна дополнительная кость к уже брошенному пулу; отбросьте наименьшее отдельное значение вручную. Основной урон здесь не повторяется.';
+  if (!sides) return dieChoice('Размер кости этого оружия', hint, repeated ? 'Дополнительных костей этого срабатывания' : undefined);
+  return repeated ? quantityBinding(`d${sides}`, 'Дополнительных костей этого срабатывания', hint) : { formula: `1d${sides}`, hint };
 }

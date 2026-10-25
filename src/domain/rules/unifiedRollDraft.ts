@@ -1,6 +1,7 @@
 import { createId } from '../../core/utils/id';
 import { parseDiceFormula, type ParsedFormulaTerm } from './diceFormula';
 import type { DamageType, TraitId } from './types';
+import type { EventRollContext } from './eventRoll';
 
 export interface UnifiedRollActor {
   key: string;
@@ -54,6 +55,8 @@ export interface UnifiedRollDraft {
   branches?: UnifiedRollBranch[];
   selectedBranchId?: string;
   hint?: string;
+  eventContext?: EventRollContext;
+  eventUnlinked?: boolean;
 }
 
 export type UnifiedRollDraftInput = Pick<UnifiedRollDraft, 'actor' | 'mode' | 'title' | 'formula'> & Partial<Omit<UnifiedRollDraft, 'actor' | 'mode' | 'title' | 'formula'>>;
@@ -64,6 +67,7 @@ export function createUnifiedRollDraft(input: UnifiedRollDraftInput): UnifiedRol
     id: input.id ?? createId('roll-draft'),
     actor: { ...input.actor },
     ...(input.source ? { source: { ...input.source } } : {}),
+    ...(input.eventContext ? { eventContext: { ...input.eventContext } } : {}),
     ...(input.damage ? { damage: { ...input.damage } } : {}),
     ...(input.quantity ? { quantity: { ...input.quantity } } : {}),
     ...(input.branches ? { branches: input.branches.map((branch) => ({ ...branch, ...(branch.quantity ? { quantity: { ...branch.quantity } } : {}) })) } : {}),
@@ -83,6 +87,11 @@ export function isTypedUnifiedRoll(draft: Pick<UnifiedRollDraft, 'mode'>): boole
 export function unifiedRollPaysForExperiences(draft: Pick<UnifiedRollDraft, 'mode' | 'source' | 'spendHopeForExperiences'>): boolean {
   return draft.source?.isCompanion === true && (draft.mode === 'action' || draft.mode === 'reaction')
     ? true : draft.spendHopeForExperiences;
+}
+
+/** Only this explicit intent detaches a prepared result from its event. */
+export function unlinkUnifiedRollEvent(draft: UnifiedRollDraft): UnifiedRollDraft {
+  return { ...draft, eventContext: undefined, eventUnlinked: true };
 }
 
 /** Caller must explicitly confirm this conversion and provide the complete formula. */

@@ -1,4 +1,4 @@
-import { parseDiceFormula } from './diceFormula';
+import { maxDiceValue, parseDiceFormula } from './diceFormula';
 import { isTypedUnifiedRoll, type UnifiedRollDraft } from './unifiedRollDraft';
 
 export function appendRollModifier(formula: string, modifier: number): string {
@@ -12,6 +12,16 @@ export function unifiedRollCompleteFormula(draft: UnifiedRollDraft, staticModifi
     if (net) formula += net > 0 ? '+1d6' : '-1d6';
   }
   return formula;
+}
+
+/** Damage keeps an editable base; critical maximum is a presentation-only term. */
+export function unifiedRollFormulaPresentation(draft: UnifiedRollDraft, staticModifier = 0): { baseFormula: string; effectiveFormula: string; criticalBonus: number } {
+  const baseFormula = unifiedRollCompleteFormula(draft, staticModifier);
+  let criticalBonus = 0;
+  if (draft.mode === 'damage' && draft.critical) {
+    try { criticalBonus = maxDiceValue(parseDiceFormula(baseFormula)); } catch { /* The draft validator blocks incomplete formulas. */ }
+  }
+  return { baseFormula, effectiveFormula: appendRollModifier(baseFormula, criticalBonus), criticalBonus };
 }
 
 /** Preserve ordinary advantage/ disadvantage when an edited typed pool becomes manual. */

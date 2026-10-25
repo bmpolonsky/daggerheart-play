@@ -13,6 +13,35 @@ export interface AdversaryAttackRollOptions {
   publication: RollPublication;
 }
 
+export function prefillAdversaryAttack(adversary: PlayerViewAdversarySummary): void {
+  unifiedRollDraftService.request({
+    actor: { key: `adversary:${adversary.id}`, id: adversary.id, name: adversary.name, kind: 'adversary' },
+    mode: 'gmAttack',
+    title: adversary.standardAttack.name,
+    formula: '1d20',
+    attackModifier: adversary.attackModifier,
+    damage: { formula: adversary.standardAttack.damage, damageType: normalizeDamageType(adversary.standardAttack.damageType) },
+    notes: `Атака Мастера: ${adversary.standardAttack.name}`
+  });
+}
+
+export function prefillAdversaryDamage(adversary: PlayerViewAdversarySummary): void {
+  unifiedRollDraftService.request({
+    actor: { key: `adversary:${adversary.id}`, id: adversary.id, name: adversary.name, kind: 'adversary' },
+    mode: 'damage',
+    title: adversary.standardAttack.name,
+    formula: adversary.standardAttack.damage,
+    damageType: normalizeDamageType(adversary.standardAttack.damageType),
+    manualModifier: 0,
+    advantageCount: 0,
+    disadvantageCount: 0,
+    experienceIds: [],
+    spendHopeForExperiences: false,
+    critical: false,
+    notes: `Урон атаки Мастера: ${adversary.standardAttack.name}`
+  });
+}
+
 /** Legacy attack entry point, rendered by the unified bottom tray only. */
 export function AdversaryAttackConfirm({ adversary, onClose }: {
   adversary: PlayerViewAdversarySummary;
@@ -24,15 +53,7 @@ export function AdversaryAttackConfirm({ adversary, onClose }: {
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
-    unifiedRollDraftService.request({
-      actor: { key: `adversary:${adversary.id}`, id: adversary.id, name: adversary.name, kind: 'adversary' },
-      mode: 'gmAttack',
-      title: adversary.standardAttack.name,
-      formula: '1d20',
-      attackModifier: adversary.attackModifier,
-      damage: { formula: adversary.standardAttack.damage, damageType: normalizeDamageType(adversary.standardAttack.damageType) },
-      notes: `Атака Мастера: ${adversary.standardAttack.name}`
-    });
+    prefillAdversaryAttack(adversary);
     onClose();
   }, []);
   return null;

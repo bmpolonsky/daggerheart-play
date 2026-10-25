@@ -61,6 +61,11 @@ export type CountdownComposerDraft = Pick<Countdown, 'name' | 'current' | 'max' 
 
 export interface TableFeedFeaturePreview {
   id: string;
+  sourceId?: string | number;
+  featureId?: string | number;
+  collection?: string;
+  slug?: string;
+  weaponFormula?: string;
   name: string;
   subtitle?: string;
   text: string;

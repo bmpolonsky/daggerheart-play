@@ -2,8 +2,8 @@ import { buildPresentedHandoutOverlay, type PresentedHandoutOverlay } from '../r
 import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { buildEffectiveCharacterStats } from '../rules/effects';
 import { scaleWeaponFormulaByProficiency } from '../rules/diceFormula';
-import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
-import { resolveContextualDiceBinding } from '../rules/contextualDiceBindings';
+import { resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
+import { contextualFeatureOrigin, parseContextualDiceMacros } from '../rules/contextualDiceBindings';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { characterSheetCardSourceLabel, isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
 import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId, CharacterWealth } from '../rules/types';
@@ -60,7 +60,7 @@ export interface PlayerViewCharacterSummary {
   loadoutCards: PlayerViewDomainCardSummary[];
   handLimit: number;
   usageTrackers: NonNullable<Character['usageTrackers']>;
-  features: Array<{ id: string; name: string; subtitle: string; sourceLabel: string; text: string }>;
+  features: Array<{ id: string; name: string; subtitle: string; sourceLabel: string; text: string; sourceId?: string | number; featureId?: string | number; collection?: string; slug?: string }>;
   inventory: CharacterInventoryItem[];
   wealth: CharacterWealth;
   conditions: Array<{ id: string; name: string; notes: string; removalCondition?: string }>;
@@ -94,6 +94,10 @@ export function groupPlayerViewFeatures(features: PlayerViewCharacterSummary['fe
 export interface PlayerViewDomainCardSummary {
   id: string;
   sourceId?: string | number;
+  featureId?: string | number;
+  collection?: string;
+  slug?: string;
+  weaponFormula?: string;
   name: string;
   domain: string;
   domainLabel: string;
@@ -433,11 +437,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
         value: Math.min(card.tokens.value, tokenMax),
         max: tokenMax
       },
-      macros: parseDomainCardTextMacros(macroText).map((macro) => {
-        if (macro.kind !== 'diceRoll' && macro.kind !== 'damageRoll') return macro;
-        const binding = resolveContextualDiceBinding({ cardId: card.id, sourceId: card.sourceId, collection: 'domain-cards', text: macroText }, macro, { ...character, traits: effective.traits });
-        return binding.nonRoll ? { ...macro, kind: 'reference' as const } : macro;
-      })
+      macros: parseContextualDiceMacros({ cardId: card.id, sourceId: card.sourceId, collection: 'domain-cards', text: macroText }, { ...character, traits: effective.traits })
     };
   });
   return {
@@ -492,6 +492,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       .filter(isCharacterFeatureSheetCard)
       .map((card) => ({
         id: card.id,
+        ...contextualFeatureOrigin(card),
         name: card.name,
         subtitle: characterSheetCardSubtitle(card),
         sourceLabel: characterSheetCardSourceLabel(card),

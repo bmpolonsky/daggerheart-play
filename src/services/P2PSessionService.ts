@@ -2316,7 +2316,19 @@ export class P2PSessionService {
     if (!participant) {
       return;
     }
-    this.sceneTableService.upsertParticipantPresence({
+    const assignedSeat = participant.role === 'player' && participant.id === presence.requesterId
+      && participant.actorIds.includes(presence.actorId);
+    const verifiedPresence = Boolean(peerContext?.verifiedPeerId && peerContext.logicalPeerId === presence.peerId);
+    if (peerContext?.verifiedPeerId && (!verifiedPresence || !assignedSeat)) return;
+    const previousOwnerPeer = participant.peerId;
+    if (previousOwnerPeer && previousOwnerPeer !== presence.peerId) {
+      // A reload may create a new transport identity for the assigned seat.
+      // Only an observed departure of the previous owner permits that rebind;
+      // periodic presence from a second active device cannot take the seat.
+      if (!verifiedPresence || !assignedSeat || !this.activeRoomConnection
+        || this.activeRoomConnection.peers().includes(previousOwnerPeer)) return;
+    }
+    const updated = this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
       name: presence.playerName || presence.actorName,
       role: participant.role,
@@ -2324,8 +2336,8 @@ export class P2PSessionService {
       peerId: presence.peerId,
       connected: presence.connected
     });
-    if (peerContext?.verifiedPeerId && (!participant.peerId || participant.peerId === peerContext.logicalPeerId || participant.peerId === presence.peerId) && presence.peerId === peerContext.logicalPeerId) {
-      this.actorOwnerVerifiedPeers.set(presence.actorId, peerContext.verifiedPeerId);
+    if (updated && verifiedPresence && assignedSeat) {
+      this.actorOwnerVerifiedPeers.set(presence.actorId, peerContext!.verifiedPeerId!);
     }
   }
 

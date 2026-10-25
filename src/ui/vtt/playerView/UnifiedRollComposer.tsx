@@ -6,19 +6,20 @@ import { charactersStore, encounterStore, gameStore } from '../../../stores/game
 import { addAdvantageDie } from '../../../domain/rules/actionComposer';
 import { parseDiceFormula } from '../../../domain/rules/diceFormula';
 import { parseManualRollModifier } from '../../../domain/rules/manualRollModifier';
-import { applyUnifiedFormulaEdit, unifiedRollCompleteFormula, unifiedRollDiceConversionFormula } from '../../../domain/rules/unifiedRollPresentation';
-import { convertUnifiedRollToManual, editUnifiedRollDice, isTypedUnifiedRoll, selectUnifiedRollBranch, setUnifiedRollQuantity, unifiedRollPaysForExperiences, type UnifiedRollActor, type UnifiedRollDraft, type UnifiedRollMode } from '../../../domain/rules/unifiedRollDraft';
+import { applyUnifiedFormulaEdit, unifiedRollFormulaPresentation, unifiedRollDiceConversionFormula } from '../../../domain/rules/unifiedRollPresentation';
+import { convertUnifiedRollToManual, editUnifiedRollDice, isTypedUnifiedRoll, selectUnifiedRollBranch, setUnifiedRollQuantity, unifiedRollPaysForExperiences, unlinkUnifiedRollEvent, type UnifiedRollActor, type UnifiedRollDraft, type UnifiedRollMode } from '../../../domain/rules/unifiedRollDraft';
+import { eventRollCompatibility } from '../../../domain/rules/eventRoll';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { unifiedRollDraftService } from '../../../services/UnifiedRollDraftService';
 import { UnifiedRollExecutionService } from '../../../services/UnifiedRollExecutionService';
-import { diceService, p2pSessionService } from '../../../services/serviceRegistry';
+import { diceService, eventRollService, feedService, p2pSessionService } from '../../../services/serviceRegistry';
 import { Button, Checkbox, IconButton, Notice, NumberField, SelectField, TextControl, TextField } from '../../components/common';
 import { DiceIcon } from './playerChrome/feedCards/DiceIcon';
 import { CompendiumRuleTerm } from './CompendiumRuleTerm';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
 import { signed } from './helpers';
 
-const execution = new UnifiedRollExecutionService(diceService, p2pSessionService, () => unifiedRollDraftService.currentScopeKey());
+const execution = new UnifiedRollExecutionService(diceService, p2pSessionService, () => unifiedRollDraftService.currentScopeKey(), eventRollService);
 const SIDES = [4, 6, 8, 10, 12, 20];
 
 export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDisabled = false, rollPending = false }: {
@@ -27,6 +28,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
   const state = useStream(unifiedRollDraftService.state$);
   const draft = state.draft;
   useStream(charactersStore.toStream());
+  useStream(feedService.feed$);
   const encounter = useStream(encounterStore.toStream());
   const game = useStream(gameStore.toStream());
   const [actorPickerOpen, setActorPickerOpen] = useState(false);
@@ -56,10 +58,13 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
   const experienceModifier = selectedExperiences.reduce((sum, item) => sum + item.modifier, 0);
   const traitModifier = character?.traits.find((item) => item.id === draft.trait)?.value ?? 0;
   const staticModifier = draft.mode === 'gmAttack' ? (adversary?.attackModifier ?? 0) + experienceModifier : traitModifier + experienceModifier;
-  const completeFormula = unifiedRollCompleteFormula(draft, staticModifier);
+  const formulaPresentation = unifiedRollFormulaPresentation(draft, staticModifier);
+  const completeFormula = formulaPresentation.baseFormula;
   const modifier = parseManualRollModifier(modifierInput ?? String(draft.manualModifier));
   const allowedActorIds = actorOptions.flatMap((actor) => actor.id ? [actor.id] : []);
   const error = execution.error(draft, role, allowedActorIds);
+  const eventContext = draft.eventContext;
+  const eventCompatibility = eventContext ? eventRollCompatibility(eventContext, draft) : null;
   const options = actorOptions.some((actor) => actor.key === draft.actor.key) ? actorOptions : [draft.actor, ...actorOptions];
   const controlsBlocked = Boolean(proposal);
   const update = (patch: Partial<UnifiedRollDraft> | ((current: UnifiedRollDraft) => UnifiedRollDraft)) => {
@@ -79,7 +84,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
     if (mode === draft.mode) return;
     resetFormulaEditor(); setModifierInput(null);
     update({ mode, formula: mode === 'action' || mode === 'reaction' ? '2d12' : mode === 'gmAttack' ? '1d20' : mode === 'damage' ? draft.damage?.formula ?? draft.formula : completeFormula,
-      trait: mode === 'damage' || mode === 'manual' ? undefined : draft.trait ?? character?.spellcastTrait ?? 'agility',
+      trait: mode === 'damage' || mode === 'manual' ? undefined : eventContext?.kind === 'teamwork' ? eventContext.trait : draft.trait ?? character?.spellcastTrait ?? 'agility',
       experienceIds: [], manualModifier: 0, advantageCount: 0, disadvantageCount: 0, quantity: undefined, branches: undefined,
       spendHopeForExperiences: companion && (mode === 'action' || mode === 'reaction') ? true : draft.spendHopeForExperiences,
       damageType: mode === 'damage' ? draft.damage?.damageType ?? draft.damageType : undefined,
@@ -87,29 +92,42 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
   };
   let diceTerms: ReturnType<typeof parseDiceFormula> = [];
   try { diceTerms = parseDiceFormula(draft.formula); } catch { /* Unresolved source quantity is editable below. */ }
-  return <>
+  return <section className="unified-roll-composer">
+    <div className="unified-roll-composer__body">
     {state.pending && <Notice tone="warning">
       Подготовлен новый бросок «{state.pending.title}». Текущий набор изменён.
       <Button size="sm" variant="primary" onClick={() => unifiedRollDraftService.choosePending(true)}>Заменить подготовленный бросок</Button>
       <Button size="sm" variant="ghost" onClick={() => unifiedRollDraftService.choosePending(false)}>Оставить текущий</Button>
     </Notice>}
-    <div className="unified-roll-heading"><Button variant="ghost" size="sm" aria-label="Выбрать исполнителя броска" aria-expanded={actorPickerOpen} onClick={() => setActorPickerOpen((open) => !open)}>{draft.actor.name}</Button><span className="unified-roll-title">{draft.title}</span>
+    <div className="unified-roll-heading"><Button variant="ghost" size="sm" aria-label="Выбрать исполнителя броска" aria-expanded={actorPickerOpen} disabled={Boolean(eventContext)} title={eventContext ? 'Исполнитель связан с событием' : undefined} onClick={() => setActorPickerOpen((open) => !open)}>{draft.actor.name}</Button><span className="unified-roll-title">{draft.title}</span>
       {draft.hint && <IconButton variant="ghost" size="sm" aria-label="Контекст способности" title="Контекст способности" aria-expanded={contextOpen} onClick={() => setContextOpen((open) => !open)}><Info size={14} /></IconButton>}
       <IconButton variant="ghost" size="sm" aria-label="Приватный бросок" aria-pressed={privateRoll} title={privateRoll ? "Приватный бросок" : "Публичный бросок"} onClick={() => setPrivateRoll(!privateRoll)}>{privateRoll ? <LockKeyhole size={14} /> : <LockKeyholeOpen size={14} />}</IconButton>
     </div>
-    {actorPickerOpen && <SelectField label="Исполнитель броска" value={draft.actor.key} onChange={(event) => {
+    {actorPickerOpen && <SelectField label="Исполнитель броска" value={draft.actor.key} disabled={Boolean(eventContext)} onChange={(event) => {
+      if (eventContext) return;
       const actor = options.find((item) => item.key === event.currentTarget.value);
       if (actor) { update({ actor, experienceIds: [] }); setActorPickerOpen(false); resetFormulaEditor(); }
     }}>{options.map((actor) => <option key={actor.key} value={actor.key}>{actor.name}</option>)}</SelectField>}
+    {eventContext && <div className="unified-roll-event-context">
+      <small>{eventContext.kind === 'rest' ? 'Ход отдыха' : eventContext.kind === 'death' ? 'Предсмертный ход' : 'Командный бросок'} — результат связан с событием.</small>
+      <Button variant="ghost" size="xs" onClick={() => update(unlinkUnifiedRollEvent(draft))}>Отвязать от события</Button>
+      {eventCompatibility?.fixedFormula && <small>Набор события: {eventCompatibility.fixedFormula}</small>}
+      {eventCompatibility?.manualOverrideRequired && role === 'gm' && <Checkbox
+        label={eventContext.kind === 'teamwork' ? 'Ручной итог' : 'Применить изменённое восстановление'}
+        checked={eventContext.manualOverride === true}
+        onChange={(event) => update({ eventContext: { ...eventContext, manualOverride: event.currentTarget.checked } })}
+      />}
+    </div>}
+    {draft.eventUnlinked && <Notice role="status">Привязка снята. Обычный бросок не применит результат к событию.</Notice>}
     {contextOpen && draft.hint && <small>{draft.hint}</small>}
     {(isTypedUnifiedRoll(draft) || draft.damage) && <div className="unified-roll-modes">
-      {character && <Button size="xs" variant={draft.mode === 'action' ? 'primary' : 'ghost'} disabled={controlsBlocked} onClick={() => changeMode('action')}>Действие</Button>}
-      {character && <Button size="xs" variant={draft.mode === 'reaction' ? 'primary' : 'ghost'} disabled={controlsBlocked} onClick={() => changeMode('reaction')}>Реакция</Button>}
+      {character && <Button size="xs" variant={draft.mode === 'action' ? 'primary' : 'ghost'} disabled={controlsBlocked || (eventContext?.kind === 'teamwork' && eventContext.rollType !== 'action')} onClick={() => changeMode('action')}>Действие</Button>}
+      {character && <Button size="xs" variant={draft.mode === 'reaction' ? 'primary' : 'ghost'} disabled={controlsBlocked || (eventContext?.kind === 'teamwork' && eventContext.rollType !== 'reaction')} onClick={() => changeMode('reaction')}>Реакция</Button>}
       {role === 'gm' && adversary && <Button size="xs" variant={draft.mode === 'gmAttack' ? 'primary' : 'ghost'} disabled={controlsBlocked} onClick={() => changeMode('gmAttack')}>Атака</Button>}
       {(draft.damage || draft.mode === 'damage') && <Button size="xs" variant={draft.mode === 'damage' ? 'primary' : 'ghost'} disabled={controlsBlocked} onClick={() => changeMode('damage')}>Урон</Button>}
       {(draft.mode === 'action' || draft.mode === 'reaction') && character && <span>
         <CompendiumRuleTerm ruleSlug={draft.trait ?? 'agility'}>{character.traits.find((trait) => trait.id === draft.trait)?.label ?? draft.trait}</CompendiumRuleTerm> {signed(traitModifier)}
-        <IconButton size="sm" variant="ghost" aria-label="Изменить характеристику" onClick={() => setTraitPickerOpen((open) => !open)}><ChevronDown size={12} /></IconButton>
+        <IconButton size="sm" variant="ghost" aria-label="Изменить характеристику" disabled={eventContext?.kind === 'teamwork'} onClick={() => setTraitPickerOpen((open) => !open)}><ChevronDown size={12} /></IconButton>
       </span>}
     </div>}
     {draft.branches?.length && <SelectField label="Вариант способности" value={draft.selectedBranchId ?? ''} onChange={(event) => { update((current) => selectUnifiedRollBranch(current, event.currentTarget.value)); resetFormulaEditor(); }}>
@@ -119,7 +137,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       const value = event.currentTarget.value;
       update((current) => setUnifiedRollQuantity(current, value === '' ? null : Number(value))); resetFormulaEditor();
     }} />}
-    <TextField label="Формула броска" value={formulaInput ?? completeFormula} onInput={(event) => {
+    <TextField label={draft.mode === 'damage' ? 'Базовая формула урона' : 'Формула броска'} aria-label="Формула броска" value={formulaInput ?? completeFormula} onInput={(event) => {
       const text = event.currentTarget.value; setFormulaInput(text); setFormulaError(null); setProposal(null);
       try {
         const next = applyUnifiedFormulaEdit(draft, text, staticModifier);
@@ -157,7 +175,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       {experiences.length > 0 && <CompendiumRuleTerm ruleSlug="experience" sectionAnchor="using-experiences"><span aria-label="Об опытах"><Info size={12} aria-hidden="true" /></span></CompendiumRuleTerm>}
     </div>
     {!experiencesOpen && selectedExperiences.length > 0 && <div className="unified-roll-selected-experiences">{selectedExperiences.map((experience) => <small key={experience.id}>{experience.name} {signed(experience.modifier)}</small>)}</div>}
-    {(draft.mode === 'action' || draft.mode === 'reaction') && character && traitPickerOpen && <SelectField label="Характеристика броска" value={draft.trait ?? ''} disabled={controlsBlocked} onChange={(event) => { update({ trait: event.currentTarget.value as UnifiedRollDraft['trait'] }); resetFormulaEditor(); }}>
+    {(draft.mode === 'action' || draft.mode === 'reaction') && character && traitPickerOpen && <SelectField label="Характеристика броска" value={draft.trait ?? ''} disabled={controlsBlocked || eventContext?.kind === 'teamwork'} onChange={(event) => { update({ trait: event.currentTarget.value as UnifiedRollDraft['trait'] }); resetFormulaEditor(); }}>
       {character.traits.map((trait) => <option key={trait.id} value={trait.id}>{trait.label} {signed(trait.value)}</option>)}
     </SelectField>}
     {experiencesOpen && experiences.length > 0 && <div className="player-roll-confirm__checks">
@@ -166,9 +184,12 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       {draft.experienceIds.length > 0 && paymentOpen && !companion && <Checkbox label={draft.mode === 'gmAttack' ? 'Потратить Страх за опыт' : 'Потратить Надежду за опыт'} checked={unifiedRollPaysForExperiences(draft)} disabled={controlsBlocked || companion} onChange={(event) => update({ spendHopeForExperiences: event.currentTarget.checked })} />}
     </div>}
     {draft.mode === 'damage' && <Checkbox label="Критический урон" checked={draft.critical} onChange={(event) => update({ critical: event.currentTarget.checked })} />}
-    <output className="unified-roll-formula-summary" aria-label="Итоговая формула">{completeFormula || 'выберите кости'}</output>
     {(error || formulaError || !modifier.valid) && <Notice tone="warning">{formulaError ?? (!modifier.valid ? 'Введите целый модификатор.' : error)}</Notice>}
     {resultMessage && <Notice>{resultMessage}</Notice>}
+    </div>
+    <footer className="unified-roll-composer__footer" role="region" aria-label="Итог броска">
+      <output className="unified-roll-formula-summary" aria-label="Итоговая формула">{proposal ? 'Подтвердите ручной набор' : formulaError ? 'Исправьте формулу' : formulaPresentation.effectiveFormula || 'Выберите кости'}</output>
+      {draft.mode === 'damage' && draft.critical && formulaPresentation.criticalBonus !== 0 && <small>Крит: {signed(formulaPresentation.criticalBonus)}</small>}
     {isTypedUnifiedRoll(draft) && unifiedRollPaysForExperiences(draft) && selectedExperiences.length > 0 && <small className="unified-roll-cost">Цена опыта: {selectedExperiences.length} {draft.mode === 'gmAttack' ? 'Страха' : 'Надежды'}</small>}
     <Button variant="primary" size="md" fullWidth disabled={rollDisabled || rollPending || submitting || Boolean(error || formulaError || proposal) || !modifier.valid} onClick={async () => {
       setSubmitting(true);
@@ -176,5 +197,6 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       setSubmitting(false); setResultMessage(result.ok ? role === 'player' && p2pSessionService.isConnectedPlayerSession() ? 'Бросок отправлен мастеру.' : 'Бросок выполнен.' : result.error ?? 'Бросок не выполнен.');
       if (result.ok) unifiedRollDraftService.markRolled();
     }}>Бросить</Button>
-  </>;
+    </footer>
+  </section>;
 }

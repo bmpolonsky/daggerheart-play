@@ -207,6 +207,9 @@ function formulaDiceChips(dice: Extract<TableFeedDiceSummary, { kind: 'formula' 
   if (flatModifierTotal !== 0) {
     chips.push(<ModifierChip label="Модификатор" value={flatModifierTotal} key="flat-total" />);
   }
+  if (dice.critical && dice.criticalBonus) {
+    chips.push(<span className="feed-mod-chip" title="Критический бонус" key="critical-bonus">Крит {dice.criticalBonus > 0 ? '+' : ''}{dice.criticalBonus}</span>);
+  }
   return chips;
 }
 
@@ -228,7 +231,8 @@ function rollDetailRows(roll: NonNullable<TableFeedItem['roll']>): Array<{ label
     if (staticModifiers.length > 0) rows.push({ label: 'Модификаторы', value: modifierSummary(staticModifiers) });
     if (dice.difficulty > 0) rows.push({ label: 'Сложность', value: String(dice.difficulty) });
   } else if (dice?.kind === 'formula') {
-    rows.push({ label: 'Формула', value: formulaFromTerms(dice) || dice.formula });
+    const baseFormula = formulaFromTerms(dice) || dice.formula;
+    rows.push({ label: 'Формула', value: dice.critical && dice.criticalBonus ? `${baseFormula} ${formatSignedTerm(dice.criticalBonus)} (крит)` : baseFormula });
     if (dice.critical) rows.push({ label: 'Крит', value: dice.criticalBonus ? `+${dice.criticalBonus}` : 'да' });
     if (dice.damageType) rows.push({ label: 'Тип', value: compactDamageTypeLabel(dice.damageType) });
   }

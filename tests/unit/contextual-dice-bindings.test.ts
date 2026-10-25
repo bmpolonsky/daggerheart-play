@@ -5,7 +5,7 @@ import { cleanMarkdownText } from '../../src/core/utils/markdownText';
 import { mapGenericItem } from '../../src/domain/content/mappers';
 import { domainCardFromLibrary } from '../../src/domain/characterBuilder';
 import { parseDomainCardTextMacros } from '../../src/domain/rules/domainCards';
-import { contextualDiceBindingDomainSlugs, resolveContextualDiceBinding, type ContextualDiceActor, type ContextualDiceSource } from '../../src/domain/rules/contextualDiceBindings';
+import { contextualDiceBindingDomainSlugs, parseContextualDiceMacros, resolveContextualDiceBinding, type ContextualDiceActor, type ContextualDiceSource } from '../../src/domain/rules/contextualDiceBindings';
 import { createUnifiedRollDraft, setUnifiedRollQuantity } from '../../src/domain/rules/unifiedRollDraft';
 
 interface RawCard { slug: string; name: string; features: Array<{ id: number; name?: string | null; main_body: string }> }
@@ -230,4 +230,145 @@ test('outside mastery and trait bindings require their own immediate count claus
     text: 'Добавьте d6 к Уклонению. Бросьте количество d6, равное вашей Характеристике Заклинателя. Выберите одно значение из полученных результатов.' };
   assert.equal(resolve(witch, 'd6').quantity?.value, null);
   assert.equal(resolve(witch, 'd6', actor, 1).formula, '2d6');
+});
+
+
+interface SupplementalRaw {
+  slug: string; id?: number; main_body?: string;
+  features?: Array<{ id: number; name?: string | null; main_body: string }>;
+  foundation_features?: Array<{ id: number; name?: string | null; main_body: string }>;
+  specialization_features?: Array<{ id: number; name?: string | null; main_body: string }>;
+  mastery_features?: Array<{ id: number; name?: string | null; main_body: string }>;
+}
+function supplementalSource(collection: string, slug: string, featureId?: number): ContextualDiceSource {
+  const corpus = JSON.parse(readFileSync(new URL(`../../public/data/${collection}.json`, import.meta.url), 'utf8')) as { data: SupplementalRaw[] };
+  const raw = corpus.data.find(item => item.slug === slug)!;
+  assert.ok(raw, slug);
+  const features = [raw.features, raw.foundation_features, raw.specialization_features, raw.mastery_features].flatMap(list => list ?? []);
+  const feature = featureId === undefined ? undefined : features.find(item => item.id === featureId);
+  assert.ok(featureId === undefined || feature, `${slug}:${featureId}`);
+  const singular: Record<string, string> = { classes: 'class', subclasses: 'subclass', ancestries: 'ancestry', beastforms: 'beastform', environments: 'environment', equipment: 'equipment' };
+  return { collection: singular[collection], slug, sourceId: raw.id ?? `${singular[collection]}:${slug}`, featureId,
+    cardId: `sheet-${singular[collection]}-${slug}${featureId === undefined ? '' : `-${featureId}`}`,
+    text: cleanMarkdownText(feature?.main_body ?? raw.main_body ?? '', { stripEmphasis: true, stripCodeTicks: true }) };
+}
+function namedResult(source: ContextualDiceSource, who = actor) {
+  const macro = parseContextualDiceMacros(source, who).find(item => item.kind === 'diceRoll' && item.contextualBinding);
+  assert.ok(macro?.kind === 'diceRoll', `No named die in ${source.cardId}`);
+  return resolveContextualDiceBinding(source, macro, who);
+}
+function relatedFeature(source: ContextualDiceSource) {
+  return { ...source, id: source.cardId!, text: source.text };
+}
+
+test('Prayer Dice use Spellcast and Divine Wielder extra die with manual discard hint', () => {
+  const prayer = supplementalSource('classes', 'seraph', 135);
+  assert.equal(resolve(prayer, 'd4').formula, '2d4');
+  const upgrade = supplementalSource('subclasses', 'divine-wielder', 189);
+  const who = { ...actor, features: [relatedFeature(upgrade)] };
+  assert.equal(resolve(prayer, 'd4', who).formula, '3d4');
+  const named = namedResult(upgrade, who);
+  assert.equal(named.formula, '3d4');
+  assert.match(named.hint ?? '', /отбросьте наименьшее/);
+  assert.equal('reducer' in named, false);
+});
+
+test('Assassin pool uses tier and selected die upgrades rather than proficiency', () => {
+  const mark = supplementalSource('classes', 'playtest-assassin', 2061);
+  assert.equal(resolve(mark, 'd4').formula, '3d4'); // L5 tier3, even if mastery differs
+  const d6 = supplementalSource('subclasses', 'executioners-guild', 2068);
+  const d8 = supplementalSource('subclasses', 'executioners-guild', 2067);
+  assert.equal(resolve(mark, 'd4', { ...actor, features: [relatedFeature(d6)] }).formula, '3d6');
+  assert.equal(resolve(mark, 'd4', { ...actor, features: [relatedFeature(d6), relatedFeature(d8)] }).formula, '3d8');
+  assert.ok(parseContextualDiceMacros(d8).filter(macro => macro.kind === 'reference').length >= 2);
+});
+
+test('named Rally chooses current level and Wordsmith die while size descriptions are references', () => {
+  const rally = supplementalSource('classes', 'bard', 123);
+  assert.equal(namedResult(rally, { ...actor, level: 1 }).formula, '1d6');
+  assert.equal(namedResult(rally, { ...actor, level: 5 }).formula, '1d8');
+  const upgrade = supplementalSource('subclasses', 'wordsmith', 153);
+  assert.equal(namedResult(rally, { ...actor, features: [relatedFeature(upgrade)] }).formula, '1d10');
+  assert.equal(parseContextualDiceMacros(rally).filter(macro => macro.kind === 'reference').length, 2);
+});
+
+test('Patron named pools bind single/tier/current event or chosen Grace without recurring payment', () => {
+  const patron = supplementalSource('classes', 'playtest-warlock', 1972);
+  assert.equal(namedResult(patron, { ...actor, level: 1 }).formula, '1d6');
+  assert.equal(namedResult(patron).formula, '1d8');
+  const tier = supplementalSource('subclasses', 'playtest-pact-of-the-wraithful', 1978);
+  assert.equal(namedResult(tier).formula, '3d8');
+  const wounds = namedResult(supplementalSource('subclasses', 'playtest-pact-of-the-wraithful', 2123));
+  assert.equal(wounds.quantity?.value, null);
+  assert.match(wounds.quantity?.label ?? '', /именно от этой атаки/);
+  for (const [slug, id] of [['playtest-pact-of-the-wraithful', 2109], ['playtest-pact-of-the-endless', 1974]] as const) {
+    const chosen = namedResult(supplementalSource('subclasses', slug, id));
+    assert.equal(chosen.quantity?.value, null);
+    assert.equal(chosen.quantity?.formulaTemplate, '{count}d8');
+    assert.match(chosen.quantity?.label ?? '', /Милости выбрано и потрачено/);
+    assert.match(chosen.hint ?? '', /не списывается/);
+  }
+});
+
+test('Fighter damage scales both dice, while Combo asks for current die size and leaves sequence manual', () => {
+  assert.equal(resolve(supplementalSource('classes', 'playtest-fighter', 1969), 'd8+d6').formula, '3d8+3d6');
+  const combo = supplementalSource('classes', 'playtest-fighter', 1970);
+  const result = namedResult(combo);
+  assert.equal(result.formula, '');
+  assert.deepEqual(result.branches?.map(branch => branch.formula), ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20']);
+  assert.match(result.hint ?? '', /Один шаг последовательности/);
+});
+
+test('companion Bound uses free companion Stress, not PC Stress or mastery', () => {
+  const source = supplementalSource('subclasses', 'beastbound');
+  const who = { ...actor, companion: { stress: { marked: 1, max: 4 }, attackFormula: '1d8' } };
+  const macro = parseContextualDiceMacros(source, who).find(item => item.kind === 'diceRoll' && item.formula === 'd6');
+  assert.ok(macro?.kind === 'diceRoll');
+  const result = resolveContextualDiceBinding(source, macro, who);
+  assert.equal(result.formula, '3d6');
+  assert.match(result.hint ?? '', /Стресс компаньона, не персонажа/);
+});
+
+test('supplemental fixed bonuses and mastery beast/ancestry attacks do not share a global d12 rule', () => {
+  assert.equal(resolve(supplementalSource('equipment', 'mythic-dust'), 'd12').formula, '1d12');
+  assert.equal(resolve(supplementalSource('equipment', 'redthorn-saliva'), '1d12').formula, '1d12');
+  assert.equal(resolve(supplementalSource('ancestries', 'firbolg', 232), '1d12').formula, '1d12');
+  assert.equal(resolve(supplementalSource('subclasses', 'winged-sentinel', 194), '1d12').formula, '1d12');
+  assert.equal(resolve(supplementalSource('ancestries', 'drakona', 223), 'd8').formula, '3d8');
+  assert.equal(resolve(supplementalSource('beastforms', 'mighty-strider', 2007), 'd8+1').formula, '3d8+1');
+  assert.equal(resolve(supplementalSource('beastforms', 'massive-behemoth', 2032), 'd8+10').formula, '3d8+10');
+});
+
+test('cliff fall uses explicit countdown branch unless that source value is supplied', () => {
+  const source = supplementalSource('environments', 'cliffside-ascent', 1870);
+  const chosen = resolve(source, '1d12');
+  assert.equal(chosen.formula, '');
+  assert.deepEqual(chosen.branches?.map(branch => branch.formula), ['1d12', '2d12', '3d12']);
+  assert.equal(resolve({ ...source, countdownValue: 6 }, '1d12').formula, '2d12');
+});
+
+test('named weapon extra die uses actual weapon die or explicit size choice, sequence count stays unresolved', () => {
+  const staff = supplementalSource('equipment', 'greatstaff');
+  // The catalog property is a separate, complete source variant.
+  const raw = JSON.parse(readFileSync(new URL('../../public/data/equipment.json', import.meta.url), 'utf8')) as { data: Array<{ slug: string; features: Array<{ main_body: string }> }> };
+  staff.text = cleanMarkdownText(raw.data.find(item => item.slug === 'greatstaff')!.features[0].main_body, { stripEmphasis: true });
+  assert.equal(namedResult({ ...staff, weaponFormula: '3d8+4' }).formula, '1d8');
+  assert.equal(namedResult(staff).branches?.length, 6);
+  const bow = supplementalSource('equipment', 'yutari-bloodbow');
+  bow.text = cleanMarkdownText(raw.data.find(item => item.slug === 'yutari-bloodbow')!.features[0].main_body, { stripEmphasis: true });
+  const repeated = namedResult({ ...bow, weaponFormula: '2d6+4' });
+  assert.equal(repeated.quantity?.value, null);
+  assert.equal(repeated.quantity?.formulaTemplate, '{count}d6');
+});
+
+test('named dice require stable source and exact guarded phrase; unknown multiplied explicit dice do not become one die', () => {
+  const known = supplementalSource('classes', 'playtest-warlock', 1972);
+  assert.equal(parseContextualDiceMacros({ name: 'Покровитель Колдуна', text: known.text }).some(macro => macro.kind === 'diceRoll' && macro.contextualBinding), false);
+  const forged = { formula: '', start: 0, end: 1, contextualBinding: 'class:playtest-warlock:1972' };
+  assert.equal(resolveContextualDiceBinding(known, forged, actor).formula, '');
+  assert.match(resolveContextualDiceBinding(known, forged, actor).hint ?? '', /не подтверждён/);
+  const ambiguous = resolve({ text: 'Бросьте 1d8 за каждый потраченный жетон.' }, '1d8');
+  assert.equal(ambiguous.formula, '');
+  assert.match(ambiguous.hint ?? '', /полную формулу вручную/);
+  assert.equal(resolve({ text: 'Каждая цель получает 1d8 урона.' }, '1d8').formula, '1d8');
 });

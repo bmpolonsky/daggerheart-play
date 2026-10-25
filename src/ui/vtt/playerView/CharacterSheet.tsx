@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { isStoredWeapon } from '../../../domain/rules/weaponInventory';
+import { storedWeaponPresentation } from '../../../domain/rules/storedWeaponPresentation';
 import { toastService } from '../../../services/ToastService';
 import { useAssetUrl } from '../../components/common/useAssetUrl';
 import { AssetImage } from '../../components/common/AssetImage';
@@ -579,6 +580,7 @@ export function CharacterSheet({
           );
         })}
         {character.inventory.filter((item) => item.kind !== 'consumable').map((item) => {
+          const storedWeapon = storedWeaponPresentation(item);
           const quantityLabel = item.weapon !== undefined && !isStoredWeapon(item.weapon)
             ? 'Данные оружия неполны. Предмет сохранён, но надеть его нельзя.'
             : inventoryQuantityLabel(item);
@@ -597,8 +599,8 @@ export function CharacterSheet({
               onClick={() => onFeaturePreview?.(character, {
                   id: item.id,
                   name: item.name,
-                  subtitle: quantityLabel,
-                  text: item.text ?? '',
+                  subtitle: storedWeapon ? `Снятое оружие / Базовый урон ${storedWeapon.baseDamageFormula}` : quantityLabel,
+                  text: storedWeapon?.description ?? item.text ?? '',
                   sourceLabel: 'Инвентарь'
                 })}
             />

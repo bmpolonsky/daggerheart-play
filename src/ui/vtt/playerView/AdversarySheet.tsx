@@ -5,21 +5,20 @@ import { ChevronLeft, Heart, Zap } from "lucide-react";
 import type { PlayerViewAdversarySummary } from "../../../domain/tabletop/playerView";
 import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
-import type { DamageType } from "../../../domain/rules/types";
-import { diceService, encounterService, feedService, gameService, sceneTableService } from "../../../services/serviceRegistry";
+import { encounterService, feedService, gameService, sceneTableService } from "../../../services/serviceRegistry";
 import { compactDamageTypeLabel, signed } from "./helpers";
 import { PreparedDiceRollDialog } from "./CharacterRollDialog";
 import type { PreparedDiceRoll } from "../../../services/CharacterRollService";
-import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
+import { prefillAdversaryAttack, prefillAdversaryDamage } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
 import { SheetFeatureSection, SheetHero, SheetLeadBlock, type SheetFeatureView } from "./SheetContent";
 import { StatusChips } from "./StatusChips";
 import { Badge } from "../../components/common/Badge";
 import { IconButton } from "../../components/common/IconButton";
 import { ListItem } from "../../components/common/ListItem";
+import { Button } from "../../components/common/Button";
 
 export function AdversarySheet({ adversary, navigation, onBack, readOnly = false }: { adversary: PlayerViewAdversarySummary; navigation?: ComponentChildren; onBack?: () => void; readOnly?: boolean }) {
-  const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
   const [featureDiceState, setFeatureDiceState] = useState<{ actorId: string; draft: PreparedDiceRoll } | null>(null);
   const featureDiceDraft = featureDiceState?.actorId === adversary.id ? featureDiceState.draft : null;
   const setFeatureDiceDraft = (draft: PreparedDiceRoll | null) => setFeatureDiceState(draft ? { actorId: adversary.id, draft } : null);
@@ -110,9 +109,14 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
           <SheetSection title="Атака">
           <ListItem
             title={adversary.standardAttack.name}
+            className="player-sheet-weapon-row"
             subtitle={`${signed(adversary.attackModifier)} / ${adversary.standardAttack.range} / ${adversary.standardAttack.damage} ${compactDamageTypeLabel(adversary.standardAttack.damageType)}`}
             tone="featured"
-            onClick={readOnly ? undefined : () => setAdversaryAttackConfirmOpen(true)}
+            rightAccessory={readOnly ? undefined : <span className="player-sheet-weapon-actions">
+              <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); prefillAdversaryAttack(adversary); }}>Атака</Button>
+              <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); prefillAdversaryDamage(adversary); }}>Урон</Button>
+            </span>}
+            onClick={readOnly ? undefined : () => prefillAdversaryAttack(adversary)}
           />
           </SheetSection>
           <SheetSection title="Опыт" emptyLabel="Опыт не указан">
@@ -128,32 +132,6 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
           />
         </aside>
       </div>
-      {adversaryAttackConfirmOpen && (
-        <AdversaryAttackConfirm
-          adversary={adversary}
-          onAttack={(options) => {
-            diceService.rollGmAttackCheck({
-              adversaryId: adversary.id,
-              ...options,
-              notes: `Атака Мастера: ${adversary.standardAttack.name}`
-            });
-            setAdversaryAttackConfirmOpen(false);
-          }}
-          onClose={() => setAdversaryAttackConfirmOpen(false)}
-          onDamage={(options) => {
-            diceService.rollDamage({
-              actorId: adversary.id,
-              actorName: adversary.name,
-              formula: adversary.standardAttack.damage,
-              critical: options.critical,
-              damageType: adversary.standardAttack.damageType as DamageType,
-              publication: options.publication,
-              notes: `Атака Мастера: ${adversary.standardAttack.name}`
-            });
-            setAdversaryAttackConfirmOpen(false);
-          }}
-        />
-      )}
     </>
   );
 }

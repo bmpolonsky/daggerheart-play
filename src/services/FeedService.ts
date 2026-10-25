@@ -65,6 +65,7 @@ interface RequestDeathMoveOptions extends FeedEntryOptions {
 }
 
 interface UpdateDeathMoveInput {
+  rollId?: string;
   status?: DeathMoveFeedStatus;
   choice?: DeathMoveChoice;
   roll?: DeathMoveRollResult;

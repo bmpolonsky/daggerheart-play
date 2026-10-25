@@ -37,6 +37,7 @@ test('desktop tray anchors above Dice, clamps after growing and resizing, and le
   expect(Math.abs((await tray.boundingBox())!.x - before.x)).toBeLessThan(2);
   expect(Math.abs((await tray.boundingBox())!.y - before.y)).toBeLessThan(2);
   await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+  await tray.getByRole('checkbox', { name: 'QA опыт 1 +2', exact: true }).check();
   await expectInsideViewport(page, tray);
   await expect.poll(async () => {
     const panel = (await tray.boundingBox())!; const anchor = (await dice.boundingBox())!;
@@ -44,8 +45,10 @@ test('desktop tray anchors above Dice, clamps after growing and resizing, and le
   }).toBe(true);
   await page.setViewportSize({ width: 1000, height: 620 });
   await expectInsideViewport(page, tray);
-  await tray.getByRole('button', { name: 'Бросить', exact: true }).scrollIntoViewIfNeeded();
-  await expectInsideViewport(page, tray.getByRole('button', { name: 'Бросить', exact: true }));
+  const footer = tray.getByRole('region', { name: 'Итог броска', exact: true });
+  await expectInsideViewport(page, footer);
+  await expectInsideViewport(page, footer.getByRole('button', { name: 'Бросить', exact: true }));
+  await footer.getByRole('button', { name: 'Бросить', exact: true }).click({ trial: true });
   await page.screenshot({ path: testInfo.outputPath('tray-desktop-expanded.png') });
 });
 
@@ -55,10 +58,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
     await page.setViewportSize(viewport);
     await expect(tray).toHaveClass(/floating-panel--mobile/);
     await expectInsideViewport(page, tray);
-    await page.screenshot({ path: testInfo.outputPath(`tray-mobile-${viewport.width}x${viewport.height}.png`) });
     await expect(page.getByTestId('dice-tray-drag-handle')).toHaveCount(0);
     await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
-    const body = tray.locator('.mini-dice-launcher__floating-body');
+    await tray.getByRole('checkbox', { name: 'QA опыт 1 +2', exact: true }).check();
+    const body = tray.locator('.unified-roll-composer__body');
     const scene = page.locator('.player-scene-stage__background');
     const sceneBefore = await scene.getAttribute('style');
     const pageBefore = await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0);
@@ -68,9 +71,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
     await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     expect(await scene.getAttribute('style')).toBe(sceneBefore);
     expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(pageBefore);
-    const submit = tray.getByRole('button', { name: 'Бросить', exact: true });
-    await submit.scrollIntoViewIfNeeded();
+    const footer = tray.getByRole('region', { name: 'Итог броска', exact: true });
+    const submit = footer.getByRole('button', { name: 'Бросить', exact: true });
+    await expectInsideViewport(page, footer);
     await expectInsideViewport(page, submit);
+    await submit.click({ trial: true });
     await expectInsideViewport(page, tray);
+    await page.screenshot({ path: testInfo.outputPath(`tray-mobile-${viewport.width}x${viewport.height}.png`) });
   });
 }

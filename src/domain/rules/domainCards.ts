@@ -9,7 +9,7 @@ export interface DomainCardParsedCost {
 
 export type DomainCardTextMacro =
   | { id: string; kind: 'actionRoll'; start: number; end: number; label: string; difficulty: number | null; traitHint: 'spellcast' | null }
-  | { id: string; kind: 'diceRoll'; start: number; end: number; label: string; formula: string; scalesWithProficiency: boolean }
+  | { id: string; kind: 'diceRoll'; start: number; end: number; label: string; formula: string; scalesWithProficiency: boolean; contextualBinding?: string }
   | { id: string; kind: 'damageRoll'; start: number; end: number; label: string; formula: string; damageType: 'physical' | 'magic' | null }
   | { id: string; kind: 'reference'; start: number; end: number; label: string }
   | { id: string; kind: 'spendHope' | 'gainHope' | 'spendFear' | 'gainFear' | 'markStress' | 'clearStress' | 'markHp' | 'clearHp' | 'spendToken'; start: number; end: number; label: string; amount: number };

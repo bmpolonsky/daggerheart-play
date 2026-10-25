@@ -1,3 +1,5 @@
+import { EventRollService } from './EventRollService';
+import { unifiedRollDraftService } from './UnifiedRollDraftService';
 import { AssetService } from './AssetService';
 import { OfflineService } from './OfflineService';
 import { AudioService } from './AudioService';
@@ -107,6 +109,11 @@ export const tabletopService = new TabletopService({
   rollLogService,
   sceneTableService,
   preparedActorService
+});
+export const eventRollService = new EventRollService({
+  diceService, characterService, feedService, tabletopService, session: p2pSessionService,
+  currentScopeKey: () => unifiedRollDraftService.currentScopeKey(),
+  autoApplyRollConsequences: () => gameService.game$.get().autoApplyRollConsequences
 });
 export const uiService = new UiService();
 

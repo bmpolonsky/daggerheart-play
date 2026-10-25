@@ -7,7 +7,7 @@ import { EncounterService } from './EncounterService';
 import { FeedService } from './FeedService';
 import { RollLogService } from './RollLogService';
 import { SceneTableService, type AddActorTokenOptions } from './SceneTableService';
-import type { Adversary, Character, FormulaTermRoll, RestChoiceResult, TraitId } from '../domain/rules/types';
+import type { Adversary, Character, FormulaTermRoll, RestChoiceResult, ManualDiceRollEntry, TraitId } from '../domain/rules/types';
 import type { EncounterFlowAction } from '../domain/rules/encounterFlow';
 import type { ActorRef, TableScene, TokenState } from '../domain/tabletop/types';
 import { DEFAULT_SCENE_HEIGHT, DEFAULT_SCENE_WIDTH, measureRange, moveTokenWithinWorld, syncSceneTokens, tokenIdFor } from '../domain/tabletop/logic';
@@ -357,7 +357,7 @@ export class TabletopService {
     return changedCount;
   }
 
-  resolveRestMove(restEntryId: string, actorId: string, choiceId: string): ResolveRestMoveResult {
+  resolveRestMove(restEntryId: string, actorId: string, choiceId: string, options: { rolled?: ManualDiceRollEntry; manualOverride?: boolean } = {}): ResolveRestMoveResult {
     const restEntry = this.dependencies.feedService.feed$.get().find((entry) => (
       entry.type === 'rest' && (entry.id === restEntryId || entry.rest.id === restEntryId)
     ));
@@ -371,7 +371,18 @@ export class TabletopService {
     }
     const character = this.dependencies.characterService.getCharacter(actorId);
     if (!character) return { applied: false, message: 'Персонаж не найден.' };
-    const result = this.applyRestMove(character, restEntry.rest.restType, choice.label, choice.count);
+    if (options.rolled) {
+      const operation = restMoveOperation(choice.label);
+      if (!['rollHp', 'rollStress', 'rollArmor'].includes(operation) || options.rolled.actorId !== actorId || !Number.isFinite(options.rolled.total)) {
+        return { applied: false, message: 'Результат броска не соответствует этому ходу отдыха.' };
+      }
+      const expectedFormula = restRecoveryFormula(choice.count, characterLevelRank(character.level));
+      if (!options.manualOverride && options.rolled.formula.replace(/\s+/g, '') !== expectedFormula) {
+        return { applied: false, message: 'Изменённый итог восстановления требует явного разрешения мастера.' };
+      }
+    }
+    const result = this.applyRestMove(character, restEntry.rest.restType, choice.label, choice.count, options.rolled);
+    if (options.rolled && options.manualOverride) result.note = `Ручной итог мастера. ${result.note}`;
     this.dependencies.feedService.resolveRestParticipantChoice(restEntry.id, actorId, choice.id, result);
     return { applied: true, message: result.note, result };
   }
@@ -380,12 +391,12 @@ export class TabletopService {
     return measureRange(source, target, gridSize);
   }
 
-  private applyRestMove(character: Character, _restType: RestType, label: string, count: number): RestChoiceResult {
+  private applyRestMove(character: Character, _restType: RestType, label: string, count: number, providedRoll?: ManualDiceRollEntry): RestChoiceResult {
     const safeCount = Math.max(1, Math.trunc(count));
     const rank = characterLevelRank(character.level);
     const operation = restMoveOperation(label);
     if (operation === 'rollHp') {
-      const roll = this.dependencies.diceService.rollManualDice({
+      const roll = providedRoll ?? this.dependencies.diceService.rollManualDice({
         actorId: character.id,
         actorName: character.name,
         formula: restRecoveryFormula(safeCount, rank),
@@ -394,10 +405,10 @@ export class TabletopService {
       });
       this.dependencies.characterService.clearHp(character.id, roll.total);
       const appliedAmount = character.hp.marked - (this.dependencies.characterService.getCharacter(character.id)?.hp.marked ?? character.hp.marked);
-      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Исцелено ран: ${appliedAmount}.` };
+      return { rollId: roll.id, formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Исцелено ран: ${appliedAmount}.` };
     }
     if (operation === 'rollStress') {
-      const roll = this.dependencies.diceService.rollManualDice({
+      const roll = providedRoll ?? this.dependencies.diceService.rollManualDice({
         actorId: character.id,
         actorName: character.name,
         formula: restRecoveryFormula(safeCount, rank),
@@ -406,10 +417,10 @@ export class TabletopService {
       });
       this.dependencies.characterService.clearStress(character.id, roll.total);
       const appliedAmount = character.stress.marked - (this.dependencies.characterService.getCharacter(character.id)?.stress.marked ?? character.stress.marked);
-      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Очищено стресса: ${appliedAmount}.` };
+      return { rollId: roll.id, formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Очищено стресса: ${appliedAmount}.` };
     }
     if (operation === 'rollArmor') {
-      const roll = this.dependencies.diceService.rollManualDice({
+      const roll = providedRoll ?? this.dependencies.diceService.rollManualDice({
         actorId: character.id,
         actorName: character.name,
         formula: restRecoveryFormula(safeCount, rank),
@@ -420,7 +431,7 @@ export class TabletopService {
         markedSlots: Math.max(0, character.armor.markedSlots - roll.total)
       }, false);
       const appliedAmount = character.armor.markedSlots - (this.dependencies.characterService.getCharacter(character.id)?.armor.markedSlots ?? character.armor.markedSlots);
-      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Починено брони: ${appliedAmount}.` };
+      return { rollId: roll.id, formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Починено брони: ${appliedAmount}.` };
     }
     if (operation === 'prepare') {
       const amount = safeCount;

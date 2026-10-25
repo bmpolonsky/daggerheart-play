@@ -1,11 +1,13 @@
 /** @jsxImportSource preact */
+import { unifiedRollDraftService } from '../../../../../services/UnifiedRollDraftService';
+import { toastService } from '../../../../../services/ToastService';
 import { Swords, Users } from 'lucide-react';
 import { useState } from 'preact/hooks';
 import { TRAIT_LABELS, TRAITS } from '../../../../../domain/rules/constants';
 import type { TeamworkRollActorOption, TeamworkRollParticipant, TraitId } from '../../../../../domain/rules/types';
 import { teamworkParticipantRollTrait } from '../../../../../domain/rules/teamwork';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
-import { gameService, diceService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
+import { eventRollService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
 import { Button } from '../../../../components/common/Button';
 import { SelectControl } from '../../../../components/common/Field';
 import { renderRulesText } from '../../sheetText';
@@ -44,37 +46,9 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
   };
 
   const executeParticipantRoll = (participant: TeamworkRollParticipant, trait: TraitId) => {
-    const rollType = participant.role === 'support' ? 'reaction' : 'action';
-    const manualModifier = participant.role === 'leader' ? supportModifier : 0;
-    const notes = teamwork.kind === 'groupAction'
-      ? `${item.title}: ${participant.role === 'leader' ? 'лидер' : 'участник'}`
-      : `${item.title}: участник командного броска`;
-
-    const request = {
-      actorId: participant.actorId,
-      actorName: participant.actorName,
-      trait,
-      difficulty: teamwork.difficulty,
-      manualModifier,
-      publication: 'public' as const,
-      notes
-    };
-    const roll = rollType === 'reaction'
-      ? diceService.rollReaction(request)
-      : diceService.rollAction({
-        ...request,
-        applyConsequences: gameService.game$.get().autoApplyRollConsequences
-      });
-    feedService.recordTeamworkParticipantResult(item.id, participant.actorId, {
-      rollId: roll.id,
-      rollType: roll.type,
-      trait: roll.trait,
-      total: roll.total,
-      difficulty: roll.difficulty,
-      success: roll.success,
-      outcome: roll.outcome,
-      note: `${roll.actorName}: ${roll.total} ${roll.success ? 'успех' : 'провал'}`
-    });
+    const prepared = eventRollService.prepare({ kind: 'teamwork', entryId: item.id, actorId: participant.actorId, trait }, role);
+    if (prepared.ok) unifiedRollDraftService.request(prepared.input);
+    else toastService.show(prepared.error, 'error');
   };
 
   const rollParticipant = (participant: TeamworkRollParticipant) => {

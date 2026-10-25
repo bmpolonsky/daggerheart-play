@@ -436,6 +436,8 @@
   max-width: calc(100vw - 24px);
   max-height: calc(100dvh - 24px);
   pointer-events: auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .mini-dice-launcher__floating-panel:not(.mini-dice-launcher__floating-panel--mobile) {
@@ -446,9 +448,52 @@
 .mini-dice-launcher__floating-body {
   min-height: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 8px;
+  overflow: hidden;
+}
+
+.unified-roll-composer {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.unified-roll-composer__body {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  align-content: start;
   gap: 8px;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.unified-roll-composer__footer {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.unified-roll-composer__footer > p {
+  margin: 0;
+}
+
+.unified-roll-composer__footer .unified-roll-formula-summary,
+.unified-roll-composer__footer [aria-label="Итоговая формула"] {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.68rem;
+  line-height: 1.25;
 }
 
 .unified-roll-heading,

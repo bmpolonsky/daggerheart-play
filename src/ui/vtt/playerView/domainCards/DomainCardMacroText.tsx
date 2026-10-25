@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { parseDomainCardTextMacros } from "../../../../domain/rules/domainCards";
+import { parseContextualDiceMacros } from '../../../../domain/rules/contextualDiceBindings';
 import { analyzeFeatureRules } from "../../../../domain/rules/featureEffects";
 import { cleanRulesTextForInlineMacros } from "../sheetText";
 import type { TableViewRole } from "../types";
@@ -20,7 +20,7 @@ export function DomainCardMacroText({
   return (
     <RulesMacroText
       text={text}
-      macros={parseDomainCardTextMacros(text)}
+      macros={parseContextualDiceMacros({ cardId: card.id, sourceId: card.sourceId, featureId: card.featureId, collection: card.collection ?? 'domain-cards', slug: card.slug, weaponFormula: card.weaponFormula, text })}
       effects={effects}
       onMacro={onMacro ? (macro) => onMacro(parsedCard, macro) : undefined}
     />

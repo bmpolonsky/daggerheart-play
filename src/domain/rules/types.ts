@@ -616,6 +616,7 @@ export type RestFeedStatus = 'requested' | 'collecting' | 'resolved' | 'cancelle
 export type RestChoiceStatus = 'pending' | 'selected' | 'resolved';
 
 export interface RestChoiceResult {
+  rollId?: string;
   formula?: string;
   rolls?: number[];
   total?: number;
@@ -718,6 +719,7 @@ export interface DeathMoveRollResult {
 }
 
 export interface DeathMoveFeedRequest {
+  rollId?: string;
   id: string;
   status: DeathMoveFeedStatus;
   requestedAt: string;

@@ -1,8 +1,10 @@
 /** @jsxImportSource preact */
+import { unifiedRollDraftService } from '../../../../../services/UnifiedRollDraftService';
+import { toastService } from '../../../../../services/ToastService';
 import { Bed, CheckSquare, Coffee, RotateCcw } from 'lucide-react';
 import { canApplyRestChoice, canSelectRestChoices, restMoveLabels, restMoveRequiresRoll, restProgress, restRemainingSummary } from '../../../../../domain/rules/rest';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
-import { p2pSessionService, tabletopService } from '../../../../../services/serviceRegistry';
+import { eventRollService, p2pSessionService, tabletopService } from '../../../../../services/serviceRegistry';
 import { Button } from '../../../../components/common/Button';
 import { IconButton } from '../../../../components/common/IconButton';
 import { Notice } from '../../../../components/common';
@@ -41,6 +43,13 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
   const progress = restProgress(rest);
   const connectedPlayerSession = p2pSessionService.isConnectedPlayerSession();
   const applyRestChoice = (actorId: string, choiceId: string) => {
+    const choice = rest.participants.find((participant) => participant.actorId === actorId)?.choices.find((choice) => choice.id === choiceId);
+    if (choice && restMoveRequiresRoll(choice.label)) {
+      const prepared = eventRollService.prepare({ kind: 'rest', entryId: item.id, actorId, choiceId }, role);
+      if (prepared.ok) unifiedRollDraftService.request(prepared.input);
+      else toastService.show(prepared.error, 'error');
+      return;
+    }
     tabletopService.resolveRestMove(item.id, actorId, choiceId);
   };
   const completeRest = () => {
