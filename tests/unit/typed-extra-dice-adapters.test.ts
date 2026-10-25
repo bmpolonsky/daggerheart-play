@@ -70,6 +70,23 @@ test('unsupported authority refuses typed extras before send, local RNG or payme
   assert.equal(characterService.getCharacter(actor.id)!.hope.value, hopeBefore);
 });
 
+test('transport-specific refusal is shown unchanged before a typed-extra request, payment or RNG', async () => {
+  const { actor, draft } = fixture();
+  const extra = { ...draft, experienceIds: [], extraDice: [{ count: 1, sides: 6 }] };
+  const session = new Store<P2PSessionState>({ ...p2pSessionService.session$.get(), role: 'player', connected: true, status: 'connected' });
+  const message = 'Дополнительные кости проверки недоступны в текущем смешанном соединении. Используйте ручной бросок.';
+  let calls = 0;
+  const noCall = (): never => { calls++; throw new Error('Unexpected execution'); };
+  const hopeBefore = characterService.getCharacter(actor.id)!.hope.value;
+  const service = new UnifiedRollExecutionService({ rollAction: noCall, rollReaction: noCall, rollDamage: noCall, rollManualDice: noCall, rollGmAttackCheck: noCall }, {
+    session$: session.toStream(), isConnectedPlayerSession: () => true, supportsExtraActionDice: () => false,
+    extraActionDiceSupportError: () => message, submitPlayerRollIntent: noCall
+  }, () => 'scope');
+  assert.deepEqual(await service.execute(extra, 'player', 'public', [actor.id]), { ok: false, error: message });
+  assert.equal(calls, 0);
+  assert.equal(characterService.getCharacter(actor.id)!.hope.value, hopeBefore);
+});
+
 test('individual extra values survive feed and 3D projection exactly once under the original roll ID', () => {
   resetAllStores();
   const originalRandom = Math.random;

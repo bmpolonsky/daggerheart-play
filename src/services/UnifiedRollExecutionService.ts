@@ -14,13 +14,13 @@ export interface EventRollDelegate {
 
 export class UnifiedRollExecutionService {
   constructor(private dice: Pick<DiceService, 'rollAction' | 'rollReaction' | 'rollDamage' | 'rollManualDice' | 'rollGmAttackCheck'>,
-    private session: Pick<P2PSessionService, 'isConnectedPlayerSession' | 'submitPlayerRollIntent' | 'session$'> & { supportsExtraActionDice?: () => boolean }, private currentScope: () => string, private eventRolls?: EventRollDelegate) {}
+    private session: Pick<P2PSessionService, 'isConnectedPlayerSession' | 'submitPlayerRollIntent' | 'session$'> & { supportsExtraActionDice?: () => boolean; extraActionDiceSupportError?: () => string | null }, private currentScope: () => string, private eventRolls?: EventRollDelegate) {}
 
   error(draft: UnifiedRollDraft, role: 'gm' | 'player', allowedActorIds: readonly string[]): string | null {
     if (draft.scopeKey !== this.currentScope()) return 'Игра или сессия изменилась. Подготовьте бросок заново.';
     const error = unifiedRollDraftError(draft);
     if (error) return error;
-    if (normalizeExtraDice(draft.extraDice).length > 0 && role === 'player' && this.session.isConnectedPlayerSession() && !this.session.supportsExtraActionDice?.()) return 'Мастер не подтвердил поддержку дополнительных костей проверки. Обновите сессию мастера или явно выберите ручной бросок.';
+    if (normalizeExtraDice(draft.extraDice).length > 0 && role === 'player' && this.session.isConnectedPlayerSession() && !this.session.supportsExtraActionDice?.()) return this.session.extraActionDiceSupportError?.() ?? 'Мастер не подтвердил поддержку дополнительных костей проверки. Обновите сессию мастера или явно выберите ручной бросок.';
     const session = this.session.session$.get();
     if (role === 'player' && session.role === 'player' && (!session.connected || session.status !== 'connected')) return 'Соединение с мастером ещё не готово. Бросок не выполнен локально.';
     const actor = draft.actor;

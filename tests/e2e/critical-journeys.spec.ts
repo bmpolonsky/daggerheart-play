@@ -385,9 +385,8 @@ test.describe('critical persisted journeys', () => {
     await builder.getByRole('button', { name: 'Создать', exact: true }).click();
     await expect(builder).toHaveCount(0);
 
-    const roster = workspace.getByLabel('Ростер персонажей');
-    await roster.getByRole('button', { name: /Эхо Северного ветра/ }).click();
     const editor = workspace.getByLabel('Редактор персонажа');
+    await expect(editor.getByRole('heading', { name: 'Эхо Северного ветра', exact: true })).toBeVisible();
     await editor.getByRole('button', { name: 'Редактировать', exact: true }).click();
     await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Образ', exact: true }).click();
     const nameField = editor.getByLabel('Имя');
@@ -401,6 +400,8 @@ test.describe('critical persisted journeys', () => {
     await reloadGamePage(page);
     await expect(workspace).toBeVisible();
     await selectWorkspaceTab(workspace, 'Персонажи');
+    const backToRoster = workspace.getByRole('button', { name: 'Вернуться к ростеру персонажей', exact: true });
+    if (await backToRoster.isVisible()) await backToRoster.click();
     const restoredRoster = workspace.getByLabel('Ростер персонажей');
     const restoredCharacter = restoredRoster.getByRole('button', { name: /Эхо из Белой башни/ });
     await expect(restoredCharacter).toBeVisible();
@@ -412,21 +413,22 @@ test.describe('critical persisted journeys', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
 
-  test('persists The Void setting and keeps no-image class choices readable', async ({ page }) => {
+  test('persists all-materials setting and keeps no-image class choices readable', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
     let workspace = await openWorkspace(page);
     await selectSettingsSection(workspace, 'Игра');
 
-    const voidSetting = workspace.getByRole('checkbox', { name: 'Использовать материалы The Void' });
-    await expect(voidSetting).not.toBeChecked();
-    await voidSetting.check();
-    await waitForStoredMarker(page, '"includeVoidContent":true');
+    const materialSetting = workspace.getByRole('combobox', { name: 'Доступные материалы', exact: false });
+    await materialSetting.selectOption('core');
+    await waitForStoredMarker(page, '"contentAccess":"core"');
+    await materialSetting.selectOption('all');
+    await waitForStoredMarker(page, '"contentAccess":"all"');
 
     await reloadGamePage(page);
     await expect(workspace).toBeVisible();
     await selectSettingsSection(workspace, 'Игра');
-    await expect(voidSetting).toBeChecked();
+    await expect(materialSetting).toHaveValue('all');
 
     await selectWorkspaceTab(workspace, 'Персонажи');
     await workspace.getByRole('button', { name: 'Создать героя' }).click();

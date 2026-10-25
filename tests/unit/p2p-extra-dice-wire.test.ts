@@ -29,6 +29,7 @@ interface Internals {
   diceService: { rollAction(request: any): any; rollReaction(request: any): any };
   playerActorContext: { participantId: string; actorId: string; actorName: string };
   sessionStore: { get(): P2PSessionState; set(value: P2PSessionState): void };
+  actorOwnerVerifiedPeers: Map<string, string>;
   activeRoomConnection: any;
   capabilitiesRequest: { requestId: string; attempts: number; answered: boolean } | null;
   playerRollReceipts: Map<string, { operationHash: string; accepted?: boolean }>;
@@ -68,6 +69,7 @@ function setup(role: 'gm' | 'player' = 'player') {
   internals.sessionStore.set({ ...internals.sessionStore.get(), role, connected: true, status: 'connected', roomId: 'EXTRAS', peers: ['gm-peer', 'player-peer'], lastSnapshotAt: 'now' });
   const gmContext = { sourcePeerId: 'gm-peer', verifiedSourcePeerId: 'verified-gm' };
   const playerContext = { logicalPeerId: 'player-peer', verifiedPeerId: 'verified-player' };
+  internals.actorOwnerVerifiedPeers.set(actor.id, 'verified-player');
   function advertise() {
     internals.observeGmSnapshotAuthority(gmContext);
     internals.receiveSessionCapabilities({ type: 'response', requestId: internals.capabilitiesRequest!.requestId, extraActionDiceV1: true }, gmContext);
@@ -280,4 +282,26 @@ test('verified snapshot context reaches the optional third callback argument wit
     transport.listener!({ id: 'canonical-cap-context', authorId: 'gm-peer', createdAt: 'now', kind: 'snapshot', value: snapshotPersistedState() }, context);
     assert.deepEqual(observed, context);
   } finally { await sync.disconnect(); restoreWindow(); }
+});
+
+
+test('ambiguous Hybrid never sends a new capability request or silently converts extra dice into another roll', async () => {
+  const { actor, session, sync, internals, requests, restoreWindow } = setup();
+  try {
+    internals.sessionStore.set({ ...internals.sessionStore.get(), transportMode: 'hybrid' });
+    internals.observeGmSnapshotAuthority({ sourcePeerId: 'gm-peer', verifiedSourcePeerId: 'hybrid:gm-peer' });
+    const message = intent();
+    assert.equal(session.supportsExtraActionDice(), false);
+    assert.match(session.extraActionDiceSupportError() ?? '', /гибридной/);
+    assert.equal(await session.submitPlayerRollIntent(message), false);
+    assert.equal(sync.capabilities.length, 0);
+    assert.equal(sync.intents.length, 0);
+    assert.equal(requests.length, 0);
+    assert.equal(charactersStore.get().entities[actor.id].hope.value, 2);
+    assert.equal(message.intent.type, 'duality');
+    if (message.intent.type === 'duality') assert.deepEqual(message.intent.extraDice, [{ count: 1, sides: 6 }]);
+    // Manual conversion requires a separate explicit intent supplied by caller.
+    assert.equal(await session.submitPlayerRollIntent({ actorId: actor.id, intent: { type: 'manualDice', formula: '2d12+1d6' } }), true);
+    assert.equal(sync.intents[0].intent.type, 'manualDice');
+  } finally { await session.stop(); restoreWindow(); }
 });

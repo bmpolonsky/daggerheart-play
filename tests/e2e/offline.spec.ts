@@ -252,6 +252,9 @@ test('two master windows sync the offline board while keeping panels independent
 });
 
 test('optional compendium artwork is fully cached and the choice survives reopening', async ({ page, context }) => {
+  // The reviewed corpus contains over a thousand images (about384MB). On the
+  // constrained one-worker VM, measured progress is steady but exceeds90s.
+  test.setTimeout(360_000);
   const document = createPopulatedGameDocument();
   const customIconUrl = new URL('/domain.svg', customImageUrl).href;
   document.files['content/custom-adversaries.json'] = [{ id: 'offline-custom', name: 'Офлайн-страж', image_url: customImageUrl }];
@@ -264,7 +267,7 @@ test('optional compendium artwork is fully cached and the choice survives reopen
   await expect(page.getByRole('region', { name: 'Офлайн', exact: true })).toContainText('МБ');
   await page.getByRole('checkbox', { name: /Все иллюстрации справочника/ }).check();
   await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён', { timeout: 90_000 });
+  await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён', { timeout: 300_000 });
   const savedPaths = await page.evaluate(async () => {
     const names = await caches.keys();
     const name = names.find((entry) => !entry.endsWith(':state') && !entry.endsWith(':runtime-v1'))!;

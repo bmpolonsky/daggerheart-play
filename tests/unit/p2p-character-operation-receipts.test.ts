@@ -26,6 +26,7 @@ type Internals = {
   pendingPlayerCharacterUpdates: Map<string, { message: PlayerCharacterUpdateMessage; rollback?: { set: Partial<Character>; unset: Array<keyof Character> } }>;
   playerActorContext: { participantId: string; actorId: string; actorName: string };
   sessionStore: { get(): P2PSessionState; set(value: P2PSessionState): void };
+  actorOwnerVerifiedPeers: Map<string, string>;
 };
 
 function operation(notes: string, revision = 1): Extract<PlayerCharacterUpdateMessage, { patch: unknown }> {
@@ -46,6 +47,7 @@ function setup() {
   const internals = session as unknown as Internals;
   internals.sessionStore.set({ ...internals.sessionStore.get(), role: 'gm', connected: true, roomId: 'RECEIPTS', peers: ['owner-peer'] });
   const context: SyncEventContext = { sourcePeerId: 'owner-peer', verifiedSourcePeerId: 'owner-verified' };
+  internals.actorOwnerVerifiedPeers.set(actor.id, 'owner-verified');
   return { actor, sync, characters, session, internals, context, restoreWindow };
 }
 
@@ -82,6 +84,7 @@ test('exact accepted operation retry survives later GM edit, JSON normalization 
       syncService: sync, characterService: characters, sceneTableService: new SceneTableService()
     });
     try {
+      (restarted as unknown as Internals).actorOwnerVerifiedPeers.set(actor.id, 'owner-verified');
       await (restarted as unknown as Internals).receivePlayerCharacterUpdate({ ...sent, updatedAt: 'later retry' }, context);
       assert.notEqual(sync.acks.at(-1)?.accepted, false);
       assert.equal(sync.acks.at(-1)?.operationHash, playerCharacterUpdateOperationHash(sent));

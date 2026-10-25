@@ -5,12 +5,14 @@ import { createLocalParticipant } from '../../src/domain/tabletop/factories';
 import { charactersStore, sceneTableStore, resetAllStores } from '../../src/stores/gameStores';
 import { CharacterService } from '../../src/services/CharacterService';
 import { SceneTableService } from '../../src/services/SceneTableService';
+import type { P2PSessionState } from '../../src/services/P2PSessionService';
 import type { PlayerPresence } from '../../src/services/PlayerPresenceService';
 import { SyncService, type PlayerCharacterUpdateAckMessage, type PlayerCharacterUpdateMessage } from '../../src/services/SyncService';
 import { createTestP2PSession, installTimerWindow, ScriptedP2PNetwork } from './helpers';
 
 interface VerifiedPeer { logicalPeerId?: string; verifiedPeerId?: string }
 interface Internals {
+  sessionStore: { get(): P2PSessionState; set(value: P2PSessionState): void };
   activeRoomConnection: { peers(): string[] };
   actorOwnerVerifiedPeers: Map<string, string>;
   upsertParticipantFromPlayerPresence(presence: PlayerPresence, context?: VerifiedPeer): void;
@@ -32,6 +34,7 @@ function setup(activePeers = ['owner-old', 'owner-new']) {
     syncService: sync, characterService: new CharacterService(), sceneTableService: new SceneTableService()
   });
   const internals = session as unknown as Internals;
+  internals.sessionStore.set({ ...internals.sessionStore.get(), role: 'gm', connected: true, status: 'connected', roomId: 'OWNER' });
   const peers = [...activePeers];
   internals.activeRoomConnection = { peers: () => peers };
   internals.actorOwnerVerifiedPeers.set(actor.id, 'verified-old');

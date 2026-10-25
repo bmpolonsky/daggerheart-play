@@ -111,6 +111,7 @@ export interface P2PSessionState {
   characterSync?: Record<string, CharacterSyncDelivery>;
   characterSyncEvents?: CharacterSyncDelivery[];
   extraActionDiceSupported?: boolean;
+  extraActionDiceSupportReason?: string | null;
 }
 
 export interface P2PSessionStartInput {
@@ -204,7 +205,8 @@ export class P2PSessionService {
     directPeers: [],
     rollPending: false,
     pendingRollIntentId: null,
-    extraActionDiceSupported: false
+    extraActionDiceSupported: false,
+    extraActionDiceSupportReason: null
   });
   readonly session$ = this.sessionStore.toStream();
   private inviteStore = new Store<P2PInviteDraftState>(initialInviteDraftState());
@@ -867,7 +869,8 @@ export class P2PSessionService {
       directPeers: [],
       rollPending: false,
       pendingRollIntentId: null,
-      extraActionDiceSupported: false
+      extraActionDiceSupported: false,
+      extraActionDiceSupportReason: null
     });
   }
 
@@ -1084,16 +1087,31 @@ export class P2PSessionService {
       && this.gmSnapshotAuthority?.logicalPeerId === this.activeRoomConnection?.gmPeerId();
   }
 
+  extraActionDiceSupportError(): string | null {
+    return this.sessionStore.get().extraActionDiceSupportReason ?? null;
+  }
+
   private resetSessionCapabilities(): void {
     this.capabilitiesGeneration += 1;
     this.capabilitiesRequest = null;
     this.gmSnapshotAuthority = null;
-    this.patchSession({ extraActionDiceSupported: false });
+    this.patchSession({ extraActionDiceSupported: false, extraActionDiceSupportReason: null });
   }
 
   private observeGmSnapshotAuthority(context?: SyncEventContext): void {
     const gmPeerId = this.activeRoomConnection?.gmPeerId();
     if (!gmPeerId || context?.sourcePeerId !== gmPeerId || !context.verifiedSourcePeerId) return;
+    if (this.sessionStore.get().transportMode === 'hybrid' || context.verifiedSourcePeerId.startsWith('hybrid:')
+      || context.verifiedSourcePeerId.startsWith('supabase:') || context.verifiedSourcePeerId === context.sourcePeerId) {
+      // Hybrid's normalized alias (or a source-only adapter fallback) cannot
+      // distinguish actual authority proof from a claimed public identity.
+      this.resetSessionCapabilities();
+      this.patchSession({ extraActionDiceSupportReason: this.sessionStore.get().transportMode === 'hybrid'
+        || context.verifiedSourcePeerId.startsWith('hybrid:') || context.verifiedSourcePeerId.startsWith('supabase:')
+        ? 'Дополнительные кости проверки пока недоступны в гибридной сетевой игре: поддержку мастера нельзя безопасно подтвердить. Используйте явный ручной бросок или обычную проверку.'
+        : 'Дополнительные кости проверки недоступны: это подключение не передаёт отдельного подтверждения источника мастера.' });
+      return;
+    }
     if (this.gmSnapshotAuthority?.logicalPeerId === gmPeerId && this.gmSnapshotAuthority.verifiedPeerId === context.verifiedSourcePeerId) return;
     this.resetSessionCapabilities();
     this.gmSnapshotAuthority = { logicalPeerId: gmPeerId, verifiedPeerId: context.verifiedSourcePeerId };
@@ -1140,7 +1158,7 @@ export class P2PSessionService {
       || !authority || authority.logicalPeerId !== this.activeRoomConnection?.gmPeerId()
       || context?.sourcePeerId !== authority.logicalPeerId || context.verifiedSourcePeerId !== authority.verifiedPeerId) return;
     request.answered = true;
-    this.patchSession({ extraActionDiceSupported: message.extraActionDiceV1 });
+    this.patchSession({ extraActionDiceSupported: message.extraActionDiceV1, extraActionDiceSupportReason: null });
   }
 
   private receivePlayerRollAck(message: PlayerRollAckMessage, context?: SyncEventContext): void {
@@ -1164,7 +1182,7 @@ export class P2PSessionService {
       return false;
     }
     if (input.intent.type === 'duality' && (input.intent.extraDice?.length ?? 0) > 0 && !this.supportsExtraActionDice()) {
-      this.patchSession({ message: 'Мастер не подтвердил поддержку дополнительных костей. Обновите или подтвердите подключение мастера.' });
+      this.patchSession({ message: this.extraActionDiceSupportError() || 'Мастер не подтвердил поддержку дополнительных костей. Обновите или подтвердите подключение мастера.' });
       return false;
     }
     const context = this.requirePlayerActorContext(input.actorId);
@@ -2402,7 +2420,7 @@ export class P2PSessionService {
     if (!this.mediaCallService) return;
     this.subscriptions.add(this.syncService.subscribeCallPresence((presence, _event, context) => {
       this.mediaCallService?.receiveRemotePresence(presence, context?.sourcePeerId);
-      this.upsertParticipantFromCallPresence(presence, context?.sourcePeerId);
+      this.upsertParticipantFromCallPresence(presence, remotePeerContext(context));
     }));
   }
 
@@ -2422,21 +2440,36 @@ export class P2PSessionService {
     });
   }
 
-  private upsertParticipantFromCallPresence(presence: CallPresenceMessage, peerId?: string): void {
+  private isTrustedLocalAuthorityCall(peerContext?: RemotePeerContext): boolean {
+    const session = this.sessionStore.get();
+    // Compatibility for direct local-authority calls, never a network fallback:
+    // room startup replaces LocalSyncTransport before registering remote inputs.
+    return peerContext === undefined && !session.connected && session.role === null
+      && this.syncService.getTransport().id === 'local';
+  }
+
+  private hasTransportSourceContext(peerContext?: RemotePeerContext): boolean {
+    // An adapter-provided source is required. Hybrid's existing logical alias
+    // is retained only for legacy cached continuity, never cold-cache resume
+    // proof or a positive new-feature capability advertisement.
+    return Boolean(peerContext?.logicalPeerId && peerContext.verifiedPeerId);
+  }
+
+  private upsertParticipantFromCallPresence(presence: CallPresenceMessage, peerContext?: RemotePeerContext): void {
     const participant = this.findExistingParticipantForPresence({
-      participantId: presence.participantId,
-      peerId
+      participantId: presence.participantId, peerId: peerContext?.logicalPeerId
     });
-    if (!participant) {
-      return;
-    }
+    if (!participant) return;
+    const trustedLocal = this.isTrustedLocalAuthorityCall(peerContext);
+    if (!trustedLocal && (!this.hasTransportSourceContext(peerContext) || participant.role !== 'player'
+      || participant.id !== presence.participantId || participant.peerId !== peerContext!.logicalPeerId
+      || participant.actorIds.length === 0
+      || !participant.actorIds.every(actorId => this.actorOwnerVerifiedPeers.get(actorId) === peerContext!.verifiedPeerId))) return;
+    // Calls can refresh metadata for an already confirmed binding, never create
+    // or replace the seat's owner pointer or verified identity.
     this.sceneTableService.upsertParticipantPresence({
-      id: participant.id,
-      name: presence.displayName,
-      role: participant.role,
-      actorIds: participant.actorIds,
-      peerId,
-      connected: presence.connected
+      id: participant.id, name: presence.displayName, role: participant.role,
+      actorIds: participant.actorIds, peerId: participant.peerId, connected: presence.connected
     });
   }
 
@@ -2451,15 +2484,15 @@ export class P2PSessionService {
     }
     const assignedSeat = participant.role === 'player' && participant.id === presence.requesterId
       && participant.actorIds.includes(presence.actorId);
-    const verifiedPresence = Boolean(peerContext?.verifiedPeerId && peerContext.logicalPeerId === presence.peerId);
-    if (peerContext?.verifiedPeerId && (!verifiedPresence || !assignedSeat)) return;
+    const verifiedPresence = this.hasTransportSourceContext(peerContext) && peerContext!.logicalPeerId === presence.peerId;
+    const trustedLocal = this.isTrustedLocalAuthorityCall(peerContext);
+    if (!trustedLocal && (!verifiedPresence || !assignedSeat)) return;
     const previousOwnerPeer = participant.peerId;
-    // Public seat/actor IDs and a departed peer do not prove continuity of
-    // a player session. A different transport identity needs GM confirmation;
-    // presence alone must not replace either half of the existing binding.
-    if (previousOwnerPeer && previousOwnerPeer !== presence.peerId) return;
     const previousVerifiedPeer = this.actorOwnerVerifiedPeers.get(presence.actorId);
-    if (previousVerifiedPeer && peerContext?.verifiedPeerId && previousVerifiedPeer !== peerContext.verifiedPeerId) return;
+    // Established pointer + empty cache is a cold-start/resume boundary, not a
+    // virgin seat. Public IDs cannot reconstruct its missing authority proof.
+    if (!trustedLocal && previousOwnerPeer && (!previousVerifiedPeer || previousOwnerPeer !== presence.peerId)) return;
+    if (!trustedLocal && previousVerifiedPeer && previousVerifiedPeer !== peerContext!.verifiedPeerId) return;
     const updated = this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
       name: presence.playerName || presence.actorName,
@@ -2601,57 +2634,19 @@ export class P2PSessionService {
   }
 
   private authorizePlayerActor(participantId: string, actorId: string, peerContext?: RemotePeerContext): boolean {
-    const logicalPeerId = peerContext?.logicalPeerId;
-    const verifiedPeerId = peerContext?.verifiedPeerId;
     const requester = this.sceneTableService.sceneTable$.get().participants[participantId];
-    if (this.participantOwnsActor(participantId, actorId)) {
-      const peerParticipant = logicalPeerId ? this.participantForPeer(logicalPeerId) : null;
-      if (peerParticipant && peerParticipant.id !== participantId) {
-        return false;
-      }
-      const verifiedPeerId = this.actorOwnerVerifiedPeers.get(actorId);
-      if (peerContext?.verifiedPeerId && verifiedPeerId && verifiedPeerId !== peerContext.verifiedPeerId) {
-        return false;
-      }
-      if (peerContext?.verifiedPeerId && !verifiedPeerId && (!requester?.peerId || requester.peerId !== logicalPeerId)) {
-        return false;
-      }
-      this.bindActorOwnerPeer(actorId, peerContext);
-      return true;
+    if (this.isTrustedLocalAuthorityCall(peerContext)) {
+      return this.participantOwnsActor(participantId, actorId)
+        || (!requester && Boolean(this.ownerParticipantForActor(actorId)));
     }
-    if (requester?.role === 'player') {
-      return false;
-    }
-    const owner = this.ownerParticipantForActor(actorId);
-    if (!owner) {
-      return false;
-    }
-    const peerParticipant = logicalPeerId ? this.participantForPeer(logicalPeerId) : null;
-    if (peerParticipant && peerParticipant.id !== owner.id) {
-      return false;
-    }
-    if (peerContext?.verifiedPeerId) {
-      const verifiedPeerId = this.actorOwnerVerifiedPeers.get(actorId);
-      if (verifiedPeerId && verifiedPeerId !== peerContext.verifiedPeerId) {
-        return false;
-      }
-      if (!verifiedPeerId && (!owner.peerId || owner.peerId !== logicalPeerId)) {
-        return false;
-      }
-    }
-    this.bindActorOwnerPeer(actorId, peerContext);
-    return true;
-  }
-
-  private bindActorOwnerPeer(actorId: string, peerContext?: RemotePeerContext): void {
-    if (!peerContext?.verifiedPeerId) {
-      return;
-    }
-    this.actorOwnerVerifiedPeers.set(actorId, peerContext.verifiedPeerId);
-    const owner = this.ownerParticipantForActor(actorId);
-    if (!owner) {
-      return;
-    }
+    if (!this.hasTransportSourceContext(peerContext) || !this.participantOwnsActor(participantId, actorId)) return false;
+    const peerParticipant = this.participantForPeer(peerContext!.logicalPeerId!);
+    if (peerParticipant && peerParticipant.id !== participantId) return false;
+    // Network authorization consumes an existing confirmed binding; it never
+    // turns a claimed participant/actor/logical ID into a new binding.
+    const verifiedOwner = this.actorOwnerVerifiedPeers.get(actorId);
+    return Boolean(verifiedOwner && verifiedOwner === peerContext!.verifiedPeerId
+      && requester?.peerId === peerContext!.logicalPeerId);
   }
 
   private playerActorRejectionMessage(participantId: string, actorId: string, prefix: string): string {
@@ -2791,7 +2786,7 @@ function remotePeerContext(context?: SyncEventContext): RemotePeerContext | unde
   }
   return {
     logicalPeerId: context.sourcePeerId,
-    verifiedPeerId: context.verifiedSourcePeerId ?? context.sourcePeerId
+    verifiedPeerId: context.verifiedSourcePeerId
   };
 }
 
