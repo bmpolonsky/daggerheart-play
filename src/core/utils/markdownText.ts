@@ -54,6 +54,12 @@ export function normalizeMarkdownLineBreaks(value: string): string {
     .replace(/\n{3,}/g, '\n\n');
 }
 
+/** Compact plain-text surfaces do not render blockquotes. Keep comparison
+ * operators such as "> 5" / ">=" and inline arrows unchanged. */
+export function stripMarkdownBlockquotes(value: string): string {
+  return value.replace(/^[ \t]{0,3}(?:>[ \t]*)+(?=[^\s\d=<>+\-])/gm, '');
+}
+
 export function cleanMarkdownText(value: string, options: {
   emphasizeLinks?: boolean;
   stripEmphasis?: boolean;
@@ -61,7 +67,7 @@ export function cleanMarkdownText(value: string, options: {
   normalizeLineBreaks?: boolean;
   trim?: boolean;
 } = {}): string {
-  let text = stripMarkdownLinks(stripMarkdownImages(stripInlineMarkers(value)), { emphasizeLabels: options.emphasizeLinks });
+  let text = stripMarkdownLinks(stripMarkdownImages(stripInlineMarkers(stripMarkdownBlockquotes(value))), { emphasizeLabels: options.emphasizeLinks });
   if (options.stripCodeTicks) text = text.replace(/`([^`]+)`/g, '$1');
   if (options.stripEmphasis) text = stripMarkdownEmphasis(text);
   if (options.normalizeLineBreaks) text = normalizeMarkdownLineBreaks(text);

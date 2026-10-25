@@ -70,3 +70,8 @@ test('uses one canonical label for persisted and API range values', () => {
   assert.equal(rangeLabel('Очень далеко'), 'Очень далёкая');
   assert.equal(rangeLabel('any'), 'Любая');
 });
+
+test('plain rule advice loses Markdown quote markers while numeric comparisons remain', () => {
+  assert.equal(cleanMarkdownText('> ***Совет:** Добавьте кости.\n>**Совет:** Не умножайте бонус.', { stripEmphasis: true }), 'Совет: Добавьте кости.\nСовет: Не умножайте бонус.');
+  assert.equal(cleanMarkdownText('>> **Вложенная цитата**\nЗначение > 5.\n> 5\n>= 6\nA -> B', { stripEmphasis: true }), 'Вложенная цитата\nЗначение > 5.\n> 5\n>= 6\nA -> B');
+});
