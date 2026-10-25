@@ -150,3 +150,18 @@ test('the undefined-context compatibility path is local disconnected authority o
     assert.equal(internals.authorizePlayerActor(seat.id, actor.id), false);
   } finally { await session.stop(); restoreWindow(); }
 });
+
+test('a missing stale seat hint can use only the already-confirmed owner transport, never another seat or cold cache', async () => {
+  const { actor, session, internals, source, restoreWindow } = setup();
+  try {
+    internals.actorOwnerVerifiedPeers.set(actor.id, 'native-owner');
+    assert.equal(internals.authorizePlayerActor('stale-missing-seat', actor.id, source), true);
+    assert.equal(internals.authorizePlayerActor('stale-missing-seat', actor.id, { ...source, verifiedPeerId: 'different-native' }), false);
+    assert.equal(internals.authorizePlayerActor('stale-missing-seat', actor.id, { ...source, logicalPeerId: 'forged-logical' }), false);
+    sceneTableStore.update(state => ({ ...state, participants: { ...state.participants,
+      'other-seat': createLocalParticipant({ id: 'other-seat', name: 'Other', role: 'player', actorIds: ['other-hero'], peerId: 'other-peer' }) } }));
+    assert.equal(internals.authorizePlayerActor('other-seat', actor.id, source), false);
+    internals.actorOwnerVerifiedPeers.clear();
+    assert.equal(internals.authorizePlayerActor('stale-missing-seat', actor.id, source), false);
+  } finally { await session.stop(); restoreWindow(); }
+});

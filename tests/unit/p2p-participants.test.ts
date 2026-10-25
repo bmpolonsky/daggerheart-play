@@ -3,16 +3,18 @@ import assert from "node:assert/strict";
 import { MediaCallService } from "../../src/services/MediaCallService";
 import { SceneTableService } from "../../src/services/SceneTableService";
 import { SyncService } from "../../src/services/SyncService";
+import { characterService } from "../../src/services/serviceRegistry";
+import { P2PRoomConnection } from "../../src/services/p2p/P2PRoomConnection";
 import { resetAllStores } from "../../src/stores/gameStores";
-import { createTestP2PSession, installTimerWindow, ScriptedP2PNetwork, waitFor } from "./helpers";
+import { createTestP2PSession, createTestPlayerSync, installTimerWindow, ScriptedP2PNetwork, waitFor } from "./helpers";
 
-test('P2P call presence creates unified participants with call display names', async () => {
+test('P2P call presence is metadata-only until assigned actor presence confirms the transport', async () => {
   resetAllStores();
   const restoreWindow = installTimerWindow();
   const network = new ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
   const gmSceneTable = new SceneTableService();
   const gmSync = new SyncService();
-  const playerSync = new SyncService();
+  const playerSync = createTestPlayerSync(network);
   const gmCall = new MediaCallService(gmSync);
   const playerCall = new MediaCallService(playerSync);
   const gm = createTestP2PSession(network, {
@@ -21,26 +23,39 @@ test('P2P call presence creates unified participants with call display names', a
     syncService: gmSync,
     mediaCallService: gmCall
   });
-  const player = createTestP2PSession(network, {
-    syncService: playerSync,
-    mediaCallService: playerCall
-  });
   const seat = gmSceneTable.createPlayerSeat({ name: 'Анна' });
 
   try {
     await gm.startGmRoom({ roomId: 'call-names-room', participantName: 'GM' });
-    await player.startPlayerRoom({ roomId: 'call-names-room', participantId: seat.id, participantName: 'Анна' });
-    playerCall.setRoom({ roomId: player.session$.get().roomId, displayName: 'Анна', role: 'player', active: true });
+    // A read-only transport represents the isolated player here. Starting a
+    // second full P2PSessionService would mutate the same module-global store
+    // in this unit fixture, unlike the two browser profiles in the real E2E.
+    await playerSync.connectReadOnly('CALL-NAMES-ROOM', { id: seat.id, name: 'Анна', role: 'player', actorIds: [], connected: true, updatedAt: 'now' });
+    playerCall.setRoom({ roomId: 'CALL-NAMES-ROOM', participantId: seat.id, displayName: 'Звонок без подтверждения', role: 'player', active: true });
+    await playerCall.publishPresence();
+    await waitFor(() => assert.equal(gmCall.call$.get().remoteParticipants[seat.id]?.displayName, 'Звонок без подтверждения'));
+    assert.equal(gmSceneTable.sceneTable$.get().participants[seat.id].peerId, undefined);
+    assert.equal(gmSceneTable.sceneTable$.get().participants[seat.id].connected, false);
 
+    // Intended initial flow: the GM assigns a real actor to the virgin seat,
+    // then verified actor presence (not the call) establishes the binding.
+    const actor = characterService.createCharacter({ name: 'Герой Анны' });
+    gmSceneTable.updatePlayerSeat(seat.id, { characterId: actor.id });
+    const peerId = (playerSync.getTransport() as P2PRoomConnection).peerId;
+    await playerSync.publishPlayerPresence({ peerId, requesterId: seat.id, actorId: actor.id,
+      actorName: actor.name, playerName: 'Анна', connected: true, voiceMuted: true, voiceLive: false, updatedAt: 'now' });
+    await waitFor(() => assert.equal(gmSceneTable.sceneTable$.get().participants[seat.id].peerId, peerId));
+    playerCall.setRoom({ roomId: 'CALL-NAMES-ROOM', participantId: seat.id, displayName: 'Анна из звонка', role: 'player', active: true });
+    await playerCall.publishPresence();
     await waitFor(() => {
-      const participant = Object.values(gmSceneTable.sceneTable$.get().participants).find((item) => item.name === 'Анна');
-      assert.ok(participant);
-      assert.equal(participant?.role, 'player');
-      assert.equal(participant?.connected, true);
-      assert.equal(participant?.peerId, player.session$.get().peerId);
-    }, 15_000);
+      const participant = gmSceneTable.sceneTable$.get().participants[seat.id];
+      assert.equal(participant.name, 'Анна из звонка');
+      assert.equal(participant.role, 'player');
+      assert.equal(participant.connected, true);
+      assert.equal(participant.peerId, peerId);
+    });
   } finally {
-    await player.stop().catch(() => undefined);
+    await playerSync.disconnect().catch(() => undefined);
     await gm.stop().catch(() => undefined);
     restoreWindow();
   }

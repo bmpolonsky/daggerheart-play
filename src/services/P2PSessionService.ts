@@ -1983,14 +1983,14 @@ export class P2PSessionService {
     const receipt = { operationHash, accepted: undefined as boolean | undefined };
     this.playerRollReceipts.set(message.intentId, receipt);
     while (this.playerRollReceipts.size > 256) this.playerRollReceipts.delete(this.playerRollReceipts.keys().next().value!);
-    receipt.accepted = this.executePlayerRollIntent(message);
+    receipt.accepted = this.executePlayerRollIntent(message, peerContext);
     return { accepted: receipt.accepted, operationHash, ...(receipt.accepted ? {} : { reason: 'Бросок игрока отклонён.' }) };
   }
 
-  private executePlayerRollIntent(message: PlayerRollIntentMessage): boolean {
+  private executePlayerRollIntent(message: PlayerRollIntentMessage, peerContext?: RemotePeerContext): boolean {
     if (!this.diceService) return false;
     if (message.resourcePatch) {
-      this.applyPlayerCharacterResourcePatch(message.actorId, message.resourcePatch, message.createdAt);
+      this.applyPlayerCharacterResourcePatch(message.actorId, message.resourcePatch, message.createdAt, peerContext);
     }
     try {
       switch (message.intent.type) {
@@ -2639,14 +2639,18 @@ export class P2PSessionService {
       return this.participantOwnsActor(participantId, actorId)
         || (!requester && Boolean(this.ownerParticipantForActor(actorId)));
     }
-    if (!this.hasTransportSourceContext(peerContext) || !this.participantOwnsActor(participantId, actorId)) return false;
+    if (!this.hasTransportSourceContext(peerContext)) return false;
+    const owner = this.participantOwnsActor(participantId, actorId)
+      ? requester : !requester ? this.ownerParticipantForActor(actorId) : null;
+    if (!owner) return false;
     const peerParticipant = this.participantForPeer(peerContext!.logicalPeerId!);
-    if (peerParticipant && peerParticipant.id !== participantId) return false;
-    // Network authorization consumes an existing confirmed binding; it never
-    // turns a claimed participant/actor/logical ID into a new binding.
+    if (!peerParticipant || peerParticipant.id !== owner.id) return false;
+    // A stale missing seat ID is merely a hint. Only the already-pinned
+    // transport + GM-owned actor assignment can authorize this fallback;
+    // it never creates or changes a binding and cannot survive a cold cache.
     const verifiedOwner = this.actorOwnerVerifiedPeers.get(actorId);
     return Boolean(verifiedOwner && verifiedOwner === peerContext!.verifiedPeerId
-      && requester?.peerId === peerContext!.logicalPeerId);
+      && owner.peerId === peerContext!.logicalPeerId);
   }
 
   private playerActorRejectionMessage(participantId: string, actorId: string, prefix: string): string {
@@ -2665,14 +2669,14 @@ export class P2PSessionService {
     return `${prefix}: персонаж не назначен этому игроку.`;
   }
 
-  private applyPlayerCharacterResourcePatch(actorId: string, resources: PlayerCharacterResourcePatch, updatedAt: string): boolean {
+  private applyPlayerCharacterResourcePatch(actorId: string, resources: PlayerCharacterResourcePatch, updatedAt: string, peerContext?: RemotePeerContext): boolean {
     return this.applyPlayerCharacterResources({
       type: 'playerCharacterResources',
       participantId: this.ownerParticipantIdForActor(actorId) ?? '',
       actorId,
       resources,
       updatedAt
-    });
+    }, peerContext);
   }
 
   private ownerParticipantIdForActor(actorId: string): string | null {

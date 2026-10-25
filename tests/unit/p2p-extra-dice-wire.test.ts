@@ -4,7 +4,7 @@ import { createCharacter } from '../../src/domain/rules/factories';
 import type { PersistedState } from '../../src/domain/rules/types';
 import { createLocalParticipant } from '../../src/domain/tabletop/factories';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer } from '../../src/domain/tabletop/types';
-import { charactersStore, sceneTableStore, resetAllStores } from '../../src/stores/gameStores';
+import { charactersStore, sceneTableStore, gameStore, resetAllStores } from '../../src/stores/gameStores';
 import { snapshotPersistedState } from '../../src/stores/persistedState';
 import { CharacterService } from '../../src/services/CharacterService';
 import { SceneTableService } from '../../src/services/SceneTableService';
@@ -49,6 +49,7 @@ function intent(id = 'extra-intent'): PlayerRollIntentMessage {
 function setup(role: 'gm' | 'player' = 'player') {
   const restoreWindow = installTimerWindow();
   resetAllStores();
+  gameStore.update(state => ({ ...state, autoApplyRollConsequences: false }));
   const actor = createCharacter({ id: 'extra-hero', hope: { value: 2, max: 6 } });
   charactersStore.update(state => ({ ...state, entities: { [actor.id]: actor }, order: [actor.id] }));
   const owner = createLocalParticipant({ id: 'owner', name: 'Owner', role: 'player', actorIds: [actor.id], peerId: 'player-peer' });
