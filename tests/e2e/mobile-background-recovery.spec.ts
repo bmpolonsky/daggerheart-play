@@ -82,7 +82,7 @@ test('mocked transport: mobile foreground restores latest resources and complete
       const host = window as any;
       const receive = host.__DAGGERHEART_E2E_RELAY_RECEIVE__;
       if (typeof receive !== 'function') throw new Error('Isolated relay receiver missing');
-      const background = host.__E2E_BACKGROUND_RECOVERY__ = { hidden: true, dropped: 0, delivered: 0, lastSnapshot: null, summary: null };
+      const background = host.__E2E_BACKGROUND_RECOVERY__ = { hidden: true, dropped: 0, delivered: 0, lastSnapshot: null, summary: null as { hope?: number; wounds?: number; restStatus?: string } | null };
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => background.hidden ? 'hidden' : 'visible' });
       host.__DAGGERHEART_E2E_RELAY_RECEIVE__ = (message: any) => {
         const envelope = message.envelope;
