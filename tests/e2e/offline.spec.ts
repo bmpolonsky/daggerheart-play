@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
 import { createPopulatedGameDocument, importGameDocument } from './filled-game-helpers';
 import { installDeterministicP2PTransport } from './game-route-helpers';
@@ -251,7 +251,7 @@ test('two master windows sync the offline board while keeping panels independent
   await expect(page.getByLabel('Инструменты сцены')).toBeVisible();
 });
 
-test('optional compendium artwork is fully cached and the choice survives reopening', async ({ page, context }) => {
+test('optional compendium artwork is fully cached and the choice survives reopening', async ({ page, context }, testInfo) => {
   // The reviewed corpus contains over a thousand images (about384MB). On the
   // constrained one-worker VM, measured progress is steady but exceeds90s.
   test.setTimeout(360_000);
@@ -263,11 +263,25 @@ test('optional compendium artwork is fully cached and the choice survives reopen
   await importGameDocument(page, document);
   await page.goto(`${origin}/#/library/settings/game`);
   const artwork = JSON.parse(await readFile(resolve(process.env.OFFLINE_TEST_DIST ?? 'dist', 'offline-artwork.json'), 'utf8')) as { files: string[]; bytes: number };
+  const storageBefore = await page.evaluate(() => navigator.storage.estimate());
   expect(artwork.files.length).toBeGreaterThan(10);
   await expect(page.getByRole('region', { name: 'Офлайн', exact: true })).toContainText('МБ');
   await page.getByRole('checkbox', { name: /Все иллюстрации справочника/ }).check();
   await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён', { timeout: 300_000 });
+  const offlineRegion = page.getByRole('region', { name: 'Офлайн', exact: true });
+  let terminalState = 'pending';
+  await expect.poll(async () => {
+    const alert = offlineRegion.getByRole('alert');
+    if (await alert.count() && await alert.first().isVisible()) terminalState = `error:${await alert.first().innerText()}`;
+    else terminalState = await offlineRegion.getByRole('status').textContent().catch(() => '') === 'Офлайн включён' ? 'ready' : 'pending';
+    return terminalState;
+  }, { timeout: 300_000 }).not.toBe('pending');
+  const storageEvidence = testInfo.outputPath('artwork-storage-estimates.json');
+  await writeFile(storageEvidence, JSON.stringify({ files: artwork.files.length, bytes: artwork.bytes, terminalState,
+    before: storageBefore, after: await page.evaluate(() => navigator.storage.estimate()) }, null, 2));
+  await testInfo.attach('artwork-storage-estimates', { path: storageEvidence, contentType: 'application/json' });
+  if (terminalState !== 'ready') throw new Error(`${terminalState.includes('Недостаточно места') ? '[ENV_QUOTA]' : '[OFFLINE_PREPARE_ERROR]'} ${terminalState}`);
+  await expect(offlineRegion.getByRole('status')).toHaveText('Офлайн включён');
   const savedPaths = await page.evaluate(async () => {
     const names = await caches.keys();
     const name = names.find((entry) => !entry.endsWith(':state') && !entry.endsWith(':runtime-v1'))!;

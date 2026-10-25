@@ -25,7 +25,7 @@ test('mixed ancestry blocks the same pair and saves Elf first plus Giant second 
   await secondPicker.getByRole('option').filter({ has: page.getByText('Великан', { exact: true }) }).click();
   await secondPicker.getByRole('button', { name: 'Выбрать', exact: true }).click();
   await builder.getByRole('button', { name: 'Итог', exact: true }).click();
-  await expect(builder.getByText('Для смешанного наследия выберите две разные родословные.', { exact: true })).toBeVisible();
+  await expect(builder.getByRole('group', { name: 'Шаг: Итог', exact: true }).getByText('Для смешанного наследия выберите две разные родословные.', { exact: true })).toBeVisible();
   await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeDisabled();
   await expect(roster.locator('.player-tools-character-card')).toHaveCount(initialCount);
 
