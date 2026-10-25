@@ -26,7 +26,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await expect(damage).toContainText('Ран к отметке: 2. Раны: 2 → 4 из 4.');
     await damage.getByRole('button', { name: 'Применить урон', exact: true }).click();
     await expect(damage.getByRole('status')).toContainText('Отмечено Ран: 2 (4/4)');
-    await expect(sheet.getByRole('button', { name: /Убрать состояние Побеждён/ })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Снять состояние Побеждён', exact: true })).toBeVisible();
     await input.fill('-1');
     await expect(damage.getByRole('button', { name: 'Применить урон', exact: true })).toBeDisabled();
     await expect(page.getByRole('region', { name: 'Подготовка броска', exact: true })).toHaveCount(0);
