@@ -9,9 +9,10 @@ import { signed } from './helpers';
 import { RollPrivateToggle } from './RollConfirmControls';
 import { usePrivateRollPreference } from './rollPrivacyPreference';
 import type { PlayerRollDraft, PlayerRollType } from './types';
-import { Button, Checkbox, SelectControl, SegmentedControl } from '../../components/common';
+import { Button, Checkbox, SelectControl, SegmentedControl, TextField } from '../../components/common';
 import { CompendiumRuleTerm } from './CompendiumRuleTerm';
 import { PlayerContextPanel } from './PlayerContextPanel';
+import { actionRollFormulaPreview, parseManualRollModifier } from '../../../domain/rules/manualRollModifier';
 
 export function PlayerRollConfirm({
   character,
@@ -50,6 +51,9 @@ export function PlayerRollConfirm({
   const [disadvantageCount, setDisadvantageCount] = useState(initialDisadvantageCount ?? (initialAdvantageMode < 0 ? 1 : 0));
   const [experienceIds, setExperienceIds] = useState<string[]>([]);
   const [spendHopeForExperiences, setSpendHopeForExperiences] = useState(true);
+  const [manualModifierOpen, setManualModifierOpen] = useState(false);
+  const [manualModifierInput, setManualModifierInput] = useState('');
+  const manualModifier = parseManualRollModifier(manualModifierInput);
   const availableExperiences = experiences ?? character.experiences;
   const selectedTrait = character.traits.find((trait) => trait.id === draft.trait);
   const selection = characterRollExperienceSelection(availableExperiences, experienceIds, forceSpendHopeForExperiences || spendHopeForExperiences, character.hope.value);
@@ -138,6 +142,13 @@ export function PlayerRollConfirm({
         </div>
       )}
       <p>Цена опыта: {experienceHopeCost} Надежды{experienceHopeCost > character.hope.value ? ' — недостаточно' : ''}</p>
+      <Button variant="ghost" size="sm" type="button" aria-expanded={manualModifierOpen} onClick={() => setManualModifierOpen((open) => !open)}>
+        Доп. модификатор{manualModifier.valid && manualModifier.value !== 0 ? `: ${signed(manualModifier.value)}` : ''}
+      </Button>
+      {manualModifierOpen && <TextField label="Доп. модификатор" value={manualModifierInput} placeholder="+6 или −2" onInput={(event) => setManualModifierInput(event.currentTarget.value)}
+        hint="Укажите итоговую ручную поправку. Для помощи сначала согласуйте максимум и отмену помех; не добавляйте ещё одно преимущество за ту же помощь." />}
+      {!manualModifier.valid && <p role="alert">Введите целое число, например +6 или −2.</p>}
+      <p aria-label="Итоговая формула">Итоговая формула: {manualModifier.valid ? actionRollFormulaPreview({ traitModifier: selectedTrait?.value ?? 0, experienceModifier, manualModifier: manualModifier.value, advantageCount, disadvantageCount }) : 'исправьте доп. модификатор'}</p>
       </>}
       {rollMode === 'damage' && (draft.kind === 'weapon' || draft.kind === 'companion') && <p>Урон: {scaleWeaponFormulaByProficiency(draft.damageFormula, character.proficiency)}</p>}
       <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
@@ -145,10 +156,10 @@ export function PlayerRollConfirm({
         <Button
           variant="primary"
           type="button"
-          disabled={rollMode !== 'damage' && !selection.canAfford}
+          disabled={rollMode !== 'damage' && (!selection.canAfford || !manualModifier.valid)}
           onClick={() => {
             if (rollMode === 'damage') onDamage?.({ publication });
-            else onRoll(buildActionComposerRollOptions({ advantageMode: 0, advantageCount, disadvantageCount, experienceIds: selection.experienceIds, spendHopeForExperiences: forceSpendHopeForExperiences || spendHopeForExperiences }), rollType, publication);
+            else onRoll(buildActionComposerRollOptions({ advantageMode: 0, advantageCount, disadvantageCount, experienceIds: selection.experienceIds, spendHopeForExperiences: forceSpendHopeForExperiences || spendHopeForExperiences, manualModifier: manualModifier.value }), rollType, publication);
           }}
         >{rollMode === 'damage' ? 'Бросить урон' : rollType === 'reaction' ? 'Бросить реакцию' : 'Бросить действие'}</Button>
         <Button variant="ghost" onClick={onClose}>{embedded ? 'К карточке' : 'Отмена'}</Button>

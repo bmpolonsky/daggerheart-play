@@ -5,8 +5,9 @@ import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/player
 import { diceService, gameService, mediaCallService, p2pSessionService, playerActivationQueueService } from '../../../services/serviceRegistry';
 import { resolveRollActor, type RollActorOption } from '../../../domain/tabletop/rollActorContext';
 import { CharacterRollService } from '../../../services/CharacterRollService';
-import { SelectField } from '../../components/common';
-import { CharacterRollDialog } from './CharacterRollDialog';
+import { UnifiedRollComposer } from './UnifiedRollComposer';
+import { unifiedRollDraftService } from '../../../services/UnifiedRollDraftService';
+import { gameStore } from '../../../stores/gameStores';
 import { MiniDiceLauncher } from '../MiniDiceLauncher';
 import type { PlayerRollDraft, TableViewRole } from './types';
 
@@ -32,18 +33,19 @@ export function PlayerActionDock({
   selectedPlayerSeatId
 }: PlayerActionDockProps) {
   const [selectedActorKey, setSelectedActorKey] = useState<string | null>(null);
-  const [rollDraftState, setRollDraftState] = useState<{ actorId: string; draft: PlayerRollDraft } | null>(null);
+  const draftState = useStream(unifiedRollDraftService.state$);
+  const game = useStream(gameStore.toStream());
   const actingActor = resolveRollActor(actorOptions, selectedActorKey, role);
   useEffect(() => {
     if (selectedActorKey && (role !== 'gm' || !actorOptions.some((actor) => actor.key === selectedActorKey))) setSelectedActorKey(null);
   }, [actorOptions, selectedActorKey, role]);
   const actingCharacter = actingActor.kind === 'character' && actingActor.id ? rollCharacters[actingActor.id] : null;
-  const draftCharacter = rollDraftState && actorOptions.some((actor) => actor.kind === 'character' && actor.id === rollDraftState.actorId)
-    ? rollCharacters[rollDraftState.actorId] : null;
+
   const callState = useStream(mediaCallService.call$);
   const localActivation = useStream(playerActivationQueueService.local$);
   const activationQueue = useStream(playerActivationQueueService.queue$);
   const p2pSession = useStream(p2pSessionService.session$);
+  useEffect(() => unifiedRollDraftService.setScopeProvider(() => JSON.stringify([gameStore.get().id, p2pSessionService.session$.get().roomId, p2pSessionService.session$.get().peerId, role])), [game.id, p2pSession.roomId, p2pSession.peerId, role]);
 
   const toggleActivationRequest = useCallback(() => {
     if (role !== 'player' || !displayedCharacter?.id) return;
@@ -65,23 +67,17 @@ export function PlayerActionDock({
 
   return (
     <>
-    {rollDraftState && draftCharacter && <CharacterRollDialog
-      character={draftCharacter}
-      draft={rollDraftState.draft}
-      role={role}
-      onTraitChange={(trait) => setRollDraftState((current) => current ? { ...current, draft: { ...current.draft, trait } } : current)}
-      onClose={() => setRollDraftState(null)}
-    />}
     <MiniDiceLauncher
-      actorName={actingActor.name}
+      actorName={draftState.draft?.actor.name ?? actingActor.name}
       selectedActorKind={actingActor.kind === 'character' || actingActor.kind === 'adversary' ? actingActor.kind : null}
-      actorControl={<SelectField label="От лица" value={actingActor.key} onChange={(event) => setSelectedActorKey(event.currentTarget.value)}>
-        {actorOptions.map((actor) => <option key={actor.key} value={actor.key}>{actor.name}{actor.kind === 'gm' ? ' (без персонажа)' : ''}</option>)}
-      </SelectField>}
-      onOpenCharacterRoll={actingCharacter ? () => setRollDraftState({ actorId: actingCharacter.id, draft: {
-        kind: 'trait', title: 'Проверка персонажа', subtitle: actingCharacter.name,
-        trait: actingCharacter.spellcastTrait ?? actingCharacter.traits[0]?.id ?? 'agility'
-      } }) : undefined}
+      openRequest={draftState.openRequest}
+      onOpenTray={() => {
+        if (unifiedRollDraftService.state$.get().draft) return;
+        unifiedRollDraftService.request({ actor: actingActor, mode: actingCharacter ? 'action' : 'manual', title: actingCharacter ? 'Проверка персонажа' : 'Кости',
+          formula: actingCharacter ? '2d12' : '1d20', trait: actingCharacter?.spellcastTrait ?? 'agility' });
+      }}
+      composer={<UnifiedRollComposer role={role} actorOptions={actorOptions} rollCharacters={rollCharacters}
+        rollPending={role === 'player' && p2pSession.rollPending} rollDisabled={role === 'player' && p2pSession.status !== 'connected'} />}
       role={role}
       callState={callState}
       callAvailable={p2pSession.connected}

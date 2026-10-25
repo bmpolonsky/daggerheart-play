@@ -1,22 +1,42 @@
 /** @jsxImportSource preact */
-import { useState } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
-import { CharacterRollService, type PreparedDiceRoll, type RollActor } from '../../../services/CharacterRollService';
-import { diceService, gameService, p2pSessionService } from '../../../services/serviceRegistry';
-import { Button, Checkbox } from '../../components/common';
-import { PlayerRollConfirm } from './PlayerRollConfirm';
-import { PlayerContextPanel } from './PlayerContextPanel';
-import { RollPrivateToggle } from './RollConfirmControls';
-import { usePrivateRollPreference } from './rollPrivacyPreference';
+import { normalizeDamageType, scaleWeaponFormulaByProficiency } from '../../../domain/rules/diceFormula';
+import type { UnifiedRollDraft, UnifiedRollActor } from '../../../domain/rules/unifiedRollDraft';
+import type { PreparedDiceRoll, RollActor } from '../../../services/CharacterRollService';
+import { unifiedRollDraftService } from '../../../services/UnifiedRollDraftService';
+import { charactersStore, encounterStore } from '../../../stores/gameStores';
 import type { PlayerRollDraft, TableViewRole } from './types';
 
-const characterRollService = new CharacterRollService({
-  dice: diceService,
-  session: p2pSessionService,
-  autoApplyConsequences: () => gameService.game$.get().autoApplyRollConsequences
-});
+export function prefillWeaponDamage(character: PlayerViewCharacterSummary, weapon: { name: string; damageFormula: string; damageType: string }, companion = false): void {
+  unifiedRollDraftService.request({
+    actor: { key: `character:${character.id}`, id: character.id, name: companion ? character.companion?.name ?? character.name : character.name, kind: 'character' },
+    mode: 'damage', title: `${weapon.name}: Урон`, formula: scaleWeaponFormulaByProficiency(weapon.damageFormula, character.proficiency),
+    damageType: normalizeDamageType(weapon.damageType), source: { label: companion ? 'Компаньон' : 'Оружие' },
+    hint: 'Урон: без характеристики, Опытов и автоматической стоимости Надежды. Формулу можно изменить.'
+  });
+}
 
-export function CharacterRollDialog({ character, draft, role, embedded = false, onTraitChange, onClose }: {
+export function prefillCharacterRoll(character: PlayerViewCharacterSummary, draft: PlayerRollDraft): void {
+    const companion = draft.kind === 'companion';
+    const damage = draft.kind === 'weapon' || draft.kind === 'companion'
+      ? { formula: scaleWeaponFormulaByProficiency(draft.damageFormula, character.proficiency), damageType: normalizeDamageType(draft.damageType) }
+      : undefined;
+    unifiedRollDraftService.request({
+      actor: { key: `character:${character.id}`, id: character.id, name: companion ? character.companion?.name ?? character.name : character.name, kind: 'character' },
+      mode: draft.rollType ?? 'action',
+      title: draft.title,
+      formula: '2d12',
+      trait: draft.trait,
+      difficulty: 'difficulty' in draft ? draft.difficulty : undefined,
+      damage,
+      notes: 'notes' in draft ? draft.notes : draft.kind === 'weapon' || companion ? `${companion ? 'Компаньон' : 'Оружие'}: ${draft.title}` : undefined,
+      source: { cardId: draft.kind === 'card' ? draft.cardId : undefined, label: companion ? 'Компаньон' : draft.subtitle }
+    });
+}
+
+/** Compatibility bridge: legacy callers now prefill the one bottom tray. */
+export function CharacterRollDialog({ character, draft, onClose }: {
   character: PlayerViewCharacterSummary;
   draft: PlayerRollDraft;
   role: TableViewRole;
@@ -24,52 +44,57 @@ export function CharacterRollDialog({ character, draft, role, embedded = false, 
   onTraitChange: (trait: PlayerRollDraft['trait']) => void;
   onClose: () => void;
 }) {
-  const companion = draft.kind === 'companion';
-  const actor = { id: character.id, name: companion ? character.companion?.name ?? character.name : character.name };
-  return <PlayerRollConfirm
-    character={character}
-    draft={draft}
-    embedded={embedded}
-    actorName={actor.name}
-    experiences={companion ? character.companion?.experiences : undefined}
-    forceSpendHopeForExperiences={companion}
-    onTraitChange={onTraitChange}
-    onClose={onClose}
-    onRoll={(options, rollType, publication) => {
-      characterRollService.action(actor, draft, options, rollType, publication, role);
-      onClose();
-    }}
-    onDamage={draft.kind === 'weapon' || draft.kind === 'companion' ? ({ publication }) => {
-      characterRollService.weaponDamage(actor, draft, character.proficiency, publication, role);
-      onClose();
-    } : undefined}
-  />;
+  const requested = useRef(false);
+  useEffect(() => {
+    if (requested.current) return;
+    requested.current = true;
+    prefillCharacterRoll(character, draft);
+    onClose();
+  }, []);
+  return null;
 }
 
-export function PreparedDiceRollDialog({ actor, draft, role, embedded = false, onClose }: {
+export function prefillPreparedDiceRoll(actor: RollActor, draft: PreparedDiceRoll, role: TableViewRole): void {
+    const context = draft as PreparedDiceRoll & Partial<Pick<UnifiedRollDraft, 'source' | 'quantity' | 'branches' | 'selectedBranchId' | 'hint'>>;
+    unifiedRollDraftService.request({
+      actor: capturedPreparedActor(actor, role),
+      mode: draft.kind === 'damage' ? 'damage' : 'manual',
+      title: draft.title,
+      formula: draft.formula,
+      damageType: draft.damageType,
+      notes: draft.notes,
+      source: context.source,
+      quantity: context.quantity,
+      branches: context.branches,
+      selectedBranchId: context.selectedBranchId,
+      hint: context.hint
+    });
+}
+
+/** A prepared formula is never executed by opening it. */
+export function PreparedDiceRollDialog({ actor, draft, role, onClose }: {
   actor: RollActor;
   draft: PreparedDiceRoll;
   role: TableViewRole;
   embedded?: boolean;
   onClose: () => void;
 }) {
-  const [privateRoll, setPrivateRoll] = usePrivateRollPreference();
-  const [critical, setCritical] = useState(false);
-  const content = <>
-    <div className="player-roll-confirm__intro">
-      <strong>{draft.title}</strong>
-      <p>От лица: {actor.name}</p>
-      <p>{draft.kind === 'damage' ? 'Урон' : 'Кости'}: {draft.formula}</p>
-    </div>
-    <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
-    {draft.kind === 'damage' && <Checkbox label="Критический урон" checked={critical} onChange={(event) => setCritical(event.currentTarget.checked)} />}
-    <div className="player-roll-confirm__actions">
-      <Button variant="primary" onClick={() => {
-        characterRollService.dice(actor, draft, privateRoll ? 'private' : 'public', role, critical);
-        onClose();
-      }}>{draft.kind === 'damage' ? 'Бросить урон' : 'Бросить кости'}</Button>
-      <Button variant="ghost" onClick={onClose}>{embedded ? 'К карточке' : 'Отмена'}</Button>
-    </div>
-  </>;
-  return embedded ? content : <PlayerContextPanel className="player-roll-confirm" ariaLabel="Подтверждение броска костей" onClose={onClose}>{content}</PlayerContextPanel>;
+  const requested = useRef(false);
+  useEffect(() => {
+    if (requested.current) return;
+    requested.current = true;
+    prefillPreparedDiceRoll(actor, draft, role);
+    onClose();
+  }, []);
+  return null;
+}
+
+function capturedPreparedActor(actor: RollActor, role: TableViewRole): UnifiedRollActor {
+  if (!actor.id) return { key: role === 'gm' ? 'gm' : 'unassigned', id: null, name: actor.name, kind: role === 'gm' ? 'gm' : 'unassigned' };
+  const encounter = encounterStore.get();
+  const kind = charactersStore.get().entities[actor.id] ? 'character'
+    : encounter.adversaries[actor.id] ? 'adversary'
+      : encounter.environments[actor.id] ? 'environment' : 'character';
+  // Missing IDs stay captured; the submitter must reject them, never roll as GM.
+  return { key: `${kind}:${actor.id}`, id: actor.id, name: actor.name, kind };
 }

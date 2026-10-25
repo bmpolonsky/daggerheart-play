@@ -43,6 +43,7 @@ export function DomainCardFeedCard({
 function toPreviewCard(card: NonNullable<TableFeedItem['card']>): PlayerViewDomainCard {
   return {
     id: card.id,
+    sourceId: card.sourceId,
     name: card.name,
     domain: card.domain,
     domainLabel: domainLabel(card.domain),

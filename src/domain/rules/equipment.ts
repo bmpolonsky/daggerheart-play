@@ -18,7 +18,7 @@ export interface StartingEquipmentInput {
   className: DaggerheartClass;
   equipment: LibraryEquipmentItem[];
   primaryWeaponId?: string;
-  secondaryWeaponId?: string;
+  secondaryWeaponId?: string | null;
   armorId?: string;
   classItem?: string;
   classItems?: readonly string[];
@@ -136,7 +136,7 @@ export function buildStartingEquipmentLoadout(input: StartingEquipmentInput): St
   const catalog = buildStartingEquipmentCatalog(input.equipment, input.includePlaytest);
   const armorOption = selectByIdOrSlug(catalog.armor, input.armorId) ?? catalog.armor[0];
   const primaryWeapon = selectByIdOrSlug(catalog.primaryWeapons, input.primaryWeaponId) ?? catalog.primaryWeapons[0];
-  const requestedSecondary = selectByIdOrSlug(catalog.secondaryWeapons, input.secondaryWeaponId) ?? catalog.secondaryWeapons[0] ?? null;
+  const requestedSecondary = input.secondaryWeaponId === null ? null : selectByIdOrSlug(catalog.secondaryWeapons, input.secondaryWeaponId) ?? catalog.secondaryWeapons[0] ?? null;
   const secondaryWeapon = primaryWeapon?.burden === 'one-handed' ? requestedSecondary : null;
   const consumable = selectByIdOrSlug(catalog.consumables, input.consumableId) ?? catalog.consumables[0] ?? null;
 

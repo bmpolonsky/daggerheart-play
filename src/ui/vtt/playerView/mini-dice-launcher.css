@@ -421,3 +421,119 @@
     max-width: calc(100vw - 20px);
   }
 }
+
+/* Only the roll tray floats above card previews. Critical dialogs keep layer 900. */
+.mini-dice-launcher-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  pointer-events: none;
+}
+
+.mini-dice-launcher__floating-panel {
+  --dh-draggable-z-index: 800;
+  width: min(360px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  pointer-events: auto;
+}
+
+.mini-dice-launcher__floating-panel > div:last-child,
+.mini-dice-launcher__floating-body {
+  min-height: 0;
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.unified-roll-heading,
+.unified-roll-modes,
+.unified-roll-options-row,
+.unified-roll-selected-experiences {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.unified-roll-heading .unified-roll-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.67rem;
+  color: var(--dh-paper-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-roll-modes,
+.unified-roll-selected-experiences {
+  flex-wrap: wrap;
+}
+
+.unified-roll-modes > button {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.unified-roll-options-row {
+  flex-wrap: wrap;
+}
+
+.unified-roll-modifier {
+  flex: 0 0 48px;
+  width: 48px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+.unified-roll-selected-experiences small,
+.unified-roll-cost {
+  font-size: 0.65rem;
+  color: var(--dh-paper-muted);
+}
+
+.unified-roll-formula-summary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mini-dice-launcher__mobile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+@media (max-width: 920px) {
+  .mini-dice-launcher__floating-panel--mobile {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(140px + env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 164px - env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .player-view--mobile-feed .mini-dice-launcher.dh-is-open,
+  .player-view--mobile-tools .mini-dice-launcher.dh-is-open,
+  .player-view--mobile-sheet .mini-dice-launcher.dh-is-open {
+    display: grid;
+  }
+
+  body:has(.mini-dice-launcher-layer) .dh-dialog-backdrop[aria-label="Предпросмотр"] {
+    z-index: 780;
+  }
+}

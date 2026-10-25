@@ -60,6 +60,7 @@ export interface GmAttackCheckRequest {
   disadvantageCount?: number;
   publication?: RollPublication;
   notes?: string;
+  manualModifier?: number;
 }
 
 export interface ManualDiceRollRequest {
@@ -128,17 +129,13 @@ export class DiceService {
     let keptExtraDie = 0;
 
     if (effectiveExtraDice > 0) {
-      for (let index = 0; index < effectiveExtraDice; index += 1) {
-        advantageRolls.push(rollDie(6));
-      }
+      advantageRolls.push(rollDie(6));
       keptExtraDie = Math.max(...advantageRolls);
       modifiers.push({ label: 'Преимущество', value: keptExtraDie });
     }
 
     if (effectiveExtraDice < 0) {
-      for (let index = 0; index < Math.abs(effectiveExtraDice); index += 1) {
-        disadvantageRolls.push(rollDie(6));
-      }
+      disadvantageRolls.push(rollDie(6));
       keptExtraDie = -Math.max(...disadvantageRolls);
       modifiers.push({ label: 'Помеха', value: keptExtraDie });
     }
@@ -227,17 +224,13 @@ export class DiceService {
     let keptExtraDie = 0;
 
     if (effectiveExtraDice > 0) {
-      for (let index = 0; index < effectiveExtraDice; index += 1) {
-        advantageRolls.push(rollDie(6));
-      }
+      advantageRolls.push(rollDie(6));
       keptExtraDie = Math.max(...advantageRolls);
       modifiers.push({ label: 'Преимущество', value: keptExtraDie });
     }
 
     if (effectiveExtraDice < 0) {
-      for (let index = 0; index < Math.abs(effectiveExtraDice); index += 1) {
-        disadvantageRolls.push(rollDie(6));
-      }
+      disadvantageRolls.push(rollDie(6));
       keptExtraDie = -Math.max(...disadvantageRolls);
       modifiers.push({ label: 'Помеха', value: keptExtraDie });
     }
@@ -394,6 +387,8 @@ export class DiceService {
     if (!adversary) return null;
 
     const modifiers: ModifierPart[] = [{ label: 'Атака', value: adversary.attackModifier }];
+    const manualModifier = toSafeInteger(request.manualModifier, 0);
+    if (manualModifier !== 0) modifiers.push({ label: 'Вручную', value: manualModifier });
     const selectedExperienceIds = new Set(request.experienceIds ?? []);
     const selectedExperiences = adversary.experiences.filter((experience) => selectedExperienceIds.has(experience.id));
     if (selectedExperiences.length > 0) {

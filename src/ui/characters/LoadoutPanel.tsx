@@ -1,3 +1,6 @@
+import { isStoredWeapon } from '../../domain/rules/weaponInventory';
+import { ListItem } from '../components/common/ListItem';
+import { toastService } from '../../services/ToastService';
 import { Trash2 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { NumberField, SelectField, TextAreaField, TextField } from '../components/common/Field';
@@ -110,6 +113,10 @@ export function LoadoutPanel({ character, content }: { character: Character; con
               <p className="form-hint">Двуручное оружие обычно занимает обе руки. Проверьте второе оружие вручную.</p>
             )}
             <div className="row-end">
+              <Button size="sm" variant="secondary" aria-label={`Снять оружие ${weapon.name}`} onClick={() => {
+                const result = characterService.unequipWeapon(character.id, weapon.id);
+                if (!result.applied) toastService.show(result.message ?? 'Не удалось снять оружие.', 'error');
+              }}>Снять оружие</Button>
               <IconButton variant="danger" size="sm" type="button" title="Удалить атаку" aria-label={`Удалить атаку ${weapon.name}`} onClick={() => characterService.removeWeapon(character.id, weapon.id)}>
                 <Trash2 size={15} aria-hidden="true" />
               </IconButton>
@@ -204,7 +211,19 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             />
           </div>
         </div>
-        {character.inventory.map((item, index) => (
+        {character.inventory.map((item, index) => item.weapon !== undefined ? (
+          <ListItem
+            key={item.id}
+            title={item.name}
+            subtitle={isStoredWeapon(item.weapon) ? `Оружие в инвентаре — ${item.weapon.damageFormula}` : 'Данные оружия неполны. Предмет сохранён, но надеть его нельзя.'}
+            detail={item.text || undefined}
+            lines={2}
+            rightAccessory={<Button size="sm" variant="secondary" disabled={!isStoredWeapon(item.weapon)} aria-label={`Надеть оружие ${item.name}`} onClick={() => {
+              const result = characterService.equipInventoryWeapon(character.id, item.id);
+              if (!result.applied) toastService.show(result.message ?? 'Не удалось надеть оружие.', 'error');
+            }}>Надеть оружие</Button>}
+          />
+        ) : (
           <details className="character-editor-item" key={item.id} open={index === 0}>
             <summary>
               <strong>{item.name || 'Предмет без названия'}</strong>

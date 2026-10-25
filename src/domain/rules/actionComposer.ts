@@ -8,6 +8,7 @@ export interface ActionComposerState {
   disadvantageCount?: number;
   experienceIds: string[];
   spendHopeForExperiences: boolean;
+  manualModifier?: number;
 }
 
 export interface ActionComposerRollOptions {
@@ -15,6 +16,7 @@ export interface ActionComposerRollOptions {
   disadvantageCount: number;
   experienceIds: string[];
   spendHopeForExperiences: boolean;
+  manualModifier?: number;
 }
 
 export function normalizeActionComposerState(character: Character | null, state: ActionComposerState): ActionComposerState {
@@ -23,7 +25,8 @@ export function normalizeActionComposerState(character: Character | null, state:
   return {
     advantageMode: state.advantageMode,
     experienceIds,
-    spendHopeForExperiences: state.spendHopeForExperiences
+    spendHopeForExperiences: state.spendHopeForExperiences,
+    ...(Number.isSafeInteger(state.manualModifier) && state.manualModifier !== 0 ? { manualModifier: state.manualModifier } : {})
   };
 }
 
@@ -33,7 +36,8 @@ export function buildActionComposerRollOptions(state: ActionComposerState): Acti
     advantageCount: counts.advantageCount,
     disadvantageCount: counts.disadvantageCount,
     experienceIds: state.experienceIds,
-    spendHopeForExperiences: state.spendHopeForExperiences
+    spendHopeForExperiences: state.spendHopeForExperiences,
+    ...(Number.isSafeInteger(state.manualModifier) && state.manualModifier !== 0 ? { manualModifier: state.manualModifier } : {})
   };
 }
 

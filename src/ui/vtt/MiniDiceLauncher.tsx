@@ -1,7 +1,9 @@
 /** @jsxImportSource preact */
 import { Hand, LoaderCircle, Phone, PhoneCall, RotateCcw, Users, X } from 'lucide-react';
 import type { ComponentChildren } from 'preact';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { createPortal } from 'preact/compat';
+import { DraggableSurface, Surface } from '../components/common';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { selectManualDice, type DiceTrayItem, type DiceTraySelectionMode, type ManualDieSides } from '../../domain/rules/manualDiceTray';
 import { createId } from '../../core/utils/id';
 import type { ActionComposerRollOptions } from '../../domain/rules/actionComposer';
@@ -30,6 +32,9 @@ export type MiniDiceTrayBonusMode = 'duality' | 'd20' | 'mixed';
 type MiniDualityRollOptions = ActionComposerRollOptions & { manualModifier?: number };
 
 type MiniDiceLauncherProps = {
+  composer?: ComponentChildren;
+  openRequest?: number;
+  onOpenTray?: () => void;
   actorName: string;
   actorControl?: ComponentChildren;
   onOpenCharacterRoll?: () => void;
@@ -49,10 +54,15 @@ type MiniDiceLauncherProps = {
   onDualityRoll?: (roll: { rollType: PlayerRollType; trait?: TraitId | null; options: MiniDualityRollOptions; publication?: RollPublication }) => void;
 };
 
-export function MiniDiceLauncher({ actorName, actorControl, onOpenCharacterRoll, selectedActorKind = null, role, callState, callAvailable = true, activationRaised = false, activationRequestCount = 0, canRequestActivation = false, rollPending = false, rollDisabled = false, onActivationToggle, onCallJoin, onRosterOpen, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
+export function MiniDiceLauncher({ composer, openRequest = 0, onOpenTray, actorName, actorControl, onOpenCharacterRoll, selectedActorKind = null, role, callState, callAvailable = true, activationRaised = false, activationRequestCount = 0, canRequestActivation = false, rollPending = false, rollDisabled = false, onActivationToggle, onCallJoin, onRosterOpen, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
   const launcherMode = resolveMiniDiceLauncherMode({ role, selectedActorKind });
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const lastOpenRequest = useRef(0);
+  useEffect(() => {
+    if (openRequest > lastOpenRequest.current) { setOpen(true); setDismissed(false); }
+    lastOpenRequest.current = openRequest;
+  }, [openRequest]);
   const [trayItems, setTrayItems] = useState<DiceTrayItem[]>(() => defaultTrayForMode(launcherMode));
   const [modifier, setModifier] = useState(0);
   const [selectionMode, setSelectionMode] = useState<DiceTraySelectionMode>('add');
@@ -82,10 +92,12 @@ export function MiniDiceLauncher({ actorName, actorControl, onOpenCharacterRoll,
     manualModifier: modifier || undefined
   };
   useEffect(() => {
+    if (composer) return;
     setTrayItems(defaultTrayForMode(launcherMode));
     setModifier(0);
   }, [launcherMode]);
   const toggleTray = () => {
+    if (!open) onOpenTray?.();
     setDismissed(false);
     setOpen((current) => !current);
   };
@@ -214,14 +226,9 @@ export function MiniDiceLauncher({ actorName, actorControl, onOpenCharacterRoll,
         )}
       </div>
       {open && (
-      <div className="mini-dice-launcher__panel" aria-hidden={false}>
-        <div className="mini-dice-launcher__panel-head">
-          <strong>{actorName}: {isDualityRoll ? 'Дуальность' : 'Кости'}</strong>
-          <span>{traySummary}</span>
-          <IconButton className="mini-dice-launcher__close" variant="ghost" size="sm" type="button" title="Скрыть панель" aria-label="Скрыть панель" onClick={closeTray}>
-            <X size={14} aria-hidden="true" />
-          </IconButton>
-        </div>
+      <DiceTraySurface title={composer ? 'Подготовка броска' : `${actorName}: ${isDualityRoll ? 'Дуальность' : 'Кости'}`} onClose={closeTray}>
+        {!composer && <span>{traySummary}</span>}
+        {composer ? composer : <>
         {actorControl}
         {onOpenCharacterRoll && <Button variant="secondary" size="sm" fullWidth onClick={() => { closeTray(); onOpenCharacterRoll(); }}>Проверка персонажа</Button>}
         <SegmentedControl<DiceTraySelectionMode>
@@ -311,10 +318,35 @@ export function MiniDiceLauncher({ actorName, actorControl, onOpenCharacterRoll,
           checked={privateRoll}
           onChange={(event) => setPrivateRoll(event.currentTarget.checked)}
         />
-      </div>
+        </>}
+      </DiceTraySurface>
       )}
     </section>
   );
+}
+
+/** This shell remounts on every reopen; only its position resets. Draft lives outside. */
+function DiceTraySurface({ title, children, onClose }: { title: string; children: ComponentChildren; onClose: () => void }) {
+  const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 920px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 920px)');
+    const update = () => setMobile(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  const close = <IconButton className="mini-dice-launcher__close" variant="ghost" size="sm" type="button" title="Закрыть панель броска" aria-label="Закрыть панель броска" onClick={onClose}><X size={14} aria-hidden="true" /></IconButton>;
+  const heading = <span aria-label="Переместить панель броска" data-testid="dice-tray-drag-handle">{title}</span>;
+  const content = <div className="dh-portal-scope mini-dice-launcher-layer">
+    {mobile ? <Surface className="mini-dice-launcher__floating-panel mini-dice-launcher__floating-panel--mobile" role="region" aria-label="Подготовка броска" padding="sm">
+      <header className="mini-dice-launcher__mobile-head"><strong>{title}</strong>{close}</header>
+      <div className="mini-dice-launcher__floating-body">{children}</div>
+    </Surface> : <DraggableSurface className="mini-dice-launcher__floating-panel" role="region" aria-label="Подготовка броска" title={heading} actions={close}
+      defaultPosition={() => ({ x: Math.max(12, (window.innerWidth - Math.min(360, window.innerWidth - 24)) / 2), y: Math.max(12, window.innerHeight - 640) })}
+      bounds={{ top: 12, right: 12, bottom: 12, left: 12 }}>
+      {children}
+    </DraggableSurface>}
+  </div>;
+  return typeof document === 'undefined' ? content : createPortal(content, document.body) as typeof content;
 }
 
 function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {

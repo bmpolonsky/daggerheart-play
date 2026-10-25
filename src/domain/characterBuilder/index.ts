@@ -55,7 +55,7 @@ export interface CharacterBuilderInput {
   connectionAnswers?: CharacterConnectionInput[];
   traits?: Partial<Record<TraitId, number>>;
   primaryWeaponId?: string;
-  secondaryWeaponId?: string;
+  secondaryWeaponId?: string | null;
   armorId?: string;
   classItem?: string;
   consumableId?: string;

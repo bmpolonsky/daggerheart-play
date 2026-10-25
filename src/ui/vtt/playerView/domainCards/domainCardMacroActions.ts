@@ -6,6 +6,7 @@ import { characterService, gameService, feedService } from "../../../../services
 import type { PreparedDiceRoll } from "../../../../services/CharacterRollService";
 import type { PlayerRollDraft, TableViewRole } from "../types";
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from "./types";
+import { resolveContextualDiceBinding } from '../../../../domain/rules/contextualDiceBindings';
 
 export interface DomainCardMacroActionContext {
   character: PlayerViewCharacterSummary;
@@ -15,6 +16,7 @@ export interface DomainCardMacroActionContext {
   openRollDraft: (draft: PlayerRollDraft) => void;
   openDiceDraft?: (draft: PreparedDiceRoll) => void;
   afterAction?: () => void;
+  onResourceResult?: (result: { message: string; tone: 'success' | 'warning' }) => void;
 }
 
 export function runDomainCardMacroAction(
@@ -38,13 +40,21 @@ export function runDomainCardMacroAction(
     return;
   }
   if (macro.kind === 'damageRoll' || macro.kind === 'diceRoll') {
-    const formula = macro.kind === 'diceRoll' ? resolveDomainCardDiceFormula(macro, character.proficiency) : macro.formula;
+    const text = cleanMarkdownText(card.text, { stripEmphasis: true, stripCodeTicks: true });
+    const binding = resolveContextualDiceBinding({ sourceId: card.sourceId, cardId: card.id, collection: 'domain-cards', text }, macro, character);
+    if (binding.nonRoll) return;
+    const formula = binding.formula;
     context.openDiceDraft?.({
       kind: macro.kind === 'damageRoll' ? 'damage' : 'manualDice',
       formula,
       title: `${card.name}: ${macro.label}`,
       damageType: macro.kind === 'damageRoll' ? macro.damageType as DamageType | undefined : undefined,
-      notes: `${sourceLabel}: ${card.name}. ${macro.label}`
+      notes: `${sourceLabel}: ${card.name}. ${macro.label}`,
+      source: { cardId: card.id, sourceId: card.sourceId, label: card.name },
+      quantity: binding.quantity,
+      branches: binding.branches,
+      selectedBranchId: binding.selectedBranchId,
+      hint: binding.hint
     });
     if (context.openDiceDraft) context.afterAction?.();
     return;
@@ -58,6 +68,7 @@ export function runDomainCardMacroAction(
       : result === 'stress' ? 'не применено: нет свободной ячейки Стресса; жетоны не изменены'
       : 'не применено: карта должна быть в руке и иметь положительную Характеристику Заклинателя';
     logDomainCardResourceUse(character.name, card.name, detail, context.publication, sourceLabel);
+    context.onResourceResult?.({ message: detail, tone: result === 'applied' ? 'success' : 'warning' });
     if (result === 'applied') context.afterAction?.();
     return;
   }

@@ -1,4 +1,6 @@
 /** @jsxImportSource preact */
+import { isStoredWeapon } from '../../../domain/rules/weaponInventory';
+import { toastService } from '../../../services/ToastService';
 import { useAssetUrl } from '../../components/common/useAssetUrl';
 import { AssetImage } from '../../components/common/AssetImage';
 import type { ComponentChildren, JSX } from "preact";
@@ -18,7 +20,7 @@ import { gameService, characterService, feedService, sceneTableService } from ".
 import { compactDamageTypeLabel, cssImageUrl, signed } from "./helpers";
 import { CharacterSheetDomainCards } from "./CharacterSheetDomainCards";
 import type { PlayerViewDomainCard } from "./domainCards/types";
-import { CharacterRollDialog } from "./CharacterRollDialog";
+import { CharacterRollDialog, prefillWeaponDamage } from "./CharacterRollDialog";
 import { PlayerSheetSectionRail, SheetSection, TrackRow } from "./PlayerSheetControls";
 import { StatusChips } from "./StatusChips";
 import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./types";
@@ -383,6 +385,10 @@ export function CharacterSheet({
                   title={character.companion.attackName}
                   subtitle={`${character.companion.attackRange} / ${companionDamageFormula(character.companion, character.proficiency)} ${compactDamageTypeLabel(character.companion.attackDamageType)}`}
                   tone="featured"
+                  rightAccessory={<span>
+                    <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); setRollDraft({ kind: 'companion', title: character.companion!.attackName, subtitle: character.companion!.name, trait: character.spellcastTrait ?? 'instinct', damageFormula: character.companion!.attackFormula, damageType: character.companion!.attackDamageType }); }}>Атака</Button>
+                    <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); prefillWeaponDamage(character, { name: character.companion!.attackName, damageFormula: character.companion!.attackFormula, damageType: character.companion!.attackDamageType }, true); }}>Урон</Button>
+                  </span>}
                   onClick={() => setRollDraft({
                     kind: 'companion',
                     title: character.companion?.attackName ?? 'Атака компаньона',
@@ -457,6 +463,14 @@ export function CharacterSheet({
             title={weapon.name}
             subtitle={`${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`}
             tone="featured"
+            rightAccessory={<span>
+              <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); setRollDraft({ kind: 'weapon', title: weapon.name, subtitle: weapon.range, trait: weapon.trait, damageFormula: weapon.damageFormula, damageType: weapon.damageType }); }}>Атака</Button>
+              <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); prefillWeaponDamage(character, weapon); }}>Урон</Button>
+              <Button size="xs" variant="ghost" aria-label={`Снять оружие ${weapon.name}`} onClick={(event) => {
+              event.stopPropagation();
+              const result = characterService.unequipWeapon(character.id, weapon.id);
+              if (!result.applied) toastService.show(result.message ?? 'Не удалось снять оружие.', 'error');
+            }}>Снять оружие</Button></span>}
             onClick={() => setRollDraft({ kind: 'weapon', title: weapon.name, subtitle: `${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`, trait: weapon.trait, damageFormula: weapon.damageFormula, damageType: weapon.damageType })}
           />
         ))}
@@ -563,7 +577,9 @@ export function CharacterSheet({
           );
         })}
         {character.inventory.filter((item) => item.kind !== 'consumable').map((item) => {
-          const quantityLabel = inventoryQuantityLabel(item);
+          const quantityLabel = item.weapon !== undefined && !isStoredWeapon(item.weapon)
+            ? 'Данные оружия неполны. Предмет сохранён, но надеть его нельзя.'
+            : inventoryQuantityLabel(item);
           return (
             <ListItem
               className="player-sheet-inventory-row"
@@ -572,6 +588,10 @@ export function CharacterSheet({
               subtitle={quantityLabel}
               density={quantityLabel ? 'regular' : 'compact'}
               lines={quantityLabel ? 2 : 1}
+              rightAccessory={item.weapon !== undefined ? <Button size="xs" variant="ghost" disabled={!isStoredWeapon(item.weapon)} aria-label={`Надеть оружие ${item.name}`} onClick={() => {
+                const result = characterService.equipInventoryWeapon(character.id, item.id);
+                if (!result.applied) toastService.show(result.message ?? 'Не удалось надеть оружие.', 'error');
+              }}>Надеть оружие</Button> : undefined}
               onClick={() => onFeaturePreview?.(character, {
                   id: item.id,
                   name: item.name,

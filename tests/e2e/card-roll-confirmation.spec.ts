@@ -3,7 +3,7 @@ import { createWeapon } from '../../src/domain/rules/factories';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { openGmGame } from './game-route-helpers';
 
-test('PC preview prepares dice without rolling and returns to the same card after confirmation', async ({ page }) => {
+test('PC card and weapon commands prepare the same editable bottom tray without rolling', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openGmGame(page);
   const document = createPopulatedGameDocument();
@@ -19,23 +19,28 @@ test('PC preview prepares dice without rolling and returns to the same card afte
   const preview = page.getByRole('complementary', { name: 'Предпросмотр', exact: true });
   const rollCount = await page.locator('.player-activity-event--roll').count();
   await preview.getByRole('button', { name: '1d4', exact: true }).click();
-  await expect(preview).toContainText(`От лица: ${filledCharacterName}`);
-  await expect(preview).toContainText('Кости: 1d4');
+  const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await expect(tray).toBeVisible();
+  await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toContainText(filledCharacterName);
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d4');
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollCount);
-  await preview.getByRole('button', { name: 'К карточке', exact: true }).click();
   await expect(preview.locator('.feed-domain-card')).toContainText('Заклинание 1');
+  await expect(page.getByLabel('Подтверждение броска', { exact: true })).toHaveCount(0);
+  await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/1d4.*1d6/);
   await preview.getByRole('button', { name: '1d4', exact: true }).click();
-  await preview.getByRole('button', { name: 'Бросить кости', exact: true }).click();
+  await expect(tray.getByRole('button', { name: 'Оставить текущий', exact: true })).toBeVisible();
+  await tray.getByRole('button', { name: 'Оставить текущий', exact: true }).click();
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/1d4.*1d6/);
+  await tray.getByLabel('Формула броска', { exact: true }).fill('1d4');
+  await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
   await expect(preview.locator('.feed-domain-card')).toContainText('Заклинание 1');
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollCount + 1);
   await preview.getByRole('button', { name: 'Закрыть предпросмотр' }).click();
 
   await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Оружие', exact: true }).click();
-  await sheet.getByRole('button', { name: /^Тестовый кинжал/ }).click();
-  const confirm = page.getByRole('complementary', { name: 'Подтверждение броска', exact: true });
-  await expect(confirm).toContainText(`От лица: ${filledCharacterName}`);
-  await confirm.getByRole('button', { name: 'Урон', exact: true }).click();
-  await expect(confirm).toContainText('Урон: 2d6+3');
-  await expect(confirm.getByRole('button', { name: 'Бросить действие' })).toHaveCount(0);
-  await expect(confirm.getByRole('button', { name: 'Бросить урон' })).toBeVisible();
+  await sheet.locator('#player-sheet-actions .dh-list-item').filter({ hasText: 'Тестовый кинжал' }).getByRole('button', { name: 'Урон', exact: true }).click();
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d6+3');
+  await expect(tray.getByRole('button', { name: 'Бросить', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Подтверждение броска', { exact: true })).toHaveCount(0);
 });

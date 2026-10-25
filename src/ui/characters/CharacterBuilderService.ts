@@ -45,7 +45,7 @@ interface CharacterBuilderDraftState {
   traits: TraitDraft;
   armorId: string;
   primaryWeaponId: string;
-  secondaryWeaponId: string;
+  secondaryWeaponId: string | null;
   classItem: string;
   consumableId: string;
 }
@@ -97,7 +97,7 @@ export class CharacterBuilderService {
     const effectiveArmorId = armorId || equipmentCatalog.armor[0]?.id || '';
     const effectivePrimaryWeaponId = primaryWeaponId || equipmentCatalog.primaryWeapons[0]?.id || '';
     const effectivePrimary = equipmentCatalog.primaryWeapons.find((weapon) => weapon.id === effectivePrimaryWeaponId || weapon.slug === effectivePrimaryWeaponId) ?? equipmentCatalog.primaryWeapons[0];
-    const effectiveSecondaryWeaponId = secondaryWeaponId || equipmentCatalog.secondaryWeapons[0]?.id || '';
+    const effectiveSecondaryWeaponId = secondaryWeaponId === null ? null : secondaryWeaponId || equipmentCatalog.secondaryWeapons[0]?.id || '';
     const effectiveConsumableId = consumableId || equipmentCatalog.consumables[0]?.id || '';
     const effectiveClassItem = classItem || effectiveClassItems[0] || '';
     const recommendedTraits = CLASS_RECOMMENDED_TRAITS[className] ?? DEFAULT_TRAITS;
@@ -236,7 +236,7 @@ export class CharacterBuilderService {
         quickStart: () => this.quickStart(catalog, content, classes, equipment, includePlaytest),
         selectArmor: (next: string) => this.updateDraft({ armorId: next }),
         selectPrimaryWeapon: (next: string) => this.updateDraft({ primaryWeaponId: next }),
-        selectSecondaryWeapon: (next: string) => this.updateDraft({ secondaryWeaponId: next }),
+        selectSecondaryWeapon: (next: string | null) => this.updateDraft({ secondaryWeaponId: next }),
         selectClassItem: (next: string) => this.updateDraft({ classItem: next }),
         selectConsumable: (next: string) => this.updateDraft({ consumableId: next })
       }

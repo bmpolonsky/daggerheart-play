@@ -1,3 +1,4 @@
+import { isStoredWeapon } from './weaponInventory';
 import { createId } from '../../core/utils/id';
 import { nowIso } from '../../core/utils/date';
 import { clamp, toSafeInteger } from '../../core/utils/clamp';
@@ -251,7 +252,8 @@ export function createWeapon(input?: Partial<Weapon>): Weapon {
 }
 
 export function createInventoryItem(input?: Partial<CharacterInventoryItem>): CharacterInventoryItem {
-  const quantity = clamp(toSafeInteger(input?.quantity, 1), 0, 999);
+  const weapon = isStoredWeapon(input?.weapon) ? { ...input.weapon } : undefined;
+  const quantity = weapon ? 1 : clamp(toSafeInteger(input?.quantity, 1), 0, 999);
   const useMax = input?.uses ? clamp(toSafeInteger(input.uses.max, 0), 0, 999) : 0;
   const uses = useMax > 0
     ? { current: clamp(toSafeInteger(input?.uses?.current, useMax), 0, useMax), max: useMax }
@@ -259,13 +261,16 @@ export function createInventoryItem(input?: Partial<CharacterInventoryItem>): Ch
   return {
     id: input?.id ?? createId('item'),
     name: input?.name ?? 'Новый предмет',
-    kind: input?.kind ?? 'custom',
+    kind: input?.weapon !== undefined ? 'item' : input?.kind ?? 'custom',
     quantity,
     uses,
     text: input?.text ?? '',
     imageUrl: input?.imageUrl ?? null,
     sourceId: input?.sourceId,
-    sourceSlug: input?.sourceSlug
+    sourceSlug: input?.sourceSlug,
+    // Preserve malformed imported payloads as-is rather than silently erasing
+    // metadata. Only isStoredWeapon-approved payloads can be equipped.
+    ...(input?.weapon === undefined ? {} : { weapon: weapon ?? input.weapon })
   };
 }
 

@@ -51,7 +51,7 @@ export interface CharacterBuilderReadinessInput {
   traits?: Partial<Record<TraitId, number>>;
   armorId?: string;
   primaryWeaponId?: string;
-  secondaryWeaponId?: string;
+  secondaryWeaponId?: string | null;
   classItem?: string;
   consumableId?: string;
   includePlaytest?: ContentAccessInput;
@@ -182,7 +182,7 @@ function validateEquipment(
   if (!primaryWeaponId || !primaryWeapon) {
     addIssue(issues, 'equipment.primaryWeapon', 'blocking', 'Выберите основное стартовое оружие.');
   }
-  if (primaryWeapon?.burden === 'one-handed' && catalog.equipmentCatalog.secondaryWeapons.length > 0 && !catalog.equipmentCatalog.secondaryWeapons.some((weapon) => matchesOption(weapon, secondaryWeaponId))) {
+  if (input.secondaryWeaponId !== null && primaryWeapon?.burden === 'one-handed' && catalog.equipmentCatalog.secondaryWeapons.length > 0 && !catalog.equipmentCatalog.secondaryWeapons.some((weapon) => matchesOption(weapon, secondaryWeaponId))) {
     addIssue(issues, 'equipment.secondaryWeapon', 'blocking', 'Выберите дополнительное стартовое оружие или щит.');
   }
   if (classItems.length > 0 && (!classItem || !classItems.includes(classItem))) {

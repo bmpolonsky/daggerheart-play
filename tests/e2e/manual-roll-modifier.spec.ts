@@ -1,0 +1,32 @@
+import { expect, test } from '@playwright/test';
+import { createWeapon } from '../../src/domain/rules/factories';
+import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
+import { openGmGame } from './game-route-helpers';
+
+test('one bottom tray previews the signed modifier and closing it preserves the draft without rolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openGmGame(page);
+  const document = createPopulatedGameDocument();
+  const character = document.files['data/characters.json'].entities['e2e-character-cadsuane'];
+  character.weapons = [createWeapon({ name: 'QA Manual Dagger' })];
+  await importGameDocument(page, document, 'manual-modifier.dhgame');
+  await page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
+  const sheet = page.getByLabel('Персонаж игрока');
+  await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Оружие', exact: true }).click();
+  await sheet.locator('#player-sheet-actions .dh-list-item').filter({ hasText: 'QA Manual Dagger' }).getByRole('button', { name: 'Атака', exact: true }).click();
+  const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  const input = tray.getByLabel('Модификатор', { exact: true });
+  await input.fill('6');
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/\+\s*6/);
+  await input.fill('6.5');
+  await expect(tray.getByRole('button', { name: 'Бросить', exact: true })).toBeDisabled();
+  await input.fill('-2');
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/[-−]\s*2/);
+  const rollsBefore = await page.locator('.player-activity-event--roll').count();
+  await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollsBefore);
+  await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
+  await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('-2');
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/[-−]\s*2/);
+  await expect(page.getByLabel('Подтверждение броска', { exact: true })).toHaveCount(0);
+});

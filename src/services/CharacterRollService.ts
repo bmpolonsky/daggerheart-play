@@ -4,6 +4,7 @@ import type { DamageType, DiceVisualTone, RollPublication, TraitId } from '../do
 import type { PlayerRollIntent } from './SyncService';
 import type { DiceService } from './DiceService';
 import type { P2PSessionService } from './P2PSessionService';
+import type { UnifiedRollDraft } from '../domain/rules/unifiedRollDraft';
 
 export interface RollActor {
   id: string | null;
@@ -16,6 +17,11 @@ export type PreparedDiceRoll = {
   formula: string;
   damageType?: DamageType;
   notes?: string;
+  source?: UnifiedRollDraft['source'];
+  quantity?: UnifiedRollDraft['quantity'];
+  branches?: UnifiedRollDraft['branches'];
+  selectedBranchId?: string;
+  hint?: string;
 };
 
 export interface CharacterActionDraft {

@@ -3,6 +3,7 @@ import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { buildEffectiveCharacterStats } from '../rules/effects';
 import { scaleWeaponFormulaByProficiency } from '../rules/diceFormula';
 import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
+import { resolveContextualDiceBinding } from '../rules/contextualDiceBindings';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { characterSheetCardSourceLabel, isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
 import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId, CharacterWealth } from '../rules/types';
@@ -92,6 +93,7 @@ export function groupPlayerViewFeatures(features: PlayerViewCharacterSummary['fe
 
 export interface PlayerViewDomainCardSummary {
   id: string;
+  sourceId?: string | number;
   name: string;
   domain: string;
   domainLabel: string;
@@ -413,8 +415,10 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
   const effective = buildEffectiveCharacterStats(character);
   const domainCards: PlayerViewDomainCardSummary[] = character.domainCards.map((card) => {
     const tokenMax = resolveDomainCardTokenMax(card, effective.traits, character.spellcastTrait);
+    const macroText = cleanMarkdownText(card.text, { stripEmphasis: true, stripCodeTicks: true });
     return {
       id: card.id,
+      sourceId: card.sourceId,
       name: card.name,
       domain: card.domain,
       domainLabel: domainLabel(card.domain),
@@ -429,7 +433,11 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
         value: Math.min(card.tokens.value, tokenMax),
         max: tokenMax
       },
-      macros: parseDomainCardTextMacros(cleanMarkdownText(card.text, { stripEmphasis: true, stripCodeTicks: true }))
+      macros: parseDomainCardTextMacros(macroText).map((macro) => {
+        if (macro.kind !== 'diceRoll' && macro.kind !== 'damageRoll') return macro;
+        const binding = resolveContextualDiceBinding({ cardId: card.id, sourceId: card.sourceId, collection: 'domain-cards', text: macroText }, macro, { ...character, traits: effective.traits });
+        return binding.nonRoll ? { ...macro, kind: 'reference' as const } : macro;
+      })
     };
   });
   return {

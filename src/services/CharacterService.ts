@@ -1,3 +1,4 @@
+import { planEquipWeapon, planUnequipWeapon } from '../domain/rules/weaponInventory';
 import { clamp, toSafeInteger } from '../core/utils/clamp';
 import { nowIso } from '../core/utils/date';
 import { createId } from '../core/utils/id';
@@ -653,6 +654,24 @@ export class CharacterService {
     }));
   }
 
+  unequipWeapon(id: string, weaponId: string): { applied: boolean; message?: string } {
+    const character = this.getCharacter(id);
+    if (!character) return { applied: false, message: 'Персонаж не найден.' };
+    const plan = planUnequipWeapon(character, weaponId);
+    if (!plan.applied) return plan;
+    this.patchCharacter(id, () => plan.character, { summary: 'Оружие убрано в инвентарь' });
+    return { applied: true };
+  }
+
+  equipInventoryWeapon(id: string, itemId: string): { applied: boolean; message?: string } {
+    const character = this.getCharacter(id);
+    if (!character) return { applied: false, message: 'Персонаж не найден.' };
+    const plan = planEquipWeapon(character, itemId);
+    if (!plan.applied) return plan;
+    this.patchCharacter(id, () => plan.character, { summary: 'Оружие надето из инвентаря' });
+    return { applied: true };
+  }
+
   removeWeapon(id: string, weaponId: string): void {
     this.patchCharacter(id, (character) => ({
       ...character,
@@ -1022,6 +1041,7 @@ export class CharacterService {
   }
 
   updateInventoryItem(id: string, itemId: string, patch: Partial<CharacterInventoryItem>): void {
+    if (this.getCharacter(id)?.inventory.some((item) => item.id === itemId && item.weapon !== undefined)) return;
     this.patchCharacter(id, (character) => {
       const next = {
         ...character,
@@ -1047,6 +1067,7 @@ export class CharacterService {
   }
 
   adjustInventoryQuantity(id: string, itemId: string, delta: number): void {
+    if (this.getCharacter(id)?.inventory.some((item) => item.id === itemId && item.weapon !== undefined)) return;
     this.patchCharacter(id, (character) => ({
       ...character,
       inventory: character.inventory.map((item) => item.id === itemId
@@ -1056,6 +1077,7 @@ export class CharacterService {
   }
 
   adjustInventoryUses(id: string, itemId: string, delta: number): void {
+    if (this.getCharacter(id)?.inventory.some((item) => item.id === itemId && item.weapon !== undefined)) return;
     this.patchCharacter(id, (character) => ({
       ...character,
       inventory: character.inventory.map((item) => {
@@ -1067,6 +1089,7 @@ export class CharacterService {
   }
 
   useInventoryItem(id: string, itemId: string): void {
+    if (this.getCharacter(id)?.inventory.some((item) => item.id === itemId && item.weapon !== undefined)) return;
     this.patchCharacter(id, (character) => ({
       ...character,
       inventory: character.inventory.map((item) => {

@@ -10,7 +10,7 @@ import { automaticUsageTrackerCandidatesForCharacter, missingAutomaticUsageTrack
 import type { Character, DomainCardRecord } from '../../../domain/rules/types';
 import type { TableFeedItem } from '../../../domain/tabletop/feed';
 import { characterService, gameService } from '../../../services/serviceRegistry';
-import { CharacterRollDialog, PreparedDiceRollDialog } from './CharacterRollDialog';
+import { prefillCharacterRoll, prefillPreparedDiceRoll } from './CharacterRollDialog';
 import { runDomainCardMacroAction } from './domainCards/domainCardMacroActions';
 import type { PreparedDiceRoll } from '../../../services/CharacterRollService';
 import type { PlayerRollDraft } from './types';
@@ -35,8 +35,8 @@ export function ContentPreviewPanel({ item, role, playerActorId, onClose, onEdit
   onEditHandout?: (handoutId: string) => void;
 }) {
   const characters = useStream(characterService.characters$);
-  const [rollDraft, setRollDraft] = useState<PlayerRollDraft | null>(null);
-  const [diceDraft, setDiceDraft] = useState<PreparedDiceRoll | null>(null);
+  const previewKey = `${item.actor?.actorId ?? ''}/${item.card?.id ?? item.feature?.id ?? item.id}`;
+  const [resourceResult, setResourceResult] = useState<{ key: string; message: string; tone: 'success' | 'warning' } | null>(null);
   const character = item.actor?.actorId ? characters.entities[item.actor.actorId] : null;
   const card = item.card && character ? character.domainCards.find((candidate) => candidate.id === item.card?.id) : null;
   const inventoryItem = item.kind === 'feature' && item.feature?.sourceLabel === 'Инвентарь'
@@ -103,20 +103,7 @@ export function ContentPreviewPanel({ item, role, playerActorId, onClose, onEdit
   return (
     <PlayerContextPanel ariaLabel="Предпросмотр" closeLabel="Закрыть предпросмотр" onClose={onClose}>
         <article className={`player-activity-event player-activity-event--${item.kind} player-activity-event--${item.tone} player-activity-event--ephemeral`}>
-          {character && rollDraft ? <CharacterRollDialog
-            embedded
-            character={buildCharacterSummary(character)}
-            draft={rollDraft}
-            role={role}
-            onTraitChange={(trait) => setRollDraft((current) => current ? { ...current, trait } : current)}
-            onClose={() => setRollDraft(null)}
-          /> : character && diceDraft ? <PreparedDiceRollDialog
-            embedded
-            actor={character}
-            draft={diceDraft}
-            role={role}
-            onClose={() => setDiceDraft(null)}
-          /> : <FeedCard
+          <FeedCard
             actorId={playerActorId ?? null}
             item={item}
             waitingForResult={false}
@@ -127,11 +114,14 @@ export function ContentPreviewPanel({ item, role, playerActorId, onClose, onEdit
               character: buildCharacterSummary(character),
               role,
               sourceLabel: item.feature?.sourceLabel,
-              openRollDraft: setRollDraft,
-              openDiceDraft: setDiceDraft
+              openRollDraft: (draft) => prefillCharacterRoll(buildCharacterSummary(character), draft),
+              openDiceDraft: (draft) => prefillPreparedDiceRoll(character, draft, role),
+              onResourceResult: (result) => setResourceResult({ ...result, key: previewKey })
             }) : undefined}
-          />}
-          {!rollDraft && !diceDraft && <>
+          />
+          <>
+
+          {resourceResult?.key === previewKey && <Notice role="status" aria-live="polite" tone={resourceResult.tone}>{resourceResult.message}</Notice>}
 
           {character && card && <DomainCardPreviewControls character={character} card={card} controls={trackerControls} />}
           {character && inventoryItem && (inventoryItem.kind === 'consumable' || inventoryItem.uses) && (
@@ -157,7 +147,7 @@ export function ContentPreviewPanel({ item, role, playerActorId, onClose, onEdit
           {role === 'gm' && item.kind === 'handout' && item.handout && (
             <HandoutPreviewControls handoutId={item.handout.id} onClose={onClose} onEdit={onEditHandout} />
           )}
-          </>}
+          </>
         </article>
     </PlayerContextPanel>
   );

@@ -3,8 +3,10 @@ import styles from './Notice.module.css';
 
 export type NoticeTone = 'info' | 'warning' | 'error' | 'success';
 
-export interface NoticeProps extends HTMLAttributes<HTMLDivElement> {
+export interface NoticeProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   tone?: NoticeTone;
+  // Shared primitives accept children from both React and Preact callers.
+  children?: any;
 }
 
 export function Notice({ tone = 'info', className = '', ...props }: NoticeProps) {

@@ -630,6 +630,7 @@ function defaultDetailPanelOpen(): boolean {
 function toDomainCardRecord(card: PlayerViewDomainCard): DomainCardRecord {
   return {
     id: card.id,
+    sourceId: card.sourceId,
     name: card.name,
     domain: card.domain as DomainName,
     level: card.level,

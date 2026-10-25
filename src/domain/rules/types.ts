@@ -119,6 +119,8 @@ export interface CharacterInventoryItem {
   imageUrl?: string | null;
   sourceId?: string | number;
   sourceSlug?: string;
+  /** Complete unequipped weapon; absent on ordinary and legacy inventory. */
+  weapon?: Weapon;
 }
 
 export interface CharacterWealth {

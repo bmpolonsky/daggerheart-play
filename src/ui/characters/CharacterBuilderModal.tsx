@@ -55,7 +55,7 @@ export function CharacterBuilderModal({
   const selectedClassOption = options.classOptions.find((item) => item.id === fields.classId) ?? options.classOptions.find((item) => item.className === fields.className);
   const selectedArmor = options.armor.find((item) => item.id === fields.armorId || item.slug === fields.armorId) ?? options.armor[0];
   const selectedPrimaryWeapon = options.primaryWeapons.find((item) => item.id === fields.primaryWeaponId || item.slug === fields.primaryWeaponId) ?? options.primaryWeapons[0];
-  const selectedSecondaryWeapon = options.secondaryWeapons.find((item) => item.id === fields.secondaryWeaponId || item.slug === fields.secondaryWeaponId) ?? options.secondaryWeapons[0] ?? null;
+  const selectedSecondaryWeapon = fields.secondaryWeaponId === null ? null : options.secondaryWeapons.find((item) => item.id === fields.secondaryWeaponId || item.slug === fields.secondaryWeaponId) ?? options.secondaryWeapons[0] ?? null;
   const selectedConsumable = options.consumables.find((item) => item.id === fields.consumableId || item.slug === fields.consumableId) ?? options.consumables[0] ?? null;
   const stagePortraitUrl = builderResult.draft.portraitUrl || selectedClassOption?.imageUrl || '';
   const choicePreview = buildCharacterBuilderChoicePreview({
@@ -374,6 +374,9 @@ export function CharacterBuilderModal({
                     <div className="dh-equipment-column">
                       <h4 className="cinematic-panel-title">Вторая рука</h4>
                       <div className="dh-choice-grid dh-choice-grid--equipment">
+                        <ChoiceCard selected={fields.secondaryWeaponId === null} type="button" onClick={() => handlers.selectSecondaryWeapon(null)}>
+                          <strong className="cinematic-card-title">Без второго оружия</strong>
+                        </ChoiceCard>
                         {options.secondaryWeapons.map((weapon) => (
                           <ChoiceCard selected={fields.secondaryWeaponId === weapon.id} key={weapon.id} type="button" onClick={() => handlers.selectSecondaryWeapon(weapon.id)}>
                             <strong className="cinematic-card-title">{weapon.name}</strong>
