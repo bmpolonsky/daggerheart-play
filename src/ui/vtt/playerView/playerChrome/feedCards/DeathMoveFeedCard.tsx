@@ -33,6 +33,7 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
     role === 'gm' || (isOwner && !connectedPlayer)
   );
   const canRequestChoice = deathMove.status !== 'resolved' && deathMove.status !== 'cancelled' && !deathMove.choice && isOwner && connectedPlayer;
+  const awaitingMaster = role === 'player' && isOwner && deathMove.status === 'pending' && Boolean(deathMove.choice);
   const canApply = role === 'gm' && deathMove.choice && deathMove.status !== 'resolved' && deathMove.status !== 'cancelled';
   const roll = deathMove.roll;
 
@@ -85,7 +86,7 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
 
   return (
     <>
-      <FeedCardHeader item={item} label={DEATH_MOVE_STATUS_LABELS[deathMove.status] ?? item.kicker} />
+      <FeedCardHeader item={item} label={awaitingMaster ? 'Ожидает решения мастера' : DEATH_MOVE_STATUS_LABELS[deathMove.status] ?? item.kicker} />
       <div className="feed-death-move-card">
         <div className="feed-rest-card__title">
           <Skull size={17} />
@@ -94,7 +95,7 @@ export function DeathMoveFeedCard({ actorId, item, role }: { actorId: string | n
             <span>Предсмертный ход</span>
           </div>
         </div>
-        <p className="feed-death-move-card__summary">{deathMoveSummary(deathMove)}</p>
+        <p className="feed-death-move-card__summary">{awaitingMaster && deathMove.choice ? `Выбрано: ${deathMoveChoiceLabel(deathMove.choice)}. Мастер должен применить или отклонить выбор.` : deathMoveSummary(deathMove)}</p>
         {(canChoose || canRequestChoice) && deathMove.status === 'pending' && (
           <div className="feed-death-move-card__actions">
             <Button size="sm" variant="ghost" iconBefore={<Flame size={14} aria-hidden="true" />} type="button" onClick={canRequestChoice ? () => requestChoice('blazeOfGlory') : resolveBlazeOfGlory}>
