@@ -227,6 +227,12 @@ export function CharacterEditor({
             {armorSelectionError && <Notice tone="error" role="alert">{armorSelectionError}</Notice>}
             <details className="character-editor-advanced">
               <summary>Тонкая настройка брони и порогов</summary>
+              <Notice tone="info">
+                Здесь меняются значения доспеха и пороги листа до бонусов способностей.
+                Правка базы пересчитывает пороги: база + уровень.
+                Выбор доспеха из каталога заменяет название, источник, базы, показатель и свойство, а ручные пороги пересчитываются.
+                Надеть/снять сохраняет предмет и его отметки; бонусы способностей учитываются отдельно.
+              </Notice>
               <div className="grid-5">
                 <NumberField label="Порог Ощутимого урона" value={character.thresholds.major} onChange={(event) => characterService.updateThresholds(character.id, { major: Number(event.currentTarget.value) })} />
                 <NumberField label="Порог Тяжелого урона" value={character.thresholds.severe} onChange={(event) => characterService.updateThresholds(character.id, { severe: Number(event.currentTarget.value) })} />
