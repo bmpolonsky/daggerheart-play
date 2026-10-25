@@ -14,7 +14,6 @@ interface VerifiedPeer { logicalPeerId?: string; verifiedPeerId?: string }
 interface Internals {
   sessionStore: { get(): P2PSessionState; set(value: P2PSessionState): void };
   activeRoomConnection: { peers(): string[] };
-  actorOwnerVerifiedPeers: Map<string, string>;
   upsertParticipantFromPlayerPresence(presence: PlayerPresence, context?: VerifiedPeer): void;
   receivePlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, context?: { sourcePeerId?: string; verifiedSourcePeerId?: string }): Promise<void>;
 }
@@ -37,76 +36,69 @@ function setup(activePeers = ['owner-old', 'owner-new']) {
   internals.sessionStore.set({ ...internals.sessionStore.get(), role: 'gm', connected: true, status: 'connected', roomId: 'OWNER' });
   const peers = [...activePeers];
   internals.activeRoomConnection = { peers: () => peers };
-  internals.actorOwnerVerifiedPeers.set(actor.id, 'verified-old');
   const presence: PlayerPresence = { requesterId: owner.id, actorId: actor.id, actorName: actor.name, playerName: owner.name,
     peerId: 'owner-new', connected: true, voiceMuted: false, voiceLive: false, updatedAt: 'now' };
   const context: VerifiedPeer = { logicalPeerId: 'owner-new', verifiedPeerId: 'verified-new' };
   return { actor, sync, session, internals, peers, presence, context, restoreWindow };
 }
 
-test('second active device cannot overwrite either assigned owner pointer or verified identity across repeated presence', async () => {
-  const { actor, sync, session, internals, presence, context, restoreWindow } = setup();
-  try {
-    for (let attempt = 0; attempt < 4; attempt++) internals.upsertParticipantFromPlayerPresence(presence, context);
-    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
-    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-old');
-    await internals.receivePlayerCharacterUpdate({ type: 'playerCharacterUpdate', participantId: 'seat', actorId: actor.id,
-      revision: 1, updatedAt: 'now', patch: { set: { notes: 'Second device' }, unset: [] } },
-    { sourcePeerId: 'owner-new', verifiedSourcePeerId: 'verified-new' });
-    assert.equal(sync.acks.at(-1)?.accepted, false);
-    assert.notEqual(charactersStore.get().entities[actor.id].notes, 'Second device');
-  } finally { await session.stop(); restoreWindow(); }
-});
 
-test('correct public seat IDs cannot rebind a departed owner to a new unconfirmed transport identity', async () => {
-  const { actor, sync, session, internals, presence, context, restoreWindow } = setup(['owner-new']);
-  try {
-    internals.upsertParticipantFromPlayerPresence(presence, context);
-    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
-    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-old');
-    await internals.receivePlayerCharacterUpdate({ type: 'playerCharacterUpdate', participantId: 'seat', actorId: actor.id,
-      revision: 1, updatedAt: 'now', patch: { set: { notes: 'After reload' }, unset: [] } },
-    { sourcePeerId: 'owner-new', verifiedSourcePeerId: 'verified-new' });
-    assert.equal(sync.acks.at(-1)?.accepted, false);
-    assert.notEqual(charactersStore.get().entities[actor.id].notes, 'After reload');
-  } finally { await session.stop(); restoreWindow(); }
-});
+for (const scenario of ['reload', 'two devices', 'GM restart', 'background reconnect'] as const) {
+  test(`trusted room permits ${scenario} without exclusive owner proof`, async () => {
+    const { actor, sync, session, internals, presence, context, restoreWindow } = setup(scenario === 'two devices' ? ['owner-old', 'owner-new'] : ['owner-new']);
+    try {
+      internals.upsertParticipantFromPlayerPresence(presence, context);
+      assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-new');
+      const update: PlayerCharacterUpdateMessage = { type: 'playerCharacterUpdate', participantId: 'seat', actorId: actor.id,
+        revision: 1, updatedAt: 'now', patch: { set: { notes: scenario }, unset: [] } };
+      const source = { sourcePeerId: 'owner-new', verifiedSourcePeerId: 'verified-new' };
+      await internals.receivePlayerCharacterUpdate(update, source);
+      assert.ok(sync.acks.length > 0);
+      assert.notEqual(sync.acks.at(-1)?.accepted, false);
+      assert.equal(charactersStore.get().entities[actor.id].notes, scenario);
+      // A replay is acknowledged without undoing a later master edit.
+      charactersStore.update(state => ({ ...state, entities: { ...state.entities, [actor.id]: { ...state.entities[actor.id], notes: 'Later GM edit' } } }));
+      await internals.receivePlayerCharacterUpdate(update, source);
+      assert.ok(sync.acks.length > 0);
+      assert.notEqual(sync.acks.at(-1)?.accepted, false);
+      assert.equal(charactersStore.get().entities[actor.id].notes, 'Later GM edit');
+      // Same revision from a second device with a different operation cannot overwrite.
+      await internals.receivePlayerCharacterUpdate({ ...update, patch: { set: { notes: 'Conflict' }, unset: [] } }, source);
+      assert.equal(sync.acks.at(-1)?.accepted, false);
+      assert.equal(charactersStore.get().entities[actor.id].notes, 'Later GM edit');
+      if (scenario === 'two devices') {
+        await internals.receivePlayerCharacterUpdate({ ...update, revision: 2, patch: { set: { notes: 'Old device still active' }, unset: [] } },
+          { sourcePeerId: 'owner-old', verifiedSourcePeerId: 'verified-old' });
+        assert.ok(sync.acks.length > 0);
+      assert.notEqual(sync.acks.at(-1)?.accepted, false);
+        assert.equal(charactersStore.get().entities[actor.id].notes, 'Old device still active');
+      }
+    } finally { await session.stop(); restoreWindow(); }
+  });
+}
 
-test('replayed correct-ID presence remains unconfirmed after the previous logical peer leaves', async () => {
-  const { actor, session, internals, peers, presence, context, restoreWindow } = setup();
-  try {
-    internals.upsertParticipantFromPlayerPresence(presence, context);
-    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
-    peers.splice(peers.indexOf('owner-old'), 1);
-    internals.upsertParticipantFromPlayerPresence(presence, context);
-    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
-    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-old');
-  } finally { await session.stop(); restoreWindow(); }
-});
-
-for (const invalid of ['different-source', 'different-seat', 'reassigned-actor', 'unverified'] as const) {
-  test(`a departed peer does not permit a rebind with ${invalid}`, async () => {
-    const { actor, session, internals, presence, context, restoreWindow } = setup(['owner-new']);
+for (const invalid of ['different-source', 'different-seat', 'reassigned-actor', 'unverified', 'outside-room'] as const) {
+  test(`presence still rejects ${invalid}`, async () => {
+    const { session, internals, presence, context, restoreWindow } = setup(['owner-new']);
     try {
       if (invalid === 'different-source') context.logicalPeerId = 'forged-source';
       if (invalid === 'different-seat') presence.requesterId = 'some-other-seat';
       if (invalid === 'reassigned-actor') sceneTableStore.update(state => ({ ...state,
         participants: { ...state.participants, seat: { ...state.participants.seat, actorIds: ['another-hero'] } } }));
+      if (invalid === 'outside-room') { context.logicalPeerId = 'outside'; presence.peerId = 'outside'; }
       internals.upsertParticipantFromPlayerPresence(presence, invalid === 'unverified' ? undefined : context);
       assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
-      assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-old');
     } finally { await session.stop(); restoreWindow(); }
   });
 }
 
-test('a forged physical identity cannot rebind ownership by copying the current logical owner ID', async () => {
-  const { actor, session, internals, presence, context, restoreWindow } = setup(['owner-old']);
+test('a departed source cannot send a new operation after reconnect', async () => {
+  const { actor, sync, session, internals, restoreWindow } = setup(['owner-new']);
   try {
-    presence.peerId = 'owner-old';
-    context.logicalPeerId = 'owner-old';
-    context.verifiedPeerId = 'another-route-same-owner';
-    internals.upsertParticipantFromPlayerPresence(presence, context);
-    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
-    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-old');
+    await internals.receivePlayerCharacterUpdate({ type: 'playerCharacterUpdate', participantId: 'seat', actorId: actor.id,
+      revision: 1, updatedAt: 'now', patch: { set: { notes: 'Stale disconnected source' }, unset: [] } },
+      { sourcePeerId: 'owner-old', verifiedSourcePeerId: 'verified-old' });
+    assert.equal(sync.acks.at(-1)?.accepted, false);
+    assert.notEqual(charactersStore.get().entities[actor.id].notes, 'Stale disconnected source');
   } finally { await session.stop(); restoreWindow(); }
 });

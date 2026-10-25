@@ -36,7 +36,6 @@ class LossyDelivery extends SyncService {
 type RedeliveryInternals = {
   receivePlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, context?: SyncEventContext): Promise<void>;
   sessionStore: { get(): P2PSessionState; set(value: P2PSessionState): void };
-  actorOwnerVerifiedPeers: Map<string, string>;
   snapshotTimer: number | undefined;
 };
 
@@ -55,7 +54,6 @@ function setup() {
   const internals = session as unknown as RedeliveryInternals;
   internals.sessionStore.set({ ...internals.sessionStore.get(), role: 'gm', connected: true, roomId: 'RECOVER', peers: ['owner-peer', 'other-peer'] });
   const context: SyncEventContext = { sourcePeerId: 'owner-peer', verifiedSourcePeerId: 'verified-owner' };
-  internals.actorOwnerVerifiedPeers.set(actor.id, 'verified-owner');
   const update: PlayerCharacterUpdateMessage = {
     type: 'playerCharacterUpdate', actorId: actor.id, participantId: owner.id,
     revision: 1, updatedAt: '2026-10-25T00:00:00Z', patch: { set: { notes: 'Player edit' }, unset: [] }
@@ -119,7 +117,6 @@ test('character update replay after GM service restart stays idempotent using pe
     });
     try {
       const next = restarted as unknown as RedeliveryInternals;
-      next.actorOwnerVerifiedPeers.set(actor.id, 'verified-owner');
       next.sessionStore.set({ ...next.sessionStore.get(), role: 'gm', connected: true, roomId: 'RECOVER', peers: ['owner-peer'] });
       await next.receivePlayerCharacterUpdate(update, context);
       assert.equal(sync.snapshotAttempts.at(-1)?.target, 'owner-peer');

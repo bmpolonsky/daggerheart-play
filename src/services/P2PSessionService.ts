@@ -245,7 +245,6 @@ export class P2PSessionService {
   private suppressPlayerStoreForwarding = false;
   private playerActorContext: PlayerActorContext = {};
   private localParticipantId: string | null = null;
-  private actorOwnerVerifiedPeers = new Map<string, string>();
   private gmWakeLock: WakeLockSentinel | null = null;
   private hasDirectGmSnapshot = false;
   private playerRollAckTimer: number | undefined;
@@ -641,8 +640,8 @@ export class P2PSessionService {
     const roomId = normalizeSessionRoomId(input.roomId);
     await this.restorePendingPlayerCharacterUpdates(roomId, participant.id, input.actorIds);
     const p2pTurnReady = await this.prepareP2PTurn(input.connectionMode);
-    // Choosing a seat changes participantId, but must not change the verified
-    // network identity that the GM bound to this actor before a page reload.
+    // Keep the connection identity stable when switching from lobby to seat;
+    // it is routing metadata, not a character ownership credential.
     const transportParticipant = input.transportPeerId ? { ...participant, id: input.transportPeerId } : participant;
     const transport = this.createTransport(transportParticipant, input.connectionMode, p2pTurnReady);
     this.sceneTableService.upsertParticipantPresence({
@@ -841,7 +840,6 @@ export class P2PSessionService {
     this.playerCharacterRevisions.clear();
     this.pendingPlayerCharacterUpdates.clear();
     this.processedPlayerCharacterCreateIds.clear();
-    this.actorOwnerVerifiedPeers.clear();
     this.suppressPlayerStoreForwarding = false;
     this.playerActorContext = {};
     this.localParticipantId = null;
@@ -1963,7 +1961,7 @@ export class P2PSessionService {
 
   private processPlayerRollIntent(message: PlayerRollIntentMessage, peerContext?: RemotePeerContext): { accepted: boolean; operationHash?: string; reason?: string } {
     if (!this.diceService || !this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) {
-      return { accepted: false, reason: 'Бросок отклонён: персонаж не назначен этому подключению.' };
+      return { accepted: false, reason: 'Бросок отклонён: подключение или выбранный персонаж недоступны в этой комнате.' };
     }
     const extraDice = (message.intent as unknown as { extraDice?: unknown }).extraDice;
     if (!isValidExtraDice(extraDice) || (message.intent.type !== 'duality' && extraDice !== undefined)) {
@@ -2449,10 +2447,17 @@ export class P2PSessionService {
   }
 
   private hasTransportSourceContext(peerContext?: RemotePeerContext): boolean {
-    // An adapter-provided source is required. Hybrid's existing logical alias
-    // is retained only for legacy cached continuity, never cold-cache resume
-    // proof or a positive new-feature capability advertisement.
+    // Room transports supply source metadata. This identifies a connection,
+    // not a person or an exclusive character owner.
     return Boolean(peerContext?.logicalPeerId && peerContext.verifiedPeerId);
+  }
+
+  private isCurrentRoomPlayerSource(peerContext?: RemotePeerContext): boolean {
+    const session = this.sessionStore.get();
+    const peers = this.activeRoomConnection?.peers() ?? session.peers;
+    return session.role === 'gm' && session.connected && Boolean(session.roomId)
+      && this.hasTransportSourceContext(peerContext)
+      && peers.includes(peerContext!.logicalPeerId!);
   }
 
   private upsertParticipantFromCallPresence(presence: CallPresenceMessage, peerContext?: RemotePeerContext): void {
@@ -2461,12 +2466,9 @@ export class P2PSessionService {
     });
     if (!participant) return;
     const trustedLocal = this.isTrustedLocalAuthorityCall(peerContext);
-    if (!trustedLocal && (!this.hasTransportSourceContext(peerContext) || participant.role !== 'player'
-      || participant.id !== presence.participantId || participant.peerId !== peerContext!.logicalPeerId
-      || participant.actorIds.length === 0
-      || !participant.actorIds.every(actorId => this.actorOwnerVerifiedPeers.get(actorId) === peerContext!.verifiedPeerId))) return;
-    // Calls can refresh metadata for an already confirmed binding, never create
-    // or replace the seat's owner pointer or verified identity.
+    if (!trustedLocal && (!this.isCurrentRoomPlayerSource(peerContext) || participant.role !== 'player'
+      || participant.id !== presence.participantId || participant.peerId !== peerContext!.logicalPeerId)) return;
+    // Call metadata does not choose a character or replace the current routing hint.
     this.sceneTableService.upsertParticipantPresence({
       id: participant.id, name: presence.displayName, role: participant.role,
       actorIds: participant.actorIds, peerId: participant.peerId, connected: presence.connected
@@ -2484,16 +2486,12 @@ export class P2PSessionService {
     }
     const assignedSeat = participant.role === 'player' && participant.id === presence.requesterId
       && participant.actorIds.includes(presence.actorId);
-    const verifiedPresence = this.hasTransportSourceContext(peerContext) && peerContext!.logicalPeerId === presence.peerId;
+    const verifiedPresence = this.isCurrentRoomPlayerSource(peerContext) && peerContext!.logicalPeerId === presence.peerId;
     const trustedLocal = this.isTrustedLocalAuthorityCall(peerContext);
     if (!trustedLocal && (!verifiedPresence || !assignedSeat)) return;
-    const previousOwnerPeer = participant.peerId;
-    const previousVerifiedPeer = this.actorOwnerVerifiedPeers.get(presence.actorId);
-    // Established pointer + empty cache is a cold-start/resume boundary, not a
-    // virgin seat. Public IDs cannot reconstruct its missing authority proof.
-    if (!trustedLocal && previousOwnerPeer && (!previousVerifiedPeer || previousOwnerPeer !== presence.peerId)) return;
-    if (!trustedLocal && previousVerifiedPeer && previousVerifiedPeer !== peerContext!.verifiedPeerId) return;
-    const updated = this.sceneTableService.upsertParticipantPresence({
+    // Anyone in this trusted room may choose this seat. The last presence
+    // updates routing/display metadata only; it must not lock out other devices.
+    this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
       name: presence.playerName || presence.actorName,
       role: participant.role,
@@ -2501,9 +2499,6 @@ export class P2PSessionService {
       peerId: presence.peerId,
       connected: presence.connected
     });
-    if (updated && verifiedPresence && assignedSeat) {
-      this.actorOwnerVerifiedPeers.set(presence.actorId, peerContext!.verifiedPeerId!);
-    }
   }
 
   private findExistingParticipantForPresence(input: { participantId?: string; actorId?: string; peerId?: string }): TableParticipant | null {
@@ -2639,18 +2634,14 @@ export class P2PSessionService {
       return this.participantOwnsActor(participantId, actorId)
         || (!requester && Boolean(this.ownerParticipantForActor(actorId)));
     }
-    if (!this.hasTransportSourceContext(peerContext)) return false;
-    const owner = this.participantOwnsActor(participantId, actorId)
-      ? requester : !requester ? this.ownerParticipantForActor(actorId) : null;
-    if (!owner) return false;
-    const peerParticipant = this.participantForPeer(peerContext!.logicalPeerId!);
-    if (!peerParticipant || peerParticipant.id !== owner.id) return false;
-    // A stale missing seat ID is merely a hint. Only the already-pinned
-    // transport + GM-owned actor assignment can authorize this fallback;
-    // it never creates or changes a binding and cannot survive a cold cache.
-    const verifiedOwner = this.actorOwnerVerifiedPeers.get(actorId);
-    return Boolean(verifiedOwner && verifiedOwner === peerContext!.verifiedPeerId
-      && owner.peerId === peerContext!.logicalPeerId);
+    if (!this.isCurrentRoomPlayerSource(peerContext)) return false;
+    // The invite room is the trust boundary. A seat identifies the selected
+    // character, not an account or exclusive writer. Reloads and concurrent
+    // devices are independent valid connections; revision receipts below
+    // resolve duplicate/conflicting operations without granting new permissions.
+    return Boolean(charactersStore.get().entities[actorId]
+      && (this.participantOwnsActor(participantId, actorId)
+        || (!requester && this.ownerParticipantForActor(actorId))));
   }
 
   private playerActorRejectionMessage(participantId: string, actorId: string, prefix: string): string {
@@ -2686,11 +2677,6 @@ export class P2PSessionService {
   private ownerParticipantForActor(actorId: string): TableParticipant | null {
     return Object.values(this.sceneTableService.sceneTable$.get().participants)
       .find((item) => item.role === 'player' && item.actorIds.includes(actorId)) ?? null;
-  }
-
-  private participantForPeer(peerId: string): TableParticipant | null {
-    return Object.values(this.sceneTableService.sceneTable$.get().participants)
-      .find((item) => item.role === 'player' && item.peerId === peerId) ?? null;
   }
 }
 

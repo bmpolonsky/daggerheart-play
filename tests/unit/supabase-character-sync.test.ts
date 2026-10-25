@@ -119,7 +119,7 @@ async function isolatedClient(db: RoomDatabase) {
   return { ...helpers, session, characterService, sceneTable };
 }
 
-test('Hope synchronizes for a legacy portrait and refuses unconfirmed ownership after GM room restart', async () => {
+test('Hope synchronizes for a legacy portrait across player reload and GM room restart', async () => {
   const db = new RoomDatabase();
   const gm = await isolatedClient(db);
   const restoreWindow = gm.installTimerWindow();
@@ -202,7 +202,7 @@ test('Hope synchronizes for a legacy portrait and refuses unconfirmed ownership 
     assert.ok(db.eventLengths.every(length => length <= 131072));
 
     // The lobby connects before a seat is chosen. Reload must keep that network
-    // identity: the GM has already bound this actor to the lobby's verified peer.
+    // routing identity where possible; it is not an exclusive actor credential.
     await player.session.stop({ forgetSession: false });
     player = await isolatedClient(db);
     await player.session.startPlayerRoom({ roomId: 'SYNCROOM', participantId: 'player', participantName: 'Игрок', actorIds: [actor.id] });
@@ -225,16 +225,12 @@ test('Hope synchronizes for a legacy portrait and refuses unconfirmed ownership 
     await gm.waitFor(() => assert.equal(player.session.session$.get().status, 'connected'));
     await player.session.publishPresence({ requesterId: 'player', actorId: actor.id, actorName: actor.name,
       playerName: 'Игрок', connected: true, voiceMuted: false, voiceLive: false });
-    // Transport membership recovery is not actor ownership confirmation. The
-    // restarted GM has a persisted seat pointer but no current verified owner
-    // binding; public IDs/Hybrid aliases must not recreate that authority.
+    // The rejoined room membership is sufficient: seats are shared selections,
+    // not exclusive credentials. A restarted GM must accept the next edit.
     player.characterService.setHope(actor.id, 5);
-    await gm.waitFor(() => assert.equal(player.session.session$.get().characterSync?.[actor.id]?.state, 'failed'));
-    await gm.waitFor(() => assert.equal(player.characterService.getCharacter(actor.id)?.hope.value, 1));
-    assert.equal(gm.characterService.getCharacter(actor.id)?.hope.value, 1);
+    await gm.waitFor(() => assert.equal(gm.characterService.getCharacter(actor.id)?.hope.value, 5));
+    await gm.waitFor(() => assert.equal(player.session.session$.get().characterSync?.[actor.id]?.state, 'confirmed'));
     assert.equal(player.session.session$.get().status, 'connected');
-    // Read-only authoritative updates still arrive while GM confirmation is
-    // pending; there is no private-cache seeding or pretend automatic resume.
     gm.characterService.setHope(actor.id, 2);
     await gm.waitFor(() => assert.equal(player.characterService.getCharacter(actor.id)?.hope.value, 2));
   } finally {

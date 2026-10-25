@@ -29,7 +29,6 @@ interface Internals {
   diceService: { rollAction(request: any): any; rollReaction(request: any): any };
   playerActorContext: { participantId: string; actorId: string; actorName: string };
   sessionStore: { get(): P2PSessionState; set(value: P2PSessionState): void };
-  actorOwnerVerifiedPeers: Map<string, string>;
   activeRoomConnection: any;
   capabilitiesRequest: { requestId: string; attempts: number; answered: boolean } | null;
   playerRollReceipts: Map<string, { operationHash: string; accepted?: boolean }>;
@@ -70,7 +69,6 @@ function setup(role: 'gm' | 'player' = 'player') {
   internals.sessionStore.set({ ...internals.sessionStore.get(), role, connected: true, status: 'connected', roomId: 'EXTRAS', peers: ['gm-peer', 'player-peer'], lastSnapshotAt: 'now' });
   const gmContext = { sourcePeerId: 'gm-peer', verifiedSourcePeerId: 'verified-gm' };
   const playerContext = { logicalPeerId: 'player-peer', verifiedPeerId: 'verified-player' };
-  internals.actorOwnerVerifiedPeers.set(actor.id, 'verified-player');
   function advertise() {
     internals.observeGmSnapshotAuthority(gmContext);
     internals.receiveSessionCapabilities({ type: 'response', requestId: internals.capabilitiesRequest!.requestId, extraActionDiceV1: true }, gmContext);
