@@ -53,3 +53,27 @@ body {
   min-height: 0;
   overflow: clip;
 }
+
+/* Entry/join pages on narrow screens use the document scrollport. VTT and
+   tools keep their fixed clipped viewport; native pull-to-refresh is left to
+   the browser rather than suppressed by an inner full-height lobby scroller. */
+@media (max-width: 920px) {
+  html.dh-mobile-entry-scroll {
+    height: auto;
+    min-height: 100%;
+    overflow-x: clip;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+  }
+
+  html.dh-mobile-entry-scroll body,
+  html.dh-mobile-entry-scroll #root,
+  html.dh-mobile-entry-scroll .superapp-shell--entry,
+  html.dh-mobile-entry-scroll .superapp-shell--join,
+  html.dh-mobile-entry-scroll .superapp-shell--entry > .superapp-content,
+  html.dh-mobile-entry-scroll .superapp-shell--join > .superapp-content {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+}

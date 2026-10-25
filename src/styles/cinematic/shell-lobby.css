@@ -496,3 +496,13 @@
     grid-area: remove;
   }
 }
+
+@media (max-width: 920px) {
+  html.dh-mobile-entry-scroll .superapp-shell--entry .role-entry,
+  html.dh-mobile-entry-scroll .superapp-shell--join .role-entry {
+    height: auto;
+    min-height: 100dvh;
+    /* Clip decorative scenery without creating an inner scroll container. */
+    overflow: clip;
+  }
+}
