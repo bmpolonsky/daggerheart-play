@@ -1,3 +1,4 @@
+import { isValidExtraDice, normalizeExtraDice } from '../domain/rules/extraDice';
 import { PortraitUploadService } from './PortraitUploadService';
 import { assetIdFromReference } from '../domain/game/assetReferences';
 import { publicAssetUrl } from '../domain/content/publicAssets';
@@ -47,6 +48,8 @@ import type {
   PlayerRestChoiceMessage,
   PlayerRollIntent,
   PlayerRollIntentMessage,
+  PlayerRollAckMessage,
+  SessionCapabilitiesMessage,
   PlayerTokenMoveMessage,
   SyncService
 } from './SyncService';
@@ -72,7 +75,7 @@ import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { P2PAssetTransferService } from './P2PAssetTransferService';
 import { reportOperationalError } from '../core/observability/sentry';
 import { applyCharacterPatch, createCharacterPatch, createCharacterRollbackPatch, rollbackRejectedCharacterPatch, isCharacterPatch, type CharacterPatch } from '../domain/p2p/characterPatch';
-import { isPlayerCharacterUpdateMessage, playerCharacterUpdateOperationHash } from './SyncService';
+import { isPlayerCharacterUpdateMessage, playerCharacterUpdateOperationHash, playerRollIntentOperationHash } from './SyncService';
 
 export type P2PSessionRole = 'gm' | 'player';
 export type P2PConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'degraded' | 'error';
@@ -107,6 +110,7 @@ export interface P2PSessionState {
   pendingRollIntentId?: string | null;
   characterSync?: Record<string, CharacterSyncDelivery>;
   characterSyncEvents?: CharacterSyncDelivery[];
+  extraActionDiceSupported?: boolean;
 }
 
 export interface P2PSessionStartInput {
@@ -199,7 +203,8 @@ export class P2PSessionService {
     transportMode: 'p2p',
     directPeers: [],
     rollPending: false,
-    pendingRollIntentId: null
+    pendingRollIntentId: null,
+    extraActionDiceSupported: false
   });
   readonly session$ = this.sessionStore.toStream();
   private inviteStore = new Store<P2PInviteDraftState>(initialInviteDraftState());
@@ -227,6 +232,13 @@ export class P2PSessionService {
   );
   private playerCharacterOutboxQueue: Promise<void> = Promise.resolve();
   private processedPlayerCharacterCreateIds = new Set<string>();
+  // Bounded to this GM session; deliberately not a restart-durable receipt.
+  private playerRollReceipts = new Map<string, { operationHash: string; accepted?: boolean }>();
+  private pendingPlayerRollOperationHash: string | null = null;
+  private capabilitiesGeneration = 0;
+  private capabilitiesResponseTimes = new Map<string, number>();
+  private capabilitiesRequest: { requestId: string; generation: number; attempts: number; lastAttemptAt?: number; answered: boolean } | null = null;
+  private gmSnapshotAuthority: { logicalPeerId: string; verifiedPeerId: string } | null = null;
   private subscriptions = new SubscriptionBag();
   private suppressPlayerStoreForwarding = false;
   private playerActorContext: PlayerActorContext = {};
@@ -470,6 +482,7 @@ export class P2PSessionService {
     this.mediaCallService?.setRoom({ roomId, participantId: participant.id, displayName: participant.name, role: 'gm' });
     this.sceneTableService.ensurePlayerSeatsForCharacters(Object.values(charactersStore.get().entities));
     this.syncService.setTransport(transport);
+    this.bindSessionCapabilitiesSync();
     this.bindCallPresenceSync();
     this.subscriptions.add(this.syncService.subscribeSnapshotRequests((_request, _event, context) => {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Игрок запрашивает данные игры.' });
@@ -511,14 +524,11 @@ export class P2PSessionService {
     }));
     this.subscriptions.add(this.syncService.subscribePlayerRollIntents((message, _event, context) => {
       void (async () => {
-        const accepted = this.applyPlayerRollIntent(message, remotePeerContext(context));
-        this.patchSession({
-          lastRequestAt: nowIso(),
-          message: accepted ? 'Бросок игрока выполнен.' : this.playerActorRejectionMessage(message.participantId, message.actorId, 'Бросок игрока отклонен')
-        });
+        const result = this.processPlayerRollIntent(message, remotePeerContext(context));
+        this.patchSession({ lastRequestAt: nowIso(), message: result.accepted ? 'Бросок игрока выполнен.' : result.reason ?? 'Бросок игрока отклонён.' });
         await Promise.allSettled([
-          this.publishSnapshot({ targetPeer: context?.sourcePeerId }),
-          this.syncService.publishPlayerRollAck({ type: 'playerRollAck', intentId: message.intentId, accepted }, context?.sourcePeerId)
+          this.publishSnapshot({ targetPeer: context?.sourcePeerId, preserveScheduled: Boolean(context?.sourcePeerId) }),
+          this.syncService.publishPlayerRollAck({ type: 'playerRollAck', intentId: message.intentId, ...result }, context?.sourcePeerId)
         ]);
       })();
     }));
@@ -645,15 +655,17 @@ export class P2PSessionService {
     this.mediaCallService?.setMediaTransport(transport);
     this.mediaCallService?.setRoom({ roomId, participantId: participant.id, displayName: participant.name, role: 'player' });
     this.syncService.setTransport(transport);
+    this.bindSessionCapabilitiesSync();
     this.bindCallPresenceSync();
     this.patchSession({ status: 'connecting', role: 'player', roomId, message: 'Подключаемся к игре.' });
     try {
-      await this.syncService.connectReadOnly(roomId, transportParticipant, (state, event) => {
+      await this.syncService.connectReadOnly(roomId, transportParticipant, (state, event, context) => {
         if (!event.id.startsWith('server-snapshot-')) this.hasDirectGmSnapshot = true;
         this.suppressPlayerStoreForwarding = true;
         try {
           hydratePersistedState(this.preserveUnacknowledgedPlayerCharacter(state));
           this.capturePlayerForwardingBaseline();
+          this.observeGmSnapshotAuthority(context);
           const expected = this.canonicalCharacterConfirmation;
           if (expected && this.hasCanonicalCharacterRevision(state.characters.entities[expected.actorId], expected)) {
             this.clearCanonicalCharacterConfirmation();
@@ -673,10 +685,8 @@ export class P2PSessionService {
       this.subscriptions.add(this.syncService.subscribePlayerCharacterUpdateAcks((message, _event, context) => {
         this.receivePlayerCharacterUpdateAck(message, context);
       }));
-      this.subscriptions.add(this.syncService.subscribePlayerRollAcks((message) => {
-        if (this.sessionStore.get().pendingRollIntentId !== message.intentId) return;
-        this.clearPendingPlayerRoll();
-        this.patchSession({ lastRequestAt: nowIso() });
+      this.subscriptions.add(this.syncService.subscribePlayerRollAcks((message, _event, context) => {
+        this.receivePlayerRollAck(message, context);
       }));
       this.capturePlayerForwardingBaseline();
       this.subscriptions.add(this.feedService.feed$.subscribe(() => {
@@ -744,6 +754,7 @@ export class P2PSessionService {
       message: state.lastSnapshotAt ? 'Соединение установлено.' : 'Получаем данные игры.'
     }));
     this.startPlayerProductRecoveryPolling();
+    this.requestSessionCapabilities();
     this.persistActiveSession('player', roomId, input.participantName, participant.id, participant.actorIds, input.connectionMode ?? this.activeConnectionMode());
   }
 
@@ -800,6 +811,10 @@ export class P2PSessionService {
 
   async stop(options: { forgetSession?: boolean } = {}): Promise<void> {
     this.clearCanonicalCharacterConfirmation();
+    this.resetSessionCapabilities();
+    this.playerRollReceipts.clear();
+    this.capabilitiesResponseTimes.clear();
+    this.pendingPlayerRollOperationHash = null;
     this.stopGmActivityGuard();
     this.hasDirectGmSnapshot = false;
     const stoppedSession = this.sessionStore.get();
@@ -851,7 +866,8 @@ export class P2PSessionService {
       transportMode: 'p2p',
       directPeers: [],
       rollPending: false,
-      pendingRollIntentId: null
+      pendingRollIntentId: null,
+      extraActionDiceSupported: false
     });
   }
 
@@ -1061,12 +1077,96 @@ export class P2PSessionService {
     return true;
   }
 
+  supportsExtraActionDice(): boolean {
+    const session = this.sessionStore.get();
+    if (session.role !== 'player') return true;
+    return session.connected && session.extraActionDiceSupported === true
+      && this.gmSnapshotAuthority?.logicalPeerId === this.activeRoomConnection?.gmPeerId();
+  }
+
+  private resetSessionCapabilities(): void {
+    this.capabilitiesGeneration += 1;
+    this.capabilitiesRequest = null;
+    this.gmSnapshotAuthority = null;
+    this.patchSession({ extraActionDiceSupported: false });
+  }
+
+  private observeGmSnapshotAuthority(context?: SyncEventContext): void {
+    const gmPeerId = this.activeRoomConnection?.gmPeerId();
+    if (!gmPeerId || context?.sourcePeerId !== gmPeerId || !context.verifiedSourcePeerId) return;
+    if (this.gmSnapshotAuthority?.logicalPeerId === gmPeerId && this.gmSnapshotAuthority.verifiedPeerId === context.verifiedSourcePeerId) return;
+    this.resetSessionCapabilities();
+    this.gmSnapshotAuthority = { logicalPeerId: gmPeerId, verifiedPeerId: context.verifiedSourcePeerId };
+    this.capabilitiesRequest = { requestId: createId('capabilities'), generation: this.capabilitiesGeneration, attempts: 0, answered: false };
+    this.requestSessionCapabilities();
+  }
+
+  private requestSessionCapabilities(): void {
+    const request = this.capabilitiesRequest;
+    const session = this.sessionStore.get();
+    if (!request || request.generation !== this.capabilitiesGeneration || request.answered || request.attempts >= 3
+      || session.role !== 'player' || !session.connected || !this.gmSnapshotAuthority
+      || this.activeRoomConnection?.gmPeerId() !== this.gmSnapshotAuthority.logicalPeerId
+      || (request.lastAttemptAt !== undefined && Date.now() - request.lastAttemptAt < PRODUCT_SYNC_RECOVERY_POLL_MS)) return;
+    request.attempts += 1;
+    request.lastAttemptAt = Date.now();
+    void this.syncService.publishSessionCapabilities({ type: 'request', requestId: request.requestId }, this.gmSnapshotAuthority.logicalPeerId).catch(() => undefined);
+  }
+
+  private bindSessionCapabilitiesSync(): void {
+    this.subscriptions.add(this.syncService.subscribeSessionCapabilities((message, _event, context) => {
+      this.receiveSessionCapabilities(message, context);
+    }));
+  }
+
+  private receiveSessionCapabilities(message: SessionCapabilitiesMessage, context?: SyncEventContext): void {
+    if (typeof message.requestId !== 'string' || message.requestId.length === 0 || message.requestId.length > 128) return;
+    const session = this.sessionStore.get();
+    if (message.type === 'request') {
+      if (session.role !== 'gm' || !context?.sourcePeerId || !context.verifiedSourcePeerId
+        || !this.activeRoomConnection?.peers().includes(context.sourcePeerId)) return;
+      const now = Date.now();
+      const previousResponse = this.capabilitiesResponseTimes.get(context.verifiedSourcePeerId);
+      if (previousResponse !== undefined && now - previousResponse < AUTO_SNAPSHOT_DELAY_MS) return;
+      this.capabilitiesResponseTimes.set(context.verifiedSourcePeerId, now);
+      while (this.capabilitiesResponseTimes.size > 256) this.capabilitiesResponseTimes.delete(this.capabilitiesResponseTimes.keys().next().value!);
+      void this.syncService.publishSessionCapabilities({ type: 'response', requestId: message.requestId, extraActionDiceV1: true }, context.sourcePeerId).catch(() => undefined);
+      return;
+    }
+    const request = this.capabilitiesRequest;
+    const authority = this.gmSnapshotAuthority;
+    if (message.type !== 'response' || typeof message.extraActionDiceV1 !== 'boolean' || session.role !== 'player'
+      || !request || request.answered || request.generation !== this.capabilitiesGeneration || request.requestId !== message.requestId
+      || !authority || authority.logicalPeerId !== this.activeRoomConnection?.gmPeerId()
+      || context?.sourcePeerId !== authority.logicalPeerId || context.verifiedSourcePeerId !== authority.verifiedPeerId) return;
+    request.answered = true;
+    this.patchSession({ extraActionDiceSupported: message.extraActionDiceV1 });
+  }
+
+  private receivePlayerRollAck(message: PlayerRollAckMessage, context?: SyncEventContext): void {
+    if (this.sessionStore.get().pendingRollIntentId !== message.intentId) return;
+    const gmPeerId = this.activeRoomConnection?.gmPeerId();
+    if (context && (!gmPeerId || context.sourcePeerId !== gmPeerId)) return;
+    if (context && this.gmSnapshotAuthority && context.verifiedSourcePeerId !== this.gmSnapshotAuthority.verifiedPeerId) return;
+    if (message.operationHash !== undefined && message.operationHash !== this.pendingPlayerRollOperationHash) return;
+    this.clearPendingPlayerRoll();
+    this.patchSession({ lastRequestAt: nowIso(), ...(message.accepted ? {} : { message: message.reason || 'Мастер отклонил бросок.' }) });
+  }
+
   async submitPlayerRollIntent(input: { actorId: string; actorName?: string; publication?: PlayerRollIntentMessage['publication']; intent: PlayerRollIntent; resourcePatch?: PlayerCharacterResourcePatch; teamworkEntryId?: string }): Promise<boolean> {
     const session = this.sessionStore.get();
     if (session.role !== 'player' || !session.connected || session.status !== 'connected') {
       return false;
     }
     if (session.rollPending) return false;
+    if (input.intent.type === 'duality' && !isValidExtraDice(input.intent.extraDice)) {
+      this.patchSession({ message: 'Бросок не отправлен: дополнительные кости заданы некорректно.' });
+      return false;
+    }
+    if (input.intent.type === 'duality' && (input.intent.extraDice?.length ?? 0) > 0 && !this.supportsExtraActionDice()) {
+      this.patchSession({ message: 'Мастер не подтвердил поддержку дополнительных костей. Обновите или подтвердите подключение мастера.' });
+      return false;
+    }
     const context = this.requirePlayerActorContext(input.actorId);
     if (!context) {
       this.patchSession({ status: 'degraded', message: 'Бросок не отправлен: персонаж не назначен этому игроку.' });
@@ -1079,7 +1179,7 @@ export class P2PSessionService {
       this.playerRollAckTimer = window.setTimeout(() => {
         if (this.sessionStore.get().pendingRollIntentId === intentId) this.clearPendingPlayerRoll();
       }, PLAYER_ROLL_ACK_TIMEOUT_MS);
-      await this.syncService.publishPlayerRollIntent({
+      const message: PlayerRollIntentMessage = {
         type: 'playerRollIntent',
         intentId,
         participantId: context.participantId,
@@ -1090,7 +1190,9 @@ export class P2PSessionService {
         intent: input.intent,
         resourcePatch: input.resourcePatch,
         teamworkEntryId: input.teamworkEntryId
-      });
+      };
+      this.pendingPlayerRollOperationHash = playerRollIntentOperationHash(message);
+      await this.syncService.publishPlayerRollIntent(message);
       this.patchSession({ lastRequestAt: nowIso(), message: 'Бросок отправлен мастеру.' });
       return true;
     } catch (error) {
@@ -1841,10 +1943,34 @@ export class P2PSessionService {
     return false;
   }
 
-  private applyPlayerRollIntent(message: PlayerRollIntentMessage, peerContext?: RemotePeerContext): boolean {
+  private processPlayerRollIntent(message: PlayerRollIntentMessage, peerContext?: RemotePeerContext): { accepted: boolean; operationHash?: string; reason?: string } {
     if (!this.diceService || !this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) {
-      return false;
+      return { accepted: false, reason: 'Бросок отклонён: персонаж не назначен этому подключению.' };
     }
+    const extraDice = (message.intent as unknown as { extraDice?: unknown }).extraDice;
+    if (!isValidExtraDice(extraDice) || (message.intent.type !== 'duality' && extraDice !== undefined)) {
+      return { accepted: false, reason: 'Бросок отклонён: дополнительные кости заданы некорректно.' };
+    }
+    let operationHash: string;
+    try { operationHash = playerRollIntentOperationHash(message); }
+    catch { return { accepted: false, reason: 'Бросок отклонён: некорректный формат заявки.' }; }
+    const previous = this.playerRollReceipts.get(message.intentId);
+    if (previous) {
+      return previous.operationHash === operationHash
+        ? { accepted: previous.accepted === true, operationHash, ...(previous.accepted === true ? {} : { reason: 'Этот бросок уже отклонён или ещё выполняется.' }) }
+        : { accepted: false, operationHash, reason: 'Конфликт заявки: идентификатор броска уже использован с другими параметрами.' };
+    }
+    // SHA and execution are synchronous; reserve before any RNG/payment/store
+    // callback so even a re-entrant duplicate cannot execute the operation twice.
+    const receipt = { operationHash, accepted: undefined as boolean | undefined };
+    this.playerRollReceipts.set(message.intentId, receipt);
+    while (this.playerRollReceipts.size > 256) this.playerRollReceipts.delete(this.playerRollReceipts.keys().next().value!);
+    receipt.accepted = this.executePlayerRollIntent(message);
+    return { accepted: receipt.accepted, operationHash, ...(receipt.accepted ? {} : { reason: 'Бросок игрока отклонён.' }) };
+  }
+
+  private executePlayerRollIntent(message: PlayerRollIntentMessage): boolean {
+    if (!this.diceService) return false;
     if (message.resourcePatch) {
       this.applyPlayerCharacterResourcePatch(message.actorId, message.resourcePatch, message.createdAt);
     }
@@ -1861,6 +1987,7 @@ export class P2PSessionService {
             disadvantageCount: message.intent.disadvantageCount,
             experienceIds: message.intent.experienceIds,
             spendHopeForExperiences: message.intent.spendHopeForExperiences,
+            extraDice: normalizeExtraDice(message.intent.extraDice),
             publication: message.publication,
             notes: message.intent.notes,
             applyConsequences: gameStore.get().autoApplyRollConsequences
@@ -1956,6 +2083,7 @@ export class P2PSessionService {
       }
       void this.republishPendingPlayerCharacterUpdates(true);
       this.recoverCanonicalCharacterConfirmation();
+      this.requestSessionCapabilities();
       if (!session.lastSnapshotAt || session.status === 'degraded' || session.peers.length === 0) {
         void this.requestSnapshotFromGm(session.lastSnapshotAt ? 'peer-reconnect' : 'manual');
       }
@@ -1968,6 +2096,7 @@ export class P2PSessionService {
     if (session.role !== 'player' || !session.connected) return;
     void this.republishPendingPlayerCharacterUpdates();
     this.recoverCanonicalCharacterConfirmation();
+    this.requestSessionCapabilities();
     void this.requestSnapshotFromGm('peer-reconnect');
   };
 
@@ -2095,6 +2224,7 @@ export class P2PSessionService {
       disconnectedRequesterIds.forEach((requesterId) => this.playerActivationQueueService.removeRequester(requesterId));
       this.sceneTableService.markParticipantDisconnectedByPeer(event.peerId);
       const playerLostGm = event.role === 'gm' && !this.activeRoomConnection?.gmPeerId();
+      if (event.role === 'gm' && this.sessionStore.get().role === 'player') this.resetSessionCapabilities();
       this.patchSession((state) => ({
         ...state,
         peers: event.peers,
@@ -2119,6 +2249,7 @@ export class P2PSessionService {
       }
     }
     if (event.type === 'gm-lost') {
+      this.resetSessionCapabilities();
       this.patchSession({
         peers: event.peers,
         routes,
@@ -2132,6 +2263,7 @@ export class P2PSessionService {
       return;
     }
     if (event.type === 'gm-restored') {
+      this.resetSessionCapabilities();
       this.patchSession({
         peers: event.peers,
         routes,
@@ -2246,6 +2378,7 @@ export class P2PSessionService {
       await this.publishSnapshot({ targetPeer: routeSwitch.peerId });
       return;
     }
+    this.resetSessionCapabilities();
     await this.republishPlayerPresence();
     await this.requestSnapshotFromGm('peer-reconnect');
     await this.republishPendingRequests();
@@ -2321,13 +2454,12 @@ export class P2PSessionService {
     const verifiedPresence = Boolean(peerContext?.verifiedPeerId && peerContext.logicalPeerId === presence.peerId);
     if (peerContext?.verifiedPeerId && (!verifiedPresence || !assignedSeat)) return;
     const previousOwnerPeer = participant.peerId;
-    if (previousOwnerPeer && previousOwnerPeer !== presence.peerId) {
-      // A reload may create a new transport identity for the assigned seat.
-      // Only an observed departure of the previous owner permits that rebind;
-      // periodic presence from a second active device cannot take the seat.
-      if (!verifiedPresence || !assignedSeat || !this.activeRoomConnection
-        || this.activeRoomConnection.peers().includes(previousOwnerPeer)) return;
-    }
+    // Public seat/actor IDs and a departed peer do not prove continuity of
+    // a player session. A different transport identity needs GM confirmation;
+    // presence alone must not replace either half of the existing binding.
+    if (previousOwnerPeer && previousOwnerPeer !== presence.peerId) return;
+    const previousVerifiedPeer = this.actorOwnerVerifiedPeers.get(presence.actorId);
+    if (previousVerifiedPeer && peerContext?.verifiedPeerId && previousVerifiedPeer !== peerContext.verifiedPeerId) return;
     const updated = this.sceneTableService.upsertParticipantPresence({
       id: participant.id,
       name: presence.playerName || presence.actorName,
@@ -2415,6 +2547,7 @@ export class P2PSessionService {
   private clearPendingPlayerRoll(): void {
     window.clearTimeout(this.playerRollAckTimer);
     this.playerRollAckTimer = undefined;
+    this.pendingPlayerRollOperationHash = null;
     this.patchSession({ rollPending: false, pendingRollIntentId: null });
   }
 

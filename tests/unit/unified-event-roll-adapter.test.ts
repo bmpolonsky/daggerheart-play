@@ -30,7 +30,9 @@ test('event identity survives formula editing, dice editing and explicit manual 
   const adjusted = applyUnifiedFormulaEdit(draft, '2d12+3', 0).draft;
   assert.equal(adjusted.eventContext?.entryId, context.entryId);
   const edit = editUnifiedRollDice(adjusted, 6, 1);
-  assert.equal(edit.requiresManual, true);
+  assert.equal(edit.requiresManual, false);
+  assert.equal(edit.draft.eventContext?.entryId, context.entryId);
+  assert.deepEqual(edit.draft.extraDice, [{ count: 1, sides: 6 }]);
   const manual = convertUnifiedRollToManual(adjusted, '2d12+1d6+3');
   assert.equal(manual.eventContext?.entryId, context.entryId);
   assert.equal(manual.eventContext?.fingerprint, 'request-v1');

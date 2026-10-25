@@ -55,7 +55,7 @@ export interface PlayerViewCharacterSummary {
   companion: CharacterCompanionState | null;
   traits: Array<{ id: TraitId; label: string; value: number }>;
   experiences: Array<{ id: string; name: string; modifier: number }>;
-  weapons: Array<{ id: string; name: string; trait: TraitId; traitLabel: string; range: string; damage: string; damageFormula: string; damageType: string }>;
+  weapons: Array<{ id: string; sourceId?: string | number; sourceSlug?: string; featureText?: string; notes?: string; name: string; trait: TraitId; traitLabel: string; range: string; damage: string; damageFormula: string; damageType: string }>;
   domainCards: PlayerViewDomainCardSummary[];
   loadoutCards: PlayerViewDomainCardSummary[];
   handLimit: number;
@@ -114,6 +114,8 @@ export interface PlayerViewDomainCardSummary {
 
 export interface PlayerViewAdversarySummary {
   id: string;
+  sourceId?: string | number;
+  sourceSlug?: string;
   name: string;
   subtitle: string;
   portraitUrl: string;
@@ -405,6 +407,9 @@ function adversarySubtitle(adversary: Pick<Adversary, 'tier' | 'type'>): string 
 function beastformAttackSummary(form: CharacterBeastformState): PlayerViewCharacterSummary['weapons'][number] {
   return {
     id: `beastform:${form.slug}:attack`,
+    sourceId: form.sourceId,
+    sourceSlug: form.slug,
+    featureText: form.featureText,
     name: `${form.name}: атака`,
     trait: form.attackTrait,
     traitLabel: TRAIT_LABELS[form.attackTrait],
@@ -476,6 +481,10 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
     })),
     weapons: (character.activeBeastform ? [beastformAttackSummary(character.activeBeastform)] : character.weapons.map((weapon) => ({
       id: weapon.id,
+      sourceId: weapon.sourceId,
+      sourceSlug: weapon.sourceSlug,
+      featureText: weapon.featureText,
+      notes: weapon.notes,
       name: weapon.name,
       trait: weapon.trait,
       traitLabel: TRAIT_LABELS[weapon.trait],
@@ -527,6 +536,8 @@ export function buildAdversarySummary(adversary: Adversary): PlayerViewAdversary
   const conditions = statusConditions(adversary.conditions ?? []);
   return {
     id: adversary.id,
+    sourceId: adversary.sourceId,
+    sourceSlug: adversary.sourceSlug,
     name: adversary.name,
     subtitle: adversarySubtitle(adversary),
     portraitUrl: adversary.imageUrl ?? '',

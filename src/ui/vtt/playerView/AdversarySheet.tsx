@@ -3,6 +3,7 @@ import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import { ChevronLeft, Heart, Zap } from "lucide-react";
 import type { PlayerViewAdversarySummary } from "../../../domain/tabletop/playerView";
+import { resolveContextualDiceBinding } from "../../../domain/rules/contextualDiceBindings";
 import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import { encounterService, feedService, gameService, sceneTableService } from "../../../services/serviceRegistry";
@@ -126,7 +127,8 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
           </SheetSection>
           <SheetFeatureSection
             emptyLabel="Особенности не указаны"
-            features={adversary.features}
+            features={adversary.features.map(feature => ({ ...feature, sourceId: adversary.sourceId, featureId: feature.id, collection: 'adversary', slug: adversary.sourceSlug }))}
+            macroActor={{ proficiency: Number.NaN, level: Number.NaN, hp: adversary.hp }}
             isInteractive={readOnly ? undefined : isInteractiveAdversaryFeatureTextMacro}
             onMacro={readOnly ? undefined : runFeatureMacro}
           />
@@ -148,9 +150,13 @@ function runAdversaryFeatureMacro(
 ): void {
   const featureName = feature.name || 'Особенность';
   if (macro.kind === 'actionRoll' || macro.kind === 'diceRoll' || macro.kind === 'damageRoll') {
+    const binding = macro.kind === 'actionRoll' ? { formula: '1d20' } : resolveContextualDiceBinding({ cardId: feature.id, sourceId: feature.sourceId ?? adversary.sourceId, featureId: feature.featureId ?? feature.id, collection: 'adversary', slug: feature.slug ?? adversary.sourceSlug, text: feature.text }, macro, { proficiency: Number.NaN, level: Number.NaN, hp: adversary.hp });
+    if ('nonRoll' in binding && binding.nonRoll) return;
     openDiceDraft({
       kind: macro.kind === 'damageRoll' ? 'damage' : 'manualDice',
-      formula: macro.kind === 'actionRoll' ? '1d20' : macro.formula,
+      ...binding,
+      formula: binding.formula,
+      source: { cardId: feature.id, sourceId: feature.sourceId ?? adversary.sourceId, label: featureName },
       damageType: macro.kind === 'damageRoll' ? macro.damageType ?? undefined : undefined,
       title: `${featureName}: ${macro.label}`,
       notes: featureMacroNotes(featureName, macro)

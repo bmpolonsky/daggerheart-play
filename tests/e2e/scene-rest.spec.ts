@@ -119,13 +119,16 @@ test('rest recovery reports one healed wound when the recovery roll is six', asy
   const card = await startRest(page, 'Короткий отдых');
   const move = card.locator('.feed-rest-move').filter({ hasText: 'Залечить Раны' });
   await move.getByRole('button', { name: 'Залечить Раны', exact: true }).click();
+  await move.getByRole('button', { name: 'Бросить', exact: true }).click();
+  const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d4+2');
   // Scope deterministic RNG to the next recovery die only; IDs and all later
   // browser randomness retain their normal implementation.
   await page.evaluate(() => {
     const original = Math.random;
     Math.random = () => { Math.random = original; return 0.999; };
   });
-  await move.getByRole('button', { name: 'Бросить', exact: true }).click();
+  await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
   await expect(move).toContainText('Исцелено ран: 1.');
   await expect.poll(async () => {
     const state = await storedState(page);

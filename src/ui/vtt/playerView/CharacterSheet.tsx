@@ -474,7 +474,17 @@ export function CharacterSheet({
               const result = characterService.unequipWeapon(character.id, weapon.id);
               if (!result.applied) toastService.show(result.message ?? 'Не удалось снять оружие.', 'error');
             }}>Снять</Button></span>}
-            onClick={() => setRollDraft({ kind: 'weapon', title: weapon.name, subtitle: `${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`, trait: weapon.trait, damageFormula: weapon.damageFormula, damageType: weapon.damageType })}
+            onClick={() => onFeaturePreview?.(character, {
+              id: weapon.id,
+              sourceId: weapon.sourceId,
+              slug: weapon.sourceSlug,
+              collection: weapon.id.startsWith('beastform:') ? 'beastform' : 'equipment',
+              weaponFormula: weapon.damageFormula,
+              name: weapon.name,
+              subtitle: `${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`,
+              text: weapon.featureText ?? weapon.notes ?? '',
+              sourceLabel: 'Оружие'
+            })}
           />
         ))}
       </SheetSection>
@@ -484,6 +494,7 @@ export function CharacterSheet({
           title="Свойства"
           emptyLabel="Свойства появятся после заполнения листа"
           features={character.features}
+          macroActor={character}
           highlightRuleEffects
           rightAccessory={(feature) => {
             const trackers = character.usageTrackers.filter((item) => item.targetKind === 'feature' && item.targetId === feature.id);
@@ -598,6 +609,10 @@ export function CharacterSheet({
               }}>Надеть оружие</Button> : undefined}
               onClick={() => onFeaturePreview?.(character, {
                   id: item.id,
+                  sourceId: storedWeapon?.sourceId ?? item.sourceId,
+                  slug: storedWeapon?.sourceSlug,
+                  collection: 'equipment',
+                  weaponFormula: storedWeapon?.baseDamageFormula,
                   name: item.name,
                   subtitle: storedWeapon ? `Снятое оружие / Базовый урон ${storedWeapon.baseDamageFormula}` : quantityLabel,
                   text: storedWeapon?.description ?? item.text ?? '',

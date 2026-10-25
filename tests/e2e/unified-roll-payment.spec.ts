@@ -38,6 +38,28 @@ test('preparing and closing pays nothing; one typed submit pays one Hope for one
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(1);
 });
 
+test('ordinary palette dice retain typed reaction, separate advantage, visible individual results and one experience payment', async ({ page }) => {
+  const { sheet, tray } = await prepareAction(page);
+  await tray.getByRole('button', { name: 'Реакция', exact: true }).click();
+  await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+  await tray.getByRole('checkbox', { name: 'QA опыт +2', exact: true }).check();
+  await tray.getByRole('button', { name: 'Преим.', exact: true }).click();
+  await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await tray.getByRole('button', { name: 'Добавить d8', exact: true }).click();
+  await tray.getByRole('button', { name: 'Убрать дополнительный d8', exact: true }).click();
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d12+1d6+4+1d6');
+  await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toBeVisible();
+  await expect(tray.getByRole('button', { name: 'Убрать кость Страха', exact: true })).toBeVisible();
+  await expect(tray.getByRole('button', { name: 'Сделать ручным броском', exact: true })).toHaveCount(0);
+  await expect(tray.getByRole('region', { name: 'Итог броска' })).toContainText('1 Надежды');
+  await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
+  const roll = page.locator('.player-activity-event--roll').first();
+  await expect(roll).toContainText('Реакция');
+  await expect(roll.locator('.feed-die-chip')).toHaveCount(4);
+  await expect(sheet.getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(2);
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(1);
+});
+
 test('explicit manual conversion retains the existing advantage die and never silently charges typed costs', async ({ page }) => {
   const { sheet, tray } = await prepareAction(page);
   await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
@@ -45,6 +67,8 @@ test('explicit manual conversion retains the existing advantage die and never si
   await tray.getByRole('button', { name: 'Преим.', exact: true }).click();
   await tray.getByLabel('Модификатор', { exact: true }).fill('3');
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await expect(tray.getByRole('button', { name: 'Сделать ручным броском', exact: true })).toHaveCount(0);
+  await tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Бросить', exact: true })).toBeDisabled();
   await expect(tray).toContainText('не списывает стоимость Опытов');
   await tray.getByRole('button', { name: 'Сделать ручным броском', exact: true }).click();
@@ -56,6 +80,6 @@ test('explicit manual conversion retains the existing advantage die and never si
   await expect(tray.getByRole('checkbox', { name: /QA опыт/ })).toHaveCount(0);
   await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(1);
-  await expect(page.locator('.player-activity-event--roll .feed-formula-dice .feed-die-chip')).toHaveCount(4);
+  await expect(page.locator('.player-activity-event--roll .feed-formula-dice .feed-die-chip')).toHaveCount(3);
   await expect(sheet.getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(3);
 });

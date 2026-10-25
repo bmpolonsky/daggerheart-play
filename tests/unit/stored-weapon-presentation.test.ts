@@ -25,7 +25,9 @@ test('stored weapon projection shows raw base damage and nested metadata without
   assert.equal(display.sourceSlug, 'custom-runed-dagger');
   assert.match(display.description, /Базовый урон: 1d6\+3/);
   assert.match(display.description, /Собственное свойство/);
-  assert.match(display.sourceLabel ?? '', /42.*custom-runed-dagger/);
+  assert.equal(display.sourceLabel, undefined);
+  assert.equal(display.description.includes('Источник:'), false);
+  assert.equal(display.description.includes('custom-runed-dagger'), false);
   assert.equal(display.description.includes('outer-source'), false);
   assert.equal(display.description.includes('2d6+3'), false);
   assert.equal(JSON.stringify(item), before);

@@ -133,6 +133,9 @@ function DiceSummary({ dice }: { dice: TableFeedDiceSummary }) {
         {dice.keptExtraDie !== 0 && (
           <DieChip tone="neutral" iconKind={`${dice.keptExtraDie > 0 ? 'adv' : 'dis'}-d6`} iconLabel={dice.keptExtraDie > 0 ? 'Преимущество' : 'Помеха'} label={dice.keptExtraDie > 0 ? 'Преимущество' : 'Помеха'} value={Math.abs(dice.keptExtraDie)} sign={dice.keptExtraDie > 0 ? '+' : '-'} />
         )}
+        {dice.extraDiceTerms?.flatMap((term, termIndex) => term.rolls.map((value, rollIndex) => (
+          <DieChip key={`extra-${termIndex}-${rollIndex}`} tone="neutral" iconKind={`d${term.sides}`} iconLabel={`Дополнительный d${term.sides}`} label={`Дополнительный d${term.sides}`} value={value} sign={term.sign < 0 ? '-' : undefined} />
+        )))}
         {staticModifierTotal !== 0 && <ModifierChip label="Модификатор" value={staticModifierTotal} />}
       </div>
     );
@@ -242,6 +245,7 @@ function rollDetailRows(roll: NonNullable<TableFeedItem['roll']>): Array<{ label
 
 function dualityFormula(dice: Extract<TableFeedDiceSummary, { kind: 'duality' }>): string {
   const parts = ['2d12'];
+  dice.extraDiceTerms?.forEach((term) => parts.push(`${term.sign < 0 ? '-' : '+'} ${term.count}d${term.sides}`));
   if (dice.advantageRolls.length > 0) {
     parts.push(`+ ${dice.advantageRolls.length}d6kh`);
   }
@@ -254,7 +258,7 @@ function dualityFormula(dice: Extract<TableFeedDiceSummary, { kind: 'duality' }>
 }
 
 function dualityStaticModifiers(dice: Extract<TableFeedDiceSummary, { kind: 'duality' }>): Array<{ label: string; value: number }> {
-  return dice.modifiers.filter((modifier) => modifier.label !== 'Преимущество' && modifier.label !== 'Помеха');
+  return dice.modifiers.filter((modifier) => modifier.label !== 'Преимущество' && modifier.label !== 'Помеха' && modifier.label !== 'Дополнительные кости');
 }
 
 function dualityStaticModifierTotal(dice: Extract<TableFeedDiceSummary, { kind: 'duality' }>): number {

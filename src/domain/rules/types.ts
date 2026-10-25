@@ -530,6 +530,8 @@ export interface ActionRollEntry {
   hopeDie: number;
   fearDie: number;
   advantageRolls: number[];
+  /** Additional positive dice, independent of the reserved typed check dice. */
+  extraDiceTerms?: DiceTermRoll[];
   disadvantageRolls: number[];
   keptExtraDie: number;
   modifiers: ModifierPart[];

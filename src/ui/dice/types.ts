@@ -1,4 +1,4 @@
-import type { DiceVisualTone, FormulaTermRoll, ManualDiceRollEntry } from '../../domain/rules/types';
+import type { DiceVisualTone, FormulaTermRoll, ManualDiceRollEntry, RollLogEntry } from '../../domain/rules/types';
 
 export type PolyhedralDieSides = 4 | 6 | 8 | 10 | 12 | 20;
 
@@ -65,6 +65,23 @@ export function manualDiceRollToPolyhedral(entry: ManualDiceRollEntry): Polyhedr
     tone: 'neutral',
     diceTones: entry.diceTones
   });
+}
+
+export function dualityDiceRollToPolyhedral(entry: Extract<RollLogEntry, { type: 'action' | 'reaction' }>): PolyhedralDiceRoll {
+  const extras = polyhedralDiceRollFromTerms({ id: `${entry.id}-extra`, terms: entry.extraDiceTerms ?? [], tone: 'neutral' }).dice;
+  return {
+    id: entry.id,
+    dice: [
+      { id: `${entry.id}-hope`, sides: 12, value: entry.hopeDie, label: 'HOPE', tone: 'hope' },
+      { id: `${entry.id}-fear`, sides: 12, value: entry.fearDie, label: 'FEAR', tone: 'fear' },
+      ...entry.advantageRolls.map((value, index) => ({ id: `${entry.id}-advantage-${index}`, sides: 6 as const, value, label: 'ADV', tone: 'advantage' as const })),
+      ...entry.disadvantageRolls.map((value, index) => ({ id: `${entry.id}-disadvantage-${index}`, sides: 6 as const, value, label: 'DIS', tone: 'disadvantage' as const })),
+      ...extras
+    ],
+    total: entry.total,
+    tone: entry.isCritical ? 'critical' : undefined,
+    isCritical: entry.isCritical
+  };
 }
 
 export function isPolyhedralDieSides(sides: number): sides is PolyhedralDieSides {

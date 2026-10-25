@@ -3,7 +3,7 @@ import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { hasRolledDiceTerms } from '../rules/diceFormula';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { restRemainingSummary } from '../rules/rest';
-import type { ActionRollOutcome, Countdown, GameHandout, Character, DeathMoveFeedRequest, DiceVisualTone, DomainCardRecord, FeedActorReference, FeedEntry, FormulaTermRoll, ManualDiceRollEntry, ModifierPart, RestFeedRequest, RollLogEntry, RollPublication, TeamworkRollRequest, TraitId } from '../rules/types';
+import type { ActionRollOutcome, Countdown, GameHandout, Character, DeathMoveFeedRequest, DiceTermRoll, DiceVisualTone, DomainCardRecord, FeedActorReference, FeedEntry, FormulaTermRoll, ManualDiceRollEntry, ModifierPart, RestFeedRequest, RollLogEntry, RollPublication, TeamworkRollRequest, TraitId } from '../rules/types';
 import { canViewFeedEntry, canViewRollLogEntry, feedEntryPublication, rollLogEntryPublication } from './rollPublication';
 import type { TableSyncRole, TableVisibility } from './types';
 
@@ -24,6 +24,7 @@ export interface TableFeedDualityDiceSummary {
   modifierTotal: number;
   advantageRolls: number[];
   disadvantageRolls: number[];
+  extraDiceTerms?: DiceTermRoll[];
   keptExtraDie: number;
   difficulty: number;
   success: boolean;
@@ -599,6 +600,7 @@ function dualityDiceSummary(entry: Extract<RollLogEntry, { type: 'action' | 'rea
     modifierTotal: entry.modifiers.reduce((sum, modifier) => sum + modifier.value, 0),
     advantageRolls: entry.advantageRolls,
     disadvantageRolls: entry.disadvantageRolls,
+    ...(entry.extraDiceTerms ? { extraDiceTerms: entry.extraDiceTerms.map(term => ({ ...term, rolls: [...term.rolls] })) } : {}),
     keptExtraDie: entry.keptExtraDie,
     difficulty: entry.difficulty,
     success: entry.success,

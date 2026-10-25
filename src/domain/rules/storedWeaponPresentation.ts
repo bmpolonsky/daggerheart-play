@@ -24,16 +24,10 @@ export function storedWeaponPresentation(item: unknown): StoredWeaponPresentatio
   const trait = TRAIT_LABELS[weapon.trait];
   const range = rangeLabel(weapon.range);
   const damageType = DAMAGE_TYPE_LABELS[weapon.damageType];
-  const references = [
-    weapon.sourceId !== undefined && String(weapon.sourceId) !== '' ? `ID ${weapon.sourceId}` : '',
-    weapon.sourceSlug ? `slug ${weapon.sourceSlug}` : ''
-  ].filter(Boolean);
-  const sourceLabel = references.length > 0 ? references.join(' / ') : undefined;
   const description = [
     [trait, range, `Базовый урон: ${weapon.damageFormula} (${damageType})`].filter(Boolean).join(' / '),
     weapon.featureText ? `Свойства: ${weapon.featureText}` : '',
     weapon.notes ? `Примечания: ${weapon.notes}` : '',
-    sourceLabel ? `Источник: ${sourceLabel}` : ''
   ].filter(Boolean).join('\n\n');
   return {
     description,
@@ -46,6 +40,5 @@ export function storedWeaponPresentation(item: unknown): StoredWeaponPresentatio
     ...(weapon.notes !== undefined ? { notes: weapon.notes } : {}),
     ...(weapon.sourceId !== undefined ? { sourceId: weapon.sourceId } : {}),
     ...(weapon.sourceSlug !== undefined ? { sourceSlug: weapon.sourceSlug } : {}),
-    ...(sourceLabel ? { sourceLabel } : {})
   };
 }

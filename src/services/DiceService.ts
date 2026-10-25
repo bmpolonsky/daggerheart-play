@@ -12,6 +12,7 @@ import type {
   Character,
   DamageRollEntry,
   DamageType,
+  DiceTermRoll,
   DiceVisualTone,
   ManualDiceRollEntry,
   ModifierPart,
@@ -24,6 +25,7 @@ import type { TableVisibility } from '../domain/tabletop/types';
 import { legacyVisibilityForPublication, normalizeRollPublication } from '../domain/tabletop/rollPublication';
 import { gameStore, charactersStore, encounterStore, rollLogStore } from '../stores/gameStores';
 import { FeedService } from './FeedService';
+import { extraDiceFormula, normalizeExtraDice, type ExtraDieTerm } from '../domain/rules/extraDice';
 
 export interface ActionRollRequest {
   actorId?: string | null;
@@ -31,6 +33,7 @@ export interface ActionRollRequest {
   trait?: TraitId | null;
   difficulty: number;
   manualModifier?: number;
+  extraDice?: ExtraDieTerm[];
   advantageCount?: number;
   disadvantageCount?: number;
   experienceIds?: string[];
@@ -61,6 +64,7 @@ export interface GmAttackCheckRequest {
   publication?: RollPublication;
   notes?: string;
   manualModifier?: number;
+  extraDice?: ExtraDieTerm[];
 }
 
 export interface ManualDiceRollRequest {
@@ -83,8 +87,14 @@ export class DiceService {
   private feedService = new FeedService();
 
   rollAction(request: ActionRollRequest): ActionRollEntry {
+    const extraDice = normalizeExtraDice(request.extraDice);
     const charactersState = charactersStore.get();
     const actor = request.actorId ? charactersState.entities[request.actorId] : null;
+    const selectedExperiences = selectedRollExperiences(actor, request.experienceIds);
+    if (extraDice.length > 0) {
+      assertExtraExperienceSelection(request.experienceIds, selectedExperiences);
+      if (request.spendHopeForExperiences !== false && selectedExperiences.length > (actor?.hope.value ?? 0)) throw new Error('Недостаточно Надежды для выбранных Опытов. Бросок не выполнен.');
+    }
     const difficulty = Math.max(0, toSafeInteger(request.difficulty, 12));
     const hopeDie = rollDie(12);
     const fearDie = rollDie(12);
@@ -95,8 +105,6 @@ export class DiceService {
     if (actorStats && request.trait) {
       modifiers.push({ label: TRAIT_LABELS[request.trait], value: actorStats.traits[request.trait] ?? 0 });
     }
-
-    const selectedExperiences = selectedRollExperiences(actor, request.experienceIds);
 
     if (selectedExperiences.length > 0) {
       if (request.spendHopeForExperiences !== false) {
@@ -140,6 +148,8 @@ export class DiceService {
       modifiers.push({ label: 'Помеха', value: keptExtraDie });
     }
 
+    const additional = rollAdditionalDice(extraDice);
+    if (additional) modifiers.push({ label: 'Дополнительные кости', value: additional.total });
     const modifierTotal = modifiers.reduce((sum, item) => sum + item.value, 0);
     const total = hopeDie + fearDie + modifierTotal;
     const outcome = resolveActionOutcome({ hopeDie, fearDie, total, difficulty });
@@ -160,6 +170,7 @@ export class DiceService {
       hopeDie,
       fearDie,
       advantageRolls,
+      ...(additional ? { extraDiceTerms: additional.terms } : {}),
       disadvantageRolls,
       keptExtraDie,
       modifiers,
@@ -178,8 +189,14 @@ export class DiceService {
   }
 
   rollReaction(request: ReactionRollRequest): ReactionRollEntry {
+    const extraDice = normalizeExtraDice(request.extraDice);
     const charactersState = charactersStore.get();
     const actor = request.actorId ? charactersState.entities[request.actorId] : null;
+    const selectedExperiences = selectedRollExperiences(actor, request.experienceIds);
+    if (extraDice.length > 0) {
+      assertExtraExperienceSelection(request.experienceIds, selectedExperiences);
+      if (request.spendHopeForExperiences !== false && selectedExperiences.length > (actor?.hope.value ?? 0)) throw new Error('Недостаточно Надежды для выбранных Опытов. Бросок не выполнен.');
+    }
     const difficulty = Math.max(0, toSafeInteger(request.difficulty, 12));
     const hopeDie = rollDie(12);
     const fearDie = rollDie(12);
@@ -190,8 +207,6 @@ export class DiceService {
     if (actorStats && request.trait) {
       modifiers.push({ label: TRAIT_LABELS[request.trait], value: actorStats.traits[request.trait] ?? 0 });
     }
-
-    const selectedExperiences = selectedRollExperiences(actor, request.experienceIds);
 
     if (selectedExperiences.length > 0) {
       if (request.spendHopeForExperiences !== false) {
@@ -235,6 +250,8 @@ export class DiceService {
       modifiers.push({ label: 'Помеха', value: keptExtraDie });
     }
 
+    const additional = rollAdditionalDice(extraDice);
+    if (additional) modifiers.push({ label: 'Дополнительные кости', value: additional.total });
     const modifierTotal = modifiers.reduce((sum, item) => sum + item.value, 0);
     const total = hopeDie + fearDie + modifierTotal;
     const outcome = resolveActionOutcome({ hopeDie, fearDie, total, difficulty });
@@ -250,6 +267,7 @@ export class DiceService {
       hopeDie,
       fearDie,
       advantageRolls,
+      ...(additional ? { extraDiceTerms: additional.terms } : {}),
       disadvantageRolls,
       keptExtraDie,
       modifiers,
@@ -382,6 +400,7 @@ export class DiceService {
   }
 
   rollGmAttackCheck(request: GmAttackCheckRequest): ManualDiceRollEntry | null {
+    const extraDice = normalizeExtraDice(request.extraDice);
     const encounter = encounterStore.get();
     const adversary = encounter.adversaries[request.adversaryId];
     if (!adversary) return null;
@@ -391,6 +410,10 @@ export class DiceService {
     if (manualModifier !== 0) modifiers.push({ label: 'Вручную', value: manualModifier });
     const selectedExperienceIds = new Set(request.experienceIds ?? []);
     const selectedExperiences = adversary.experiences.filter((experience) => selectedExperienceIds.has(experience.id));
+    if (extraDice.length > 0) {
+      assertExtraExperienceSelection(request.experienceIds, selectedExperiences);
+      if (request.spendFearForExperiences !== false && selectedExperiences.length > gameStore.get().fear) throw new Error('Недостаточно Страха для выбранных Опытов. Бросок не выполнен.');
+    }
     if (selectedExperiences.length > 0) {
       if (request.spendFearForExperiences !== false) {
         const game = gameStore.get();
@@ -410,8 +433,10 @@ export class DiceService {
       modifiers.push({ label: d20Result.label, value: 0 });
     }
     const modifierTotal = modifiers.reduce((sum, modifier) => sum + modifier.value, 0);
-    const total = d20Result.kept + modifierTotal;
-    const formula = `1d20${modifierTotal === 0 ? '' : modifierTotal > 0 ? `+${modifierTotal}` : modifierTotal}`;
+    const additional = rollAdditionalDice(extraDice);
+    if (additional) modifiers.push({ label: 'Дополнительные кости', value: additional.total });
+    const total = d20Result.kept + modifierTotal + (additional?.total ?? 0);
+    const formula = `1d20${extraDice.length > 0 ? `+${extraDiceFormula(extraDice)}` : ''}${modifierTotal === 0 ? '' : modifierTotal > 0 ? `+${modifierTotal}` : modifierTotal}`;
     const modifierText = modifiers
       .filter((modifier) => modifier.value !== 0 || modifier.label.startsWith('Опыт пропущен') || modifier.label.startsWith('Преимущество') || modifier.label.startsWith('Помеха'))
       .map((modifier) => `${modifier.label}${modifier.value === 0 ? '' : ` ${modifier.value > 0 ? '+' : ''}${modifier.value}`}`)
@@ -431,6 +456,7 @@ export class DiceService {
       label: 'Атака',
       terms: [
         { sign: 1, count: d20Result.rolls.length, sides: 20, rolls: d20Result.rolls, subtotal: d20Result.kept },
+        ...(additional?.terms ?? []),
         ...(modifierTotal === 0 ? [] : [{ sign: modifierTotal > 0 ? 1 : -1, value: Math.abs(modifierTotal), subtotal: modifierTotal } as const])
       ],
       total,
@@ -527,6 +553,20 @@ function selectedRollExperiences(actor: Character | null, experienceIds: string[
       .filter((experience) => selectedIds.has(experience.id))
       .map((experience) => ({ ...experience, source: 'companion' as const }))
   ];
+}
+
+function assertExtraExperienceSelection(requested: string[] | undefined, selected: ReadonlyArray<{ id: string }>): void {
+  const requestedIds = new Set(requested ?? []);
+  const selectedIds = new Set(selected.map((experience) => experience.id));
+  if ([...requestedIds].some((id) => !selectedIds.has(id)) || selectedIds.size !== selected.length) {
+    throw new Error('Выбранный Опыт не найден или его идентификатор неоднозначен. Бросок не выполнен.');
+  }
+}
+
+function rollAdditionalDice(pool: ExtraDieTerm[]): { terms: DiceTermRoll[]; total: number } | null {
+  if (pool.length === 0) return null;
+  const rolled = rollFormula(extraDiceFormula(pool));
+  return { terms: rolled.terms.filter((term): term is DiceTermRoll => 'rolls' in term), total: rolled.total };
 }
 
 function countRolledDice(terms: ReturnType<typeof rollFormula>['terms']): number {

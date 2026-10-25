@@ -1,4 +1,5 @@
 import type { Character } from './types';
+import { normalizeExtraDice, type ExtraDieTerm } from './extraDice';
 
 export type AdvantageMode = -1 | 0 | 1;
 
@@ -9,6 +10,7 @@ export interface ActionComposerState {
   experienceIds: string[];
   spendHopeForExperiences: boolean;
   manualModifier?: number;
+  extraDice?: ExtraDieTerm[];
 }
 
 export interface ActionComposerRollOptions {
@@ -17,26 +19,31 @@ export interface ActionComposerRollOptions {
   experienceIds: string[];
   spendHopeForExperiences: boolean;
   manualModifier?: number;
+  extraDice?: ExtraDieTerm[];
 }
 
 export function normalizeActionComposerState(character: Character | null, state: ActionComposerState): ActionComposerState {
   const availableIds = new Set(character?.experiences.map((experience) => experience.id) ?? []);
   const experienceIds = state.experienceIds.filter((id, index, list) => availableIds.has(id) && list.indexOf(id) === index);
+  const extraDice = normalizeExtraDice(state.extraDice);
   return {
     advantageMode: state.advantageMode,
     experienceIds,
     spendHopeForExperiences: state.spendHopeForExperiences,
+    ...(extraDice.length ? { extraDice } : {}),
     ...(Number.isSafeInteger(state.manualModifier) && state.manualModifier !== 0 ? { manualModifier: state.manualModifier } : {})
   };
 }
 
 export function buildActionComposerRollOptions(state: ActionComposerState): ActionComposerRollOptions {
   const counts = actionComposerAdvantageCounts(state);
+  const extraDice = normalizeExtraDice(state.extraDice);
   return {
     advantageCount: counts.advantageCount,
     disadvantageCount: counts.disadvantageCount,
     experienceIds: state.experienceIds,
     spendHopeForExperiences: state.spendHopeForExperiences,
+    ...(extraDice.length ? { extraDice } : {}),
     ...(Number.isSafeInteger(state.manualModifier) && state.manualModifier !== 0 ? { manualModifier: state.manualModifier } : {})
   };
 }

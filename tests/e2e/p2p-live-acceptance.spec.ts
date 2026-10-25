@@ -7,6 +7,7 @@ import { openGameLibrary } from './tools-helpers';
 import { createNativeP2PProfiles, nativeRtcEvidence, type NativeSignalingMode } from './native-p2p-helpers';
 
 const mode = process.env.P2P_ACCEPTANCE_SIGNALING ?? 'public';
+const expectAutomaticResume = process.env.P2P_ACCEPTANCE_EXPECT_AUTO_RESUME === '1';
 if (mode !== 'public' && mode !== 'local-nostr') throw new Error('P2P_ACCEPTANCE_SIGNALING must be public or local-nostr.');
 
 async function closeLibrary(page: Page): Promise<void> {
@@ -50,7 +51,7 @@ async function markWounds(player: Page, gm: Page, marked: number): Promise<void>
 // Both modes use real native RTC, Trystero and application transport. local-nostr
 // substitutes only Nostr signaling, so it is not a public relay/TURN/NAT test.
 test.use({ trace: 'off', video: 'off' });
-test(`@native-p2p ${mode}: first roster without GM reload, wound ACK, isolated device identities and reconnect`, async ({ browser, browserName }, testInfo) => {
+test(`@native-p2p ${mode}: initial roster and wound ACK; ${expectAutomaticResume ? 'automatic resume' : 'unconfirmed reload fails closed'}`, async ({ browser, browserName }, testInfo) => {
   test.skip(process.env.RUN_P2P_E2E !== '1', 'Opt-in real native WebRTC acceptance; production-free localhost artifact required.');
   test.skip(browserName !== 'chromium', 'Run native network acceptance once in Chromium.');
   test.setTimeout(210_000);
@@ -59,11 +60,14 @@ test(`@native-p2p ${mode}: first roster without GM reload, wound ACK, isolated d
   const player = await profiles.contexts[1].newPage();
   const phone = await profiles.contexts[2].newPage();
   const evidence = { signalingMode: mode, applicationTransportHook: false, firstRosterBeforeGmReload: false,
-    distinctPeerIdentities: false, initialWoundAck: false, playerReloadWoundAck: false, gmReloadWoundAck: false, secondDeviceExplicitRefusal: false };
+    distinctPeerIdentities: false, initialWoundAck: false, typedExtraDiceRoundtrip: false, playerReloadWoundAck: false, gmReloadWoundAck: false,
+    unconfirmedReloadExplicitRefusal: false, secondDeviceExplicitRefusal: false };
   const roomId = randomBytes(4).toString('hex').slice(0, 6).toUpperCase();
   try {
     await openSharedGmGame(gm, roomId);
-    await importGameDocument(gm, createPopulatedGameDocument(), 'synthetic-native-acceptance.dhgame');
+    const document = createPopulatedGameDocument();
+    document.files['data/game.json'].autoApplyRollConsequences = false;
+    await importGameDocument(gm, document, 'synthetic-native-acceptance.dhgame');
     await joinSeat(player, roomId);
     for (const page of [gm, player]) {
       expect(await page.evaluate(() => typeof (window as any).__DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__ === 'undefined')).toBe(true);
@@ -81,10 +85,47 @@ test(`@native-p2p ${mode}: first roster without GM reload, wound ACK, isolated d
     for (const page of [gm, player]) {
       await expect.poll(async () => (await nativeRtcEvidence(page))?.openDataChannels ?? 0, { timeout: 20_000 }).toBeGreaterThan(0);
     }
+    await player.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
+    const tray = player.getByRole('region', { name: 'Подготовка броска', exact: true });
+    await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toBeVisible();
+    await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+    await tray.getByRole('checkbox').first().check();
+    await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+    await expect(tray.getByRole('button', { name: 'Бросить', exact: true })).toBeEnabled({ timeout: 20_000 });
+    await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
+    const gmChat = gm.getByRole('button', { name: /^Открыть чат/ });
+    if (await gmChat.count()) await gmChat.click();
+    await expect(gm.locator('.player-activity-event--roll')).toHaveCount(1, { timeout: 30_000 });
+    await expect(gm.locator('.player-activity-event--roll .feed-die-chip')).toHaveCount(3);
+    await expect(player.getByLabel('Персонаж игрока').getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(1);
+    evidence.typedExtraDiceRoundtrip = true;
     // Keep GM running: a player reload must not require a compensating GM
     // reload to make the next character change authoritative.
     await player.reload();
     await expect(player.getByLabel('Персонаж игрока')).toContainText(filledCharacterName, { timeout: 30_000 });
+    if (!expectAutomaticResume) {
+      // Public seat/actor IDs are not a continuity credential. Until an
+      // approved GM-confirm workflow exists, a new physical identity must
+      // receive a NACK and retain canonical state, even after the old peer left.
+      const reloadedId = await connectionId(player);
+      expect(reloadedId.length > 0 && reloadedId !== playerId).toBe(true);
+      const wounds = player.getByLabel('Персонаж игрока').getByRole('group', { name: 'Раны', exact: true });
+      await wounds.getByRole('button', { name: 'Раны 3 из 5', exact: true }).click();
+      await expect(player.getByLabel('Синхронизация персонажа').getByRole('status')).toContainText('Изменение отклонено', { timeout: 30_000 });
+      await expect(wounds.getByRole('button', { name: 'Раны 3 из 5', exact: true })).toHaveAttribute('aria-pressed', 'false');
+      await expect(gm.getByLabel('Персонаж игрока').getByRole('button', { name: 'Раны 3 из 5', exact: true })).toHaveAttribute('aria-pressed', 'false');
+      evidence.unconfirmedReloadExplicitRefusal = true;
+      await joinSeat(phone, roomId);
+      const phoneId = await connectionId(phone);
+      expect(phoneId.length > 0 && phoneId !== reloadedId && phoneId !== gmId).toBe(true);
+      const phoneWounds = phone.getByLabel('Персонаж игрока').getByRole('group', { name: 'Раны', exact: true });
+      await phoneWounds.getByRole('button', { name: 'Раны 5 из 5', exact: true }).click();
+      await expect(phone.getByLabel('Синхронизация персонажа').getByRole('status')).toContainText('Изменение отклонено', { timeout: 30_000 });
+      await expect(phoneWounds.getByRole('button', { name: 'Раны 5 из 5', exact: true })).toHaveAttribute('aria-pressed', 'false');
+      evidence.secondDeviceExplicitRefusal = true;
+      expect(profiles.blockedExternalHttp).toBe(0);
+      return;
+    }
     await markWounds(player, gm, 3);
     evidence.playerReloadWoundAck = true;
     await gm.reload();

@@ -21,6 +21,9 @@ test('NPC attack and damage prepare one tray, with Fear payment only on attack s
   await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
   await tray.getByRole('checkbox', { name: 'Воровство +2', exact: true }).check();
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d20+5');
+  await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d20+1d6+5');
+  await expect(tray.getByRole('button', { name: 'Сделать ручным броском', exact: true })).toHaveCount(0);
   await expect(tray.getByRole('region', { name: 'Итог броска' })).toContainText('1 Страха');
   await expect(page.locator('.player-fear-track__value')).toHaveText('3/12');
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
@@ -30,6 +33,7 @@ test('NPC attack and damage prepare one tray, with Fear payment only on attack s
   await sheet.getByRole('button', { name: 'Урон', exact: true }).click();
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d8+4');
   await expect(tray.getByRole('checkbox', { name: 'Воровство +2', exact: true })).toHaveCount(0);
+  await expect(tray.getByRole('button', { name: 'Убрать дополнительный d6', exact: true })).toHaveCount(0);
   await expect(tray.getByRole('region', { name: 'Итог броска' })).not.toContainText('Страха');
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(1);
   await tray.getByRole('button', { name: 'Бросить', exact: true }).click();

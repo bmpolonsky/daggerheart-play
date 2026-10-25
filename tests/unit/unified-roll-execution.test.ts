@@ -108,11 +108,11 @@ test('online player refusal or transport exception cannot fall back to local exe
 test('typed dice palette conversion preserves current ordinary advantage or disadvantage as an explicit die', () => {
   resetAllStores();
   for (const [advantageCount, disadvantageCount, suffix] of [[1, 0, '+1d6'], [0, 1, '-1d6']] as const) {
-    const { draft } = actorDraft({ advantageCount, disadvantageCount, manualModifier: 3 });
-    const edit = editUnifiedRollDice(draft, 8, 1);
+    const { draft } = actorDraft({ advantageCount, disadvantageCount, manualModifier: 3, extraDice: [{ count: 1, sides: 8 }] });
+    const edit = editUnifiedRollDice(draft, 12, -1, 'base');
     assert.equal(edit.requiresManual, true);
     const complete = unifiedRollDiceConversionFormula(draft, edit.proposedFormula, 2);
-    assert.equal(complete, `2d12+1d8+5${suffix}`);
+    assert.equal(complete, `1d12+1d8+5${suffix}`);
     const manual = convertUnifiedRollToManual(draft, complete);
     assert.equal(manual.formula, complete);
     assert.equal(manual.advantageCount, 0);
@@ -127,6 +127,9 @@ test('ordinary flat edits keep typed outcome while dice pool changes require exp
   assert.equal(edited.requiresManual, false);
   assert.equal(edited.draft.mode, 'action');
   assert.equal(edited.draft.manualModifier, 5);
-  assert.equal(applyUnifiedFormulaEdit(draft, '3d12+7', 2).requiresManual, true);
+  const additive = applyUnifiedFormulaEdit(draft, '3d12+7', 2);
+  assert.equal(additive.requiresManual, false);
+  assert.deepEqual(additive.draft.extraDice, [{ count: 1, sides: 12 }]);
+  assert.equal(applyUnifiedFormulaEdit(draft, '1d12+7', 2).requiresManual, true);
   assert.equal(draft.formula, '2d12');
 });

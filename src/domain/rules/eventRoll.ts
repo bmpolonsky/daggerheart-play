@@ -30,6 +30,7 @@ export interface EventRollDraftView {
   disadvantageCount: number;
   experienceIds: string[];
   critical: boolean;
+  extraDice?: Array<{ count: number; sides: number }>;
 }
 export interface EventRollCompatibility {
   actorLocked: true;
@@ -46,6 +47,9 @@ function normalizedFormula(formula: string): string {
 export function eventRollCompatibility(context: EventRollContext, draft: EventRollDraftView): EventRollCompatibility {
   const base = { actorLocked: true as const, manualOverrideRequired: false };
   if (draft.actor.kind !== 'character' || draft.actor.id !== context.actorId) return { ...base, error: 'Исполнитель связан с событием. Для другого исполнителя сначала отвяжите бросок.' };
+  if ((context.kind === 'rest' || context.kind === 'death' || draft.mode === 'manual') && draft.extraDice?.length) {
+    return { ...base, error: 'Для ручного броска события добавочные кости должны быть в формуле. Отдельные добавочные кости не применены.' };
+  }
   if (context.kind === 'death') {
     const formula = context.deathChoice === 'avoidDeath' ? '1d12' : '2d12';
     let matches = false;

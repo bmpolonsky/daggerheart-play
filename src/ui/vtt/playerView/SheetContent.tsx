@@ -1,7 +1,8 @@
 /** @jsxImportSource preact */
 import { useAssetUrl } from '../../components/common/useAssetUrl';
 import type { JSX } from "preact";
-import { parseDomainCardTextMacros, type DomainCardTextMacro } from "../../../domain/rules/domainCards";
+import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
+import { parseContextualDiceMacros, type ContextualDiceActor } from '../../../domain/rules/contextualDiceBindings';
 import { cssImageUrl, initials } from "./helpers";
 import { SheetSection } from "./PlayerSheetControls";
 import { RulesMacroText } from "./domainCards/RulesMacroText";
@@ -13,6 +14,11 @@ export interface SheetFeatureView {
   id: string;
   name?: string;
   sourceLabel?: string;
+  sourceId?: string | number;
+  featureId?: string | number;
+  collection?: string;
+  slug?: string;
+  weaponFormula?: string;
   text: string;
 }
 
@@ -82,6 +88,7 @@ export function SheetFeatureSection({
   isInteractive,
   onMacro,
   rightAccessory,
+  macroActor,
   title = 'Свойства'
 }: {
   emptyLabel?: string;
@@ -91,6 +98,7 @@ export function SheetFeatureSection({
   isInteractive?: (macro: DomainCardTextMacro) => boolean;
   onMacro?: (feature: SheetFeatureView, macro: DomainCardTextMacro) => void;
   rightAccessory?: (feature: SheetFeatureView) => JSX.Element | null;
+  macroActor?: ContextualDiceActor;
   title?: string;
 }) {
   return (
@@ -114,10 +122,10 @@ export function SheetFeatureSection({
               <p>
                 <RulesMacroText
                   text={text}
-                  macros={parseDomainCardTextMacros(text)}
+                  macros={parseContextualDiceMacros({ ...feature, cardId: feature.id, text }, macroActor)}
                   effects={effects}
                   isInteractive={isInteractive}
-                  onMacro={onMacro ? (macro) => onMacro(feature, macro) : undefined}
+                  onMacro={onMacro ? (macro) => onMacro({ ...feature, text }, macro) : undefined}
                 />
               </p>
             )}

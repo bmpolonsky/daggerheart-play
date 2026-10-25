@@ -74,12 +74,13 @@ test('draft scope is captured at request and does not silently follow a changed 
   assert.notEqual(service.currentScopeKey(), scope);
 });
 
-test('adding or removing typed base dice cannot silently convert action or GM attack semantics', () => {
+test('additive dice retain typed semantics while removing reserved base dice requires explicit conversion', () => {
   const action = createUnifiedRollDraft(input);
   const added = editUnifiedRollDice(action, 6, 1);
-  assert.equal(added.requiresManual, true);
-  assert.equal(added.draft, action);
-  assert.equal(added.proposedFormula, '2d12+1d6');
+  assert.equal(added.requiresManual, false);
+  assert.equal(added.draft.formula, '2d12');
+  assert.deepEqual(added.draft.extraDice, [{ count: 1, sides: 6 }]);
+  assert.equal(action.extraDice, undefined);
   const gmAttack = createUnifiedRollDraft({ ...input, mode: 'gmAttack', formula: '1d20' });
   const removed = editUnifiedRollDice(gmAttack, 20, -1);
   assert.equal(removed.requiresManual, true);

@@ -1,12 +1,14 @@
 import { maxDiceValue, parseDiceFormula } from './diceFormula';
 import { isTypedUnifiedRoll, type UnifiedRollDraft } from './unifiedRollDraft';
+import { extraDiceFormula, extractTypedExtraDice } from './extraDice';
 
 export function appendRollModifier(formula: string, modifier: number): string {
   return modifier === 0 ? formula : `${formula}${modifier > 0 ? '+' : ''}${modifier}`;
 }
 
 export function unifiedRollCompleteFormula(draft: UnifiedRollDraft, staticModifier = 0): string {
-  let formula = appendRollModifier(draft.formula, draft.manualModifier + (isTypedUnifiedRoll(draft) ? staticModifier : 0));
+  const extras = isTypedUnifiedRoll(draft) ? extraDiceFormula(draft.extraDice) : '';
+  let formula = appendRollModifier(`${draft.formula}${extras ? `+${extras}` : ''}`, draft.manualModifier + (isTypedUnifiedRoll(draft) ? staticModifier : 0));
   if (draft.mode === 'action' || draft.mode === 'reaction') {
     const net = draft.advantageCount - draft.disadvantageCount;
     if (net) formula += net > 0 ? '+1d6' : '-1d6';
@@ -33,10 +35,10 @@ export function unifiedRollDiceConversionFormula(draft: UnifiedRollDraft, edited
 export function applyUnifiedFormulaEdit(draft: UnifiedRollDraft, formula: string, staticModifier = 0): { draft: UnifiedRollDraft; requiresManual: boolean } {
   const terms = parseDiceFormula(formula);
   if (!isTypedUnifiedRoll(draft)) return { draft: { ...draft, formula, manualModifier: 0, quantity: undefined }, requiresManual: false };
-  const expected = parseDiceFormula(unifiedRollCompleteFormula(draft, staticModifier));
-  const dice = (items: typeof terms) => items.filter((term) => term.kind === 'dice').map((term) => term.kind === 'dice' ? `${term.sign}:${term.count}:${term.sides}` : '').sort().join('|');
-  if (dice(terms) !== dice(expected)) return { draft, requiresManual: true };
-  const flat = terms.reduce((total, term) => total + (term.kind === 'flat' ? term.sign * term.value : 0), 0);
-  if (!Number.isSafeInteger(flat - staticModifier)) throw new Error('Модификатор должен быть целым числом.');
-  return { draft: { ...draft, manualModifier: flat - staticModifier }, requiresManual: false };
+  const net = draft.advantageCount - draft.disadvantageCount;
+  const extracted = extractTypedExtraDice(formula, { base: draft.mode === 'gmAttack' ? '1d20' : '2d12', fixedModifier: staticModifier,
+    ...((draft.mode === 'action' || draft.mode === 'reaction') && net ? { ordinaryDie: { sides: 6 as const, sign: net > 0 ? 1 as const : -1 as const } } : {}) });
+  if (extracted.kind === 'manual-required') return { draft, requiresManual: true };
+  if (extracted.kind === 'invalid') throw new Error(extracted.error);
+  return { draft: { ...draft, manualModifier: extracted.manualModifier, extraDice: extracted.extraDice }, requiresManual: false };
 }

@@ -4,6 +4,7 @@ import { PreparedDiceRollDialog } from "./CharacterRollDialog";
 import type { PreparedDiceRoll } from "../../../services/CharacterRollService";
 import type { ComponentChildren } from "preact";
 import { ChevronLeft } from "lucide-react";
+import { resolveContextualDiceBinding } from "../../../domain/rules/contextualDiceBindings";
 import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import type { EncounterEnvironment } from "../../../domain/rules/types";
 import { feedService, gameService } from "../../../services/serviceRegistry";
@@ -45,11 +46,12 @@ function environmentLeadText(environment: EncounterEnvironment): string {
 }
 
 function EnvironmentFeatureSection({ environment, openDiceDraft }: { environment: EncounterEnvironment; openDiceDraft: (draft: PreparedDiceRoll) => void }) {
-  const features = parseSheetFeatureText(environment.featureText);
+  const features = parseSheetFeatureText(environment.featureText).map(feature => ({ ...feature, sourceId: environment.sourceId, collection: 'environment', slug: environment.sourceSlug }));
   if (features.length === 0) return null;
   return (
     <SheetFeatureSection
       features={features}
+      macroActor={{ proficiency: Number.NaN, level: Number.NaN }}
       isInteractive={isInteractiveEnvironmentMacro}
       onMacro={(feature, macro) => runEnvironmentMacro(environment, feature, macro, openDiceDraft)}
     />
@@ -63,9 +65,13 @@ function isInteractiveEnvironmentMacro(macro: DomainCardTextMacro): boolean {
 function runEnvironmentMacro(environment: EncounterEnvironment, feature: SheetFeatureView, macro: DomainCardTextMacro, openDiceDraft: (draft: PreparedDiceRoll) => void): void {
   const featureName = feature.name || 'Окружение';
   if (macro.kind === 'actionRoll' || macro.kind === 'diceRoll' || macro.kind === 'damageRoll') {
+    const binding = macro.kind === 'actionRoll' ? { formula: '1d20' } : resolveContextualDiceBinding({ cardId: feature.id, sourceId: feature.sourceId ?? environment.sourceId, collection: 'environment', slug: feature.slug ?? environment.sourceSlug, text: feature.text }, macro, { proficiency: Number.NaN, level: Number.NaN });
+    if ('nonRoll' in binding && binding.nonRoll) return;
     openDiceDraft({
       kind: macro.kind === 'damageRoll' ? 'damage' : 'manualDice',
-      formula: macro.kind === 'actionRoll' ? '1d20' : macro.formula,
+      ...binding,
+      formula: binding.formula,
+      source: { cardId: feature.id, sourceId: feature.sourceId ?? environment.sourceId, label: featureName },
       damageType: macro.kind === 'damageRoll' ? macro.damageType ?? undefined : undefined,
       title: `${featureName}: ${macro.label}`,
       notes: environmentMacroNotes(featureName, macro)

@@ -2,6 +2,7 @@ import { createId } from '../../core/utils/id';
 import { parseDiceFormula, type ParsedFormulaTerm } from './diceFormula';
 import type { DamageType, TraitId } from './types';
 import type { EventRollContext } from './eventRoll';
+import { normalizeExtraDice, type ExtraDieTerm } from './extraDice';
 
 export interface UnifiedRollActor {
   key: string;
@@ -44,6 +45,7 @@ export interface UnifiedRollDraft {
   damage?: { formula: string; damageType?: DamageType };
   notes?: string;
   manualModifier: number;
+  extraDice?: ExtraDieTerm[];
   advantageCount: number;
   disadvantageCount: number;
   experienceIds: string[];
@@ -66,6 +68,7 @@ export function createUnifiedRollDraft(input: UnifiedRollDraftInput): UnifiedRol
     ...input,
     id: input.id ?? createId('roll-draft'),
     actor: { ...input.actor },
+    ...(input.extraDice !== undefined ? { extraDice: normalizeExtraDice(input.extraDice) } : {}),
     ...(input.source ? { source: { ...input.source } } : {}),
     ...(input.eventContext ? { eventContext: { ...input.eventContext } } : {}),
     ...(input.damage ? { damage: { ...input.damage } } : {}),
@@ -105,6 +108,7 @@ export function convertUnifiedRollToManual(draft: UnifiedRollDraft, completeForm
     experienceIds: [],
     spendHopeForExperiences: false,
     manualModifier: 0,
+    extraDice: undefined,
     advantageCount: 0,
     disadvantageCount: 0,
     critical: false,
@@ -113,6 +117,9 @@ export function convertUnifiedRollToManual(draft: UnifiedRollDraft, completeForm
 }
 
 export function unifiedRollDraftError(draft: UnifiedRollDraft): string | null {
+  try {
+    if (normalizeExtraDice(draft.extraDice).length && !isTypedUnifiedRoll(draft)) return 'Дополнительный пул применяется только к проверке. Для ручного броска укажите все кости в формуле.';
+  } catch (error) { return error instanceof Error ? error.message : 'Некорректные дополнительные кости.'; }
   if ((draft.actor.kind === 'character' || draft.actor.kind === 'adversary' || draft.actor.kind === 'environment') && !draft.actor.id) return 'Персонаж броска не указан. Выберите действующее лицо явно.';
   if (draft.quantity) {
     const quantity = draft.quantity;
@@ -151,8 +158,19 @@ export function selectUnifiedRollBranch(draft: UnifiedRollDraft, branchId: strin
 export type UnifiedRollDiceEdit = { requiresManual: boolean; draft: UnifiedRollDraft; proposedFormula: string };
 
 /** Add/remove one ordinary die. Typed checks require an explicit manual conversion. */
-export function editUnifiedRollDice(draft: UnifiedRollDraft, sides: number, delta: number): UnifiedRollDiceEdit {
+export function editUnifiedRollDice(draft: UnifiedRollDraft, sides: number, delta: number, target?: 'base' | 'extra'): UnifiedRollDiceEdit {
   if (!Number.isSafeInteger(sides) || sides < 2 || sides > 1000 || !Number.isSafeInteger(delta)) throw new Error('Некорректное изменение костей.');
+  if (isTypedUnifiedRoll(draft) && target !== 'base') {
+    const extra = normalizeExtraDice(draft.extraDice);
+    const existing = extra.find((term) => term.sides === sides);
+    if (delta >= 0 || existing || target === 'extra') {
+      const count = Math.max(0, (existing?.count ?? 0) + delta);
+      const next = extra.filter((term) => term.sides !== sides);
+      if (count > 0) next.push({ count, sides });
+      const updated = { ...draft, extraDice: normalizeExtraDice(next) };
+      return { requiresManual: false, draft: updated, proposedFormula: draft.formula };
+    }
+  }
   const terms = parseDiceFormula(draft.formula);
   const index = terms.findIndex((term) => term.kind === 'dice' && term.sides === sides && term.sign === 1);
   if (index >= 0) {

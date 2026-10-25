@@ -12,6 +12,7 @@ export interface ContextualDiceSource {
   name?: string;
   weaponFormula?: string;
   countdownValue?: number;
+  targetMajorThreshold?: number;
   /** Must be the same cleaned text used to produce macro.start/end. */
   text: string;
 }
@@ -29,6 +30,7 @@ export interface ContextualDiceActor {
   spellcastTrait?: TraitId | null;
   traits?: Partial<Record<TraitId, number>> | Array<{ id: TraitId; value: number }>;
   features?: Array<{ id: string; sourceId?: string | number; featureId?: string | number; collection?: string; slug?: string; text?: string; name?: string }>;
+  hp?: { marked: number; max: number };
   companion?: { stress: { marked: number; max: number }; attackFormula?: string } | null;
 }
 
@@ -397,6 +399,46 @@ interface SupplementalRule {
 
 // Existing source metadata only: no catalog content or user data is added.
 const SUPPLEMENTAL_RULES: readonly SupplementalRule[] = [
+  {
+    "key": "equipment:vial-of-darksmoke",
+    "collection": "equipment",
+    "slug": "vial-of-darksmoke",
+    "parentId": 6947,
+    "behavior": "agilityPool",
+    "fingerprints": [
+      "170:115c8e78"
+    ]
+  },
+  {
+    "key": "adversary:volcanic-dragon-molten-scourge:1369",
+    "collection": "adversary",
+    "slug": "volcanic-dragon-molten-scourge",
+    "featureId": 1369,
+    "parentId": 2275,
+    "behavior": "markedHpPool",
+    "fingerprints": [
+      "146:3780430e",
+      "177:a3e4ec5b",
+      "1866:d1ad20e6",
+      "1652:4236851a",
+      "1887:21c60a37"
+    ]
+  },
+  {
+    "key": "adversary:stag-knight:1465",
+    "collection": "adversary",
+    "slug": "stag-knight",
+    "featureId": 1465,
+    "parentId": 2298,
+    "behavior": "targetMajor",
+    "fingerprints": [
+      "191:2dd8e72a",
+      "215:81032ed8",
+      "514:701d33b0",
+      "440:5013b9dd",
+      "523:30f5d541"
+    ]
+  },
   {
     "key": "class:seraph:135",
     "collection": "class",
@@ -1125,7 +1167,7 @@ function domainSlug(source: ContextualDiceSource): string | null {
 }
 
 function matchesFeature(source: ContextualDiceSource, collection: string, slug: string, rawFeatureId: number, parentId?: number): boolean {
-  const collectionAliases: Record<string, string> = { ancestries: 'ancestry', beastforms: 'beastform', classes: 'class', subclasses: 'subclass' };
+  const collectionAliases: Record<string, string> = { ancestries: 'ancestry', beastforms: 'beastform', classes: 'class', subclasses: 'subclass', adversaries: 'adversary', environments: 'environment' };
   if (source.slug === slug && (collectionAliases[source.collection ?? ''] ?? source.collection) === collection) return true;
   const featureId = String(source.featureId ?? '');
   const ids = [source.sourceId, source.cardId].filter((value): value is string | number => value !== undefined);
@@ -1205,9 +1247,11 @@ function quantityBinding(formula: string, label: string, hint?: string, flatPerC
 }
 
 function fallback(formula: string, fragment?: string): ContextualDiceBinding {
-  if (fragment && /за кажд|равное количеству|равное числу|столько же|бросьте количество|бросьте число/.test(fragment)) return { formula: '', hint: 'Количество зависит от контекста этого применения. Укажите полную формулу вручную; число из отдельного упоминания не является готовым количеством.' };
   const template = implicitTemplate(formula);
+  // A bare die always needs its own explicit count. A different nearby clause
+  // must not replace that input or lend this die its trait/proficiency count.
   if (template !== formula) return quantityBinding(formula, 'Количество костей: уточните по тексту', 'Контекст не распознан. Укажите количество явно; оно применяется ко всем костям без числа. Для разных количеств настройте полную формулу вручную.');
+  if (fragment && /за кажд|равное количеству|равное числу|столько же|бросьте количество|бросьте число/.test(fragment)) return { formula: '', hint: 'Количество зависит от контекста этого применения. Укажите полную формулу вручную; число из отдельного упоминания не является готовым количеством.' };
   return { formula, hint: 'Формула взята из текста. Условия и эффекты способности применяются вручную.' };
 }
 
@@ -1230,6 +1274,12 @@ export function contextualFeatureOrigin(feature: { id: string; sourceId?: string
 /** Notation remains generic; named dice are linked only inside a known source. */
 export function parseContextualDiceMacros(source: ContextualDiceSource, actor: ContextualDiceActor = { proficiency: 1, level: 1 }): DomainCardTextMacro[] {
   const macros = parseDomainCardTextMacros(source.text);
+  if (domainSlug(source) === 'sigil-of-retribution' && matchesCanonicalDomainText('sigil-of-retribution', source.text)) {
+    for (const match of source.text.matchAll(/бросьте\s+(кости\s+с\s+этой\s+карты)/giu)) {
+      const start = match.index! + match[0].indexOf(match[1]);
+      macros.push({ id: `context:sigil-accumulated:${start}`, kind: 'diceRoll', start, end: start + match[1].length, label: match[1], formula: '', scalesWithProficiency: false, contextualBinding: 'domain-card:sigil-of-retribution:accumulated' });
+    }
+  }
   for (const rule of matchingSupplementalRules(source)) {
     const pattern = namedPattern(rule.behavior);
     if (!pattern) continue;
@@ -1276,6 +1326,17 @@ function namedSpanIsValid(source: ContextualDiceSource, macro: ContextualDiceMac
 }
 
 function resolveNamedBinding(source: ContextualDiceSource, macro: ContextualDiceMacro, actor: ContextualDiceActor): ContextualDiceBinding {
+  if (macro.contextualBinding === 'domain-card:sigil-of-retribution:accumulated') {
+    const valid = domainSlug(source) === 'sigil-of-retribution' && matchesCanonicalDomainText('sigil-of-retribution', source.text)
+      && [...source.text.matchAll(/бросьте\s+(кости\s+с\s+этой\s+карты)/giu)].some(match => {
+        const start = match.index! + match[0].indexOf(match[1]);
+        return start === macro.start && start + match[1].length === macro.end;
+      });
+    if (!valid) return { formula: '', hint: 'Источник накопленных костей не подтверждён. Укажите полную формулу вручную.' };
+    const result = quantityBinding('d8', 'Костей d8 реально накоплено на карте сейчас', 'Бросок при успешной атаке. Введите фактический накопленный запас, а не уровень: уровень только ограничивает его. Здесь кости не удаляются и эффекты не применяются.');
+    if (result.quantity && Number.isSafeInteger(actor.level) && actor.level >= 1 && actor.level <= 10) result.quantity.max = actor.level;
+    return result;
+  }
   const rule = matchingSupplementalRules(source).find(item => item.key === macro.contextualBinding);
   if (!rule || !namedSpanIsValid(source, macro, rule)) return { formula: '', hint: 'Источник именованной кости не подтверждён. Укажите полную формулу вручную.' };
   const patronSides = actor.level >= 5 ? 8 : 6;
@@ -1297,6 +1358,13 @@ function supplementalNotationBinding(source: ContextualDiceSource, macro: Contex
   for (const rule of matchingSupplementalRules(source)) {
     const tail = cleanText(source.text.slice(macro.end, macro.end + 180));
     switch (rule.behavior) {
+      case 'agilityPool': return countedBinding(formula, traitCount(actor, 'agility'), 'Проворность персонажа', 'Добавьте наивысший отдельный результат к Уклонению вручную; сумма не является бонусом. Здесь расходник не используется.');
+      case 'markedHpPool': return countedBinding(formula, knownCount(actor.hp?.marked), 'Отмеченных Ран этого противника сейчас', 'Для каждой отдельной 4+ получите Страх вручную. Используется текущий счётчик Ран этого противника, не Раны персонажа игрока.');
+      case 'targetMajor': {
+        const major = source.targetMajorThreshold;
+        if (typeof major === 'number' && Number.isSafeInteger(major) && major >= 0 && major <= 1000) return { formula: `3d4+${major}`, hint: 'Добавлен Ощутимый порог явно выбранной цели; не порог самого атакующего.' };
+        return { formula: '', quantity: { label: 'Ощутимый порог выбранной цели', value: null, min: 0, max: 1000, formulaTemplate: '3d4+{count}', explanation: 'Это порог цели, не атакующего; цель выбирается явно.' }, hint: 'Введите Ощутимый порог именно выбранной цели. Без него 3d4 — неполная формула.' };
+      }
       case 'prayer': if (formula === 'd4') {
         const upgrade = hasRelatedFeature(actor, 'subclass:divine-wielder:189');
         return countedBinding(formula, addKnownCount(spellcastCount(actor), upgrade ? 1 : 0), upgrade ? 'Характеристика Заклинателя + 1' : 'Характеристика Заклинателя', upgrade ? 'Набожный: отбросьте наименьшую отдельную Кость Молитвы вручную; сумма не является запасом отдельных костей.' : 'Это отдельные Кости Молитвы; сохраняйте и расходуйте их значения вручную, не сумму.');
@@ -1339,6 +1407,11 @@ function supplementalNotationBinding(source: ContextualDiceSource, macro: Contex
 
 function hasRelatedFeature(actor: ContextualDiceActor, key: string): boolean {
   return actor.features?.some(feature => matchingSupplementalRules({ cardId: feature.id, ...contextualFeatureOrigin(feature), ...feature, text: feature.text ?? '' }).some(rule => rule.key === key)) ?? false;
+}
+
+function traitCount(actor: ContextualDiceActor, trait: TraitId): number | null {
+  if (!actor.traits) return null;
+  return knownCount(Array.isArray(actor.traits) ? actor.traits.find(item => item.id === trait)?.value : actor.traits[trait]);
 }
 
 function addKnownCount(count: number | null, extra: number): number | null {

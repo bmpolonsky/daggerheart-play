@@ -55,29 +55,29 @@ test('second active device cannot overwrite either assigned owner pointer or ver
   } finally { await session.stop(); restoreWindow(); }
 });
 
-test('verified reload presence for the same assigned seat rebinds after the previous logical owner is absent', async () => {
+test('correct public seat IDs cannot rebind a departed owner to a new unconfirmed transport identity', async () => {
   const { actor, sync, session, internals, presence, context, restoreWindow } = setup(['owner-new']);
   try {
     internals.upsertParticipantFromPlayerPresence(presence, context);
-    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-new');
-    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-new');
+    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
+    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-old');
     await internals.receivePlayerCharacterUpdate({ type: 'playerCharacterUpdate', participantId: 'seat', actorId: actor.id,
       revision: 1, updatedAt: 'now', patch: { set: { notes: 'After reload' }, unset: [] } },
     { sourcePeerId: 'owner-new', verifiedSourcePeerId: 'verified-new' });
-    assert.notEqual(sync.acks.at(-1)?.accepted, false);
-    assert.equal(charactersStore.get().entities[actor.id].notes, 'After reload');
+    assert.equal(sync.acks.at(-1)?.accepted, false);
+    assert.notEqual(charactersStore.get().entities[actor.id].notes, 'After reload');
   } finally { await session.stop(); restoreWindow(); }
 });
 
-test('a rejected new presence can retry naturally once the previous logical peer actually leaves', async () => {
+test('replayed correct-ID presence remains unconfirmed after the previous logical peer leaves', async () => {
   const { actor, session, internals, peers, presence, context, restoreWindow } = setup();
   try {
     internals.upsertParticipantFromPlayerPresence(presence, context);
     assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
     peers.splice(peers.indexOf('owner-old'), 1);
     internals.upsertParticipantFromPlayerPresence(presence, context);
-    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-new');
-    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-new');
+    assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
+    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-old');
   } finally { await session.stop(); restoreWindow(); }
 });
 
@@ -96,7 +96,7 @@ for (const invalid of ['different-source', 'different-seat', 'reassigned-actor',
   });
 }
 
-test('a verified route switch on the same logical owner retains existing continuity behavior', async () => {
+test('a forged physical identity cannot rebind ownership by copying the current logical owner ID', async () => {
   const { actor, session, internals, presence, context, restoreWindow } = setup(['owner-old']);
   try {
     presence.peerId = 'owner-old';
@@ -104,6 +104,6 @@ test('a verified route switch on the same logical owner retains existing continu
     context.verifiedPeerId = 'another-route-same-owner';
     internals.upsertParticipantFromPlayerPresence(presence, context);
     assert.equal(sceneTableStore.get().participants.seat.peerId, 'owner-old');
-    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'another-route-same-owner');
+    assert.equal(internals.actorOwnerVerifiedPeers.get(actor.id), 'verified-old');
   } finally { await session.stop(); restoreWindow(); }
 });

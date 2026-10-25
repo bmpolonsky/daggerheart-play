@@ -4,7 +4,7 @@ import { hasRolledDiceTerms } from '../../../domain/rules/diceFormula';
 import type { RollLogEntry } from '../../../domain/rules/types';
 import { DiceAnimationPolicy } from '../../../domain/tabletop/diceAnimation';
 import { PolyhedralDiceStage } from '../../dice/PolyhedralDiceStage';
-import { manualDiceRollToPolyhedral, polyhedralDiceRollFromTerms, type PolyhedralDiceRoll } from '../../dice/types';
+import { dualityDiceRollToPolyhedral, manualDiceRollToPolyhedral, polyhedralDiceRollFromTerms, type PolyhedralDiceRoll } from '../../dice/types';
 import { PLAYER_DICE_ROLL_ANIMATION_TIMEOUT_MS, PLAYER_DICE_ROLL_FADE_OUT_MS, PLAYER_DICE_ROLL_HOLD_AFTER_SETTLE_MS } from './constants';
 
 export function PlayerDiceOverlay({
@@ -157,7 +157,7 @@ function readSeenDiceRollIds(): string[] {
 function polyhedralRollForDice(entry: RollLogEntry | undefined): PolyhedralDiceRoll | null {
   if (!entry) return null;
   if (entry.type === 'action' || entry.type === 'reaction') {
-    return dualityRollToPolyhedral(entry);
+    return dualityDiceRollToPolyhedral(entry);
   }
   if (entry.type === 'damage') {
     if (!hasRolledDiceTerms(entry.terms)) return null;
@@ -168,32 +168,4 @@ function polyhedralRollForDice(entry: RollLogEntry | undefined): PolyhedralDiceR
     return manualDiceRollToPolyhedral(entry);
   }
   return null;
-}
-
-function dualityRollToPolyhedral(entry: Extract<RollLogEntry, { type: 'action' | 'reaction' }>): PolyhedralDiceRoll {
-  const dice: PolyhedralDiceRoll['dice'] = [
-    { id: `${entry.id}-hope`, sides: 12, value: entry.hopeDie, label: 'HOPE', tone: 'hope' },
-    { id: `${entry.id}-fear`, sides: 12, value: entry.fearDie, label: 'FEAR', tone: 'fear' },
-    ...entry.advantageRolls.map((value, index) => ({
-      id: `${entry.id}-advantage-${index}`,
-      sides: 6 as const,
-      value,
-      label: 'ADV',
-      tone: 'advantage' as const
-    })),
-    ...entry.disadvantageRolls.map((value, index) => ({
-      id: `${entry.id}-disadvantage-${index}`,
-      sides: 6 as const,
-      value,
-      label: 'DIS',
-      tone: 'disadvantage' as const
-    }))
-  ];
-  return {
-    id: entry.id,
-    dice,
-    total: entry.total,
-    tone: entry.isCritical ? 'critical' : undefined,
-    isCritical: entry.isCritical
-  };
 }

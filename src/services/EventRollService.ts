@@ -130,6 +130,7 @@ export class EventRollService {
       const actor = { actorId: character.id, actorName: character.name, publication };
       if (context.kind === 'teamwork' && draft.mode !== 'manual') {
         const request = { ...actor, trait: context.trait, difficulty: context.difficulty, manualModifier: draft.manualModifier,
+          extraDice: draft.extraDice,
           advantageCount: draft.advantageCount, disadvantageCount: draft.disadvantageCount,
           experienceIds: draft.experienceIds, spendHopeForExperiences: unifiedRollPaysForExperiences(draft), notes: draft.notes };
         const roll = context.rollType === 'reaction' ? this.dependencies.diceService.rollReaction(request)

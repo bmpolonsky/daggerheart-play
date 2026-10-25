@@ -1,3 +1,4 @@
+import { isValidExtraDice, type ExtraDieTerm } from '../domain/rules/extraDice';
 import { isPortraitUploadMessage, type PortraitUploadMessage } from '../domain/p2p/portraitUpload';
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
@@ -105,6 +106,7 @@ export type PlayerRollIntent =
       disadvantageCount?: number;
       experienceIds?: string[];
       spendHopeForExperiences?: boolean;
+      extraDice?: ExtraDieTerm[];
       notes?: string;
     }
   | {
@@ -141,7 +143,14 @@ export interface PlayerRollAckMessage {
   type: 'playerRollAck';
   intentId: string;
   accepted: boolean;
+  operationHash?: string;
+  reason?: string;
 }
+
+export type SessionCapabilitiesMessage =
+  | { type: 'request'; requestId: string }
+  | { type: 'response'; requestId: string; extraActionDiceV1: boolean };
+
 
 export type PlayerDecision =
   | {
@@ -198,6 +207,7 @@ const syncChannels = {
   playerRestChoice: channel<PlayerRestChoiceMessage>('playerRestChoice', isPlayerRestChoiceMessage),
   playerRollIntent: channel<PlayerRollIntentMessage>('playerRollIntent', isPlayerRollIntentMessage),
   playerRollAck: channel<PlayerRollAckMessage>('playerRollAck', isPlayerRollAckMessage),
+  sessionCapabilities: channel<SessionCapabilitiesMessage>('sessionCapabilities', isSessionCapabilitiesMessage),
   playerDecision: channel<PlayerDecisionMessage>('playerDecision', isPlayerDecisionMessage),
   playerCharacterCreate: channel<PlayerCharacterCreateMessage>('playerCharacterCreate', isPlayerCharacterCreateMessage),
   snapshotRequest: channel<SnapshotRequestMessage>('snapshotRequest', isSnapshotRequestMessage),
@@ -268,18 +278,18 @@ export class SyncService {
   async connectReadOnly(
     roomId: string,
     participant: TableParticipant,
-    onSnapshot: (state: PersistedState, event: SyncEvent) => void = (state) => hydratePersistedState(state)
+    onSnapshot: (state: PersistedState, event: SyncEvent, context?: SyncEventContext) => void = (state) => hydratePersistedState(state)
   ): Promise<void> {
     this.unsubscribeSnapshot?.();
     this.participant = participant;
     this.mode = 'readonly';
     const seenSnapshotIds = createEventDeduper();
-    this.unsubscribeSnapshot = this.transport.subscribe((event) => {
+    this.unsubscribeSnapshot = this.transport.subscribe((event, context) => {
       if (event.kind !== 'snapshot' || !isPersistedState(event.value)) {
         return;
       }
       if (seenSnapshotIds(event.id)) return;
-      onSnapshot(migratePersistedState(event.value), event);
+      onSnapshot(migratePersistedState(event.value), event, context);
     });
     try {
       await this.transport.connect(roomId, participant);
@@ -386,6 +396,14 @@ export class SyncService {
 
   subscribePlayerRollAcks(listener: (message: PlayerRollAckMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
     return this.subscribeChannel(syncChannels.playerRollAck, listener);
+  }
+
+  async publishSessionCapabilities(message: SessionCapabilitiesMessage, targetPeer?: SyncTargetPeer): Promise<boolean> {
+    return this.publishChannel(syncChannels.sessionCapabilities, message, targetPeer);
+  }
+
+  subscribeSessionCapabilities(listener: (message: SessionCapabilitiesMessage, event: SyncEvent, context?: SyncEventContext) => void): () => void {
+    return this.subscribeChannel(syncChannels.sessionCapabilities, listener);
   }
 
   async publishPlayerDecision(message: PlayerDecisionMessage): Promise<boolean> {
@@ -569,7 +587,14 @@ function isPlayerRollAckMessage(value: unknown): value is PlayerRollAckMessage {
   return isRecord(value)
     && value.type === 'playerRollAck'
     && typeof value.intentId === 'string'
-    && typeof value.accepted === 'boolean';
+    && typeof value.accepted === 'boolean'
+    && (value.reason === undefined || typeof value.reason === 'string')
+    && (value.operationHash === undefined || (typeof value.operationHash === 'string' && /^[a-f0-9]{64}$/.test(value.operationHash)));
+}
+
+function isSessionCapabilitiesMessage(value: unknown): value is SessionCapabilitiesMessage {
+  return isRecord(value) && typeof value.requestId === 'string' && value.requestId.length > 0 && value.requestId.length <= 128
+    && (value.type === 'request' || (value.type === 'response' && typeof value.extraActionDiceV1 === 'boolean'));
 }
 
 function isPlayerDecisionMessage(value: unknown): value is PlayerDecisionMessage {
@@ -705,10 +730,12 @@ function isPlayerRollIntent(value: unknown): value is PlayerRollIntent {
       (value.disadvantageCount === undefined || (typeof value.disadvantageCount === 'number' && Number.isFinite(value.disadvantageCount))) &&
       (value.experienceIds === undefined || (Array.isArray(value.experienceIds) && value.experienceIds.every((id) => typeof id === 'string'))) &&
       (value.spendHopeForExperiences === undefined || typeof value.spendHopeForExperiences === 'boolean') &&
+      isValidExtraDice(value.extraDice) &&
       (value.notes === undefined || typeof value.notes === 'string')
     );
   }
   if (value.type === 'manualDice') {
+    if (value.extraDice !== undefined) return false;
     return (
       typeof value.formula === 'string' &&
       (value.label === undefined || typeof value.label === 'string') &&
@@ -719,6 +746,7 @@ function isPlayerRollIntent(value: unknown): value is PlayerRollIntent {
     );
   }
   if (value.type === 'damage') {
+    if (value.extraDice !== undefined) return false;
     return (
       typeof value.formula === 'string' &&
       (value.critical === undefined || typeof value.critical === 'boolean') &&
@@ -839,4 +867,13 @@ function characterOperationSha256(value: string): string {
     for (let index = 0; index < 8; index++) hash[index] = (hash[index] + result[index]) >>> 0;
   }
   return hash.map(word => word.toString(16).padStart(8, '0')).join('');
+}
+
+/** Complete effect-bearing player roll semantics; timestamps and routing IDs do not change an operation. */
+export function playerRollIntentOperationHash(message: PlayerRollIntentMessage): string {
+  return characterOperationSha256(canonicalOperationJson({
+    participantId: message.participantId, actorId: message.actorId, actorName: message.actorName,
+    intent: message.intent, publication: message.publication,
+    resourcePatch: message.resourcePatch, teamworkEntryId: message.teamworkEntryId
+  }));
 }

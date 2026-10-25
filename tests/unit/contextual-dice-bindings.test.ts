@@ -4,6 +4,8 @@ import { test } from 'vitest';
 import { cleanMarkdownText } from '../../src/core/utils/markdownText';
 import { mapGenericItem } from '../../src/domain/content/mappers';
 import { domainCardFromLibrary } from '../../src/domain/characterBuilder';
+import { createAdversary, createCharacter, createWeapon } from '../../src/domain/rules/factories';
+import { buildAdversarySummary, buildCharacterSummary } from '../../src/domain/tabletop/playerView';
 import { parseDomainCardTextMacros } from '../../src/domain/rules/domainCards';
 import { contextualDiceBindingDomainSlugs, parseContextualDiceMacros, resolveContextualDiceBinding, type ContextualDiceActor, type ContextualDiceSource } from '../../src/domain/rules/contextualDiceBindings';
 import { createUnifiedRollDraft, setUnifiedRollQuantity } from '../../src/domain/rules/unifiedRollDraft';
@@ -228,7 +230,10 @@ test('outside mastery and trait bindings require their own immediate count claus
   assert.equal(resolve(tongue, 'd12', actor, 1).formula, '3d12');
   const witch = { cardId: 'sheet-class-witch-2077',
     text: 'Добавьте d6 к Уклонению. Бросьте количество d6, равное вашей Характеристике Заклинателя. Выберите одно значение из полученных результатов.' };
-  assert.equal(resolve(witch, 'd6').quantity?.value, null);
+  const unrelated = resolve(witch, 'd6');
+  assert.equal(unrelated.quantity?.value, null);
+  assert.equal(unrelated.formula, '');
+  assert.equal(unrelated.quantity?.formulaTemplate, '{count}d6');
   assert.equal(resolve(witch, 'd6', actor, 1).formula, '2d6');
 });
 
@@ -247,7 +252,7 @@ function supplementalSource(collection: string, slug: string, featureId?: number
   const features = [raw.features, raw.foundation_features, raw.specialization_features, raw.mastery_features].flatMap(list => list ?? []);
   const feature = featureId === undefined ? undefined : features.find(item => item.id === featureId);
   assert.ok(featureId === undefined || feature, `${slug}:${featureId}`);
-  const singular: Record<string, string> = { classes: 'class', subclasses: 'subclass', ancestries: 'ancestry', beastforms: 'beastform', environments: 'environment', equipment: 'equipment' };
+  const singular: Record<string, string> = { classes: 'class', subclasses: 'subclass', ancestries: 'ancestry', beastforms: 'beastform', environments: 'environment', equipment: 'equipment', adversaries: 'adversary' };
   return { collection: singular[collection], slug, sourceId: raw.id ?? `${singular[collection]}:${slug}`, featureId,
     cardId: `sheet-${singular[collection]}-${slug}${featureId === undefined ? '' : `-${featureId}`}`,
     text: cleanMarkdownText(feature?.main_body ?? raw.main_body ?? '', { stripEmphasis: true, stripCodeTicks: true }) };
@@ -371,4 +376,61 @@ test('named dice require stable source and exact guarded phrase; unknown multipl
   assert.equal(ambiguous.formula, '');
   assert.match(ambiguous.hint ?? '', /полную формулу вручную/);
   assert.equal(resolve({ text: 'Каждая цель получает 1d8 урона.' }, '1d8').formula, '1d8');
+});
+
+
+test('Sigil actual named trigger asks for accumulated dice while placement/cap mentions stay non-roll', () => {
+  const source = sourceCard('sigil-of-retribution');
+  const macros = parseContextualDiceMacros(source, actor);
+  assert.equal(macros.filter(macro => macro.kind === 'reference').length, 2);
+  const trigger = macros.find(macro => macro.kind === 'diceRoll' && macro.contextualBinding === 'domain-card:sigil-of-retribution:accumulated');
+  assert.ok(trigger?.kind === 'diceRoll');
+  assert.equal(source.text.slice(trigger.start, trigger.end).toLowerCase(), 'кости с этой карты');
+  const result = resolveContextualDiceBinding(source, trigger, actor);
+  assert.equal(result.formula, '');
+  assert.equal(result.quantity?.value, null);
+  assert.equal(result.quantity?.formulaTemplate, '{count}d8');
+  assert.equal(result.quantity?.max, 5); // Level is only a cap, never the chosen count.
+  assert.match(result.quantity?.label ?? '', /реально накоплено/);
+  assert.equal(parseContextualDiceMacros({ name: source.name, text: source.text }).some(macro => macro.kind === 'diceRoll' && macro.contextualBinding), false);
+  const edited = { ...source, text: source.text + ' Бросьте кости с этой карты для другого домашнего эффекта.' };
+  assert.equal(parseContextualDiceMacros(edited).some(macro => macro.kind === 'diceRoll' && macro.contextualBinding), false);
+});
+
+test('view projection retains stable feature origin and weapon source/property context', () => {
+  const patron = supplementalSource('classes', 'playtest-warlock', 1972);
+  const character = createCharacter({
+    sheetCards: [{ id: 'sheet-class-playtest-warlock-1972', kind: 'classFeature', name: 'Покровитель Колдуна', text: patron.text }],
+    weapons: [createWeapon({ id: 'weapon-meta', sourceId: 7156, sourceSlug: 'greatstaff', name: 'QA staff', damageFormula: '1d8+2', featureText: 'Мощное: При успешной атаке бросьте дополнительную кость урона и отбросьте результат с наименьшим значением.', notes: 'QA note' })]
+  });
+  const summary = buildCharacterSummary(character);
+  const feature = summary.features.find(item => item.id === 'sheet-class-playtest-warlock-1972')!;
+  assert.equal(feature.collection, 'class');
+  assert.equal(feature.slug, 'playtest-warlock');
+  assert.equal(feature.featureId, 1972);
+  assert.equal(summary.weapons[0].sourceId, 7156);
+  assert.equal(summary.weapons[0].sourceSlug, 'greatstaff');
+  assert.equal(summary.weapons[0].featureText, character.weapons[0].featureText);
+  assert.equal(summary.weapons[0].notes, 'QA note');
+});
+
+
+test('remaining audited pools use own trait/marked HP or selected target threshold, never a generic die default', () => {
+  const smoke = supplementalSource('equipment', 'vial-of-darksmoke');
+  const agility = resolve(smoke, 'd6', { ...actor, traits: { agility: 4 } });
+  assert.equal(agility.formula, '4d6');
+  assert.match(agility.hint ?? '', /наивысший отдельный/);
+  const dragon = supplementalSource('adversaries', 'volcanic-dragon-molten-scourge', 1369);
+  const hp = resolve(dragon, 'd6', { ...actor, proficiency: 1, hp: { marked: 4, max: 6 } });
+  assert.equal(hp.formula, '4d6');
+  assert.match(hp.hint ?? '', /этого противника/);
+  assert.equal(resolve(dragon, 'd6').quantity?.value, null);
+  const knight = supplementalSource('adversaries', 'stag-knight', 1465);
+  assert.equal(resolve(knight, '3d4').quantity?.value, null);
+  assert.equal(resolve(knight, '3d4').quantity?.formulaTemplate, '3d4+{count}');
+  assert.equal(resolve({ ...knight, targetMajorThreshold: 12 }, '3d4').formula, '3d4+12');
+  assert.equal(resolve({ sourceId: 999999, collection: 'adversary', text: 'Нанесите 22d12 урона.' }, '22d12').formula, '22d12');
+  const summary = buildAdversarySummary(createAdversary({ sourceId: 2275, sourceSlug: 'volcanic-dragon-molten-scourge' }));
+  assert.equal(summary.sourceId, 2275);
+  assert.equal(summary.sourceSlug, 'volcanic-dragon-molten-scourge');
 });

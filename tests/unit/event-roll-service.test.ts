@@ -228,3 +228,37 @@ test('synchronous event cancellation during a recorded death roll cannot apply a
   assert.equal(h.service.execute(draft, 'gm', 'public', []).ok, false);
   assert.equal(h.manual.mock.calls.length, 1);
 });
+
+test('linked typed teamwork forwards additive dice once and records that complete typed result', () => {
+  const h = harness();
+  const entry = feedService.requestTeamworkRoll({ kind: 'groupAction', difficulty: 12, participants: [{ actorId: h.character.id, actorName: h.character.name }] });
+  const draft = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: h.character.id, trait: 'agility' });
+  draft.extraDice = [{ count: 1, sides: 8 }];
+  const action = vi.spyOn(diceService, 'rollAction');
+  const executed = h.service.execute(draft, 'gm', 'public', []);
+  assert.equal(executed.ok, true);
+  assert.equal(action.mock.calls.length, 1);
+  assert.deepEqual(action.mock.calls[0][0].extraDice, [{ count: 1, sides: 8 }]);
+  const rolled = action.mock.results[0].value;
+  assert.deepEqual(rolled.extraDiceTerms?.map((term: { count: number; sides: number }) => ({ count: term.count, sides: term.sides })), [{ count: 1, sides: 8 }]);
+  const saved = feedService.feed$.get().find((item) => item.id === entry.id);
+  assert.ok(saved?.type === 'teamwork');
+  assert.equal(saved.teamwork.participants[0].result?.rollId, rolled.id);
+  assert.equal(saved.teamwork.participants[0].result?.total, rolled.total);
+  assert.equal(h.manual.mock.calls.length, 0);
+});
+
+test('rest and death refuse separate additive metadata before RNG instead of silently ignoring it', () => {
+  const h = harness();
+  const { draft: rest } = h.rest();
+  const entry = feedService.requestDeathMove({ actor: { actorId: h.character.id, actorName: h.character.name, actorType: 'character' } });
+  const death = h.prepare({ kind: 'death', entryId: entry.id, actorId: h.character.id, deathChoice: 'avoidDeath' });
+  for (const draft of [rest, death]) {
+    const withExtras = { ...draft, extraDice: [{ count: 1, sides: 8 }] };
+    assert.match(h.service.error(withExtras, 'gm', []) ?? '', /добавочные кости должны быть в формуле/);
+    assert.equal(h.service.execute(withExtras, 'gm', 'public', []).ok, false);
+  }
+  assert.equal(h.manual.mock.calls.length, 0);
+  assert.equal(characterService.getCharacter(h.character.id)?.hp.marked, 1);
+  assert.equal(characterService.getCharacter(h.character.id)?.scars.length, 0);
+});
