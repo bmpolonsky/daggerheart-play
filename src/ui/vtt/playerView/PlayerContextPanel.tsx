@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { X } from 'lucide-react';
 import { Dialog, IconButton, Surface } from '../../components/common';
 
@@ -21,7 +21,7 @@ export function PlayerContextPanel({ ariaLabel, children, className = '', closeL
   closeRef.current = onClose;
   const currentLocation = typeof window === 'undefined' ? '' : window.location.href;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const close = () => closeRef.current();
     activeCloseRef.current = close;
     closeActivePanel?.();
@@ -49,7 +49,9 @@ export function PlayerContextPanel({ ariaLabel, children, className = '', closeL
     return () => document.removeEventListener('keydown', closeOnEscape);
   }, [mobile]);
 
-  useEffect(() => {
+  // The preview is already interactive after layout. Register before paint so
+  // an immediate Back cannot beat a deferred effect and navigate to the lobby.
+  useLayoutEffect(() => {
     if (!mobile || typeof window === 'undefined') return;
     const returnUrl = new URL(window.location.href);
     const returnState: unknown = window.history.state;
