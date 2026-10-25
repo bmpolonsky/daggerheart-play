@@ -113,3 +113,24 @@ test.describe('manual custom conditions and armor equipment', () => {
     await expect(preview).not.toContainText('Пороги 10 / 20');
   });
 });
+
+test('armor fine-tuning explains replacement and base edits actually recalculate stored thresholds', async ({ page }) => {
+  const sheet = await openSyntheticSheet(page);
+  await sheet.getByRole('button', { name: 'Редактировать', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Редактор персонажа', exact: true });
+  const edit = editor.getByRole('button', { name: 'Редактировать', exact: true });
+  if (await edit.isVisible()) await edit.click();
+  await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Характеристики', exact: true }).click();
+  const fineTune = editor.locator('details').filter({ has: editor.locator('summary', { hasText: 'Тонкая настройка брони и порогов' }) });
+  await fineTune.locator('summary').click();
+  await expect(fineTune).toContainText('Правка базы пересчитывает пороги: база + уровень.');
+  await expect(fineTune).toContainText('Выбор доспеха из каталога заменяет название, источник, базы, показатель и свойство');
+  await expect(fineTune).toContainText('Надеть/снять сохраняет предмет и его отметки');
+  const major = fineTune.getByLabel('Порог Ощутимого урона', { exact: true });
+  await major.fill('25'); await major.press('Tab');
+  await expect(major).toHaveValue('25');
+  const base = fineTune.getByLabel('База Ощутимого', { exact: true });
+  await base.fill('9'); await base.press('Tab');
+  await expect(major).toHaveValue('11');
+  await expect(fineTune.getByLabel('Показатель Брони', { exact: true })).toHaveValue('3');
+});
