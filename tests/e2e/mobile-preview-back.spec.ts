@@ -89,3 +89,45 @@ test('preview guard does not consume Back for a topmost critical confirmation or
   const reopened = await openCard(page, 'Заклинание 6');
   await expect(reopened.getByText('Навсегда в Хранилище', { exact: true })).toHaveCount(0);
 });
+
+test('explicit preview close preserves the next Back and Forward cannot revive a stale preview', async ({ page }) => {
+  await openCards(page);
+  const length = await seedSameDocumentLobbyHistory(page);
+  const preview = await openCard(page, 'Заклинание 1');
+  await preview.getByRole('button', { name: 'Закрыть предпросмотр', exact: true }).click();
+  expect(await page.evaluate(() => history.length)).toBe(length);
+  await page.evaluate(() => history.back());
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('[data-vtt-root]')).toHaveCount(0);
+  await page.evaluate(() => history.forward());
+  await expect(page).toHaveURL(/\/#\/game$/);
+  await expect(page.locator('[data-vtt-root]')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Предпросмотр', exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => history.length)).toBe(length);
+});
+
+test('consecutive previews and the Dice tray never add unrelated history steps', async ({ page }) => {
+  await openCards(page);
+  const length = await seedSameDocumentLobbyHistory(page);
+  for (const name of ['Заклинание 1', 'Заклинание 2']) {
+    const preview = await openCard(page, name);
+    await preview.getByRole('button', { name: 'Закрыть предпросмотр', exact: true }).click();
+    expect(await page.evaluate(() => history.length)).toBe(length);
+  }
+  const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
+  await expect(tray).toBeVisible();
+  await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await tray.getByLabel('Модификатор', { exact: true }).fill('3');
+  expect(await page.evaluate(() => history.length)).toBe(length);
+  await expect(page).toHaveURL(/\/#\/game$/);
+  await page.getByRole('button', { name: 'Скрыть панель костей', exact: true }).click();
+  await expect(tray).toHaveCount(0);
+  expect(await page.evaluate(() => history.length)).toBe(length);
+  await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
+  await expect(tray).toBeVisible();
+  expect(await page.evaluate(() => history.length)).toBe(length);
+  await page.evaluate(() => history.back());
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('[data-vtt-root]')).toHaveCount(0);
+});
