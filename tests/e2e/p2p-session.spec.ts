@@ -634,10 +634,10 @@ test.describe('P2P session workflow', () => {
     await gm.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await gm.getByRole('button', { name: /Сетевая игра:/ }).click();
     const networkDialog = gm.getByRole('dialog', { name: 'Сетевая игра' });
-    const copyInvite = networkDialog.getByRole('button', { name: 'Копировать приглашение' });
+    const copyInvite = networkDialog.getByRole('button', { name: 'Скопировать ссылку' });
     await expect(copyInvite).toBeEnabled();
-    await copyInvite.click();
-    await expect(networkDialog.getByRole('button', { name: 'Ссылка скопирована' })).toBeVisible();
+    // Transport smoke consumes the displayed invite, not the host OS clipboard.
+    await expect(networkDialog.getByRole('textbox', { name: 'Ссылка приглашения' })).toHaveValue(inviteLink);
     await networkDialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
     await openCurrentSettings(gm, 'Диагностика');
     await player.goto(inviteLink);
@@ -673,6 +673,7 @@ test.describe('P2P session workflow', () => {
 
     await gm.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await gm.getByRole('button', { name: 'Открыть панель костей' }).click();
+    await gm.getByRole('region', { name: 'Подготовка броска', exact: true }).getByRole('button', { name: 'Добавить d6', exact: true }).click();
     await gm.getByRole('button', { name: 'Бросить', exact: true }).click();
     await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 20_000 });
 
