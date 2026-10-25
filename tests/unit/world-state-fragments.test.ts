@@ -1,3 +1,4 @@
+import { readSessionFeatures, withSessionFeatures } from '../../src/domain/p2p/sessionFeatures';
 import { describe, expect, it } from 'vitest';
 import { emptyCustomContent } from '../../src/domain/game/gameDocument';
 import { createTableScene, createTokenState } from '../../src/domain/tabletop/factories';
@@ -106,4 +107,18 @@ describe('world state fragments', () => {
     expect(changedWorldStateFragments(reorderedArray, { ...reorderedArray, rollLog: [{ a: 2 }, { a: 1 }] }).upserts)
       .toEqual({ rollLog: [{ a: 2 }, { a: 1 }] });
   });
+});
+
+it('GM session features survive JSON cloud fragments but are cleared by a legacy snapshot', () => {
+  const state = snapshotPersistedState();
+  const advertised = withSessionFeatures(state, 'current-gm');
+  const stored = JSON.parse(JSON.stringify(encodeWorldState(advertised)));
+  const decoded = decodeWorldState(stored)!;
+  expect(readSessionFeatures(decoded.state)).toEqual({ gmPeerId: 'current-gm', extraActionDiceV1: true });
+  // Local stores never hydrate this session metadata; a new legacy authority
+  // rewrites the manifest without inheriting a previous feature claim.
+  expect(readSessionFeatures(state)).toBeNull();
+  expect(changedWorldStateFragments(stored, encodeWorldState(state)).upserts.manifest).toEqual({ schemaVersion: state.schemaVersion });
+  expect(readSessionFeatures(decodeWorldState(encodeWorldState(state))!.state)).toBeNull();
+  expect(readSessionFeatures({ sessionFeatures: { gmPeerId: 'current-gm', extraActionDiceV1: 'yes' } })).toBeNull();
 });

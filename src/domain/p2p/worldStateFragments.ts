@@ -1,3 +1,4 @@
+import { readSessionFeatures } from './sessionFeatures';
 import type { GameCustomContent } from '../game/gameDocument';
 import { emptyCustomContent, normalizeGameCustomContent } from '../game/gameDocument';
 import type { PersistedState, SceneTableState } from '../rules/types';
@@ -42,7 +43,7 @@ export function encodeWorldState(
 ): WorldStateFragments {
   const { scenes, ...sceneTable } = state.sceneTable;
   const fragments: WorldStateFragments = {
-    [WORLD_STATE_KEYS.manifest]: { schemaVersion: state.schemaVersion },
+    [WORLD_STATE_KEYS.manifest]: { schemaVersion: state.schemaVersion, ...(readSessionFeatures(state) ? { sessionFeatures: readSessionFeatures(state) } : {}) },
     [WORLD_STATE_KEYS.game]: state.game,
     [WORLD_STATE_KEYS.characters]: state.characters,
     [WORLD_STATE_KEYS.encounter]: state.encounter,
@@ -63,7 +64,7 @@ export function encodeWorldState(
 }
 
 export function decodeWorldState(fragments: WorldStateFragments): DecodedWorldState | null {
-  const manifest = fragments[WORLD_STATE_KEYS.manifest] as { schemaVersion?: unknown } | undefined;
+  const manifest = fragments[WORLD_STATE_KEYS.manifest] as { schemaVersion?: unknown; sessionFeatures?: unknown } | undefined;
   const sceneTable = fragments[WORLD_STATE_KEYS.sceneTable] as SceneTableWithoutScenes | undefined;
   if (!manifest || typeof manifest.schemaVersion !== 'number' || !sceneTable) return null;
 
@@ -80,6 +81,7 @@ export function decodeWorldState(fragments: WorldStateFragments): DecodedWorldSt
 
   const state = {
     schemaVersion: manifest.schemaVersion,
+    ...(readSessionFeatures(manifest) ? { sessionFeatures: readSessionFeatures(manifest) } : {}),
     game: fragments[WORLD_STATE_KEYS.game],
     characters: fragments[WORLD_STATE_KEYS.characters],
     encounter: fragments[WORLD_STATE_KEYS.encounter],

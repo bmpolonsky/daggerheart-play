@@ -1,3 +1,4 @@
+import { withSessionFeatures } from '../domain/p2p/sessionFeatures';
 import { isValidExtraDice, type ExtraDieTerm } from '../domain/rules/extraDice';
 import { isPortraitUploadMessage, type PortraitUploadMessage } from '../domain/p2p/portraitUpload';
 import { createId } from '../core/utils/id';
@@ -468,7 +469,9 @@ export class SyncService {
       return false;
     }
     try {
-      await this.transport.publish(this.createEvent('snapshot', snapshot), targetPeer);
+      const peerId = (this.transport as SyncTransport & { peerId?: string }).peerId;
+      const advertised = this.mode === 'authority' && peerId ? withSessionFeatures(snapshot, peerId) : snapshot;
+      await this.transport.publish(this.createEvent('snapshot', advertised), targetPeer);
     } catch (error) {
       this.reportNetworkError(error, 'publish', { eventKind: 'snapshot', targetPeer });
       throw error;

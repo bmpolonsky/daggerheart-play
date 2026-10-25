@@ -1,3 +1,4 @@
+import { withSessionFeatures } from '../../src/domain/p2p/sessionFeatures';
 import assert from 'node:assert/strict';
 import { test, vi } from 'vitest';
 import { createCharacter } from '../../src/domain/rules/factories';
@@ -32,7 +33,7 @@ interface Internals {
   activeRoomConnection: any;
   capabilitiesRequest: { requestId: string; attempts: number; answered: boolean } | null;
   playerRollReceipts: Map<string, { operationHash: string; accepted?: boolean }>;
-  observeGmSnapshotAuthority(context?: SyncEventContext): void;
+  observeGmSnapshotAuthority(context?: SyncEventContext, snapshot?: unknown): void;
   receiveSessionCapabilities(message: SessionCapabilitiesMessage, context?: SyncEventContext): void;
   requestSessionCapabilities(): void;
   handleRoomConnectionEvent(event: any): void;
@@ -284,14 +285,14 @@ test('verified snapshot context reaches the optional third callback argument wit
 });
 
 
-test('ambiguous Hybrid never sends a new capability request or silently converts extra dice into another roll', async () => {
+test('Hybrid with an older unadvertised snapshot refuses extras without new capability requests or silent conversion', async () => {
   const { actor, session, sync, internals, requests, restoreWindow } = setup();
   try {
     internals.sessionStore.set({ ...internals.sessionStore.get(), transportMode: 'hybrid' });
     internals.observeGmSnapshotAuthority({ sourcePeerId: 'gm-peer', verifiedSourcePeerId: 'hybrid:gm-peer' });
     const message = intent();
     assert.equal(session.supportsExtraActionDice(), false);
-    assert.match(session.extraActionDiceSupportError() ?? '', /гибридной/);
+    assert.match(session.extraActionDiceSupportError() ?? '', /Версия мастера/);
     assert.equal(await session.submitPlayerRollIntent(message), false);
     assert.equal(sync.capabilities.length, 0);
     assert.equal(sync.intents.length, 0);
@@ -304,3 +305,23 @@ test('ambiguous Hybrid never sends a new capability request or silently converts
     assert.equal(sync.intents[0].intent.type, 'manualDice');
   } finally { await session.stop(); restoreWindow(); }
 });
+
+for (const transport of ['hybrid', 'supabase', 'direct'] as const) {
+  test(`${transport} GM snapshot advertises extras without a new player event`, async () => {
+    const { actor, session, sync, internals, restoreWindow } = setup();
+    try {
+      if (transport !== 'direct') internals.sessionStore.set({ ...internals.sessionStore.get(), transportMode: 'hybrid' });
+      const context = { sourcePeerId: 'gm-peer', verifiedSourcePeerId: `${transport}:gm-peer` };
+      const advertised = JSON.parse(JSON.stringify(withSessionFeatures(snapshotPersistedState(), 'gm-peer')));
+      internals.observeGmSnapshotAuthority(context, advertised);
+      assert.equal(session.supportsExtraActionDice(), true);
+      assert.equal(sync.capabilities.length, 0);
+      assert.equal(await session.submitPlayerRollIntent(intent()), true);
+      assert.deepEqual(sync.intents[0].intent, intent().intent);
+      assert.equal(charactersStore.get().entities[actor.id].hope.value, 2);
+      // Metadata belongs to the current GM, not another logical room member.
+      internals.observeGmSnapshotAuthority(context, withSessionFeatures(snapshotPersistedState(), 'other-gm'));
+      if (transport !== 'direct') assert.equal(session.supportsExtraActionDice(), false);
+    } finally { await session.stop(); restoreWindow(); }
+  });
+}

@@ -1,3 +1,4 @@
+import { readSessionFeatures, withSessionFeatures } from '../domain/p2p/sessionFeatures';
 import { isValidExtraDice, normalizeExtraDice } from '../domain/rules/extraDice';
 import { PortraitUploadService } from './PortraitUploadService';
 import { assetIdFromReference } from '../domain/game/assetReferences';
@@ -666,7 +667,7 @@ export class P2PSessionService {
         try {
           hydratePersistedState(this.preserveUnacknowledgedPlayerCharacter(state));
           this.capturePlayerForwardingBaseline();
-          this.observeGmSnapshotAuthority(context);
+          this.observeGmSnapshotAuthority(context, event.value);
           const expected = this.canonicalCharacterConfirmation;
           if (expected && this.hasCanonicalCharacterRevision(state.characters.entities[expected.actorId], expected)) {
             this.clearCanonicalCharacterConfirmation();
@@ -1096,18 +1097,22 @@ export class P2PSessionService {
     this.patchSession({ extraActionDiceSupported: false, extraActionDiceSupportReason: null });
   }
 
-  private observeGmSnapshotAuthority(context?: SyncEventContext): void {
+  private observeGmSnapshotAuthority(context?: SyncEventContext, snapshot?: unknown): void {
     const gmPeerId = this.activeRoomConnection?.gmPeerId();
     if (!gmPeerId || context?.sourcePeerId !== gmPeerId || !context.verifiedSourcePeerId) return;
+    const features = readSessionFeatures(snapshot);
+    if (features?.gmPeerId === gmPeerId) {
+      // The room trusts its GM snapshot. No second player event or stronger
+      // person identity is needed to advertise how that GM parses a roll.
+      this.resetSessionCapabilities();
+      this.gmSnapshotAuthority = { logicalPeerId: gmPeerId, verifiedPeerId: context.verifiedSourcePeerId };
+      this.patchSession({ extraActionDiceSupported: true, extraActionDiceSupportReason: null });
+      return;
+    }
     if (this.sessionStore.get().transportMode === 'hybrid' || context.verifiedSourcePeerId.startsWith('hybrid:')
       || context.verifiedSourcePeerId.startsWith('supabase:') || context.verifiedSourcePeerId === context.sourcePeerId) {
-      // Hybrid's normalized alias (or a source-only adapter fallback) cannot
-      // distinguish actual authority proof from a claimed public identity.
       this.resetSessionCapabilities();
-      this.patchSession({ extraActionDiceSupportReason: this.sessionStore.get().transportMode === 'hybrid'
-        || context.verifiedSourcePeerId.startsWith('hybrid:') || context.verifiedSourcePeerId.startsWith('supabase:')
-        ? 'Дополнительные кости проверки пока недоступны в гибридной сетевой игре: поддержку мастера нельзя безопасно подтвердить. Используйте явный ручной бросок или обычную проверку.'
-        : 'Дополнительные кости проверки недоступны: это подключение не передаёт отдельного подтверждения источника мастера.' });
+      this.patchSession({ extraActionDiceSupportReason: 'Версия мастера не объявила поддержку дополнительных костей проверки. Обновите сессию мастера или используйте явный ручной бросок.' });
       return;
     }
     if (this.gmSnapshotAuthority?.logicalPeerId === gmPeerId && this.gmSnapshotAuthority.verifiedPeerId === context.verifiedSourcePeerId) return;
@@ -2153,7 +2158,7 @@ export class P2PSessionService {
         displayName: participant.name,
         worldId: gameStore.get().id,
         connectionMode,
-        ...(participant.role === 'gm' ? { initialSnapshot: snapshotPersistedState() } : {}),
+        ...(participant.role === 'gm' ? { initialSnapshot: withSessionFeatures(snapshotPersistedState(), participant.id) } : {}),
         readCustomContent: readBrowserCustomContent,
         applyCustomContent: (content) => applyBrowserCustomContent(content as GameCustomContent)
       }

@@ -65,7 +65,7 @@ test('an ambiguous Hybrid alias cannot advertise support for the new extra-dice 
     internals.observeGmSnapshotAuthority({ sourcePeerId: 'gm-peer', verifiedSourcePeerId: 'hybrid:gm-peer' });
     assert.equal(internals.capabilitiesRequest, null);
     assert.equal(session.supportsExtraActionDice(), false);
-    assert.match(session.extraActionDiceSupportError() ?? '', /гибридной/);
+    assert.match(session.extraActionDiceSupportError() ?? '', /Версия мастера/);
     await session.stop();
     assert.equal(session.extraActionDiceSupportError(), null);
   } finally { await session.stop(); restoreWindow(); }

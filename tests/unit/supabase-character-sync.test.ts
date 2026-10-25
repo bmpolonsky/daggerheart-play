@@ -75,6 +75,10 @@ class RoomDatabase {
         if (name === 'dh_submit_room_event') {
           if (db.dropGmEvents && context.role === 'gm') return { data: 0, error: null };
           const message = args.p_envelope as P2PWireEnvelope;
+          // Mirror the existing SQL player-event allowlist: the implementation
+          // must not depend on the forbidden new sessionCapabilities event.
+          if (context.role === 'player' && (message.payload as { kind?: string }).kind === 'sessionCapabilities')
+            return { data: null, error: { message: 'event_forbidden' } };
           const length = JSON.stringify(message).length;
           db.eventLengths.push(length);
           if (length > 131072) return { data: null, error: { message: 'invalid_event' } };
@@ -103,20 +107,20 @@ class RoomDatabase {
 async function isolatedClient(db: RoomDatabase) {
   vi.resetModules();
   const helpers = await import('./helpers');
-  const { characterService } = await import('../../src/services/serviceRegistry');
+  const { characterService, rollLogService } = await import('../../src/services/serviceRegistry');
   const { SceneTableService } = await import('../../src/services/SceneTableService');
   const { SupabaseRelayTransport } = await import('../../src/services/SupabaseRelayTransport');
   const { HybridSessionTransport } = await import('../../src/services/p2p/HybridSessionTransport');
   const network = new helpers.ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 });
   const sceneTable = new SceneTableService();
   const session = helpers.createTestP2PSession(new helpers.ScriptedP2PNetwork({ dropSnapshots: 0, dropSnapshotRequests: 0 }), {
-    characterService, sceneTableService: sceneTable,
+    characterService, sceneTableService: sceneTable, dice: true,
     transportFactory: (options, context) => new HybridSessionTransport(network.createTransport(options), context!, {
       server: new SupabaseRelayTransport(context!, { url: 'https://test.supabase.co', publishableKey: 'test' }, db.client(context!) as never),
       serverFirst: true
     })
   });
-  return { ...helpers, session, characterService, sceneTable };
+  return { ...helpers, session, characterService, sceneTable, rollLogService };
 }
 
 test('Hope synchronizes for a legacy portrait across player reload and GM room restart', async () => {
@@ -239,3 +243,47 @@ test('Hope synchronizes for a legacy portrait across player reload and GM room r
     restoreWindow();
   }
 }, 35_000);
+
+test('same-version Hybrid cloud carries extraDice atomically through existing allowed roll event', async () => {
+  const db = new RoomDatabase();
+  const gm = await isolatedClient(db);
+  const restoreWindow = gm.installTimerWindow();
+  Object.assign(window.location, { href: 'http://localhost/', origin: 'http://localhost/' });
+  const player = await isolatedClient(db);
+  const actor = gm.characterService.createCharacter({ id: 'extra-hero', name: 'Hero', hope: { value: 2, max: 6 } });
+  gm.sceneTable.createPlayerSeat({ id: 'player', name: 'Player', characterId: actor.id });
+  try {
+    await gm.session.startGmRoom({ roomId: 'SYNCROOM', participantId: 'gm', connectionMode: 'server' });
+    await player.session.startPlayerRoom({ roomId: 'SYNCROOM', participantId: 'player', actorIds: [actor.id], connectionMode: 'server' });
+    player.session.setPlayerActorContext({ participantId: 'player', actorId: actor.id, actorName: 'Player' });
+    await gm.waitFor(() => assert.equal(player.session.supportsExtraActionDice(), true));
+    const extraDice = [{ count: 2, sides: 6 }];
+    assert.equal(await player.session.submitPlayerRollIntent({ actorId: actor.id, intent: {
+      type: 'duality', rollType: 'reaction', difficulty: 10, extraDice,
+      experienceIds: [], spendHopeForExperiences: false
+    }, resourcePatch: { hope: { value: 1 } } }), true);
+    await gm.waitFor(() => assert.equal(gm.rollLogService.rollLog$.get().length, 1));
+    await gm.waitFor(() => assert.equal(player.session.session$.get().rollPending, false));
+    const entry = gm.rollLogService.rollLog$.get()[0];
+    assert.equal(entry.type, 'reaction');
+    if (entry.type !== 'reaction') throw new Error('Wrong roll type');
+    const terms = entry.extraDiceTerms!;
+    assert.equal(terms.length, 1);
+    assert.ok('rolls' in terms[0]);
+    if (!('rolls' in terms[0])) throw new Error('Expected dice term');
+    assert.equal(terms[0].rolls.length, 2);
+    assert.equal(terms[0].sides, 6);
+    assert.equal(gm.characterService.getCharacter(actor.id)?.hope.value, 1);
+    const payloads = db.events.map(row => (row as any).envelope.payload);
+    assert.equal(payloads.some(payload => payload.kind === 'sessionCapabilities'), false);
+    const sent = payloads.find(payload => payload.kind === 'playerRollIntent').value;
+    assert.deepEqual(sent.intent.extraDice, extraDice);
+    // Re-delivery of that complete intent must not create a second roll/payment.
+    const row = db.events.find(row => (row as any).envelope.payload.kind === 'playerRollIntent')!;
+    db.emit('dh_room_events', { new: { ...(row as any), sequence: db.events.length + 100,
+      envelope: { ...(row as any).envelope, id: 'redelivered-envelope', payload: { ...(row as any).envelope.payload, id: 'redelivered-sync-event' } } } });
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(gm.rollLogService.rollLog$.get().length, 1);
+    assert.equal(gm.characterService.getCharacter(actor.id)?.hope.value, 1);
+  } finally { await player.session.stop(); await gm.session.stop(); restoreWindow(); }
+}, 15_000);
