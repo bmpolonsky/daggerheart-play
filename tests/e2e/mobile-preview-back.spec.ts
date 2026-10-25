@@ -26,8 +26,7 @@ async function seedSameDocumentLobbyHistory(page: Page) {
 }
 
 async function openCard(page: Page, name: string) {
-  const row = page.getByLabel('Персонаж игрока').locator('.player-domain-card-zones .dh-list-item').filter({ hasText: name });
-  await row.locator('.player-domain-card-thumb').click();
+  await page.getByLabel('Персонаж игрока').getByRole('button', { name, exact: true }).click();
   const preview = page.getByRole('dialog', { name: 'Предпросмотр', exact: true });
   await expect(preview).toContainText(name);
   return preview;

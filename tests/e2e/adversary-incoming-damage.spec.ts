@@ -18,7 +18,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     const sheet = page.getByLabel('Противник мастера', { exact: true });
     const damage = sheet.locator('details').filter({ hasText: 'Входящий урон' });
     await damage.locator('summary').click();
-    const input = damage.getByLabel('Полученный урон', { exact: true });
+    const input = damage.getByRole('spinbutton', { name: /^Полученный урон/ });
     await input.fill('10');
     await expect(damage).toContainText('Ран к отметке: 2. Раны: 0 → 2 из 4.');
     await page.screenshot({ path: testInfo.outputPath(`incoming-damage-${viewport.width}.png`) });

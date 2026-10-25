@@ -142,7 +142,11 @@ test('mocked transport: mobile foreground restores latest resources and complete
     await expect(playerRest.getByText(/Очищены все раны: 2/)).toBeVisible();
     await expect(playerRest.getByText(/Получено Надежды: 1/)).toBeVisible();
     await expect(playerRest.getByRole('button', { name: 'Применить', exact: true })).toHaveCount(0);
-    await expect.poll(() => snapshotState(player)).toEqual(expected);
+    // Connected player views are hydrated live; their saved local world is
+    // not the authoritative room state. Verify the actual displayed resources
+    // and the GM's persisted canonical result rather than that old local save.
+    await expect(playerSheet.getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(4);
+    await expect(playerSheet.getByRole('button', { name: 'Раны 1 из 5', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
     // New envelope/sync IDs intentionally bypass transport dedupe, exercising
     // snapshot hydration of the completed rest twice rather than a duplicate
@@ -163,7 +167,14 @@ test('mocked transport: mobile foreground restores latest resources and complete
     // snapshots before asserting the final persisted resources remain stable.
     await expect.poll(() => player.evaluate(() => (window as any).__E2E_BACKGROUND_RECOVERY__.delivered), { timeout: 15_000 })
       .toBeGreaterThanOrEqual(deliveredBeforeRepeat + 3);
-    await expect.poll(() => snapshotState(player)).toEqual(expected);
+    await showSheet(player);
+    await expect(playerSheet.getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(4);
+    await expect(playerSheet.getByRole('button', { name: 'Раны 1 из 5', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await showChat(player);
+    await expect(playerRest.getByText('Завершён', { exact: true })).toBeVisible();
+    await expect(playerRest.getByText(/Очищены все раны: 2/)).toBeVisible();
+    await expect(playerRest.getByText(/Получено Надежды: 1/)).toBeVisible();
+    await expect(playerRest.getByRole('button', { name: 'Применить', exact: true })).toHaveCount(0);
     await expect.poll(() => snapshotState(gm)).toEqual(expected);
     await expect(restCard.getByRole('button', { name: 'Получить страх и завершить', exact: true })).toHaveCount(0);
   } finally { await relay.close(); }
