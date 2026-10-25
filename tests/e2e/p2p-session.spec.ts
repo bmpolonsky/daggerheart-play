@@ -40,6 +40,7 @@ async function createLobbyInvite(page: Page): Promise<string> {
   await gmLobby.getByRole('button', { name: 'Добавить', exact: true }).click();
   await expect(gmLobby.getByLabel('Имя игрока')).toHaveValue('Игрок 1');
   await gmLobby.getByRole('button', { name: 'Открыть игру' }).click();
+  await expect(page.getByRole('button', { name: 'Справочник', exact: true })).toBeVisible();
   await openCurrentSettings(page, 'Подключение');
   const settings = page.getByRole('dialog', { name: 'Библиотека игры' });
   await settings.getByRole('button', { name: 'Запустить сетевую игру' }).click();
@@ -630,7 +631,7 @@ test.describe('P2P session workflow', () => {
     const player = await newSharedPage(browser);
 
     const inviteLink = await createLobbyInvite(gm);
-    await gm.getByRole('button', { name: 'Открыть игру' }).click();
+    await gm.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await gm.getByRole('button', { name: /Сетевая игра:/ }).click();
     const networkDialog = gm.getByRole('dialog', { name: 'Сетевая игра' });
     const copyInvite = networkDialog.getByRole('button', { name: 'Копировать приглашение' });
