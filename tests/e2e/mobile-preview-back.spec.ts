@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { filledCharacterName, openFilledGmGame } from './filled-game-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -27,9 +28,73 @@ async function seedSameDocumentLobbyHistory(page: Page) {
 
 async function openCard(page: Page, name: string) {
   await page.getByLabel('Персонаж игрока').getByRole('button', { name, exact: true }).click();
-  const preview = page.getByRole('dialog', { name: 'Предпросмотр', exact: true });
+  const preview = page.getByLabel('Предпросмотр', { exact: true });
   await expect(preview).toContainText(name);
   return preview;
+}
+
+test('desktop explicit close and Dice preserve history; Forward cannot revive preview', async ({ page }) => {
+  await page.setViewportSize({ width: 1188, height: 844 });
+  await openCards(page);
+  const length = await seedSameDocumentLobbyHistory(page);
+  for (const name of ['Заклинание 1', 'Заклинание 2']) {
+    const preview = await openCard(page, name);
+    await preview.getByRole('button', { name: 'Закрыть предпросмотр', exact: true }).click();
+    expect(await page.evaluate(() => history.length)).toBe(length);
+  }
+  await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
+  const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
+  expect(await page.evaluate(() => history.length)).toBe(length);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/#\/game$/);
+  await expect(page.getByLabel('Предпросмотр', { exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => history.length)).toBe(length);
+});
+
+test('desktop preview does not consume Back for a critical confirmation', async ({ page }) => {
+  await page.setViewportSize({ width: 1188, height: 844 });
+  await openCards(page);
+  await seedSameDocumentLobbyHistory(page);
+  const preview = await openCard(page, 'Заклинание 6');
+  await preview.getByLabel('Другие действия карты Заклинание 6').click();
+  await page.getByRole('menu', { name: 'Другие действия карты Заклинание 6' }).getByRole('menuitem', { name: 'Убрать навсегда' }).click();
+  await expect(page.getByRole('dialog', { name: 'Навсегда убрать «Заклинание 6»?' })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goForward();
+  await expect(page.locator('[data-vtt-root]')).toBeVisible();
+  await page.getByRole('button', { name: filledCharacterName, exact: true }).first().click();
+  await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Карты', exact: true }).click();
+  await expect(await openCard(page, 'Заклинание 6')).not.toContainText('Навсегда в Хранилище');
+});
+
+for (const width of [390, 1188]) {
+  test(`first Back from a preview returns to game after real Library history ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await openCards(page);
+    const library = await openGameLibrary(page);
+    await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
+    await expect(page).toHaveURL(/\/#\/library\/characters$/);
+    await library.getByRole('button', { name: 'Закрыть библиотеку', exact: true }).click();
+    await expect(page).toHaveURL(/\/#\/game$/);
+    const layer = page.getByLabel('Слой интерфейса');
+    if (await layer.isVisible()) await layer.getByRole('button', { name: 'Лист', exact: true }).click();
+    await page.getByLabel('Персонаж игрока').getByRole('button', { name: 'Заклинание 1', exact: true }).click();
+    await expect(page.getByLabel('Предпросмотр', { exact: true })).toBeVisible();
+    const length = await page.evaluate(() => history.length);
+    await page.goBack();
+    await expect(page.getByLabel('Предпросмотр', { exact: true })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/#\/game$/);
+    await expect(page.getByRole('dialog', { name: 'Библиотека игры' })).toHaveCount(0);
+    expect(await page.evaluate(() => history.length)).toBe(length);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/#\/library\/characters$/);
+    await expect(page.getByRole('dialog', { name: 'Библиотека игры' })).toBeVisible();
+  });
 }
 
 test('mobile Back closes preview, preserves route/history and the next Back reaches the lobby', async ({ page }) => {

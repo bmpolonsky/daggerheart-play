@@ -53,19 +53,22 @@ export function PlayerContextPanel({ ariaLabel, children, className = '', closeL
   // The preview is already interactive after layout. Register before paint so
   // an immediate Back cannot beat a deferred effect and navigate to the lobby.
   useLayoutEffect(() => {
-    if (!mobile || typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
     const returnUrl = new URL(window.location.href);
     const returnState: unknown = window.history.state;
     const closeOnHistoryTraversal = (event: PopStateEvent) => {
       // App navigation also dispatches synthetic popstate. Only a browser
-      // history traversal may dismiss this mobile preview.
+      // history traversal may dismiss this preview, on either layout.
       if (!event.isTrusted || closeActivePanel !== activeCloseRef.current
         || window.location.origin !== returnUrl.origin) return false;
       const ownDialog = bodyRef.current?.closest('[role="dialog"]');
       const visibleDialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))
-        .filter((element) => element.getClientRects().length > 0);
+        .filter((element) => element.getClientRects().length > 0
+          && !element.closest('[hidden], [inert], [aria-hidden="true"]')
+          && window.getComputedStyle(element).visibility !== 'hidden');
       // Do not consume navigation on behalf of a confirmation or child dialog.
-      if (!ownDialog || visibleDialogs.at(-1) !== ownDialog) return false;
+      // Desktop previews are complementary surfaces, not dialog elements.
+      if (mobile ? !ownDialog || visibleDialogs.at(-1) !== ownDialog : visibleDialogs.length > 0) return false;
       // No history entry is added when opening a preview. After Back, restore
       // its existing route before parent bubble listeners read it, then close.
       // A second Back follows the original route history normally. Traversals

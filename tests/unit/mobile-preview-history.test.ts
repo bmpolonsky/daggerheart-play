@@ -2,12 +2,14 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { consumeMobilePreviewHistory, registerMobilePreviewHistory } from '../../src/app/mobilePreviewHistory';
 
-const back = { type: 'popstate', isTrusted: true } as Event;
+const back = () => ({ type: 'popstate', isTrusted: true } as Event);
 test('routers consult the active preview before navigation; closing it is consumed once', () => {
   let calls = 0;
   const remove = registerMobilePreviewHistory(() => { calls++; remove(); return true; });
-  assert.equal(consumeMobilePreviewHistory(back), true);
-  assert.equal(consumeMobilePreviewHistory(back), false);
+  const event = back();
+  assert.equal(consumeMobilePreviewHistory(event), true);
+  assert.equal(consumeMobilePreviewHistory(event), true);
+  assert.equal(consumeMobilePreviewHistory(back()), false);
   assert.equal(calls, 1);
 });
 test('synthetic application navigation and direct hash edits are not consumed', () => {
@@ -22,7 +24,7 @@ test('synthetic application navigation and direct hash edits are not consumed', 
 test('an older preview cleanup cannot remove the replacement; a topmost-dialog refusal still routes', () => {
   const removeOld = registerMobilePreviewHistory(() => true);
   const removeNew = registerMobilePreviewHistory(() => false);
-  try { removeOld(); assert.equal(consumeMobilePreviewHistory(back), false); }
+  try { removeOld(); assert.equal(consumeMobilePreviewHistory(back()), false); }
   finally { removeNew(); }
-  assert.equal(consumeMobilePreviewHistory(back), false);
+  assert.equal(consumeMobilePreviewHistory(back()), false);
 });
