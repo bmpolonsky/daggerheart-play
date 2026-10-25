@@ -114,6 +114,9 @@ test('consecutive previews and the Dice tray never add unrelated history steps',
     await preview.getByRole('button', { name: 'Закрыть предпросмотр', exact: true }).click();
     expect(await page.evaluate(() => history.length)).toBe(length);
   }
+  // A closed mobile Dice dock is intentionally hidden on the sheet tab.
+  await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Сцена', exact: true }).click();
+  expect(await page.evaluate(() => history.length)).toBe(length);
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
   await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
   await expect(tray).toBeVisible();
