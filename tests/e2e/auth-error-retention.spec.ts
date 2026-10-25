@@ -44,7 +44,10 @@ test('email login failure remains visible after toast expiry and clears on a suc
   await dialog.getByLabel('Почта мастера', { exact: true }).fill('qa@example.test');
   await dialog.getByRole('button', { name: 'Отправить ссылку', exact: true }).click();
   const error = dialog.getByRole('alert');
-  await expect(error).toHaveText('Не удалось отправить ссылку для входа.');
+  await expect(error).toContainText('Не удалось отправить ссылку для входа.');
+  await expect(error).toContainText('Слишком много запросов на письмо.');
+  await expect(error).toContainText('over_email_send_rate_limit');
+  await expect(error).toContainText('HTTP 400');
   await expect(dialog).not.toContainText('Fixture OTP rejection');
   await page.clock.install();
   await page.clock.fastForward(4_000);
@@ -52,7 +55,7 @@ test('email login failure remains visible after toast expiry and clears on a suc
   await dialog.getByLabel('Почта мастера', { exact: true }).fill('qa-retry@example.test');
   await expect(error).toBeVisible();
   await dialog.getByRole('button', { name: 'Отправить ссылку', exact: true }).click();
-  await expect(dialog.getByText('Ссылка для входа отправлена.', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Запрос принят сервисом входа. Проверьте почту и спам; доставка письма может занять несколько минут.', { exact: true })).toBeVisible();
   await expect(error).toHaveCount(0);
   expect(attempts).toBe(2);
 });
