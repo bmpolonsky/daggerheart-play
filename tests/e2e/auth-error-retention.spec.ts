@@ -19,7 +19,10 @@ test('email login failure remains visible after toast expiry and clears on a suc
     const headers = {
       'access-control-allow-origin': '*',
       'access-control-allow-headers': 'apikey,authorization,content-type,x-client-info,x-supabase-api-version',
-      'access-control-allow-methods': 'GET,POST,OPTIONS'
+      'access-control-allow-methods': 'GET,POST,OPTIONS',
+      // The installed SDK reads `code` only for versioned Auth responses.
+      'x-supabase-api-version': '2024-01-01',
+      'access-control-expose-headers': 'x-supabase-api-version'
     };
     if (route.request().method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers });
