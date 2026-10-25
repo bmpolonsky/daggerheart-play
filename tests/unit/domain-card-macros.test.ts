@@ -232,7 +232,7 @@ test('domain card resource actions use cleaned markdown text for GM feed preview
   assert.equal(feedStore.get()[0]?.body, 'Markdown Card — +1 Стресс');
 });
 
-test('domain card dice macros scale implicit damage dice by character proficiency when rolled from a card', () => {
+test('domain card dice macros prepare proficiency-scaled dice without rolling before confirmation', () => {
   resetAllStores();
   const character = firstCharacter();
   character.proficiency = 3;
@@ -246,15 +246,18 @@ test('domain card dice macros scale implicit damage dice by character proficienc
   const card = summary.loadoutCards.find((item) => item.id === 'dice-card')!;
   const macro = card.macros.find((item) => item.kind === 'diceRoll' && item.formula === 'd4')!;
 
+  const prepared: Array<{ formula: string; kind: string }> = [];
   runDomainCardMacroAction(card, macro, {
     character: summary,
     role: 'player',
-    openRollDraft: () => undefined
+    openRollDraft: () => undefined,
+    openDiceDraft: (draft) => prepared.push(draft)
   });
 
-  const roll = diceService.rollLog$.get()[0];
-  assert.equal(roll.type, 'manual');
-  assert.equal('formula' in roll ? roll.formula : null, '3d4');
+  assert.equal(diceService.rollLog$.get().length, 0);
+  assert.equal(prepared.length, 1);
+  assert.equal(prepared[0].formula, '3d4');
+  assert.equal(prepared[0].kind, 'manualDice');
 });
 
 test('domain card resource macros apply to the acting character without target inference', () => {

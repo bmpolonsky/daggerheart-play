@@ -1,19 +1,20 @@
 /** @jsxImportSource preact */
-import { useCallback } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 import { useStream } from '../../../core/hooks/useStream';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { diceService, gameService, mediaCallService, p2pSessionService, playerActivationQueueService } from '../../../services/serviceRegistry';
+import { resolveRollActor, type RollActorOption } from '../../../domain/tabletop/rollActorContext';
+import { CharacterRollService } from '../../../services/CharacterRollService';
+import { SelectField } from '../../components/common';
+import { CharacterRollDialog } from './CharacterRollDialog';
 import { MiniDiceLauncher } from '../MiniDiceLauncher';
-import type { TableViewRole } from './types';
+import type { PlayerRollDraft, TableViewRole } from './types';
 
-type DisplayedActor = { id: string; name: string; kind: 'character' | 'adversary' | 'environment' } | null;
-type ActiveCharacterActor = { id: string; name: string } | null;
+const rollService = new CharacterRollService({ dice: diceService, session: p2pSessionService, autoApplyConsequences: () => gameService.game$.get().autoApplyRollConsequences });
 
 interface PlayerActionDockProps {
-  activeCharacterActor: ActiveCharacterActor;
-  activeCharacterName: string;
-  displayedActor: DisplayedActor;
-  displayedActorName: string;
+  actorOptions: RollActorOption[];
+  rollCharacters: Record<string, PlayerViewCharacterSummary>;
   displayedCharacter: PlayerViewCharacterSummary | null;
   role: TableViewRole;
   onRosterOpen?: () => void;
@@ -22,16 +23,23 @@ interface PlayerActionDockProps {
 }
 
 export function PlayerActionDock({
-  activeCharacterActor,
-  activeCharacterName,
-  displayedActor,
-  displayedActorName,
+  actorOptions,
+  rollCharacters,
   displayedCharacter,
   role,
   onRosterOpen,
   selectedPlayerName,
   selectedPlayerSeatId
 }: PlayerActionDockProps) {
+  const [selectedActorKey, setSelectedActorKey] = useState<string | null>(null);
+  const [rollDraftState, setRollDraftState] = useState<{ actorId: string; draft: PlayerRollDraft } | null>(null);
+  const actingActor = resolveRollActor(actorOptions, selectedActorKey, role);
+  useEffect(() => {
+    if (selectedActorKey && (role !== 'gm' || !actorOptions.some((actor) => actor.key === selectedActorKey))) setSelectedActorKey(null);
+  }, [actorOptions, selectedActorKey, role]);
+  const actingCharacter = actingActor.kind === 'character' && actingActor.id ? rollCharacters[actingActor.id] : null;
+  const draftCharacter = rollDraftState && actorOptions.some((actor) => actor.kind === 'character' && actor.id === rollDraftState.actorId)
+    ? rollCharacters[rollDraftState.actorId] : null;
   const callState = useStream(mediaCallService.call$);
   const localActivation = useStream(playerActivationQueueService.local$);
   const activationQueue = useStream(playerActivationQueueService.queue$);
@@ -56,9 +64,24 @@ export function PlayerActionDock({
   }, [displayedCharacter?.id, displayedCharacter?.name, localActivation.actorId, localActivation.raised, p2pSession.peerId, role, selectedPlayerName, selectedPlayerSeatId]);
 
   return (
+    <>
+    {rollDraftState && draftCharacter && <CharacterRollDialog
+      character={draftCharacter}
+      draft={rollDraftState.draft}
+      role={role}
+      onTraitChange={(trait) => setRollDraftState((current) => current ? { ...current, draft: { ...current.draft, trait } } : current)}
+      onClose={() => setRollDraftState(null)}
+    />}
     <MiniDiceLauncher
-      actorName={displayedActorName}
-      selectedActorKind={displayedActor?.kind === 'environment' ? null : displayedActor?.kind ?? null}
+      actorName={actingActor.name}
+      selectedActorKind={actingActor.kind === 'character' || actingActor.kind === 'adversary' ? actingActor.kind : null}
+      actorControl={<SelectField label="От лица" value={actingActor.key} onChange={(event) => setSelectedActorKey(event.currentTarget.value)}>
+        {actorOptions.map((actor) => <option key={actor.key} value={actor.key}>{actor.name}{actor.kind === 'gm' ? ' (без персонажа)' : ''}</option>)}
+      </SelectField>}
+      onOpenCharacterRoll={actingCharacter ? () => setRollDraftState({ actorId: actingCharacter.id, draft: {
+        kind: 'trait', title: 'Проверка персонажа', subtitle: actingCharacter.name,
+        trait: actingCharacter.spellcastTrait ?? actingCharacter.traits[0]?.id ?? 'agility'
+      } }) : undefined}
       role={role}
       callState={callState}
       callAvailable={p2pSession.connected}
@@ -70,67 +93,13 @@ export function PlayerActionDock({
       onActivationToggle={toggleActivationRequest}
       onCallJoin={() => void mediaCallService.joinWithoutDevices()}
       onRosterOpen={onRosterOpen}
-      onRoll={(formula, label, publication, options) => {
-        if (role === 'player' && p2pSessionService.isConnectedPlayerSession() && displayedActor?.id) {
-          void p2pSessionService.submitPlayerRollIntent({
-            actorId: displayedActor.id,
-            actorName: displayedActorName,
-            publication,
-            intent: {
-              type: 'manualDice',
-              formula,
-              label,
-              advantageCount: options?.advantageCount,
-              disadvantageCount: options?.disadvantageCount,
-              diceTones: options?.diceTones
-            }
-          });
-          return;
-        }
-        diceService.rollManualDice({
-          formula,
-          label,
-          actorId: displayedActor?.id,
-          actorName: displayedActorName,
-          publication,
-          advantageCount: options?.advantageCount,
-          disadvantageCount: options?.disadvantageCount,
-          diceTones: options?.diceTones
-        });
+      onRoll={(formula, label, publication = 'public', options) => {
+        rollService.manual(actingActor, { formula, label, ...options }, publication, role);
       }}
-      onDualityRoll={({ rollType, trait, options, publication }) => {
-        if (role === 'player' && p2pSessionService.isConnectedPlayerSession() && activeCharacterActor?.id) {
-          void p2pSessionService.submitPlayerRollIntent({
-            actorId: activeCharacterActor.id,
-            actorName: activeCharacterName,
-            publication,
-            intent: {
-              type: 'duality',
-              rollType,
-              trait: trait ?? null,
-              difficulty: 0,
-              ...options
-            }
-          });
-          return;
-        }
-        const rollRequest = {
-          actorId: activeCharacterActor?.id,
-          actorName: activeCharacterName,
-          trait: trait ?? null,
-          difficulty: 0,
-          ...options,
-          publication
-        };
-        if (rollType === 'reaction') {
-          diceService.rollReaction(rollRequest);
-        } else {
-          diceService.rollAction({
-            ...rollRequest,
-            applyConsequences: gameService.game$.get().autoApplyRollConsequences
-          });
-        }
+      onDualityRoll={({ rollType, trait, options, publication = 'public' }) => {
+        rollService.action(actingActor, { kind: 'trait', title: 'Дуальность', trait }, options, rollType, publication, role);
       }}
     />
+    </>
   );
 }

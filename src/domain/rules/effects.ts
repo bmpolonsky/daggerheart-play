@@ -47,25 +47,30 @@ export function buildEffectiveCharacterStats(character: Character): EffectiveCha
   const hpMax = clamp(character.hp.max + modifiers.hpMax, 0, 12);
   const stressMax = clamp(character.stress.max + modifiers.stressMax, 0, 12);
   const hopeMax = effectiveHopeMax(character);
+  const traits = applyTraitModifiers(character.traits, modifiers.traits);
+  const unarmored = character.armor.equipped === false
+    ? unarmoredBaseStats(character, traits.strength)
+    : null;
+  const baseThresholds = unarmored?.thresholds ?? character.thresholds;
   return {
     effects,
     evasion: clamp(character.evasion + modifiers.evasion, 0, 99),
-    armorScore: clamp(character.armor.score + modifiers.armorScore, 0, 12),
+    armorScore: clamp((unarmored?.armorScore ?? character.armor.score) + modifiers.armorScore, 0, 12),
     hope: { value: clamp(character.hope.value, 0, hopeMax), max: hopeMax },
     hp: { marked: clamp(character.hp.marked, 0, hpMax), max: hpMax },
     stress: { marked: clamp(character.stress.marked, 0, stressMax), max: stressMax },
     thresholds: {
-      major: clamp(character.thresholds.major + (modifiers.thresholds.major ?? 0), 0, 999),
-      severe: clamp(character.thresholds.severe + (modifiers.thresholds.severe ?? 0), 0, 999)
+      major: clamp(baseThresholds.major + (modifiers.thresholds.major ?? 0), 0, 999),
+      severe: clamp(baseThresholds.severe + (modifiers.thresholds.severe ?? 0), 0, 999)
     },
-    traits: applyTraitModifiers(character.traits, modifiers.traits)
+    traits
   };
 }
 
 export function collectCharacterEffects(character: Character): CharacterEffect[] {
   const effects: CharacterEffect[] = [];
 
-  const armorModifiers = equipmentFeatureModifiers(character.armor.feature || character.armor.featureText || '');
+  const armorModifiers = equipmentFeatureModifiers(character.armor.equipped === false ? '' : character.armor.feature || character.armor.featureText || '');
   if (armorModifiers.evasionModifier || armorModifiers.armorScoreModifier || Object.keys(armorModifiers.traitModifiers).length > 0) {
     effects.push({
       id: `armor:${character.armor.sourceSlug ?? character.armor.name}`,
@@ -116,6 +121,19 @@ export function collectCharacterEffects(character: Character): CharacterEffect[]
     });
   }
   return effects;
+}
+
+function unarmoredBaseStats(character: Character, strength: number): { armorScore: number; thresholds: Thresholds } {
+  // SRD core Armor and Bare Bones: level is included here exactly once.
+  const level = clamp(Math.trunc(character.level), 1, 10);
+  const bareBones = character.domainCards.some((card) => card.inLoadout && !card.permanentlyVaulted && (
+    /(?:^|:)bare-bones$/.test(String(card.sourceId ?? card.id)) ||
+    /^(?:bare bones|ничего лишнего)$/i.test(card.name.trim())
+  ));
+  if (!bareBones) return { armorScore: 0, thresholds: { major: level, severe: 2 * level } };
+  const tier = level === 1 ? 0 : level <= 4 ? 1 : level <= 7 ? 2 : 3;
+  const bases = [[9, 19], [11, 24], [13, 31], [15, 38]][tier];
+  return { armorScore: 3 + strength, thresholds: { major: bases[0] + level, severe: bases[1] + level } };
 }
 
 function mergeEffectModifiers(effects: CharacterEffect[]): CharacterEffectModifiers {

@@ -5,21 +5,24 @@ import { useStream } from '../../../../core/hooks/useStream';
 import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
 import type { TableFeedItem } from '../../../../domain/tabletop/feed';
-import { gameService, diceService, encounterService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
+import { encounterService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
 import { EmptyState } from '../../../components/common/EmptyState';
 import { IconButton } from '../../../components/common/IconButton';
 import { TextControl } from '../../../components/common/Field';
+import { Button } from '../../../components/common/Button';
 import { PLAYER_ROLL_FEED_REVEAL_DELAY_MS } from '../constants';
 import { runDomainCardMacroAction } from '../domainCards/domainCardMacroActions';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../domainCards/types';
 import { feedRollRevealId, revealedRollIdsFromActivity } from '../helpers';
 import { playerViewUi$, playerViewUiActions } from '../playerViewUiState';
-import { PlayerRollConfirm } from '../PlayerRollConfirm';
+import { CharacterRollDialog, PreparedDiceRollDialog } from '../CharacterRollDialog';
+import type { PreparedDiceRoll } from '../../../../services/CharacterRollService';
 import type { PlayerRollDraft, SharedToolsTab, TableViewRole } from '../types';
 import { PlayerRailTabs } from '../PlayerRailTabs';
 import { PlayerRailHeaderActions } from '../PlayerRailHeaderActions';
 import { delaysRollResult, unrevealedRollIdsFromHistoricalActivity } from './activityReveal';
 import { FeedCard } from './feedCards/FeedCard';
+import { countNewActivityIds, isActivityNearBottom } from './activityScroll';
 
 type FeedCardRollDraftState = {
   draft: PlayerRollDraft;
@@ -43,11 +46,16 @@ export function PlayerLeftRail({
 }) {
   const [message, setMessage] = useState('');
   const [rollDraftState, setRollDraftState] = useState<FeedCardRollDraftState | null>(null);
+  const [diceDraftState, setDiceDraftState] = useState<{ draft: PreparedDiceRoll; character: PlayerViewCharacterSummary } | null>(null);
   const encounter = useStream(encounterService.encounter$);
   const { ephemeralFeedItem } = useStream(playerViewUi$);
   const [revealedRollIds, setRevealedRollIds] = useState<Set<string>>(() => revealedRollIdsFromActivity(model.activity));
   const mountedAtRef = useRef(Date.now());
   const activityRef = useRef<HTMLDivElement>(null);
+  const followingActivityRef = useRef(true);
+  const activityPositionInitializedRef = useRef(false);
+  const previousActivityIdsRef = useRef(model.activity.map((event) => event.id));
+  const [unreadActivityCount, setUnreadActivityCount] = useState(0);
   const activity = useMemo(() => {
     if (!ephemeralFeedItem || !canViewEphemeralFeedItem(ephemeralFeedItem, role, model.character?.id ?? null)) return model.activity;
     return [
@@ -56,6 +64,8 @@ export function PlayerLeftRail({
     ];
   }, [ephemeralFeedItem, model.activity, model.character?.id, role]);
   const visibleActivity = useMemo(() => activity.slice().reverse(), [activity]);
+  const activityIds = visibleActivity.map((event) => event.id);
+  const activityIdsKey = JSON.stringify(activityIds);
   const pendingRollRevealIds = useMemo(() => visibleActivity
     .filter((event) => delaysRollResult(event) && !revealedRollIds.has(feedRollRevealId(event)))
     .map(feedRollRevealId), [revealedRollIds, visibleActivity]);
@@ -63,16 +73,46 @@ export function PlayerLeftRail({
   const visibleCountdowns = useMemo(() => encounter.countdowns.filter((countdown) => role === 'gm' || countdown.visibility === 'public'), [encounter.countdowns, role]);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
+    const addedCount = countNewActivityIds(previousActivityIdsRef.current, activityIds);
+    previousActivityIdsRef.current = activityIds;
+    if (activityPositionInitializedRef.current && !followingActivityRef.current && addedCount > 0) {
+      setUnreadActivityCount((count) => count + addedCount);
+    }
+  }, [activityIdsKey]);
+
+  useEffect(() => {
+    if (!accessible) return;
+    let frame = 0;
+    const followActivity = () => {
       const activityElement = activityRef.current;
-      if (!activityElement) return;
+      if (!activityElement || activityElement.clientHeight === 0) return;
+      if (activityPositionInitializedRef.current && !followingActivityRef.current) return;
       activityElement.scrollTo({
         top: activityElement.scrollHeight,
-        behavior: ephemeralFeedItem ? 'smooth' : 'auto'
+        behavior: 'auto'
       });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [ephemeralFeedItem?.id, visibleActivity.length]);
+      activityPositionInitializedRef.current = true;
+      followingActivityRef.current = true;
+      setUnreadActivityCount(0);
+    };
+    const scheduleFollow = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(followActivity);
+    };
+    scheduleFollow();
+    // The mobile rail starts display:none. Initialize only once it has real
+    // dimensions, and keep following while images/results change row heights.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleFollow);
+    const element = activityRef.current;
+    if (element) {
+      observer?.observe(element);
+      Array.from(element.children).forEach((child) => observer?.observe(child));
+    }
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, [accessible, activityIdsKey]);
 
   useEffect(() => {
     setRevealedRollIds((current) => unrevealedRollIdsFromHistoricalActivity(current, activity, mountedAtRef.current) ?? current);
@@ -110,59 +150,28 @@ export function PlayerLeftRail({
       role,
       publication: item.publication,
       sourceLabel: item.feature?.sourceLabel ?? (item.kind === 'feature' ? 'Особенность' : 'Карта'),
-      openRollDraft: (draft) => setRollDraftState({ draft, character })
+      openRollDraft: (draft) => setRollDraftState({ draft, character }),
+      openDiceDraft: (draft) => setDiceDraftState({ draft, character })
     });
   };
   return (
     <aside className="player-left-rail" aria-label="Чат игры" aria-hidden={!accessible} inert={!accessible}>
       {rollDraftState && (
-        <PlayerRollConfirm
+        <CharacterRollDialog
           character={rollDraftState.character}
           draft={rollDraftState.draft}
+          role={role}
           onTraitChange={(trait) => setRollDraftState((current) => current ? { ...current, draft: { ...current.draft, trait } } : current)}
           onClose={() => setRollDraftState(null)}
-          onRoll={(rollOptions, rollType, publication) => {
-            const rollDraft = rollDraftState.draft;
-            const actorId = rollDraftState.character.id;
-            const actorName = rollDraftState.character.name;
-            if (role === 'player' && p2pSessionService.isConnectedPlayerSession() && actorId) {
-              void p2pSessionService.submitPlayerRollIntent({
-                actorId,
-                actorName,
-                publication,
-                intent: {
-                  type: 'duality',
-                  rollType,
-                  trait: rollDraft.trait,
-                  difficulty: 'difficulty' in rollDraft ? rollDraft.difficulty ?? 0 : 0,
-                  ...rollOptions,
-                  notes: 'notes' in rollDraft ? rollDraft.notes : undefined
-                }
-              });
-              setRollDraftState(null);
-              return;
-            }
-            const rollRequest = {
-              actorId,
-              actorName,
-              trait: rollDraft.trait,
-              difficulty: 'difficulty' in rollDraft ? rollDraft.difficulty ?? 0 : 0,
-              ...rollOptions,
-              publication,
-              notes: 'notes' in rollDraft ? rollDraft.notes : undefined
-            };
-            if (rollType === 'reaction') {
-              diceService.rollReaction(rollRequest);
-            } else {
-              diceService.rollAction({
-                ...rollRequest,
-                applyConsequences: gameService.game$.get().autoApplyRollConsequences
-              });
-            }
-            setRollDraftState(null);
-          }}
         />
       )}
+      {diceDraftState && <PreparedDiceRollDialog
+        actor={diceDraftState.character}
+        draft={diceDraftState.draft}
+        role={role}
+        onClose={() => setDiceDraftState(null)}
+      />}
+
       <header className="player-chronicle-header">
         <PlayerRailTabs active="chronicle" role={role} onSelect={(tab) => {
           if (tab === 'library') onOpenTool('library');
@@ -179,7 +188,12 @@ export function PlayerLeftRail({
             ))}
           </div>
         )}
-        <div className={`player-activity-list ${visibleActivity.length === 0 ? 'player-activity-list--empty' : ''}`} ref={activityRef}>
+        <div className={`player-activity-list ${visibleActivity.length === 0 ? 'player-activity-list--empty' : ''}`} ref={activityRef} onScroll={() => {
+          const element = activityRef.current;
+          if (!accessible || !element || element.clientHeight === 0) return;
+          followingActivityRef.current = isActivityNearBottom(element);
+          if (followingActivityRef.current) setUnreadActivityCount(0);
+        }}>
           {visibleActivity.length === 0 && (
             <EmptyState
               tone="transparent"
@@ -226,6 +240,15 @@ export function PlayerLeftRail({
             );
           })}
         </div>
+        {unreadActivityCount > 0 && (
+          <Button size="xs" variant="ghost" onClick={() => {
+            followingActivityRef.current = true;
+            activityRef.current?.scrollTo({ top: activityRef.current.scrollHeight, behavior: 'auto' });
+            setUnreadActivityCount(0);
+          }}>
+            Новые события: {unreadActivityCount}
+          </Button>
+        )}
         <form className="player-chat-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
           <TextControl tone="plain" aria-label="Сообщение игрока" value={message} onInput={(event) => setMessage(event.currentTarget.value)} placeholder={`Сообщение от ${model.character?.name ?? (role === 'gm' ? 'Мастера' : 'игрока')}`} />
           <IconButton variant="primary" size="sm" type="submit" disabled={!message.trim()} aria-label="Отправить сообщение" title="Отправить сообщение">

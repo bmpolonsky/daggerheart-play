@@ -89,12 +89,22 @@ export function planDomainCardResourceMacro(
   };
 }
 
-export function resolveDomainCardTokenMax(card: DomainCardRecord, traits: Record<TraitId, number>): number {
+export function resolveDomainCardTokenMax(
+  card: DomainCardRecord,
+  traits: Record<TraitId, number>,
+  spellcastTrait?: TraitId | null
+): number {
   const text = normalizeRulesText(`${card.cost ?? ''}\n${card.text}`);
   const explicitMax =
     text.match(/(?:максимум|не более|до|max(?:imum)?|up to)\s*(\d+)\s*(?:жетон|token)/i) ??
     text.match(/(?:жетон|token)[а-яa-z\s:.-]*(?:максимум|max(?:imum)?|up to)\s*(\d+)/i);
   if (explicitMax) return clamp(toSafeInteger(explicitMax[1], 0), 0, 12);
+
+  // A Spellcast trait is a character choice, not a seventh trait or a fixed
+  // token pool. Resolve it before the generic token-card fallback.
+  if (spellcastTrait && tokenMaxUsesSpellcastTrait(text)) {
+    return clamp(toSafeInteger(traits[spellcastTrait], 0), 0, 12);
+  }
 
   const trait = tokenMaxTrait(text);
   if (trait) {
@@ -103,6 +113,10 @@ export function resolveDomainCardTokenMax(card: DomainCardRecord, traits: Record
   }
 
   return /(?:жетон|token)/i.test(text) ? 6 : 0;
+}
+
+function tokenMaxUsesSpellcastTrait(text: string): boolean {
+  return /(?:жетон|token)[^.?!]*(?:равн|equal)[^.?!]*(?:характеристик[а-я\s]*заклинател|spellcast(?:ing)?\s+trait)/i.test(text);
 }
 
 function costAmount(text: string, labels: string[]): number {

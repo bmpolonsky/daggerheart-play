@@ -205,7 +205,7 @@ test('rest feed choices update by participant slots and completion stores fear p
   const completed = feedService.completeRest(entry.id, plan);
   assert.equal(completed?.rest.status, 'resolved');
   assert.equal(completed?.rest.fearPlan?.total, 1);
-  assert.equal(completed?.rest.participants[0]?.choices[0]?.status, 'resolved');
+  assert.equal(completed?.rest.participants[0]?.choices[0]?.status, 'selected');
   assert.equal(gameService.game$.get().fear, 1);
 });
 
@@ -351,7 +351,7 @@ test('player rest choice sync applies to GM feed and completion preserves choice
 
   const completed = feedService.completeRest(entry.id, { restType: 'short', pcCount: 3, die: 1, modifier: 0, total: 1, formula: '1d4' });
   assert.deepEqual(completed?.rest.participants[0]?.choices.map((choice) => [choice.label, choice.status]), [
-    [firstMove, 'resolved'],
-    [secondMove, 'resolved']
+    [firstMove, 'selected'],
+    [secondMove, 'selected']
   ]);
 });

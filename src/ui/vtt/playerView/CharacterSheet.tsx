@@ -9,17 +9,16 @@ import type { LibraryBeastform } from "../../../domain/content/types";
 import { groupPlayerViewFeatures, type PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import { defaultCharacterPortraitUrl } from "../../../domain/tabletop/defaultArt";
-import { scaleWeaponFormulaByProficiency } from "../../../domain/rules/diceFormula";
 import { characterLevelRank } from "../../../domain/rules/levelUp";
 import { companionDamageFormula } from "../../../domain/rules/rangerCompanion";
 import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
-import type { DamageType, TraitId } from "../../../domain/rules/types";
+import type { TraitId } from "../../../domain/rules/types";
 import { formatWealthSummary } from "../../../domain/rules/wealthPresentation";
-import { gameService, characterService, diceService, feedService, p2pSessionService, sceneTableService } from "../../../services/serviceRegistry";
+import { gameService, characterService, feedService, sceneTableService } from "../../../services/serviceRegistry";
 import { compactDamageTypeLabel, cssImageUrl, signed } from "./helpers";
 import { CharacterSheetDomainCards } from "./CharacterSheetDomainCards";
 import type { PlayerViewDomainCard } from "./domainCards/types";
-import { PlayerRollConfirm } from "./PlayerRollConfirm";
+import { CharacterRollDialog } from "./CharacterRollDialog";
 import { PlayerSheetSectionRail, SheetSection, TrackRow } from "./PlayerSheetControls";
 import { StatusChips } from "./StatusChips";
 import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./types";
@@ -69,7 +68,15 @@ export function CharacterSheet({
   const sceneTable = useStream(sceneTableService.sceneTable$);
   const [activeSheetSection, setActiveSheetSection] = useState<PlayerSheetSectionId>('overview');
   const sheetRef = useRef<HTMLElement | null>(null);
-  const [rollDraft, setRollDraft] = useState<PlayerRollDraft | null>(null);
+  const [rollDraftState, setRollDraftState] = useState<{ actorId: string; draft: PlayerRollDraft } | null>(null);
+  const rollDraft = rollDraftState?.actorId === character.id ? rollDraftState.draft : null;
+  const setRollDraft = (next: PlayerRollDraft | null | ((current: PlayerRollDraft | null) => PlayerRollDraft | null)) => {
+    setRollDraftState((current) => {
+      const previous = current?.actorId === character.id ? current.draft : null;
+      const draft = typeof next === 'function' ? next(previous) : next;
+      return draft ? { actorId: character.id, draft } : null;
+    });
+  };
   const [selectedBeastformId, setSelectedBeastformId] = useState('');
   const [companionEditorOpen, setCompanionEditorOpen] = useState(false);
   const [evolutionTrait, setEvolutionTrait] = useState(character.traits[0]?.id ?? 'agility');
@@ -162,84 +169,13 @@ export function CharacterSheet({
           </div>
         </header>
         {rollDraft && (
-        <PlayerRollConfirm
+        <CharacterRollDialog
+          key={character.id}
           character={character}
           draft={rollDraft}
-          experiences={rollDraft.kind === 'companion' ? character.companion?.experiences : undefined}
-          forceSpendHopeForExperiences={rollDraft.kind === 'companion'}
+          role={role}
           onTraitChange={(trait) => setRollDraft((current) => current ? { ...current, trait } : current)}
           onClose={() => setRollDraft(null)}
-          onRoll={(rollOptions, rollType, publication) => {
-            const rollNotes = 'notes' in rollDraft ? rollDraft.notes : undefined;
-            if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
-              void p2pSessionService.submitPlayerRollIntent({
-                actorId: character.id,
-                actorName: character.name,
-                publication,
-                intent: {
-                  type: 'duality',
-                  rollType,
-                  trait: rollDraft.trait,
-                  difficulty: 'difficulty' in rollDraft ? rollDraft.difficulty ?? 0 : 0,
-                  ...rollOptions,
-                  notes: rollNotes
-                }
-              });
-              setRollDraft(null);
-              return;
-            }
-            const rollRequest = {
-              actorId: character.id,
-              actorName: character.name,
-              trait: rollDraft.trait,
-              difficulty: 'difficulty' in rollDraft ? rollDraft.difficulty ?? 0 : 0,
-              ...rollOptions,
-              publication,
-              notes: rollNotes
-            };
-            if (rollType === 'reaction') {
-              diceService.rollReaction(rollRequest);
-            } else {
-              diceService.rollAction({
-                ...rollRequest,
-                applyConsequences: gameService.game$.get().autoApplyRollConsequences
-              });
-            }
-            setRollDraft(null);
-          }}
-          onDamage={rollDraft.kind === 'weapon' || rollDraft.kind === 'companion' ? ({ publication }) => {
-            const damageFormula = scaleWeaponFormulaByProficiency(rollDraft.damageFormula, character.proficiency);
-            const damageNotes = rollDraft.kind === 'companion'
-              ? `Компаньон: ${rollDraft.title}`
-              : `Оружие: ${rollDraft.title}`;
-            const damageActorName = rollDraft.kind === 'companion'
-              ? character.companion?.name ?? character.name
-              : character.name;
-            if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
-              void p2pSessionService.submitPlayerRollIntent({
-                actorId: character.id,
-                actorName: damageActorName,
-                publication,
-                intent: {
-                  type: 'damage',
-                  formula: damageFormula,
-                  damageType: rollDraft.damageType as DamageType,
-                  notes: damageNotes
-                }
-              });
-              setRollDraft(null);
-              return;
-            }
-            diceService.rollDamage({
-              actorId: character.id,
-              actorName: damageActorName,
-              formula: damageFormula,
-              damageType: rollDraft.damageType as DamageType,
-              publication,
-              notes: damageNotes
-            });
-            setRollDraft(null);
-          } : undefined}
         />
         )}
         <SheetSection id="player-sheet-overview" title="Ресурсы">
@@ -487,6 +423,8 @@ export function CharacterSheet({
             options={CORE_STATUS_TAGS}
             onAdd={addStatus}
             onRemove={removeStatus}
+            onAddCustom={(draft) => characterService.addCustomCondition(character.id, draft)}
+            onUpdateCustom={(conditionId, draft) => characterService.updateCustomCondition(character.id, conditionId, draft)}
           />
         </section>
         </SheetSection>
@@ -594,12 +532,13 @@ export function CharacterSheet({
         />
         <ListItem
           title={character.armor.name || 'Броня'}
-          subtitle={`Пороги ${character.thresholds.major} / ${character.thresholds.severe} — показатель ${character.armor.score}`}
+          rightAccessory={<Button size="xs" variant="ghost" onClick={() => characterService.setArmorEquipped(character.id, !character.armor.equipped)}>{character.armor.equipped ? 'Снять броню' : 'Надеть броню'}</Button>}
+          subtitle={character.armor.equipped ? `Пороги ${character.thresholds.major} / ${character.thresholds.severe} — показатель ${character.armor.score}` : 'Не надета'}
           lines={2}
           onClick={() => onFeaturePreview?.(character, {
               id: 'armor',
               name: character.armor.name || 'Броня',
-              subtitle: `Пороги ${character.thresholds.major} / ${character.thresholds.severe} — показатель ${character.armor.score}`,
+              subtitle: character.armor.equipped ? `Пороги ${character.thresholds.major} / ${character.thresholds.severe} — показатель ${character.armor.score}` : 'Не надета',
               text: character.armor.feature,
               sourceLabel: 'Броня'
             })}

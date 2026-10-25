@@ -17,6 +17,7 @@ import { readSupabaseSessionConfig } from '../domain/p2p/supabaseSession';
 import { shouldUseServerSession } from '../domain/p2p/serverSession';
 import { createCharacter, sanitizeWealth } from '../domain/rules/factories';
 import { syncCharacterDefeatedCondition } from '../domain/rules/characterDamage';
+import { isCustomCondition } from '../domain/rules/customConditions';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import { resolveDomainCardTokenMax } from '../domain/rules/domainCards';
 import { ActorStatus, normalizeStatusTag } from '../domain/rules/statuses';
@@ -70,13 +71,22 @@ import type { GameCustomContent } from '../domain/game/gameDocument';
 import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { P2PAssetTransferService } from './P2PAssetTransferService';
 import { reportOperationalError } from '../core/observability/sentry';
-import { applyCharacterPatch, createCharacterPatch } from '../domain/p2p/characterPatch';
+import { applyCharacterPatch, createCharacterPatch, createCharacterRollbackPatch, rollbackRejectedCharacterPatch, isCharacterPatch, type CharacterPatch } from '../domain/p2p/characterPatch';
 import { isPlayerCharacterUpdateMessage } from './SyncService';
 
 export type P2PSessionRole = 'gm' | 'player';
 export type P2PConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'degraded' | 'error';
 
 const P2P_TURN_AUTH_TIMEOUT_MS = 2_500;
+
+export interface CharacterSyncDelivery {
+  actorId: string;
+  participantId: string;
+  revision: number;
+  state: 'pending' | 'confirmed' | 'failed';
+  at: string;
+  message: string;
+}
 
 export interface P2PSessionState {
   connected: boolean;
@@ -95,6 +105,8 @@ export interface P2PSessionState {
   directPeers?: string[];
   rollPending?: boolean;
   pendingRollIntentId?: string | null;
+  characterSync?: Record<string, CharacterSyncDelivery>;
+  characterSyncEvents?: CharacterSyncDelivery[];
 }
 
 export interface P2PSessionStartInput {
@@ -142,8 +154,20 @@ interface RemotePeerContext {
   verifiedPeerId?: string;
 }
 
+interface CanonicalCharacterConfirmation {
+  actorId: string;
+  participantId: string;
+  revision: number;
+  generation: number;
+  graceUntil: number;
+  attempts: number;
+  lastAttemptAt?: number;
+}
+
 interface PendingPlayerCharacterUpdate {
   message: PlayerCharacterUpdateMessage;
+  rollback?: CharacterPatch;
+  lastAttemptAt?: number;
 }
 
 interface PersistedPendingPlayerCharacterUpdate extends PendingPlayerCharacterUpdate {
@@ -152,6 +176,7 @@ interface PersistedPendingPlayerCharacterUpdate extends PendingPlayerCharacterUp
 
 const AUTO_SNAPSHOT_DELAY_MS = 350;
 const PRODUCT_SYNC_RECOVERY_POLL_MS = 5000;
+const CANONICAL_CHARACTER_RECOVERY_MAX_ATTEMPTS = 3;
 const SERVER_HEARTBEAT_MS = 15_000;
 const SERVER_PEER_TIMEOUT_MS = 45_000;
 const PLAYER_ROLL_ACK_TIMEOUT_MS = 5_000;
@@ -182,6 +207,9 @@ export class P2PSessionService {
 
   private snapshotTimer: number | undefined;
   private productRecoveryTimer: number | undefined;
+  private canonicalCharacterConfirmationTimer: number | undefined;
+  private canonicalCharacterConfirmation: CanonicalCharacterConfirmation | null = null;
+  private canonicalCharacterConfirmationGeneration = 0;
   private roomCodeRefreshTimer: number | undefined;
   private activeRoomConnection: P2PRoomConnection | null = null;
   private startInFlight: { role: P2PSessionRole; roomId: string; promise: Promise<void> } | null = null;
@@ -305,6 +333,7 @@ export class P2PSessionService {
       actorName: context.actorName?.trim() || this.playerActorContext.actorName?.trim() || undefined
     };
     const seatChanged = next.participantId !== this.playerActorContext.participantId || next.actorId !== this.playerActorContext.actorId;
+    if (seatChanged) this.clearCanonicalCharacterConfirmation();
     this.playerActorContext = next;
     const session = this.sessionStore.get();
     if (!seatChanged || session.role !== 'player' || !session.roomId || !next.participantId || !next.actorId) return;
@@ -444,7 +473,7 @@ export class P2PSessionService {
     this.bindCallPresenceSync();
     this.subscriptions.add(this.syncService.subscribeSnapshotRequests((_request, _event, context) => {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Игрок запрашивает данные игры.' });
-      void this.publishSnapshot({ targetPeer: context?.sourcePeerId });
+      void this.publishSnapshot({ targetPeer: context?.sourcePeerId, preserveScheduled: Boolean(context?.sourcePeerId) });
     }));
     this.patchSession({ status: 'connecting', role: 'gm', roomId, message: 'Запускаем сетевую игру.' });
     await this.syncService.connectAuthority(roomId, participant);
@@ -625,6 +654,10 @@ export class P2PSessionService {
         try {
           hydratePersistedState(this.preserveUnacknowledgedPlayerCharacter(state));
           this.capturePlayerForwardingBaseline();
+          const expected = this.canonicalCharacterConfirmation;
+          if (expected && this.hasCanonicalCharacterRevision(state.characters.entities[expected.actorId], expected)) {
+            this.clearCanonicalCharacterConfirmation();
+          }
           this.patchSession({
             lastSnapshotAt: nowIso(),
             latestRollAnimationId: freshSnapshotRollId(state.rollLog, event.createdAt),
@@ -766,6 +799,7 @@ export class P2PSessionService {
   }
 
   async stop(options: { forgetSession?: boolean } = {}): Promise<void> {
+    this.clearCanonicalCharacterConfirmation();
     this.stopGmActivityGuard();
     this.hasDirectGmSnapshot = false;
     const stoppedSession = this.sessionStore.get();
@@ -847,9 +881,11 @@ export class P2PSessionService {
     return true;
   }
 
-  async publishSnapshot(options: { requirePeers?: boolean; targetPeer?: SyncTargetPeer } = {}): Promise<boolean> {
-    window.clearTimeout(this.snapshotTimer);
-    this.snapshotTimer = undefined;
+  async publishSnapshot(options: { requirePeers?: boolean; targetPeer?: SyncTargetPeer; preserveScheduled?: boolean } = {}): Promise<boolean> {
+    if (!options.preserveScheduled) {
+      window.clearTimeout(this.snapshotTimer);
+      this.snapshotTimer = undefined;
+    }
     const session = this.sessionStore.get();
     const savesToServer = session.role === 'gm' && session.transportMode === 'hybrid';
     if (session.role === 'gm' && session.peers.length === 0 && !savesToServer) {
@@ -1236,6 +1272,7 @@ export class P2PSessionService {
     if (!latestPublishedRevision) return state;
     const incoming = state.characters.entities[actorId];
     const pending = this.pendingPlayerCharacterUpdates.get(actorId)?.message;
+    if (!pending) return state;
     const local = pending?.patch && incoming
       ? applyCharacterPatch(incoming, pending.patch)
       : pending?.character ?? charactersStore.get().entities[actorId];
@@ -1258,19 +1295,20 @@ export class P2PSessionService {
         : pending.message.participantId === participantId;
       if (pending.roomId !== roomId || !sameSeat) continue;
       const message = { ...pending.message, participantId };
-      this.pendingPlayerCharacterUpdates.set(message.actorId, { message });
+      this.pendingPlayerCharacterUpdates.set(message.actorId, { message, rollback: pending.rollback });
+      this.recordCharacterDelivery(message, 'pending', 'Восстановлено неподтверждённое изменение персонажа.');
       this.playerCharacterRevisions.set(message.actorId, Math.max(
         this.playerCharacterRevisions.get(message.actorId) ?? 0,
         message.revision
       ));
-      await this.persistPendingPlayerCharacterUpdate(roomId, message);
+      await this.persistPendingPlayerCharacterUpdate(roomId, message, pending.rollback);
     }
   }
 
-  private persistPendingPlayerCharacterUpdate(roomId: string, message: PlayerCharacterUpdateMessage): Promise<void> {
+  private persistPendingPlayerCharacterUpdate(roomId: string, message: PlayerCharacterUpdateMessage, rollback?: CharacterPatch): Promise<void> {
     return this.mutatePersistedPendingPlayerCharacterUpdates((current) => [
       ...current.filter((pending) => !(pending.roomId === roomId && pending.message.actorId === message.actorId)),
-      { roomId, message }
+      { roomId, message, rollback }
     ]);
   }
 
@@ -1336,8 +1374,10 @@ export class P2PSessionService {
     const signature = playerCharacterFullSignature(character);
     const previousSignature = this.playerCharacterFullSignatures.get(character.id);
     if (previousSignature === signature) return;
-    const pending = this.pendingPlayerCharacterUpdates.get(character.id)?.message;
-    const patch = createCharacterPatch(previousSignature ? JSON.parse(previousSignature) : {}, character, pending?.patch);
+    const previousPending = this.pendingPlayerCharacterUpdates.get(character.id);
+    const pending = previousPending?.message;
+    const before = previousSignature ? JSON.parse(previousSignature) as Partial<Character> : {};
+    const patch = createCharacterPatch(before, character, pending?.patch);
     const previousRevision = this.playerCharacterRevisions.get(character.id) ?? character.playerSyncRevision?.revision ?? 0;
     const revision = previousRevision + 1;
     // Reserve this version before awaiting transport so rapid store emissions do
@@ -1355,8 +1395,10 @@ export class P2PSessionService {
       revision,
       updatedAt: nowIso()
     };
-    this.pendingPlayerCharacterUpdates.set(character.id, { message });
-    await this.persistPendingPlayerCharacterUpdate(session.roomId, message);
+    const rollback = createCharacterRollbackPatch(before, patch, previousPending?.rollback);
+    this.pendingPlayerCharacterUpdates.set(character.id, { message, rollback, lastAttemptAt: Date.now() });
+    this.recordCharacterDelivery(message, 'pending', 'Изменения ожидают подтверждения мастера.');
+    await this.persistPendingPlayerCharacterUpdate(session.roomId, message, rollback);
     try {
       await this.publishPendingPlayerCharacterUpdate(message);
     } catch (error) {
@@ -1367,6 +1409,8 @@ export class P2PSessionService {
   }
 
   private async publishPendingPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage): Promise<void> {
+    const pending = this.pendingPlayerCharacterUpdates.get(message.actorId);
+    if (pending?.message.revision === message.revision) pending.lastAttemptAt = Date.now();
     const gmPeerId = this.activeRoomConnection?.gmPeerId();
     if (!gmPeerId) {
       throw new Error('Мастер пока не подключен. Изменения персонажа остаются в очереди.');
@@ -1375,12 +1419,13 @@ export class P2PSessionService {
     this.patchSession({ lastRequestAt: nowIso(), message: 'Изменения персонажа отправлены мастеру. Ждем подтверждение.' });
   }
 
-  private async republishPendingPlayerCharacterUpdates(): Promise<void> {
+  private async republishPendingPlayerCharacterUpdates(onlyStale = false): Promise<void> {
     const actorId = this.playerActorContext.actorId;
     const pending = actorId
       ? Array.from(this.pendingPlayerCharacterUpdates.values()).filter((update) => update.message.actorId === actorId)
       : [];
     for (const update of pending) {
+      if (onlyStale && update.lastAttemptAt !== undefined && Date.now() - update.lastAttemptAt < PRODUCT_SYNC_RECOVERY_POLL_MS) continue;
       try {
         await this.publishPendingPlayerCharacterUpdate(update.message);
       } catch (error) {
@@ -1393,12 +1438,100 @@ export class P2PSessionService {
     const actorContext = this.requirePlayerActorContext(message.actorId);
     if (!actorContext || actorContext.participantId !== message.participantId) return;
     const gmPeerId = this.activeRoomConnection?.gmPeerId();
-    if (gmPeerId && context?.sourcePeerId && context.sourcePeerId !== gmPeerId && context.verifiedSourcePeerId !== gmPeerId) return;
+    if (context && (!gmPeerId || (context.sourcePeerId !== gmPeerId && context.verifiedSourcePeerId !== gmPeerId))) return;
     const pending = this.pendingPlayerCharacterUpdates.get(message.actorId);
     if (!pending || pending.message.revision !== message.revision) return;
     this.pendingPlayerCharacterUpdates.delete(message.actorId);
     void this.removePersistedPendingPlayerCharacterUpdate(this.session$.get().roomId, message.participantId, message.actorId);
+    if (message.accepted === false) {
+      const current = charactersStore.get().entities[message.actorId];
+      if (current && pending.rollback && pending.message.patch) {
+        this.suppressPlayerStoreForwarding = true;
+        try {
+          const restored = rollbackRejectedCharacterPatch(current, pending.message.patch, pending.rollback);
+          charactersStore.update((state) => ({ ...state, entities: { ...state.entities, [message.actorId]: restored } }));
+          this.playerCharacterFullSignatures.set(message.actorId, playerCharacterFullSignature(restored));
+        } finally {
+          this.suppressPlayerStoreForwarding = false;
+        }
+      }
+      const reason = message.reason || 'Мастер отклонил изменения персонажа.';
+      this.recordCharacterDelivery(message, 'failed', reason);
+      this.patchSession({ lastRequestAt: message.acknowledgedAt, message: reason });
+      void this.requestSnapshotFromGm('manual');
+      return;
+    }
+    this.expectCanonicalCharacterConfirmation(message);
+    this.recordCharacterDelivery(message, 'confirmed', 'Изменения подтверждены мастером.');
     this.patchSession({ lastRequestAt: message.acknowledgedAt, message: 'Изменения персонажа подтверждены мастером.' });
+  }
+
+  private hasCanonicalCharacterRevision(character: Character | undefined, expected: Pick<CanonicalCharacterConfirmation, 'participantId' | 'revision'>): boolean {
+    return character?.playerSyncRevision?.participantId === expected.participantId
+      && character.playerSyncRevision.revision >= expected.revision;
+  }
+
+  private clearCanonicalCharacterConfirmation(): void {
+    this.canonicalCharacterConfirmationGeneration += 1;
+    if (typeof window !== 'undefined') window.clearTimeout(this.canonicalCharacterConfirmationTimer);
+    this.canonicalCharacterConfirmationTimer = undefined;
+    this.canonicalCharacterConfirmation = null;
+  }
+
+  private expectCanonicalCharacterConfirmation(message: PlayerCharacterUpdateAckMessage): void {
+    // Called only for the matching current accepted ACK, never stale ACKs.
+    this.clearCanonicalCharacterConfirmation();
+    if (this.hasCanonicalCharacterRevision(charactersStore.get().entities[message.actorId], message)) return;
+    const expected: CanonicalCharacterConfirmation = {
+      actorId: message.actorId, participantId: message.participantId,
+      revision: message.revision, generation: this.canonicalCharacterConfirmationGeneration,
+      graceUntil: Date.now() + AUTO_SNAPSHOT_DELAY_MS, attempts: 0
+    };
+    this.canonicalCharacterConfirmation = expected;
+    this.canonicalCharacterConfirmationTimer = window.setTimeout(() => {
+      if (this.canonicalCharacterConfirmation !== expected || expected.generation !== this.canonicalCharacterConfirmationGeneration) return;
+      this.canonicalCharacterConfirmationTimer = undefined;
+      this.recoverCanonicalCharacterConfirmation();
+    }, AUTO_SNAPSHOT_DELAY_MS);
+  }
+
+  private recoverCanonicalCharacterConfirmation(): void {
+    const expected = this.canonicalCharacterConfirmation;
+    if (!expected || expected.generation !== this.canonicalCharacterConfirmationGeneration) return;
+    if (this.playerActorContext.actorId !== expected.actorId || this.playerActorContext.participantId !== expected.participantId) {
+      this.clearCanonicalCharacterConfirmation();
+      return;
+    }
+    if (this.hasCanonicalCharacterRevision(charactersStore.get().entities[expected.actorId], expected)) {
+      this.clearCanonicalCharacterConfirmation();
+      return;
+    }
+    const session = this.sessionStore.get();
+    const now = Date.now();
+    if (session.role !== 'player' || !session.connected || now < expected.graceUntil
+      || expected.attempts >= CANONICAL_CHARACTER_RECOVERY_MAX_ATTEMPTS
+      || (expected.lastAttemptAt !== undefined && now - expected.lastAttemptAt < PRODUCT_SYNC_RECOVERY_POLL_MS)) return;
+    expected.attempts += 1;
+    expected.lastAttemptAt = now;
+    // ACK acceptance is final. Recovery failures must not set degraded, since
+    // the separate degraded-session polling would bypass this bounded budget.
+    void this.syncService.publishSnapshotRequest('manual', this.activeRoomConnection?.gmPeerId() ?? undefined).catch(() => {
+      if (this.canonicalCharacterConfirmation === expected && expected.generation === this.canonicalCharacterConfirmationGeneration) {
+        this.patchSession({ message: 'Изменения подтверждены, но актуальное состояние персонажа пока не получено.' });
+      }
+    });
+  }
+
+  private recordCharacterDelivery(message: Pick<PlayerCharacterUpdateMessage, 'actorId' | 'participantId' | 'revision'>, state: CharacterSyncDelivery['state'], detail: string): void {
+    const delivery: CharacterSyncDelivery = { actorId: message.actorId, participantId: message.participantId, revision: message.revision, state, at: nowIso(), message: detail };
+    const current = this.sessionStore.get();
+    const previous = current.characterSync?.[message.actorId];
+    if (previous?.participantId === message.participantId && (previous.revision > message.revision
+      || (previous.revision === message.revision && previous.state === state))) return;
+    this.patchSession({
+      characterSync: { ...current.characterSync, [message.actorId]: delivery },
+      characterSyncEvents: [delivery, ...(current.characterSyncEvents ?? [])].slice(0, 50)
+    });
   }
 
   private async forwardPlayerFeedEntries(): Promise<void> {
@@ -1543,9 +1676,21 @@ export class P2PSessionService {
   private async receivePlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, context?: SyncEventContext): Promise<void> {
     const result = this.acceptPlayerCharacterUpdate(message, remotePeerContext(context));
     if (result === 'rejected') {
+      const reason = 'Мастер отклонил изменения персонажа. Проверьте назначение персонажа.';
+      this.recordCharacterDelivery(message, 'failed', reason);
       this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Изменения персонажа отклонены') });
+      try {
+        await this.syncService.publishPlayerCharacterUpdateAck({
+          type: 'playerCharacterUpdateAck', participantId: message.participantId,
+          actorId: message.actorId, revision: message.revision,
+          acknowledgedAt: nowIso(), accepted: false, reason
+        }, context?.sourcePeerId);
+      } catch {
+        // The sender retains the pending version and can retry the same refusal.
+      }
       return;
     }
+    this.recordCharacterDelivery(message, 'confirmed', result === 'duplicate' ? 'Повторное изменение подтверждено.' : 'Изменения игрока применены.');
     try {
       await this.syncService.publishPlayerCharacterUpdateAck({
         type: 'playerCharacterUpdateAck',
@@ -1560,6 +1705,15 @@ export class P2PSessionService {
     }
     if (result === 'duplicate') {
       this.patchSession({ lastRequestAt: nowIso(), message: 'Повторное изменение персонажа подтверждено.' });
+      // The first ACK and/or snapshot may have been lost. Re-send canonical
+      // state without applying the mutation again or cancelling a queued
+      // broadcast to the other players through publishSnapshot().
+      try {
+        await this.syncService.publishSnapshot(snapshotPersistedState(), context?.sourcePeerId);
+      } catch {
+        // Acceptance is final even if its recovery snapshot cannot be sent.
+        this.patchSession({ status: 'degraded', message: 'Изменения подтверждены, но повторная отправка состояния игроку не удалась.' });
+      }
       return;
     }
     this.patchSession({ lastRequestAt: nowIso(), message: 'Изменения персонажа игрока применены.' });
@@ -1749,19 +1903,36 @@ export class P2PSessionService {
 
   private startPlayerProductRecoveryPolling(): void {
     this.stopPlayerProductRecoveryPolling();
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.handlePlayerResume);
+    window.addEventListener?.('online', this.handlePlayerResume);
+    window.addEventListener?.('pageshow', this.handlePlayerResume);
     this.productRecoveryTimer = window.setInterval(() => {
       const session = this.session$.get();
       if (session.role !== 'player' || !session.connected) {
         this.stopPlayerProductRecoveryPolling();
         return;
       }
+      void this.republishPendingPlayerCharacterUpdates(true);
+      this.recoverCanonicalCharacterConfirmation();
       if (!session.lastSnapshotAt || session.status === 'degraded' || session.peers.length === 0) {
         void this.requestSnapshotFromGm(session.lastSnapshotAt ? 'peer-reconnect' : 'manual');
       }
     }, this.roomConnectionConfig.heartbeatMs ?? PRODUCT_SYNC_RECOVERY_POLL_MS);
   }
 
+  private handlePlayerResume = (): void => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    const session = this.sessionStore.get();
+    if (session.role !== 'player' || !session.connected) return;
+    void this.republishPendingPlayerCharacterUpdates();
+    this.recoverCanonicalCharacterConfirmation();
+    void this.requestSnapshotFromGm('peer-reconnect');
+  };
+
   private stopPlayerProductRecoveryPolling(): void {
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.handlePlayerResume);
+    window.removeEventListener?.('online', this.handlePlayerResume);
+    window.removeEventListener?.('pageshow', this.handlePlayerResume);
     window.clearInterval(this.productRecoveryTimer);
     this.productRecoveryTimer = undefined;
   }
@@ -2364,7 +2535,8 @@ function normalizePersistedPendingPlayerCharacterUpdates(value: unknown): Persis
   return value.filter((item): item is PersistedPendingPlayerCharacterUpdate => {
     if (!item || typeof item !== 'object') return false;
     const pending = item as Partial<PersistedPendingPlayerCharacterUpdate>;
-    return typeof pending.roomId === 'string' && isPlayerCharacterUpdateMessage(pending.message);
+    return typeof pending.roomId === 'string' && isPlayerCharacterUpdateMessage(pending.message)
+      && (pending.rollback === undefined || isCharacterPatch(pending.rollback));
   });
 }
 
@@ -2397,7 +2569,7 @@ function playerCharacterResourceSignature(character: Character): string {
     wealth: character.wealth,
     activeBeastform: character.activeBeastform ?? null,
     companion: character.companion ? { stress: character.companion.stress.marked, unavailableUntilLongRest: character.companion.unavailableUntilLongRest } : null,
-    conditions: character.conditions.map((condition) => [condition.id, condition.name, condition.notes ?? '']),
+    conditions: character.conditions.map((condition) => [condition.id, condition.name, condition.notes ?? '', condition.removalCondition ?? '']),
     domainCards: character.domainCards.map((card) => [card.id, card.tokens.value])
   });
 }
@@ -2439,7 +2611,7 @@ function remotePeerContext(context?: SyncEventContext): RemotePeerContext | unde
 function normalizePlayerConditionList(conditions: CharacterCondition[]): CharacterCondition[] {
   const seen = new Set<string>();
   return conditions.flatMap((condition) => {
-    const name = normalizeStatusTag(condition.name);
+    const name = isCustomCondition(condition) ? condition.name.trim() : normalizeStatusTag(condition.name);
     if (!name) return [];
     const key = name.toLowerCase();
     if (seen.has(key)) return [];
@@ -2447,7 +2619,8 @@ function normalizePlayerConditionList(conditions: CharacterCondition[]): Charact
     return [{
       id: condition.id.trim() || createId('condition'),
       name,
-      notes: condition.notes?.trim() || undefined
+      notes: condition.notes?.trim() || undefined,
+      removalCondition: condition.removalCondition?.trim() || undefined
     }];
   });
 }

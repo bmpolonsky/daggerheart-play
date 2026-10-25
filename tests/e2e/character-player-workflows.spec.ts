@@ -334,7 +334,7 @@ test.describe('filled-game player character workflows', () => {
       const tokenCard = cardRow(hand, 'Заклинание 3');
       await tokenCard.click();
       const preview = player.getByRole('complementary', { name: 'Предпросмотр', exact: true });
-      const tokenTrack = preview.getByRole('group', { name: 'Надежда карты Заклинание 3' });
+      const tokenTrack = preview.getByRole('group', { name: 'Жетоны карты Заклинание 3' });
       await expect(tokenTrack).toBeVisible();
       await expect(tokenCard.getByTitle('Настроить трекер для «Заклинание 3»')).toHaveCount(0);
 
@@ -462,12 +462,12 @@ test.describe('filled-game player character workflows', () => {
       const tokenCard = cardRow(hand, 'Заклинание 3');
       await tokenCard.click();
       const preview = gm.getByRole('complementary', { name: 'Предпросмотр', exact: true });
-      const tokenTrack = preview.getByRole('group', { name: 'Надежда карты Заклинание 3' });
+      const tokenTrack = preview.getByRole('group', { name: 'Жетоны карты Заклинание 3' });
 
-      await tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 3 из 3' }).click();
-      await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 1 из 3' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 2 из 3' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(tokenTrack.getByRole('button', { name: 'Надежда карты Заклинание 3 3 из 3' })).toHaveAttribute('aria-pressed', 'true');
+      await tokenTrack.getByRole('button', { name: 'Жетоны карты Заклинание 3 3 из 3' }).click();
+      await expect(tokenTrack.getByRole('button', { name: 'Жетоны карты Заклинание 3 1 из 3' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(tokenTrack.getByRole('button', { name: 'Жетоны карты Заклинание 3 2 из 3' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(tokenTrack.getByRole('button', { name: 'Жетоны карты Заклинание 3 3 из 3' })).toHaveAttribute('aria-pressed', 'true');
       await expect(gm.getByLabel('Чат игры').locator('.feed-domain-card')).toHaveCount(0);
       await gm.getByLabel('Контекст мастера').getByRole('button', { name: 'Участники' }).click();
       await gm.getByLabel('Участники сцены').getByRole('button', { name: /Алая Слизь/ }).first().click();
@@ -627,6 +627,8 @@ test.describe('filled-game player character workflows', () => {
       await expect(roll.getByLabel('Разведчица +2')).toBeVisible();
       await expect(roll.getByLabel('Защитница +2')).toBeVisible();
       await expect(roll.getByRole('button', { name: 'Бросить действие' })).toBeVisible();
+      await roll.getByRole('button', { name: 'Урон', exact: true }).click();
+      await expect(roll.getByRole('button', { name: 'Бросить действие' })).toHaveCount(0);
       await expect(roll.getByRole('button', { name: 'Бросить урон' })).toBeVisible();
       await roll.getByRole('button', { name: 'Закрыть', exact: true }).click();
 

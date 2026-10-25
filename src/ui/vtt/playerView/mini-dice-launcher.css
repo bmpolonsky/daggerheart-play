@@ -130,6 +130,7 @@
   bottom: calc(100% + 10px);
   width: min(332px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 180px);
   display: grid;
   gap: 8px;
   padding: 10px;
@@ -138,7 +139,7 @@
   background: rgba(9, 10, 12, 0.84);
   box-shadow: 0 22px 64px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(18px);
-  overflow: visible;
+  overflow-y: auto;
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, 8px);
@@ -148,13 +149,16 @@
 .mini-dice-launcher__panel-head {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 28px;
   align-items: center;
   gap: 8px;
   padding: 0 2px 2px;
 }
 
 .mini-dice-launcher__panel-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: rgba(255, 247, 231, 0.94);
   font-size: 0.72rem;
   font-weight: 950;

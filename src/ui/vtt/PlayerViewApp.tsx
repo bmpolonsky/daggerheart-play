@@ -9,6 +9,7 @@ import {
   buildPlayerViewModel,
   type PlayerViewCharacterSummary
 } from '../../domain/tabletop/playerView';
+import { buildRollActorOptions } from '../../domain/tabletop/rollActorContext';
 import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildHandoutDraftFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview, type TableFeedItem } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
@@ -51,6 +52,7 @@ import { TabButton, Tabs } from '../components/common/Tabs';
 import { Dialog } from '../components/common/Dialog';
 import { IconButton } from '../components/common/IconButton';
 import { SectionHeader } from '../components/common/SectionHeader';
+import { CharacterSyncStatus } from './playerView/CharacterSyncStatus';
 import { ContentPreviewPanel } from './playerView/ContentPreviewPanel';
 import './playerView/player-view.css';
 
@@ -178,23 +180,9 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
     actorId: playerCharacterId
   });
   const selectedPlayerName = selectedPlayerSeat?.name.trim() || undefined;
-  const fallbackActorName = role === 'gm' ? 'Мастер' : 'Без персонажа';
-  const displayedActor = displayedCharacter
-    ? { id: displayedCharacter.id, name: displayedCharacter.name, kind: 'character' as const }
-    : displayedAdversary
-      ? { id: displayedAdversary.id, name: displayedAdversary.name, kind: 'adversary' as const }
-      : displayedEnvironment
-        ? { id: displayedEnvironment.id, name: displayedEnvironment.name, kind: 'environment' as const }
-      : model.character
-        ? { id: model.character.id, name: model.character.name, kind: 'character' as const }
-        : null;
-  const displayedActorName = displayedActor?.name ?? fallbackActorName;
-  const activeCharacterActor = displayedCharacter
-    ? { id: displayedCharacter.id, name: displayedCharacter.name }
-    : model.character
-      ? { id: model.character.id, name: model.character.name }
-      : null;
-  const activeCharacterName = activeCharacterActor?.name ?? fallbackActorName;
+  const rollActorOptions = useMemo(() => buildRollActorOptions({
+    role, characters, encounter, sceneTokens: viewedScene?.tokens ?? [], playerCharacterId
+  }), [role, characters, encounter, viewedScene?.tokens, playerCharacterId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -457,6 +445,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         selectedParticipantId={selectedPlayerSeatId}
         storedSession={storedSessionAtEntry}
       />
+      <CharacterSyncStatus role={role} actorId={playerCharacterId} />
       <SessionFocusControls
         activityOpen={activityOpen}
         connectionLabel={p2pHealth.label}
@@ -517,10 +506,9 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
         />
       )}
       <PlayerActionDock
-        activeCharacterActor={activeCharacterActor}
-        activeCharacterName={activeCharacterName}
-        displayedActor={displayedActor}
-        displayedActorName={displayedActorName}
+        key={`${game.id}:${role}:${sessionRoomId ?? 'local'}`}
+        actorOptions={rollActorOptions}
+        rollCharacters={macroCharacters}
         displayedCharacter={displayedCharacter}
         role={role}
         onRosterOpen={role === 'gm' ? openRoster : undefined}
@@ -563,6 +551,8 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       </div>
       {contentPreviewItem && (
         <ContentPreviewPanel
+          key={contentPreviewItem.id}
+          playerActorId={playerCharacterId}
           item={contentPreviewItem}
           role={role}
           onClose={() => setContentPreviewItem(null)}

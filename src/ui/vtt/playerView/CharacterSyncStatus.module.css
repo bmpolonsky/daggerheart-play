@@ -1,0 +1,31 @@
+.status {
+  position: absolute;
+  top: 68px;
+  right: 12px;
+  z-index: 45;
+  max-width: min(340px, calc(100vw - 24px));
+  display: grid;
+  gap: 4px;
+  color: var(--dh-paper-100);
+  font-size: 0.75rem;
+}
+
+.journal summary {
+  cursor: pointer;
+}
+
+.journal ol {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-left: 18px;
+}
+
+.journal li {
+  margin-block: 8px;
+}
+
+.journal li span,
+.journal li time {
+  display: block;
+  color: var(--dh-paper-muted);
+}

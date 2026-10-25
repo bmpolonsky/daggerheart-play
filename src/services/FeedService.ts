@@ -244,7 +244,9 @@ export class FeedService {
 
     feedStore.update((feed) => feed.map((entry) => {
       if (entry.type !== 'rest' || !matchesRestEntry(entry, restEntryId)) return entry;
-      if (entry.rest.status === 'cancelled') return entry;
+      if (entry.rest.status === 'resolved' || entry.rest.status === 'cancelled') return entry;
+      const choice = entry.rest.participants.find((participant) => participant.actorId === actorId)?.choices.find((choice) => choice.id === choiceId);
+      if (!choice || choice.status === 'resolved') return entry;
       const rest: RestFeedRequest = {
         ...entry.rest,
         participants: entry.rest.participants.map((participant) => {
@@ -270,16 +272,12 @@ export class FeedService {
 
     feedStore.update((feed) => feed.map((entry) => {
       if (entry.type !== 'rest' || !matchesRestEntry(entry, restEntryId)) return entry;
+      if (entry.rest.status === 'resolved' || entry.rest.status === 'cancelled') return entry;
       const rest: RestFeedRequest = {
         ...entry.rest,
         status: 'resolved',
         fearPlan,
-        resolvedAt,
-        participants: entry.rest.participants.map((participant) => ({
-          ...participant,
-          ready: participant.ready || countRestChoices(participant.choices) >= restChoiceLimit(entry.rest, participant),
-          choices: participant.choices.map((choice) => ({ ...choice, status: 'resolved' }))
-        }))
+        resolvedAt
       };
       updatedEntry = { ...entry, rest };
       return updatedEntry;
@@ -324,7 +322,7 @@ export class FeedService {
       const teamwork: TeamworkRollRequest = {
         ...entry.teamwork,
         status: participants.length > 0 ? 'collecting' : 'draft',
-        participants: normalizeTeamworkParticipants(entry.teamwork.kind, participants)
+        participants: normalizeTeamworkParticipants(entry.teamwork.kind, participants, entry.teamwork.participants)
       };
       updatedEntry = { ...entry, teamwork };
       return updatedEntry;
@@ -350,7 +348,9 @@ export class FeedService {
     let updatedEntry: TeamworkRollFeedEntry | null = null;
     feedStore.update((feed) => feed.map((entry) => {
       if (entry.type !== 'teamwork' || !matchesTeamworkEntry(entry, teamworkEntryId) || isTeamworkClosed(entry.teamwork)) return entry;
-      if (!entry.teamwork.participants.some((participant) => participant.actorId === actorId)) return entry;
+      const participant = entry.teamwork.participants.find((participant) => participant.actorId === actorId);
+      if (!participant || participant.result) return entry;
+      if (result.rollType !== (participant.role === 'support' ? 'reaction' : 'action')) return entry;
       const teamwork: TeamworkRollRequest = {
         ...entry.teamwork,
         status: 'collecting',
@@ -410,7 +410,7 @@ export class FeedService {
     let updatedEntry: TeamworkRollFeedEntry | null = null;
     const resolvedAt = nowIso();
     feedStore.update((feed) => feed.map((entry) => {
-      if (entry.type !== 'teamwork' || !matchesTeamworkEntry(entry, teamworkEntryId)) return entry;
+      if (entry.type !== 'teamwork' || !matchesTeamworkEntry(entry, teamworkEntryId) || isTeamworkClosed(entry.teamwork)) return entry;
       const teamwork: TeamworkRollRequest = { ...entry.teamwork, status: 'resolved', resolvedAt };
       updatedEntry = { ...entry, teamwork };
       return updatedEntry;
@@ -625,7 +625,19 @@ function normalizeRestChoiceSelection(rest: RestFeedRequest, participant: RestFe
   const longMoves = new Set(participant.longRestMoveLabels ?? []);
   const maxLongMoves = Math.max(0, Math.trunc(participant.maxLongRestMoves ?? 0));
   let selectedLongMoves = 0;
-  const selected = choices
+  const resolved = participant.choices.filter((choice) => choice.status === 'resolved');
+  const resolvedLabels = resolved.flatMap((choice) => Array.from({ length: choice.count }, () => choice.label));
+  const consumed = new Map<string, number>();
+  resolvedLabels.forEach((label) => consumed.set(label, (consumed.get(label) ?? 0) + 1));
+  // Applied choices consume their original slots. Replayed selection updates
+  // may edit the remaining slots, but never turn an applied effect into a new one.
+  const additionalChoices = choices.map((choice) => choice.trim()).filter((label) => {
+    const appliedCount = consumed.get(label) ?? 0;
+    if (appliedCount === 0) return true;
+    consumed.set(label, appliedCount - 1);
+    return false;
+  });
+  const selected = [...resolvedLabels, ...additionalChoices]
     .map((choice) => choice.trim())
     .filter((choice) => choice && allowedMoves.has(choice))
     .filter((choice) => {
@@ -636,13 +648,17 @@ function normalizeRestChoiceSelection(rest: RestFeedRequest, participant: RestFe
     })
     .slice(0, restChoiceLimit(rest, participant));
   const counts = new Map<string, number>();
-  selected.forEach((choice) => counts.set(choice, (counts.get(choice) ?? 0) + 1));
-  return Array.from(counts.entries()).map(([label, count]) => ({
-    id: restChoiceId(label),
-    label,
-    count,
-    status: 'selected'
-  }));
+  selected.slice(resolvedLabels.length).forEach((choice) => counts.set(choice, (counts.get(choice) ?? 0) + 1));
+  const usedIds = new Set(resolved.map((choice) => choice.id));
+  return [...resolved, ...Array.from(counts.entries()).map(([label, count]): RestFeedChoice => {
+    const existing = participant.choices.find((choice) => choice.label === label && choice.status !== 'resolved');
+    const baseId = restChoiceId(label);
+    let id = existing?.id ?? baseId;
+    let suffix = 1;
+    while (usedIds.has(id)) id = `${baseId}-${suffix++}`;
+    usedIds.add(id);
+    return { id, label, count, status: 'selected' };
+  })];
 }
 
 function countRestChoices(choices: RestFeedChoice[]): number {
@@ -678,45 +694,45 @@ function normalizeTeamworkActorOptions(actors: TeamworkRollActorOption[]): Teamw
   });
 }
 
-function normalizeTeamworkParticipants(kind: TeamworkRollKind, actors: TeamworkRollActorOption[]): TeamworkRollParticipant[] {
-  const participants = normalizeTeamworkActorOptions(actors).map((actor, index): TeamworkRollParticipant => ({
-    ...actor,
-    role: defaultTeamworkRole(kind, index)
-  }));
+function normalizeTeamworkParticipants(kind: TeamworkRollKind, actors: TeamworkRollActorOption[], previous: TeamworkRollParticipant[] = []): TeamworkRollParticipant[] {
+  const previousById = new Map(previous.map((participant) => [participant.actorId, participant]));
+  const participants = normalizeTeamworkActorOptions(actors).map((actor, index): TeamworkRollParticipant => {
+    const retained = previousById.get(actor.actorId);
+    return retained
+      ? { ...retained, ...actor }
+      : { ...actor, role: previous.length > 0 && kind === 'groupAction' ? 'support' : defaultTeamworkRole(kind, index) };
+  });
   return normalizeTeamworkRoles(kind, participants);
 }
 
 function normalizeTeamworkRoles(kind: TeamworkRollKind, participants: TeamworkRollParticipant[]): TeamworkRollParticipant[] {
   if (kind === 'tagTeam') {
-    return participants.slice(0, 3).map((participant) => ({ ...participant, role: 'partner' }));
+    return participants.slice(0, 3).map((participant) => applyTeamworkRole(participant, 'partner'));
   }
-  let leaderAssigned = false;
-  return participants.map((participant) => {
-    if (participant.role === 'leader' && !leaderAssigned) {
-      leaderAssigned = true;
-      return participant;
-    }
-    if (!leaderAssigned) {
-      leaderAssigned = true;
-      return { ...participant, role: 'leader' };
-    }
-    return { ...participant, role: 'support' };
-  });
+  // Keep the chosen leader even if they are not first. If that character was
+  // removed, use the first remaining participant (the original creation rule).
+  const leaderId = participants.find((participant) => participant.role === 'leader')?.actorId ?? participants[0]?.actorId;
+  return participants.map((participant) => applyTeamworkRole(participant, participant.actorId === leaderId ? 'leader' : 'support'));
+}
+
+function applyTeamworkRole(participant: TeamworkRollParticipant, role: TeamworkRollParticipantRole): TeamworkRollParticipant {
+  if (participant.role === role) return participant;
+  // A support reaction cannot become the leader's action (or vice versa).
+  // The original roll log stays intact; the new role needs a fresh request/roll.
+  return { ...participant, role, pendingRoll: undefined, result: undefined };
 }
 
 function updateTeamworkRole(kind: TeamworkRollKind, participants: TeamworkRollParticipant[], actorId: string, role: TeamworkRollParticipantRole): TeamworkRollParticipant[] {
   if (kind === 'tagTeam') {
-    return participants.map((participant) => ({ ...participant, role: 'partner' }));
+    return participants.map((participant) => applyTeamworkRole(participant, 'partner'));
   }
   if (role === 'leader') {
-    return participants.map((participant) => ({
-      ...participant,
-      role: participant.actorId === actorId ? 'leader' : 'support'
-    }));
+    return participants.map((participant) => applyTeamworkRole(participant, participant.actorId === actorId ? 'leader' : 'support'));
   }
-  return normalizeTeamworkRoles(kind, participants.map((participant) => (
+  const next = normalizeTeamworkRoles(kind, participants.map((participant) => (
     participant.actorId === actorId ? { ...participant, role } : participant
   )));
+  return next.map((participant, index) => applyTeamworkRole(participants[index], participant.role));
 }
 
 function defaultTeamworkRole(kind: TeamworkRollKind, index: number): TeamworkRollParticipantRole {

@@ -1,3 +1,4 @@
+import { ancestryFeatureChoices } from '../../domain/characterBuilder/ancestry';
 import { type ContentAccessInput } from '../../domain/content/access';
 import { Store } from '../../core/store/Store';
 import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../../domain/content/types';
@@ -28,6 +29,7 @@ interface CharacterBuilderDraftState {
   className: DaggerheartClass;
   classId: string;
   ancestryId: string;
+  secondaryAncestryId?: string;
   communityId: string;
   subclassId: string;
   selectedCardIds: string[];
@@ -67,6 +69,7 @@ export class CharacterBuilderService {
       className,
       classId,
       ancestryId,
+      secondaryAncestryId,
       communityId,
       subclassId,
       selectedCardIds,
@@ -108,6 +111,7 @@ export class CharacterBuilderService {
       className,
       classId: catalog.classDefinition?.id ?? classId,
       ancestryId,
+      secondaryAncestryId,
       communityId,
       subclassId,
       selectedCardIds,
@@ -134,6 +138,7 @@ export class CharacterBuilderService {
       className,
       classId: catalog.classDefinition?.id ?? classId,
       ancestryId,
+      secondaryAncestryId,
       communityId,
       subclassId,
       selectedCardIds,
@@ -155,6 +160,7 @@ export class CharacterBuilderService {
         className,
         classId: catalog.classDefinition?.id ?? classId,
         ancestryId,
+        secondaryAncestryId,
         communityId,
         subclassId,
         selectedCardIds,
@@ -176,6 +182,8 @@ export class CharacterBuilderService {
       },
       options: {
         builderContent,
+        firstAncestryFeatures: ancestryFeatureChoices(builderContent.ancestries, 0),
+        secondAncestryFeatures: ancestryFeatureChoices(builderContent.ancestries, 1),
         classDomains,
         classItems: effectiveClassItems,
         classDefinition,
@@ -208,6 +216,8 @@ export class CharacterBuilderService {
           if (option) this.selectClass(option.id, option.className);
         },
         selectAncestry: (next: string) => this.updateDraft({ ancestryId: next }),
+        setMixedAncestry: (enabled: boolean) => this.updateDraft({ secondaryAncestryId: enabled ? '' : undefined }),
+        selectSecondaryAncestry: (next: string) => this.updateDraft({ secondaryAncestryId: next }),
         selectCommunity: (next: string) => this.updateDraft({ communityId: next }),
         selectSubclass: (next: string) => this.updateDraft({ subclassId: next }),
         toggleCard: (cardId: string) => this.toggleCard(cardId, requiredDomainCardCount),
@@ -300,6 +310,7 @@ export class CharacterBuilderService {
         classId,
         traits: { ...(CLASS_RECOMMENDED_TRAITS[className] ?? DEFAULT_TRAITS) },
         ancestryId: quick.ancestryId,
+        secondaryAncestryId: undefined,
         communityId: quick.communityId,
         subclassId: quick.subclassId,
         selectedCardIds: quick.selectedCardIds,

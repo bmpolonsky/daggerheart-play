@@ -1,9 +1,20 @@
 import { clamp, toSafeInteger } from '../../core/utils/clamp';
 import { analyzeFeatureRules, type FeatureRuleEffect } from './featureEffects';
-import type { Character } from './types';
+import type { Character, RestFeedRequest } from './types';
+import type { TokenState } from '../tabletop/types';
 
 export type RestType = 'short' | 'long';
 export type LongRestRecoveryMove = 'clearHp' | 'clearStress' | 'repairArmor';
+
+/** Capture the current scene PCs once; later scene edits cannot change this rest. */
+export function sceneRestCharacterIds(
+  tokens: readonly Pick<TokenState, 'actor'>[],
+  characters: Readonly<Record<string, Pick<Character, 'id'> | undefined>>
+): string[] {
+  return Array.from(new Set(tokens.flatMap(({ actor }) => (
+    actor.kind === 'character' && characters[actor.id] ? [actor.id] : []
+  ))));
+}
 export type RestMoveOperation =
   | 'rollHp'
   | 'rollStress'
@@ -97,6 +108,44 @@ export function restMoveOperation(label: string): RestMoveOperation {
 export function restMoveRequiresRoll(label: string): boolean {
   const operation = restMoveOperation(label);
   return operation === 'rollHp' || operation === 'rollStress' || operation === 'rollArmor';
+}
+
+/** Keep the rule order when the picker switches between available and selected moves. */
+export function restMoveLabels(moves: readonly string[], choices: ReadonlyArray<{ label: string }>, showAvailable: boolean): string[] {
+  const selected = new Set(choices.map((choice) => choice.label));
+  const labels = Array.from(new Set([...moves, ...selected]));
+  return showAvailable ? labels : labels.filter((label) => selected.has(label));
+}
+
+export function restProgress(rest: Pick<RestFeedRequest, 'participants' | 'maxChoicesPerParticipant'>) {
+  const participants = rest.participants.map((participant) => {
+    const maxChoices = Math.max(1, Math.trunc(participant.maxChoices ?? rest.maxChoicesPerParticipant));
+    const selectedCount = participant.choices.reduce((sum, choice) => sum + Math.max(0, Math.trunc(choice.count)), 0);
+    // Old completed rests marked every choice resolved, even if no effect ran.
+    // Only a recorded result confirms an application; never infer it from ready.
+    const appliedCount = participant.choices.reduce((sum, choice) => sum + (
+      choice.status === 'resolved' && choice.result ? Math.max(0, Math.trunc(choice.count)) : 0
+    ), 0);
+    const pendingCount = Math.max(0, selectedCount - appliedCount);
+    const unselectedCount = Math.max(0, maxChoices - selectedCount);
+    return { actorId: participant.actorId, actorName: participant.actorName, maxChoices, selectedCount, appliedCount, pendingCount, unselectedCount, remainingCount: pendingCount + unselectedCount };
+  });
+  return {
+    participants,
+    selectedCount: participants.reduce((sum, participant) => sum + participant.selectedCount, 0),
+    appliedCount: participants.reduce((sum, participant) => sum + participant.appliedCount, 0),
+    remainingCount: participants.reduce((sum, participant) => sum + participant.remainingCount, 0),
+    unfinished: participants.filter((participant) => participant.remainingCount > 0)
+  };
+}
+
+export function restRemainingSummary(rest: Pick<RestFeedRequest, 'participants' | 'maxChoicesPerParticipant' | 'status'>): string {
+  const progress = restProgress(rest);
+  if (progress.remainingCount === 0) return 'Для всех выбранных ходов записан результат.';
+  const names = progress.unfinished.map((participant) => `${participant.actorName} (${participant.remainingCount})`).join(', ');
+  return rest.status === 'resolved' || rest.status === 'cancelled'
+    ? `Ходы без записанного результата: ${progress.remainingCount} — ${names}.`
+    : `Осталось ходов без результата: ${progress.remainingCount} — ${names}.`;
 }
 
 export interface CharacterRestParticipantRules {

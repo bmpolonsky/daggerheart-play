@@ -1,6 +1,9 @@
 /** @jsxImportSource preact */
 import { Hand, LoaderCircle, Phone, PhoneCall, RotateCcw, Users, X } from 'lucide-react';
+import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { selectManualDice, type DiceTrayItem, type DiceTraySelectionMode, type ManualDieSides } from '../../domain/rules/manualDiceTray';
+import { createId } from '../../core/utils/id';
 import type { ActionComposerRollOptions } from '../../domain/rules/actionComposer';
 import type { DiceVisualTone, RollPublication, TraitId } from '../../domain/rules/types';
 import type { MediaCallState } from '../../services/MediaCallService';
@@ -14,7 +17,7 @@ import { DiceIcon } from './playerView/playerChrome/feedCards/DiceIcon';
 import { usePrivateRollPreference } from './playerView/rollPrivacyPreference';
 import type { PlayerRollType } from './playerView/types';
 
-const DICE_SIDES: PolyhedralDieSides[] = [4, 6, 8, 10, 12, 20];
+const DICE_SIDES: ManualDieSides[] = [4, 6, 8, 10, 12, 20];
 const DEFAULT_PLAYER_TRAY: DiceTrayItem[] = [
   { id: 'hope', kind: 'hope' },
   { id: 'fear', kind: 'fear' }
@@ -24,17 +27,12 @@ export type MiniDiceLauncherMode = 'duality' | 'd20';
 export type MiniDiceSelectedActorKind = 'character' | 'adversary' | null;
 export type MiniDiceTrayBonusMode = 'duality' | 'd20' | 'mixed';
 
-type DiceTrayItem =
-  | { id: string; kind: 'hope' }
-  | { id: string; kind: 'fear' }
-  | { id: string; kind: 'advantage' }
-  | { id: string; kind: 'disadvantage' }
-  | { id: string; kind: 'die'; sides: PolyhedralDieSides };
-
 type MiniDualityRollOptions = ActionComposerRollOptions & { manualModifier?: number };
 
 type MiniDiceLauncherProps = {
   actorName: string;
+  actorControl?: ComponentChildren;
+  onOpenCharacterRoll?: () => void;
   selectedActorKind?: MiniDiceSelectedActorKind;
   role: 'player' | 'gm';
   callState: MediaCallState;
@@ -51,12 +49,13 @@ type MiniDiceLauncherProps = {
   onDualityRoll?: (roll: { rollType: PlayerRollType; trait?: TraitId | null; options: MiniDualityRollOptions; publication?: RollPublication }) => void;
 };
 
-export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, callState, callAvailable = true, activationRaised = false, activationRequestCount = 0, canRequestActivation = false, rollPending = false, rollDisabled = false, onActivationToggle, onCallJoin, onRosterOpen, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
+export function MiniDiceLauncher({ actorName, actorControl, onOpenCharacterRoll, selectedActorKind = null, role, callState, callAvailable = true, activationRaised = false, activationRequestCount = 0, canRequestActivation = false, rollPending = false, rollDisabled = false, onActivationToggle, onCallJoin, onRosterOpen, onRoll, onDualityRoll }: MiniDiceLauncherProps) {
   const launcherMode = resolveMiniDiceLauncherMode({ role, selectedActorKind });
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [trayItems, setTrayItems] = useState<DiceTrayItem[]>(() => defaultTrayForMode(launcherMode));
   const [modifier, setModifier] = useState(0);
+  const [selectionMode, setSelectionMode] = useState<DiceTraySelectionMode>('add');
   const [dualityRollType, setDualityRollType] = useState<PlayerRollType>('action');
   const [privateRoll, setPrivateRoll] = usePrivateRollPreference();
   const publication: RollPublication = privateRoll ? 'private' : 'public';
@@ -102,18 +101,10 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, ca
     setModifier(0);
   };
   const addDualityDice = () => {
-    setTrayItems((current) => {
-      const next = [...current];
-      if (!next.some((item) => item.kind === 'hope')) next.unshift({ id: `hope-${Date.now()}`, kind: 'hope' });
-      if (!next.some((item) => item.kind === 'fear')) {
-        const hopeIndex = next.findIndex((item) => item.kind === 'hope');
-        next.splice(hopeIndex + 1, 0, { id: `fear-${Date.now()}`, kind: 'fear' });
-      }
-      return next;
-    });
+    setTrayItems((current) => selectManualDice(current, { kind: 'duality' }, selectionMode, createId('tray')));
   };
-  const addDie = (sides: PolyhedralDieSides) => {
-    setTrayItems((current) => [...current, { id: `d${sides}-${Date.now()}-${current.length}`, kind: 'die', sides }]);
+  const addDie = (sides: ManualDieSides) => {
+    setTrayItems((current) => selectManualDice(current, { kind: 'die', sides }, selectionMode, createId('tray')));
   };
   const addBonusDie = (kind: 'advantage' | 'disadvantage') => {
     const opposite = kind === 'advantage' ? 'disadvantage' : 'advantage';
@@ -225,12 +216,21 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, ca
       {open && (
       <div className="mini-dice-launcher__panel" aria-hidden={false}>
         <div className="mini-dice-launcher__panel-head">
-          <strong>{isDualityRoll ? 'Дуальность' : 'Кости'}</strong>
+          <strong>{actorName}: {isDualityRoll ? 'Дуальность' : 'Кости'}</strong>
           <span>{traySummary}</span>
           <IconButton className="mini-dice-launcher__close" variant="ghost" size="sm" type="button" title="Скрыть панель" aria-label="Скрыть панель" onClick={closeTray}>
             <X size={14} aria-hidden="true" />
           </IconButton>
         </div>
+        {actorControl}
+        {onOpenCharacterRoll && <Button variant="secondary" size="sm" fullWidth onClick={() => { closeTray(); onOpenCharacterRoll(); }}>Проверка персонажа</Button>}
+        <SegmentedControl<DiceTraySelectionMode>
+          label="Выбор костей"
+          value={selectionMode}
+          onChange={setSelectionMode}
+          layout="equal"
+          options={[{ value: 'add', label: 'Добавлять' }, { value: 'replace', label: 'Заменять набор' }]}
+        />
         <div className="mini-dice-launcher__tray" aria-label="Подготовленные кости">
           <div className="mini-dice-launcher__tray-list">
             {trayItems.length > 0 ? (
@@ -253,8 +253,8 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, ca
             variant="ghost"
             size="sm"
             type="button"
-            title="Дуальность"
-            aria-label="Дуальность"
+            title={selectionMode === 'add' ? 'Добавить Дуальность' : 'Заменить набор на Дуальность'}
+            aria-label={selectionMode === 'add' ? 'Добавить Дуальность' : 'Заменить набор на Дуальность'}
             onClick={addDualityDice}
           >
             <DiceIcon kind="duality" label="Дуальность" />
@@ -266,8 +266,8 @@ export function MiniDiceLauncher({ actorName, selectedActorKind = null, role, ca
               size="sm"
               key={sides}
               type="button"
-              title={`d${sides}`}
-              aria-label={`d${sides}`}
+              title={`${selectionMode === 'add' ? 'Добавить' : 'Заменить набор на'} d${sides}`}
+              aria-label={`${selectionMode === 'add' ? 'Добавить' : 'Заменить набор на'} d${sides}`}
               onClick={() => addDie(sides)}
             >
               <DiceIcon kind={`d${sides}`} label={`d${sides}`} mark={`d${sides}`} />

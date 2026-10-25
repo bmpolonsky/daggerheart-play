@@ -10,6 +10,11 @@ import { automaticUsageTrackerCandidatesForCharacter, missingAutomaticUsageTrack
 import type { Character, DomainCardRecord } from '../../../domain/rules/types';
 import type { TableFeedItem } from '../../../domain/tabletop/feed';
 import { characterService, gameService } from '../../../services/serviceRegistry';
+import { CharacterRollDialog, PreparedDiceRollDialog } from './CharacterRollDialog';
+import { runDomainCardMacroAction } from './domainCards/domainCardMacroActions';
+import type { PreparedDiceRoll } from '../../../services/CharacterRollService';
+import type { PlayerRollDraft } from './types';
+import { buildCharacterSummary } from '../../../domain/tabletop/playerView';
 import { UsageTrackerControl } from '../../characters/UsageTrackerControl';
 import { ActionMenu, Badge, Button, Checkbox, ConfirmDialog, Dialog, IconButton, Notice, ResourcePips, RichChoicePicker, SectionHeader } from '../../components/common';
 import { PlayerContextPanel } from './PlayerContextPanel';
@@ -22,13 +27,16 @@ interface PendingRecall {
   replaceCardId: string;
 }
 
-export function ContentPreviewPanel({ item, role, onClose, onEditHandout }: {
+export function ContentPreviewPanel({ item, role, playerActorId, onClose, onEditHandout }: {
   item: TableFeedItem;
   role: TableViewRole;
+  playerActorId?: string | null;
   onClose: () => void;
   onEditHandout?: (handoutId: string) => void;
 }) {
   const characters = useStream(characterService.characters$);
+  const [rollDraft, setRollDraft] = useState<PlayerRollDraft | null>(null);
+  const [diceDraft, setDiceDraft] = useState<PreparedDiceRoll | null>(null);
   const character = item.actor?.actorId ? characters.entities[item.actor.actorId] : null;
   const card = item.card && character ? character.domainCards.find((candidate) => candidate.id === item.card?.id) : null;
   const inventoryItem = item.kind === 'feature' && item.feature?.sourceLabel === 'Инвентарь'
@@ -53,7 +61,7 @@ export function ContentPreviewPanel({ item, role, onClose, onEditHandout }: {
           max={item.card.tokens.max}
           tone="hope"
           variant="token"
-          label={`Надежда карты ${item.card.name}`}
+          label={`Жетоны карты ${item.card.name}`}
           showHeader={false}
           onChange={(value) => characterService.updateDomainCardTokens(character.id, item.card!.id, value)}
         />
@@ -95,14 +103,36 @@ export function ContentPreviewPanel({ item, role, onClose, onEditHandout }: {
   return (
     <PlayerContextPanel ariaLabel="Предпросмотр" closeLabel="Закрыть предпросмотр" onClose={onClose}>
         <article className={`player-activity-event player-activity-event--${item.kind} player-activity-event--${item.tone} player-activity-event--ephemeral`}>
-          <FeedCard
-            actorId={item.actor?.actorId ?? null}
+          {character && rollDraft ? <CharacterRollDialog
+            embedded
+            character={buildCharacterSummary(character)}
+            draft={rollDraft}
+            role={role}
+            onTraitChange={(trait) => setRollDraft((current) => current ? { ...current, trait } : current)}
+            onClose={() => setRollDraft(null)}
+          /> : character && diceDraft ? <PreparedDiceRollDialog
+            embedded
+            actor={character}
+            draft={diceDraft}
+            role={role}
+            onClose={() => setDiceDraft(null)}
+          /> : <FeedCard
+            actorId={playerActorId ?? null}
             item={item}
             waitingForResult={false}
             role={role}
             onRevealToPublic={() => undefined}
             onHandoutPublish={onClose}
-          />
+            onDomainCardMacro={character ? (source, macro) => runDomainCardMacroAction(source, macro, {
+              character: buildCharacterSummary(character),
+              role,
+              sourceLabel: item.feature?.sourceLabel,
+              openRollDraft: setRollDraft,
+              openDiceDraft: setDiceDraft
+            }) : undefined}
+          />}
+          {!rollDraft && !diceDraft && <>
+
           {character && card && <DomainCardPreviewControls character={character} card={card} controls={trackerControls} />}
           {character && inventoryItem && (inventoryItem.kind === 'consumable' || inventoryItem.uses) && (
             <div className="player-content-preview__controls">
@@ -127,6 +157,7 @@ export function ContentPreviewPanel({ item, role, onClose, onEditHandout }: {
           {role === 'gm' && item.kind === 'handout' && item.handout && (
             <HandoutPreviewControls handoutId={item.handout.id} onClose={onClose} onEdit={onEditHandout} />
           )}
+          </>}
         </article>
     </PlayerContextPanel>
   );

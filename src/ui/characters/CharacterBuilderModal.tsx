@@ -16,6 +16,7 @@ import { formatWealthSummary } from '../../domain/rules/wealthPresentation';
 import { Button } from '../components/common/Button';
 import { AssetImage } from '../components/common/AssetImage';
 import { ChoiceCard } from '../components/common/ChoiceCard';
+import { Checkbox } from '../components/common/Checkbox';
 import { Dialog } from '../components/common/Dialog';
 import { SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
@@ -47,6 +48,7 @@ export function CharacterBuilderModal({
   const builder = useCharacterBuilder({ content, classes, equipment, includePlaytest });
   const { step, steps, fields, options, result: builderResult, selections, handlers } = builder;
   const selectedAncestry = selections.ancestry;
+  const mixedAncestry = fields.secondaryAncestryId !== undefined;
   const selectedCommunity = selections.community;
   const selectedSubclass = selections.subclass;
   const selectedCards = selections.domainCards;
@@ -119,7 +121,7 @@ export function CharacterBuilderModal({
               <span className="cinematic-card-meta">{steps[currentStepIndex]?.label ?? 'Создание'} — {progress}%</span>
               <strong>{selectedClassOption?.name ?? CLASS_LABELS[fields.className]}</strong>
               <p>
-                {[selectedAncestry?.name, selectedCommunity?.name, selectedSubclass?.name].filter(Boolean).join(' / ') ||
+                {[builderResult.draft.ancestry, selectedCommunity?.name, selectedSubclass?.name].filter(Boolean).join(' / ') ||
                   options.classDomains.map(domainLabel).join(' + ')}
               </p>
               <div className="cinematic-builder-progress" aria-label={`Прогресс создания ${progress}%`}>
@@ -163,6 +165,17 @@ export function CharacterBuilderModal({
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Родословная</h3>
                 </header>
+                <Checkbox label="Смешанная родословная" checked={mixedAncestry} onChange={(event) => handlers.setMixedAncestry(event.currentTarget.checked)} />
+                {mixedAncestry && (
+                  <RichChoicePicker
+                    label="Второе свойство — родословная"
+                    value={fields.secondaryAncestryId ?? ''}
+                    placeholder="Выберите родословную для второго свойства"
+                    items={options.secondAncestryFeatures}
+                    onChange={handlers.selectSecondaryAncestry}
+                  />
+                )}
+                {mixedAncestry && <h4>Первое свойство — родословная</h4>}
                 <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
                   {options.builderContent.ancestries.slice(0, 36).map((item) => (
                     <ChoiceCard
@@ -175,7 +188,7 @@ export function CharacterBuilderModal({
                     >
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
-                      <span className="cinematic-card-body">{featureListText(item) || cleanRulesText(item.body)}</span>
+                      <span className="cinematic-card-body">{mixedAncestry ? options.firstAncestryFeatures.find((choice) => choice.id === item.id)?.subtitle ?? 'Первое свойство недоступно' : featureListText(item) || cleanRulesText(item.body)}</span>
                     </ChoiceCard>
                   ))}
                 </div>
@@ -413,7 +426,7 @@ export function CharacterBuilderModal({
                   <article className="cinematic-builder-loadout-summary">
                     <strong>{fields.name}</strong>
                     <span>{selectedClassOption?.name ?? CLASS_LABELS[fields.className]} / {selectedSubclass?.name ?? 'подкласс не выбран'}</span>
-                    <span>{selectedAncestry?.name ?? 'родословная'} / {selectedCommunity?.name ?? 'сообщество'}</span>
+                    <span>{builderResult.draft.ancestry || 'родословная'} / {selectedCommunity?.name ?? 'сообщество'}</span>
                     <span>Карты: {selectedCards.map((card) => card.name).join(' / ') || 'не выбраны'}</span>
                     <span>Оружие: {builderResult.draft.weapons?.map((weapon) => weapon.name).join(' / ')}</span>
                     <span>Броня: {builderResult.draft.armor?.name} — уклонение {effectiveArmorEvasion}</span>

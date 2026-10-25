@@ -2,6 +2,7 @@ import { TRAIT_LABELS } from '../rules/constants';
 import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { hasRolledDiceTerms } from '../rules/diceFormula';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
+import { restRemainingSummary } from '../rules/rest';
 import type { ActionRollOutcome, Countdown, GameHandout, Character, DeathMoveFeedRequest, DiceVisualTone, DomainCardRecord, FeedActorReference, FeedEntry, FormulaTermRoll, ManualDiceRollEntry, ModifierPart, RestFeedRequest, RollLogEntry, RollPublication, TeamworkRollRequest, TraitId } from '../rules/types';
 import { canViewFeedEntry, canViewRollLogEntry, feedEntryPublication, rollLogEntryPublication } from './rollPublication';
 import type { TableSyncRole, TableVisibility } from './types';
@@ -400,7 +401,9 @@ function buildRestFeedItem(entry: Extract<FeedEntry, { type: 'rest' }>): TableFe
     authorName: entry.authorName,
     kicker: statusLabel,
     title: restTypeLabel,
-    body: participantCount > 0
+    body: entry.rest.status === 'resolved' || entry.rest.status === 'cancelled'
+      ? restRemainingSummary(entry.rest)
+      : participantCount > 0
       ? `${readyCount}/${participantCount} участников готовы. ${choiceText}`
       : entry.body,
     tone: entry.rest.status === 'resolved' ? 'hope' : entry.rest.status === 'cancelled' ? 'danger' : 'neutral',

@@ -78,6 +78,9 @@ export interface PlayerCharacterUpdateAckMessage {
   actorId: string;
   revision: number;
   acknowledgedAt: string;
+  /** Omitted by older authorities: treat as accepted. */
+  accepted?: boolean;
+  reason?: string;
 }
 
 export interface PlayerCharacterCreateMessage {
@@ -642,7 +645,9 @@ function isPlayerCharacterUpdateAckMessage(value: unknown): value is PlayerChara
     hasStringFields(value, ['participantId', 'actorId', 'acknowledgedAt']) &&
     typeof value.revision === 'number' &&
     Number.isSafeInteger(value.revision) &&
-    value.revision > 0
+    value.revision > 0 &&
+    (value.accepted === undefined || typeof value.accepted === 'boolean') &&
+    (value.reason === undefined || typeof value.reason === 'string')
   );
 }
 

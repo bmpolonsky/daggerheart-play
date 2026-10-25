@@ -1,3 +1,4 @@
+import { mixedAncestryProblem } from './ancestry';
 import { contentSourceAllowed, type ContentAccessInput } from '../content/access';
 import type { ContentState, GenericLibraryItem, LibraryClassItem, LibraryEquipmentItem, RawAdversaryFeature } from '../content/types';
 import { cleanMarkdownText } from '../../core/utils/markdownText';
@@ -38,6 +39,8 @@ export interface CharacterBuilderInput {
   className?: DaggerheartClass;
   classId?: string;
   ancestryId?: string;
+  /** When provided, use first feature of ancestryId and second of this ancestry. */
+  secondaryAncestryId?: string;
   communityId?: string;
   subclassId?: string;
   selectedCardIds?: string[];
@@ -69,6 +72,7 @@ export interface CharacterDraftResult {
   draft: Partial<Character> & { className: DaggerheartClass };
   selections: {
     ancestry: GenericLibraryItem | null;
+    secondaryAncestry: GenericLibraryItem | null;
     community: GenericLibraryItem | null;
     subclass: GenericLibraryItem | null;
     domainCards: GenericLibraryItem[];
@@ -428,6 +432,10 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   const warnings: string[] = [];
 
   const ancestry = selectById(content.ancestries, input.ancestryId);
+  const secondaryAncestry = selectById(content.ancestries, input.secondaryAncestryId);
+  const mixedAncestry = input.secondaryAncestryId !== undefined;
+  const ancestryProblem = mixedAncestry ? mixedAncestryProblem(ancestry, secondaryAncestry) : null;
+  if (ancestryProblem) warnings.push(ancestryProblem);
   const community = selectById(content.communities, input.communityId);
   const classSubclasses = content.subclasses.filter((item) => isSubclassForClass(item, className, classDefinition));
   const subclass = selectById(classSubclasses, input.subclassId);
@@ -463,8 +471,9 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
   const domainCards = selectedDomainCards.map((card) => domainCardFromLibrary(card, true));
   const sheetCards: CharacterSheetCard[] = [
     ...classFeatureSheetCards(classDefinition),
-    ancestry ? sheetCardFromLibrary(ancestry, 'ancestry') : null,
-    ...libraryFeatureSheetCards(ancestry, 'ancestryFeature'),
+    ...(mixedAncestry
+      ? ancestryProblem ? [] : mixedAncestrySheetCards(ancestry!, secondaryAncestry!)
+      : [ancestry ? sheetCardFromLibrary(ancestry, 'ancestry') : null, ...libraryFeatureSheetCards(ancestry, 'ancestryFeature')]),
     community ? sheetCardFromLibrary(community, 'community') : null,
     ...libraryFeatureSheetCards(community, 'communityFeature'),
     subclass ? sheetCardFromLibrary(subclass, 'subclass') : null,
@@ -505,7 +514,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
       classDisplayName: classDefinition?.name,
       subclassName: subclass?.name ?? '',
       subclassSlug: subclass?.slug ?? '',
-      ancestry: ancestry?.name ?? '',
+      ancestry: mixedAncestry && secondaryAncestry ? `${ancestry?.name ?? ''} / ${secondaryAncestry.name}` : ancestry?.name ?? '',
       community: community?.name ?? '',
       domains: classDomains,
       portraitUrl: input.portraitUrl?.trim() || ancestry?.imageUrl || subclass?.imageUrl || '',
@@ -532,6 +541,7 @@ export function buildCharacterDraft(input: CharacterBuilderInput): CharacterDraf
     },
     selections: {
       ancestry,
+      secondaryAncestry,
       community,
       subclass,
       domainCards: selectedDomainCards,
@@ -602,6 +612,18 @@ export function classFeatureSheetCards(item: LibraryClassItem | null): Character
 function libraryFeatureSheetCards(item: GenericLibraryItem | null, kind: Extract<CharacterSheetCard['kind'], 'ancestryFeature' | 'communityFeature'>): CharacterSheetCard[] {
   if (!item) return [];
   return rawFeaturesToSheetCards(item.raw.features, kind, `${kind}-${item.slug}`, item.sourceId ?? item.id);
+}
+
+function mixedAncestrySheetCards(first: GenericLibraryItem, second: GenericLibraryItem): CharacterSheetCard[] {
+  const selected = [
+    ...rawFeaturesToSheetCards([first.raw.features![0]], 'ancestryFeature', `ancestryFeature-${first.slug}`, first.sourceId ?? first.id),
+    ...rawFeaturesToSheetCards([second.raw.features![1]], 'ancestryFeature', `ancestryFeature-${second.slug}`, second.sourceId ?? second.id)
+  ];
+  return [
+    { id: `sheet-mixed-${first.slug}-${second.slug}`, kind: 'ancestry', name: `${first.name} / ${second.name}`,
+      text: selected.map((card) => `${card.name}\n${card.text}`).join('\n\n') },
+    ...selected
+  ];
 }
 
 export function startingSubclassFeatureSheetCards(item: GenericLibraryItem | null): CharacterSheetCard[] {

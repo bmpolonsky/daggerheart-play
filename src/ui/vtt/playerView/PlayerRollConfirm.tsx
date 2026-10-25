@@ -2,6 +2,8 @@
 import { useState } from 'preact/hooks';
 import type { PlayerViewCharacterSummary } from '../../../domain/tabletop/playerView';
 import { addAdvantageDie, buildActionComposerRollOptions, type ActionComposerRollOptions, type AdvantageMode } from '../../../domain/rules/actionComposer';
+import { characterRollExperienceSelection } from '../../../domain/rules/characterRollSelection';
+import { scaleWeaponFormulaByProficiency } from '../../../domain/rules/diceFormula';
 import type { Experience, RollPublication, TraitId } from '../../../domain/rules/types';
 import { signed } from './helpers';
 import { RollPrivateToggle } from './RollConfirmControls';
@@ -14,6 +16,8 @@ import { PlayerContextPanel } from './PlayerContextPanel';
 export function PlayerRollConfirm({
   character,
   draft,
+  actorName = character.name,
+  embedded = false,
   initialAdvantageMode = 0,
   initialAdvantageCount,
   initialDisadvantageCount,
@@ -26,6 +30,8 @@ export function PlayerRollConfirm({
 }: {
   character: PlayerViewCharacterSummary;
   draft: PlayerRollDraft;
+  actorName?: string;
+  embedded?: boolean;
   initialAdvantageMode?: AdvantageMode;
   initialAdvantageCount?: number;
   initialDisadvantageCount?: number;
@@ -36,7 +42,8 @@ export function PlayerRollConfirm({
   onDamage?: (options: { publication: RollPublication }) => void;
   onClose: () => void;
 }) {
-  const [rollType, setRollType] = useState<PlayerRollType>(draft.rollType ?? 'action');
+  const [rollMode, setRollMode] = useState<PlayerRollType | 'damage'>(draft.rollType ?? 'action');
+  const rollType: PlayerRollType = rollMode === 'damage' ? 'action' : rollMode;
   const [privateRoll, setPrivateRoll] = usePrivateRollPreference();
   const publication: RollPublication = privateRoll ? 'private' : 'public';
   const [advantageCount, setAdvantageCount] = useState(initialAdvantageCount ?? (initialAdvantageMode > 0 ? 1 : 0));
@@ -45,9 +52,8 @@ export function PlayerRollConfirm({
   const [spendHopeForExperiences, setSpendHopeForExperiences] = useState(true);
   const availableExperiences = experiences ?? character.experiences;
   const selectedTrait = character.traits.find((trait) => trait.id === draft.trait);
-  const experienceModifier = availableExperiences
-    .filter((experience) => experienceIds.includes(experience.id))
-    .reduce((sum, experience) => sum + experience.modifier, 0);
+  const selection = characterRollExperienceSelection(availableExperiences, experienceIds, forceSpendHopeForExperiences || spendHopeForExperiences, character.hope.value);
+  const experienceModifier = selection.modifier;
   const toggleExperience = (experienceId: string) => {
     setExperienceIds((current) => current.includes(experienceId)
       ? current.filter((id) => id !== experienceId)
@@ -62,23 +68,27 @@ export function PlayerRollConfirm({
     setAdvantageCount(0);
     setDisadvantageCount(0);
   };
-  return (
-    <PlayerContextPanel className="player-roll-confirm" ariaLabel="Подтверждение броска" onClose={onClose}>
+  const experienceHopeCost = selection.hopeCost;
+  const content = (
+    <>
       <div className="player-roll-confirm__intro">
         <strong>{draft.title}</strong>
         <p>{draft.subtitle}</p>
+        <p>От лица: {actorName}</p>
       </div>
-      <SegmentedControl<PlayerRollType>
+      <SegmentedControl<PlayerRollType | 'damage'>
         className="player-roll-confirm__segmented"
         label="Тип броска"
         layout="equal"
-        value={rollType}
-        onChange={setRollType}
+        value={rollMode}
+        onChange={setRollMode}
         options={[
           { value: 'action', label: 'Действие' },
           { value: 'reaction', label: 'Реакция' },
+          ...(onDamage ? [{ value: 'damage' as const, label: 'Урон' }] : []),
         ]}
       />
+      {rollMode !== 'damage' && <>
       <div className="player-roll-confirm__field">
         <span>
           Характеристика: <CompendiumRuleTerm ruleSlug={draft.trait}>{selectedTrait?.label ?? draft.trait}</CompendiumRuleTerm>
@@ -100,7 +110,7 @@ export function PlayerRollConfirm({
           Помеха{disadvantageCount > 0 ? ` ${disadvantageCount}` : ''}
         </Button>
       </div>
-      <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
+
       {availableExperiences.length > 0 && (
         <div className="player-roll-confirm__checks">
           <span><CompendiumRuleTerm ruleSlug="experience" sectionAnchor="using-experiences">Опыт</CompendiumRuleTerm> {experienceModifier ? signed(experienceModifier) : ''}</span>
@@ -127,14 +137,23 @@ export function PlayerRollConfirm({
           )}
         </div>
       )}
+      <p>Цена опыта: {experienceHopeCost} Надежды{experienceHopeCost > character.hope.value ? ' — недостаточно' : ''}</p>
+      </>}
+      {rollMode === 'damage' && (draft.kind === 'weapon' || draft.kind === 'companion') && <p>Урон: {scaleWeaponFormulaByProficiency(draft.damageFormula, character.proficiency)}</p>}
+      <RollPrivateToggle checked={privateRoll} onChange={setPrivateRoll} />
       <div className="player-roll-confirm__actions">
         <Button
           variant="primary"
           type="button"
-          onClick={() => onRoll(buildActionComposerRollOptions({ advantageMode: 0, advantageCount, disadvantageCount, experienceIds, spendHopeForExperiences }), rollType, publication)}
-        >{rollType === 'reaction' ? 'Бросить реакцию' : 'Бросить действие'}</Button>
-        {onDamage && <Button type="button" onClick={() => onDamage({ publication })}>Бросить урон</Button>}
+          disabled={rollMode !== 'damage' && !selection.canAfford}
+          onClick={() => {
+            if (rollMode === 'damage') onDamage?.({ publication });
+            else onRoll(buildActionComposerRollOptions({ advantageMode: 0, advantageCount, disadvantageCount, experienceIds: selection.experienceIds, spendHopeForExperiences: forceSpendHopeForExperiences || spendHopeForExperiences }), rollType, publication);
+          }}
+        >{rollMode === 'damage' ? 'Бросить урон' : rollType === 'reaction' ? 'Бросить реакцию' : 'Бросить действие'}</Button>
+        <Button variant="ghost" onClick={onClose}>{embedded ? 'К карточке' : 'Отмена'}</Button>
       </div>
-    </PlayerContextPanel>
+    </>
   );
+  return embedded ? content : <PlayerContextPanel className="player-roll-confirm" ariaLabel="Подтверждение броска" onClose={onClose}>{content}</PlayerContextPanel>;
 }

@@ -180,7 +180,6 @@ export function LoadoutPanel({ character, content }: { character: Character; con
               <NumberField
                 label="Монеты"
                 min={0}
-                max={9}
                 value={character.wealth.coins}
                 onChange={(event) => characterService.updateWealth(character.id, { coins: Number(event.currentTarget.value) })}
               />
@@ -188,21 +187,18 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             <NumberField
               label="Горсти"
               min={0}
-              max={9}
               value={character.wealth.handfuls}
               onChange={(event) => characterService.updateWealth(character.id, { handfuls: Number(event.currentTarget.value) })}
             />
             <NumberField
               label="Мешки"
               min={0}
-              max={9}
               value={character.wealth.bags}
               onChange={(event) => characterService.updateWealth(character.id, { bags: Number(event.currentTarget.value) })}
             />
             <NumberField
               label="Сундуки"
               min={0}
-              max={1}
               value={character.wealth.chests}
               onChange={(event) => characterService.updateWealth(character.id, { chests: Number(event.currentTarget.value) })}
             />

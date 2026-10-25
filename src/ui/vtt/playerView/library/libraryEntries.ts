@@ -14,6 +14,7 @@ import type { TraitId } from '../../../../domain/rules/types';
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import { characterService, contentService, feedService, sceneTableService } from '../../../../services/serviceRegistry';
 import type { LibraryDetailAction, LibraryDetailSection, LibraryEntry } from './libraryDetailTypes';
+import { libraryPreviewText } from '../../../../domain/content/libraryPresentation';
 
 export function buildLibraryEntries(
   libraryView: ContentLibraryView,
@@ -50,7 +51,7 @@ export function buildLibraryEntries(
 
   return entries.map((entry) => ({
     ...entry,
-    preview: libraryView.searchPreviews[entry.id] || entry.preview
+    preview: libraryPreviewText(libraryView.searchPreviews[entry.id], entry.preview, ...entry.sections.filter((section) => section.title === 'Свойства').map((section) => section.body))
   }));
 }
 

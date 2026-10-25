@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { cleanMarkdownText } from '../../../../core/utils/markdownText';
+import { compactLibraryText } from '../../../../domain/content/libraryPresentation';
 import { AssetImage } from '../../../components/common/AssetImage';
 import { ChoiceCard } from '../../../components/common/ChoiceCard';
 
@@ -41,14 +41,4 @@ export function LibraryMiniCard({
       </div>
     </ChoiceCard>
   );
-}
-
-function compactLibraryText(value: string): string {
-  const normalized = cleanMarkdownText(value, { stripEmphasis: true })
-    .replace(/^#+\s*/gm, '')
-    .replace(/\|{2,}/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!normalized) return 'Без описания.';
-  return normalized.length > 190 ? `${normalized.slice(0, 187).trim()}...` : normalized;
 }

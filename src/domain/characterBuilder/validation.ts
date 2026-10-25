@@ -1,3 +1,4 @@
+import { mixedAncestryProblem } from './ancestry';
 import { type ContentAccessInput } from '../content/access';
 import type { ContentState, LibraryClassItem, LibraryEquipmentItem } from '../content/types';
 import { CLASS_STARTING_ITEMS } from '../rules/equipment';
@@ -12,6 +13,7 @@ export type CharacterBuilderIssueId =
   | 'class.invalid'
   | 'ancestry.required'
   | 'ancestry.invalid'
+  | 'ancestry.mixedInvalid'
   | 'community.required'
   | 'community.invalid'
   | 'subclass.required'
@@ -41,6 +43,7 @@ export interface CharacterBuilderReadinessInput {
   className?: DaggerheartClass;
   classId?: string;
   ancestryId?: string;
+  secondaryAncestryId?: string;
   communityId?: string;
   subclassId?: string;
   selectedCardIds?: string[];
@@ -82,6 +85,12 @@ export function validateCharacterBuilderReadiness(input: CharacterBuilderReadine
   }
 
   validateLibrarySelection(issues, 'ancestry', input.ancestryId, catalog.builderContent.ancestries, 'родословную');
+  if (input.secondaryAncestryId !== undefined) {
+    const first = catalog.builderContent.ancestries.find((item) => item.id === input.ancestryId) ?? null;
+    const second = catalog.builderContent.ancestries.find((item) => item.id === input.secondaryAncestryId) ?? null;
+    const problem = mixedAncestryProblem(first, second);
+    if (problem) addIssue(issues, 'ancestry.mixedInvalid', 'blocking', problem);
+  }
   validateLibrarySelection(issues, 'community', input.communityId, catalog.builderContent.communities, 'сообщество');
   validateLibrarySelection(issues, 'subclass', input.subclassId, catalog.classSubclasses, 'подкласс');
   const cardCount = startingDomainCardCount(catalog.subclassRuleModifiers[input.subclassId ?? ''] ?? []);

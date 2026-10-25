@@ -1,12 +1,14 @@
 import { buildPresentedHandoutOverlay, type PresentedHandoutOverlay } from '../rules/handouts';
 import { cleanMarkdownText } from '../../core/utils/markdownText';
 import { buildEffectiveCharacterStats } from '../rules/effects';
+import { scaleWeaponFormulaByProficiency } from '../rules/diceFormula';
 import { parseDomainCardTextMacros, resolveDomainCardTokenMax, type DomainCardTextMacro } from '../rules/domainCards';
 import { actionOutcomeLabel, formatDualityBreakdown, formatDualityResult } from '../rules/rollPresentation';
 import { characterSheetCardSourceLabel, isCharacterFeatureSheetCard, subclassFeatureTierLabel } from '../rules/sidecar';
 import type { Adversary, GameState, Character, CharacterBeastformState, CharacterCompanionState, CharacterInventoryItem, CharacterScar, CharactersState, EncounterEnvironment, EncounterState, FeedEntry, RollLogEntry, TraitId, CharacterWealth } from '../rules/types';
 import { TRAIT_LABELS, adversaryTypeLabel, characterClassLabel, domainLabel, rangeLabel } from '../rules/constants';
 import { normalizeStatusTag } from '../rules/statuses';
+import { isCustomCondition } from '../rules/customConditions';
 import { buildHandoutFeedItem, buildTableFeedFromEntries, createFeedEntriesFromRollLog, type TableFeedItem } from './feed';
 import { canViewFeedEntry, latestVisibleRollLogEntry } from './rollPublication';
 import { defaultCharacterPortraitUrl, defaultSceneImageUrl } from './defaultArt';
@@ -46,7 +48,7 @@ export interface PlayerViewCharacterSummary {
   stress: { marked: number; max: number };
   evasion: number;
   thresholds: { major: number; severe: number };
-  armor: { name: string; score: number; marked: number; feature: string };
+  armor: { name: string; score: number; marked: number; feature: string; equipped: boolean };
   activeBeastform: CharacterBeastformState | null;
   rangerMark: Character['rangerMark'];
   companion: CharacterCompanionState | null;
@@ -60,7 +62,7 @@ export interface PlayerViewCharacterSummary {
   features: Array<{ id: string; name: string; subtitle: string; sourceLabel: string; text: string }>;
   inventory: CharacterInventoryItem[];
   wealth: CharacterWealth;
-  conditions: Array<{ id: string; name: string; notes: string }>;
+  conditions: Array<{ id: string; name: string; notes: string; removalCondition?: string }>;
   scars: CharacterScar[];
 }
 
@@ -410,7 +412,7 @@ function beastformAttackSummary(form: CharacterBeastformState): PlayerViewCharac
 export function buildCharacterSummary(character: Character): PlayerViewCharacterSummary {
   const effective = buildEffectiveCharacterStats(character);
   const domainCards: PlayerViewDomainCardSummary[] = character.domainCards.map((card) => {
-    const tokenMax = resolveDomainCardTokenMax(card, effective.traits);
+    const tokenMax = resolveDomainCardTokenMax(card, effective.traits, character.spellcastTrait);
     return {
       id: card.id,
       name: card.name,
@@ -445,6 +447,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
     evasion: effective.evasion,
     thresholds: { ...effective.thresholds },
     armor: {
+      equipped: character.armor.equipped !== false,
       name: character.armor.name,
       score: effective.armorScore,
       marked: Math.min(character.armor.markedSlots, effective.armorScore),
@@ -469,7 +472,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       trait: weapon.trait,
       traitLabel: TRAIT_LABELS[weapon.trait],
       range: rangeLabel(weapon.range),
-      damage: weapon.damageFormula,
+      damage: scaleWeaponFormulaByProficiency(weapon.damageFormula, character.proficiency),
       damageFormula: weapon.damageFormula,
       damageType: weapon.damageType
     }))),
@@ -495,7 +498,8 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
     conditions: statusConditions(character.conditions).map((condition) => ({
       id: condition.id,
       name: condition.name,
-      notes: condition.notes ?? ''
+      notes: condition.notes ?? '',
+      removalCondition: condition.removalCondition
     })),
     scars: (character.scars ?? []).map((scar) => ({ ...scar }))
   };
@@ -552,9 +556,9 @@ export function buildAdversarySummary(adversary: Adversary): PlayerViewAdversary
   };
 }
 
-function statusConditions(conditions: Array<{ id: string; name: string; notes?: string }>): Array<{ id: string; name: string; notes?: string }> {
+function statusConditions(conditions: Character['conditions']): Character['conditions'] {
   return conditions
-    .map((condition) => ({ ...condition, name: normalizeStatusTag(condition.name) }))
+    .map((condition) => ({ ...condition, name: isCustomCondition(condition) ? condition.name.trim() : normalizeStatusTag(condition.name) }))
     .filter((condition) => condition.name);
 }
 

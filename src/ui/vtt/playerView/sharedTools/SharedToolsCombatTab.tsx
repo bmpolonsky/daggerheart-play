@@ -158,7 +158,7 @@ export function SharedToolsCombatTab() {
         <Surface className="player-combat-encounter" padding="none">
           <header className="player-combat-panel-header player-combat-panel-header--encounter">
             <div>
-              <span>Состав боя</span>
+              <span>Исходный состав боя</span>
             </div>
             <Button
               variant="ghost"
@@ -173,7 +173,7 @@ export function SharedToolsCombatTab() {
 
           <div className="player-combat-settings">
             <div className="player-combat-setting-row">
-              <span>Размер группы</span>
+              <span>Героев для расчёта</span>
               <div className="player-combat-stepper" aria-label="Количество героев">
                 <IconButton
                   size="xs"
@@ -222,7 +222,7 @@ export function SharedToolsCombatTab() {
             </div>
           </div>
 
-          <div className="player-combat-budget">
+          <div className="player-combat-budget" aria-label="Бюджет исходного состава, включая побеждённых">
             <div className="player-combat-budget__top">
               <span className={`player-combat-difficulty player-combat-difficulty--${summary.difficulty.tone}`}>
                 {summary.difficulty.label}

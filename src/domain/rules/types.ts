@@ -66,6 +66,8 @@ export interface HopeTrack {
 
 export interface ArmorState {
   name: string;
+  /** Absent on legacy characters: their armor remains equipped. */
+  equipped?: boolean;
   sourceId?: string | number;
   sourceSlug?: string;
   tier?: number | null;
@@ -229,6 +231,7 @@ export interface CharacterCondition {
   id: string;
   name: string;
   notes?: string;
+  removalCondition?: string;
 }
 
 export interface CharacterBeastformState {

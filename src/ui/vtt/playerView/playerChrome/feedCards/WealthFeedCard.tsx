@@ -55,13 +55,11 @@ function WealthInput({
   label: string;
   value: number;
 }) {
-  const max = kind === 'chests' ? 1 : 9;
   return (
     <NumberField
       className="feed-wealth-editor__field"
       label={label}
       min={0}
-      max={max}
       value={value}
       onInput={(event) => characterId && characterService.updateWealth(characterId, { [kind]: Number(event.currentTarget.value) } as Partial<CharacterWealth>)}
     />

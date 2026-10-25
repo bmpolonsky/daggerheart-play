@@ -35,7 +35,7 @@ import {
   isSubclassForClass,
   startingSubclassFeatureSheetCards
 } from '../../domain/characterBuilder';
-import { buildEquipmentAttachmentPlan } from '../../domain/rules/equipment';
+import { armorCatalogSelectionId } from '../../domain/rules/equipment';
 import {
   characterHandSize,
   levelUpAdvancementChoiceCount,
@@ -77,11 +77,12 @@ export function CharacterEditor({
   const [levelUpOpen, setLevelUpOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [armorSelectionError, setArmorSelectionError] = useState<string | null>(null);
   const [section, setSection] = useState<CharacterEditorSection>('resources');
   const game = useStream(gameService.game$);
   const includePlaytest = contentAccessForGame(game);
   const armorOptions = content?.equipment.filter((item) => item.type === 'armor') ?? [];
-  const selectedArmorId = equipmentIdByName(armorOptions, character.armor.name);
+  const selectedArmorId = armorCatalogSelectionId(armorOptions, character.armor);
   const domains = content
     ? classDefinitionForCharacter(content.classes, character, includePlaytest)?.domains ?? classDomainsFor(content.classes, character.className, includePlaytest)
     : character.domains;
@@ -190,10 +191,15 @@ export function CharacterEditor({
           <section className="character-editor-section" aria-label="Характеристики персонажа">
             <TraitGrid character={character} />
             <div className="character-editor-statline">
-              <InlineStat label="Ощутимый" value={character.thresholds.major} />
-              <InlineStat label="Тяжелый" value={character.thresholds.severe} />
+              <InlineStat label="Ощутимый" value={effectiveStats.thresholds.major} />
+              <InlineStat label="Тяжелый" value={effectiveStats.thresholds.severe} />
               <InlineStat label="Мастерство" value={character.proficiency} />
             </div>
+            <Checkbox
+              label="Броня надета"
+              checked={character.armor.equipped !== false}
+              onChange={(event) => characterService.setArmorEquipped(character.id, event.currentTarget.checked)}
+            />
             <div className="grid-3">
               <NumberField label="Уклонение" value={character.evasion} onChange={(event) => characterService.updateEvasion(character.id, Number(event.currentTarget.value))} />
               <NumberField label="Мастерство" value={character.proficiency} onChange={(event) => characterService.updateProficiency(character.id, Number(event.currentTarget.value))} />
@@ -209,10 +215,16 @@ export function CharacterEditor({
                     description: item.featureText,
                     imageUrl: item.imageUrl
                   }))}
-                  onChange={(itemId) => applyArmorFromCatalog(character.id, armorOptions, itemId)}
+                  onChange={(itemId) => {
+                    const item = armorOptions.find((candidate) => candidate.id === itemId);
+                    if (!item) { setArmorSelectionError('Выбранная броня больше недоступна в каталоге.'); return; }
+                    const result = characterService.replaceArmorFromEquipment(character.id, item);
+                    setArmorSelectionError(result.message ?? null);
+                  }}
                 />
               ) : <TextField label="Броня" value={armorLabel(character.armor.name)} onChange={(event) => characterService.updateArmor(character.id, { name: event.currentTarget.value }, false)} />}
             </div>
+            {armorSelectionError && <Notice tone="error" role="alert">{armorSelectionError}</Notice>}
             <details className="character-editor-advanced">
               <summary>Тонкая настройка брони и порогов</summary>
               <div className="grid-5">
@@ -1042,9 +1054,9 @@ function LevelUpPanel({
                   {selections.map((selection, index) => (
                     <ListItem key={`${selection.choice}-${selection.rank}-${index}`} title={`Улучшение — ранг ${selection.rank}`} value={advancementChoiceLabel(selection.choice)} />
                   ))}
-                  {plan.expectedHpMax !== character.hp.max && <ListItem title="Максимум Ран" value={`${character.hp.max} → ${plan.expectedHpMax}`} />}
-                  {plan.expectedStressMax !== character.stress.max && <ListItem title="Максимум Стресса" value={`${character.stress.max} → ${plan.expectedStressMax}`} />}
-                  {plan.expectedEvasion !== character.evasion && <ListItem title="Уклонение" value={`${character.evasion} → ${plan.expectedEvasion}`} />}
+                  {plan.expectedHpMax !== character.hp.max && <ListItem title="Базовый максимум Ран" value={`${character.hp.max} → ${plan.expectedHpMax}`} />}
+                  {plan.expectedStressMax !== character.stress.max && <ListItem title="Базовый максимум Стресса" value={`${character.stress.max} → ${plan.expectedStressMax}`} />}
+                  {plan.expectedEvasion !== character.evasion && <ListItem title="Базовое уклонение" value={`${character.evasion} → ${plan.expectedEvasion}`} />}
                   {selectedTraits.map((trait) => <ListItem key={trait} title={TRAIT_LABELS[trait]} value="+1" />)}
                   {newExperienceName.trim() && <ListItem title="Новый Опыт" value={`${newExperienceName.trim()} +2`} />}
                   {experienceIncreaseIds.filter(Boolean).map((experienceId) => {
@@ -1139,15 +1151,6 @@ function PortraitPicker({ character }: { character: Character }) {
   );
 }
 
-function applyArmorFromCatalog(characterId: string, items: LibraryEquipmentItem[], itemId: string) {
-  const item = items.find((candidate) => candidate.id === itemId);
-  if (!item) return;
-  const plan = buildEquipmentAttachmentPlan(item);
-  if (plan.armor) {
-    characterService.updateArmor(characterId, plan.armor, true);
-  }
-}
-
 function domainCardPickerItem(item: GenericLibraryItem): RichChoicePickerItem {
   const card = domainCardFromLibrary(item, true);
   return {
@@ -1157,10 +1160,6 @@ function domainCardPickerItem(item: GenericLibraryItem): RichChoicePickerItem {
     description: cleanRulesText(card.text || item.body),
     imageUrl: item.imageUrl
   };
-}
-
-function equipmentIdByName(items: LibraryEquipmentItem[], name: string): string {
-  return items.find((item) => item.name === name)?.id ?? '';
 }
 
 function armorLabel(name: string): string {

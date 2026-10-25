@@ -3,6 +3,7 @@ import type { LibraryEquipmentItem } from '../content/types';
 import type { ArmorState, CharacterInventoryItem, CharacterSheetCard, DaggerheartClass, DamageType, TraitId, Weapon } from './types';
 import { equipmentFeatureModifiers } from './equipmentFeatureModifiers';
 import { createInventoryItem } from './factories';
+import { BASIC_SUPPLIES_TEXT } from './startingInventoryText';
 
 const MAX_ARMOR_SCORE = 12;
 
@@ -112,6 +113,10 @@ export const CLASS_STARTING_ITEMS: Record<DaggerheartClass, [string, string]> = 
 
 export const STARTING_BASE_INVENTORY = ['Факел', '50 футов веревки', 'Основные припасы'] as const;
 
+const STARTING_BASE_INVENTORY_TEXT: Partial<Record<(typeof STARTING_BASE_INVENTORY)[number], string>> = {
+  'Основные припасы': BASIC_SUPPLIES_TEXT
+};
+
 const STARTING_CONSUMABLE_SLUGS = new Set(['minor-health-potion', 'minor-stamina-potion']);
 
 export function buildStartingEquipmentCatalog(equipment: LibraryEquipmentItem[], includePlaytest: ContentAccessInput = false): StartingEquipmentCatalog {
@@ -164,7 +169,7 @@ export function buildStartingEquipmentLoadout(input: StartingEquipmentInput): St
     armor,
     weapons: [safePrimary, secondaryWeapon].filter((weapon) => weapon && weapon.name).map((weapon) => weaponToRecord(weapon as StartingWeaponOption)),
     inventory: [
-      ...STARTING_BASE_INVENTORY.map((name) => createInventoryItem({ name })),
+      ...STARTING_BASE_INVENTORY.map((name) => createInventoryItem({ name, text: STARTING_BASE_INVENTORY_TEXT[name] })),
       consumable ? inventoryOptionToRecord(consumable) : null,
       selectedClassItem ? createInventoryItem({ name: selectedClassItem }) : null
     ].filter(Boolean) as CharacterInventoryItem[],
@@ -197,7 +202,11 @@ export function weaponToRecord(option: StartingWeaponOption): Weapon {
 }
 
 export function equipmentItemToArmorOption(item: LibraryEquipmentItem): StartingArmorOption | null {
-  if (!item.baseThresholds || item.armorScore === null || item.tier === null) return null;
+  if (item.type !== 'armor' || !item.baseThresholds ||
+    !Number.isFinite(item.armorScore) || !Number.isFinite(item.tier) ||
+    item.armorScore === null || item.tier === null || item.armorScore < 0 || item.tier < 1 || item.tier > 4 ||
+    !Number.isFinite(item.baseThresholds.major) || !Number.isFinite(item.baseThresholds.severe) ||
+    item.baseThresholds.major < 0 || item.baseThresholds.severe < item.baseThresholds.major) return null;
   const modifiers = equipmentFeatureModifiers(item.featureText);
   return {
     id: item.id,
@@ -212,6 +221,27 @@ export function equipmentItemToArmorOption(item: LibraryEquipmentItem): Starting
     traitModifiers: modifiers.traitModifiers,
     source: item
   };
+}
+
+/** Resolve catalog identity before names, which need not be unique for custom content. */
+export function armorCatalogSelectionId(items: LibraryEquipmentItem[], armor: ArmorState): string {
+  if (armor.sourceId !== undefined) {
+    const match = items.find((item) => String(item.sourceId ?? item.id) === String(armor.sourceId));
+    if (match) return match.id;
+  }
+  if (armor.sourceSlug) {
+    const matches = items.filter((item) => item.slug === armor.sourceSlug);
+    if (matches.length === 1) return matches[0].id;
+  }
+  if (armor.sourceId !== undefined || armor.sourceSlug) return '';
+  const matches = items.filter((item) => item.name === armor.name);
+  return matches.length === 1 ? matches[0].id : '';
+}
+
+export function isSameArmorItem(previous: ArmorState, next: ArmorState): boolean {
+  if (previous.sourceId !== undefined && next.sourceId !== undefined) return String(previous.sourceId) === String(next.sourceId);
+  if (previous.sourceSlug && next.sourceSlug) return previous.sourceSlug === next.sourceSlug;
+  return previous.sourceId === undefined && !previous.sourceSlug && previous.name === next.name;
 }
 
 export function equipmentItemToWeaponOption(item: LibraryEquipmentItem): StartingWeaponOption | null {

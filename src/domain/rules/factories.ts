@@ -1,6 +1,7 @@
 import { createId } from '../../core/utils/id';
 import { nowIso } from '../../core/utils/date';
 import { clamp, toSafeInteger } from '../../core/utils/clamp';
+import { BASIC_SUPPLIES_TEXT } from './startingInventoryText';
 import { createLocalParticipant, createTableScene } from '../tabletop/factories';
 import {
   CLASS_DOMAINS,
@@ -142,7 +143,7 @@ export function createCharacter(input?: CharacterInput): Character {
     inventory: sanitizeInventory(input?.inventory ?? [
       createInventoryItem({ name: 'Факел' }),
       createInventoryItem({ name: '50 футов веревки' }),
-      createInventoryItem({ name: 'Основные припасы' })
+      createInventoryItem({ name: 'Основные припасы', text: BASIC_SUPPLIES_TEXT })
     ]),
     wealth: sanitizeWealth(input?.wealth ?? defaultWealth),
     conditions: input?.conditions ?? [],
@@ -171,11 +172,13 @@ function normalizePlayerSyncRevision(value: unknown): Character['playerSyncRevis
 
 export function sanitizeWealth(input: Partial<CharacterWealth> | null | undefined): CharacterWealth {
   const value = input ?? {};
+  // Denominations are independent quantities. Sheet box counts are not storage
+  // limits, and editing wealth must never discard value or convert it silently.
   return {
-    coins: clamp(toSafeInteger(value.coins, 0), 0, 9),
-    handfuls: clamp(toSafeInteger(value.handfuls, 0), 0, 9),
-    bags: clamp(toSafeInteger(value.bags, 0), 0, 9),
-    chests: clamp(toSafeInteger(value.chests, 0), 0, 1)
+    coins: clamp(toSafeInteger(value.coins, 0), 0, Number.MAX_SAFE_INTEGER),
+    handfuls: clamp(toSafeInteger(value.handfuls, 0), 0, Number.MAX_SAFE_INTEGER),
+    bags: clamp(toSafeInteger(value.bags, 0), 0, Number.MAX_SAFE_INTEGER),
+    chests: clamp(toSafeInteger(value.chests, 0), 0, Number.MAX_SAFE_INTEGER)
   };
 }
 

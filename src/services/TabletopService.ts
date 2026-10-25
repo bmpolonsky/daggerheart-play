@@ -1,5 +1,5 @@
 import { characterLevelRank } from '../domain/rules/levelUp';
-import { restMoveOperation, rollRestFear, type LongRestRecoveryMove, type RestFearPlan, type RestType } from '../domain/rules/rest';
+import { partyRestRulesForCharacters, restParticipantRulesForCharacter, sceneRestCharacterIds, restMoveOperation, rollRestFear, type LongRestRecoveryMove, type RestFearPlan, type RestType } from '../domain/rules/rest';
 import { GameService } from './GameService';
 import { CharacterService } from './CharacterService';
 import { DiceService } from './DiceService';
@@ -49,6 +49,7 @@ export interface EncounterFlowDispatchInput {
 }
 
 export interface ConductRestOptions {
+  actorIds?: string[];
   pcCount?: number;
   rng?: () => number;
 }
@@ -293,8 +294,31 @@ export class TabletopService {
     return { kind: 'openPanel', panel: 'party' };
   }
 
+  requestSceneRest(restType: RestType) {
+    const table = this.dependencies.sceneTableService.sceneTable$.get();
+    const scene = table.scenes[table.activeSceneId];
+    const state = this.dependencies.characterService.characters$.get();
+    const characters = sceneRestCharacterIds(scene?.tokens ?? [], state.entities).map((id) => state.entities[id]);
+    const partyRules = partyRestRulesForCharacters(characters, restType);
+    return this.dependencies.feedService.requestRest(restType, {
+      requestedBy: { actorName: 'Мастер', actorType: 'system' },
+      participants: characters.map((character) => {
+        const rules = restParticipantRulesForCharacter(character, restType);
+        return {
+          actorId: character.id,
+          actorName: character.name,
+          availableMoves: Array.from(new Set([...rules.availableMoves, ...partyRules.flatMap((rule) => rule.moveLabel ? [rule.moveLabel] : [])])),
+          maxChoices: rules.maxChoices,
+          longRestMoveLabels: rules.longRestMoveLabels,
+          maxLongRestMoves: rules.maxLongRestMoves,
+          ruleNotes: Array.from(new Set([...rules.notes, ...partyRules.map((rule) => rule.note)]))
+        };
+      })
+    });
+  }
+
   conductRest(restType: RestType, options: ConductRestOptions = {}): RestFearPlan {
-    const characterIds = this.dependencies.characterService.characters$.get().order;
+    const characterIds = Array.from(new Set(options.actorIds ?? this.dependencies.characterService.characters$.get().order));
     const pcCount = options.pcCount ?? characterIds.length;
     const plan = rollRestFear(restType, pcCount, options.rng);
     characterIds.forEach((characterId) => {
@@ -308,6 +332,17 @@ export class TabletopService {
       `Страх: 1d4 (${plan.die})${modifierText} = ${plan.total}.`,
       { authorName: 'Мастер', feedType: 'system' }
     );
+    return plan;
+  }
+
+  completeRest(restEntryId: string, options: Pick<ConductRestOptions, 'rng'> = {}): RestFearPlan | null {
+    const entry = this.dependencies.feedService.feed$.get().find((candidate) => (
+      candidate.type === 'rest' && (candidate.id === restEntryId || candidate.rest.id === restEntryId)
+    ));
+    if (!entry || entry.type !== 'rest' || entry.rest.status === 'resolved' || entry.rest.status === 'cancelled') return null;
+    const actorIds = Array.from(new Set(entry.rest.participants.map((participant) => participant.actorId)));
+    const plan = this.conductRest(entry.rest.restType, { actorIds, pcCount: actorIds.length, rng: options.rng });
+    this.dependencies.feedService.completeRest(entry.id, plan);
     return plan;
   }
 
@@ -327,7 +362,7 @@ export class TabletopService {
       entry.type === 'rest' && (entry.id === restEntryId || entry.rest.id === restEntryId)
     ));
     if (!restEntry || restEntry.type !== 'rest') return { applied: false, message: 'Отдых не найден.' };
-    if (restEntry.rest.status === 'cancelled') return { applied: false, message: 'Отдых отменён.' };
+    if (restEntry.rest.status === 'cancelled' || restEntry.rest.status === 'resolved') return { applied: false, message: 'Отдых завершён или отменён.' };
     const participant = restEntry.rest.participants.find((item) => item.actorId === actorId);
     const choice = participant?.choices.find((item) => item.id === choiceId);
     if (!participant || !choice) return { applied: false, message: 'Ход отдыха не найден.' };
@@ -358,7 +393,8 @@ export class TabletopService {
         notes: label
       });
       this.dependencies.characterService.clearHp(character.id, roll.total);
-      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount: roll.total, note: `Исцелено ран: ${roll.total}.` };
+      const appliedAmount = character.hp.marked - (this.dependencies.characterService.getCharacter(character.id)?.hp.marked ?? character.hp.marked);
+      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Исцелено ран: ${appliedAmount}.` };
     }
     if (operation === 'rollStress') {
       const roll = this.dependencies.diceService.rollManualDice({
@@ -369,7 +405,8 @@ export class TabletopService {
         notes: label
       });
       this.dependencies.characterService.clearStress(character.id, roll.total);
-      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount: roll.total, note: `Очищено стресса: ${roll.total}.` };
+      const appliedAmount = character.stress.marked - (this.dependencies.characterService.getCharacter(character.id)?.stress.marked ?? character.stress.marked);
+      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Очищено стресса: ${appliedAmount}.` };
     }
     if (operation === 'rollArmor') {
       const roll = this.dependencies.diceService.rollManualDice({
@@ -382,12 +419,14 @@ export class TabletopService {
       this.dependencies.characterService.updateArmor(character.id, {
         markedSlots: Math.max(0, character.armor.markedSlots - roll.total)
       }, false);
-      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount: roll.total, note: `Починено брони: ${roll.total}.` };
+      const appliedAmount = character.armor.markedSlots - (this.dependencies.characterService.getCharacter(character.id)?.armor.markedSlots ?? character.armor.markedSlots);
+      return { formula: roll.formula, rolls: formulaRollValues(roll.terms), total: roll.total, appliedAmount, note: `Починено брони: ${appliedAmount}.` };
     }
     if (operation === 'prepare') {
       const amount = safeCount;
       this.dependencies.characterService.adjustHope(character.id, amount);
-      return { appliedAmount: amount, note: `Получено Надежды: ${amount}.` };
+      const appliedAmount = (this.dependencies.characterService.getCharacter(character.id)?.hope.value ?? character.hope.value) - character.hope.value;
+      return { appliedAmount, note: `Получено Надежды: ${appliedAmount}.` };
     }
     if (operation === 'clearHp') {
       const amount = character.hp.marked;

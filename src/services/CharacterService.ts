@@ -18,8 +18,9 @@ import {
   rollRiskItAll
 } from '../domain/rules/deathMoves';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
+import { applyCustomConditionEdit, type CustomConditionDraft } from '../domain/rules/customConditions';
 import { resolveDomainCardTokenMax } from '../domain/rules/domainCards';
-import { buildEquipmentAttachmentPlan } from '../domain/rules/equipment';
+import { isSameArmorItem, buildEquipmentAttachmentPlan } from '../domain/rules/equipment';
 import { createCharacter, createDomainCard, createExperience, createInventoryItem, createSheetCard, createWeapon, sanitizeWealth } from '../domain/rules/factories';
 import {
   applyDomainCardMove,
@@ -411,7 +412,7 @@ export class CharacterService {
       const effectiveScore = buildEffectiveCharacterStats({ ...character, armor: armorBase }).armorScore;
       const armor = {
         ...armorBase,
-        markedSlots: clamp(toSafeInteger(armorPatch.markedSlots ?? character.armor.markedSlots), 0, effectiveScore)
+        markedSlots: clamp(toSafeInteger(armorPatch.markedSlots ?? character.armor.markedSlots), 0, armorBase.equipped === false ? MAX_ARMOR_SCORE : effectiveScore)
       };
       const next = {
         ...character,
@@ -423,6 +424,44 @@ export class CharacterService {
         ? refreshAutomaticUsageTrackersForTargets(character, next, [{ targetKind: 'armor', targetId: 'armor' }])
         : next;
     });
+  }
+
+  replaceArmor(id: string, replacement: ArmorState): boolean {
+    const character = this.getCharacter(id);
+    if (!character) return false;
+    const feature = replacement.feature ?? replacement.featureText ?? '';
+    this.updateArmor(id, {
+      name: replacement.name,
+      sourceId: replacement.sourceId,
+      sourceSlug: replacement.sourceSlug,
+      tier: replacement.tier ?? null,
+      equipped: replacement.equipped ?? character.armor.equipped,
+      baseMajor: replacement.baseMajor,
+      baseSevere: replacement.baseSevere,
+      score: replacement.score,
+      feature,
+      featureText: feature,
+      markedSlots: isSameArmorItem(character.armor, replacement) ? character.armor.markedSlots : replacement.markedSlots
+    }, true);
+    return true;
+  }
+
+  replaceArmorFromEquipment(id: string, item: LibraryEquipmentItem): { applied: boolean; message?: string } {
+    const plan = buildEquipmentAttachmentPlan(item);
+    if (item.type !== 'armor' || !plan.armor) {
+      return { applied: false, message: `Не удалось выбрать броню «${item.name}»: проверьте ранг, показатель брони и базовые пороги в каталоге.` };
+    }
+    const applied = this.replaceArmor(id, plan.armor);
+    return applied ? { applied: true } : { applied: false, message: 'Персонаж для замены брони не найден.' };
+  }
+
+  setArmorEquipped(id: string, equipped: boolean): void {
+    // The stored armor and its marks remain the same item while unequipped.
+    // Effective stats derive the unarmored rules without erasing that state.
+    this.patchCharacter(id, (character) => ({
+      ...character,
+      armor: { ...character.armor, equipped }
+    }));
   }
 
   adjustHope(id: string, delta: number): void {
@@ -733,7 +772,7 @@ export class CharacterService {
         ...character,
         domainCards: character.domainCards.map((card) => {
           if (card.id !== cardId) return card;
-          const max = resolveDomainCardTokenMax(card, traits);
+          const max = resolveDomainCardTokenMax(card, traits, character.spellcastTrait);
           return { ...card, tokens: { ...card.tokens, value: clamp(value, 0, max), max } };
         })
       };
@@ -855,7 +894,7 @@ export class CharacterService {
 
     const plan = buildEquipmentAttachmentPlan(item);
     if (plan.kind === 'armor' && plan.armor) {
-      this.updateArmor(id, plan.armor, true);
+      this.replaceArmor(id, plan.armor);
     } else if (plan.kind === 'weapon' && plan.weapon) {
       this.addWeapon(id, plan.weapon);
     } else {
@@ -1037,6 +1076,24 @@ export class CharacterService {
       conditions: ensureCharacterCondition(character.conditions, name)
     }));
     this.requestDeathMoveOnDefeatedTransition(patch);
+  }
+
+  addCustomCondition(id: string, draft: CustomConditionDraft): boolean {
+    const character = this.getCharacter(id);
+    if (!character) return false;
+    const result = applyCustomConditionEdit(character.conditions, draft, createId('condition'));
+    if (result.issue) return false;
+    this.patchCharacter(id, (current) => ({ ...current, conditions: result.conditions }));
+    return true;
+  }
+
+  updateCustomCondition(id: string, conditionId: string, draft: CustomConditionDraft): boolean {
+    const character = this.getCharacter(id);
+    if (!character?.conditions.some((condition) => condition.id === conditionId)) return false;
+    const result = applyCustomConditionEdit(character.conditions, draft, conditionId);
+    if (result.issue) return false;
+    this.patchCharacter(id, (current) => ({ ...current, conditions: result.conditions }));
+    return true;
   }
 
   removeCondition(id: string, conditionId: string): void {

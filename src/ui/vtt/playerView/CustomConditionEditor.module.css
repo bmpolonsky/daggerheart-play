@@ -1,0 +1,16 @@
+.dialog {
+  width: min(440px, calc(100vw - 24px));
+}
+
+.form {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}

@@ -362,7 +362,7 @@ export function EncounterPanel({
         <div className="combat-encounter-panel__party mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-300">
             <IconUsers size={18} />
-            <span className="text-sm font-medium">Размер группы</span>
+            <span className="text-sm font-medium">Героев для расчёта</span>
           </div>
           <div className="flex items-center gap-2">
             <IconButton
@@ -433,7 +433,7 @@ export function EncounterPanel({
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-1.5 text-xs text-slate-500">
               <IconInfo size={12} />
-              <span>Бюджет: {summary.finalBudget}</span>
+              <span>Исходный бюджет: {summary.finalBudget}</span>
             </div>
             <span
               className={`rounded-sm border border-current px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getDifficultyColor(

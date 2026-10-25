@@ -1,17 +1,24 @@
 /** @jsxImportSource preact */
+import { useState } from "preact/hooks";
+import { PreparedDiceRollDialog } from "./CharacterRollDialog";
+import type { PreparedDiceRoll } from "../../../services/CharacterRollService";
 import type { ComponentChildren } from "preact";
 import { ChevronLeft } from "lucide-react";
 import type { DomainCardTextMacro } from "../../../domain/rules/domainCards";
 import type { EncounterEnvironment } from "../../../domain/rules/types";
-import { diceService, feedService, gameService } from "../../../services/serviceRegistry";
+import { feedService, gameService } from "../../../services/serviceRegistry";
 import { parseSheetFeatureText, SheetFeatureSection, SheetHero, SheetLeadBlock, SheetTextSection, type SheetFeatureView } from "./SheetContent";
 import { IconButton } from "../../components/common/IconButton";
 
 export function EnvironmentSheet({ environment, navigation, onBack }: { environment: EncounterEnvironment; navigation?: ComponentChildren; onBack?: () => void }) {
+  const [featureDiceState, setFeatureDiceState] = useState<{ actorId: string; draft: PreparedDiceRoll } | null>(null);
+  const featureDiceDraft = featureDiceState?.actorId === environment.id ? featureDiceState.draft : null;
+  const setFeatureDiceDraft = (draft: PreparedDiceRoll | null) => setFeatureDiceState(draft ? { actorId: environment.id, draft } : null);
   const portraitUrl = environment.imageUrl ?? '';
   const difficulty = environment.difficulty ? `Сложность ${environment.difficulty}` : 'Сложность не указана';
   return (
     <div className="player-character-panel-shell">
+      {featureDiceDraft && <PreparedDiceRollDialog actor={environment} draft={featureDiceDraft} role="gm" onClose={() => setFeatureDiceDraft(null)} />}
       {navigation}
       <aside className="player-character-panel" aria-label="Окружение мастера" data-vtt-side-panel>
         {onBack && (
@@ -22,7 +29,7 @@ export function EnvironmentSheet({ environment, navigation, onBack }: { environm
         <SheetHero className="player-character-panel__hero--environment" imageUrl={portraitUrl} title={environment.name} meta={[difficulty]} />
         <SheetLeadBlock text={environmentLeadText(environment)} />
         <SheetTextSection title="Потенциальные противники" text={environment.potentialAdversaries} />
-        <EnvironmentFeatureSection environment={environment} />
+        <EnvironmentFeatureSection environment={environment} openDiceDraft={setFeatureDiceDraft} />
         <SheetTextSection title="Описание" text={environment.body} />
         <SheetTextSection title="Заметки" text={environment.notes} />
       </aside>
@@ -37,14 +44,14 @@ function environmentLeadText(environment: EncounterEnvironment): string {
   ].filter(Boolean).join('\n\n');
 }
 
-function EnvironmentFeatureSection({ environment }: { environment: EncounterEnvironment }) {
+function EnvironmentFeatureSection({ environment, openDiceDraft }: { environment: EncounterEnvironment; openDiceDraft: (draft: PreparedDiceRoll) => void }) {
   const features = parseSheetFeatureText(environment.featureText);
   if (features.length === 0) return null;
   return (
     <SheetFeatureSection
       features={features}
       isInteractive={isInteractiveEnvironmentMacro}
-      onMacro={(feature, macro) => runEnvironmentMacro(environment, feature, macro)}
+      onMacro={(feature, macro) => runEnvironmentMacro(environment, feature, macro, openDiceDraft)}
     />
   );
 }
@@ -53,24 +60,14 @@ function isInteractiveEnvironmentMacro(macro: DomainCardTextMacro): boolean {
   return macro.kind === 'actionRoll' || macro.kind === 'diceRoll' || macro.kind === 'damageRoll' || macro.kind === 'spendFear' || macro.kind === 'gainFear';
 }
 
-function runEnvironmentMacro(environment: EncounterEnvironment, feature: SheetFeatureView, macro: DomainCardTextMacro): void {
+function runEnvironmentMacro(environment: EncounterEnvironment, feature: SheetFeatureView, macro: DomainCardTextMacro, openDiceDraft: (draft: PreparedDiceRoll) => void): void {
   const featureName = feature.name || 'Окружение';
-  if (macro.kind === 'actionRoll') {
-    diceService.rollManualDice({
-      actorId: environment.id,
-      actorName: environment.name,
-      formula: '1d20',
-      label: macro.label,
-      notes: environmentMacroNotes(featureName, macro)
-    });
-    return;
-  }
-  if (macro.kind === 'diceRoll' || macro.kind === 'damageRoll') {
-    diceService.rollManualDice({
-      actorId: environment.id,
-      actorName: environment.name,
-      formula: macro.formula,
-      label: macro.label,
+  if (macro.kind === 'actionRoll' || macro.kind === 'diceRoll' || macro.kind === 'damageRoll') {
+    openDiceDraft({
+      kind: macro.kind === 'damageRoll' ? 'damage' : 'manualDice',
+      formula: macro.kind === 'actionRoll' ? '1d20' : macro.formula,
+      damageType: macro.kind === 'damageRoll' ? macro.damageType ?? undefined : undefined,
+      title: `${featureName}: ${macro.label}`,
       notes: environmentMacroNotes(featureName, macro)
     });
     return;

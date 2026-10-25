@@ -2,7 +2,8 @@ import type { PlayerViewCharacterSummary } from "../../../../domain/tabletop/pla
 import type { DamageType, RollPublication } from "../../../../domain/rules/types";
 import { cleanMarkdownText } from "../../../../core/utils/markdownText";
 import { planDomainCardResourceMacro, resolveDomainCardDiceFormula } from "../../../../domain/rules/domainCards";
-import { characterService, gameService, diceService, feedService, p2pSessionService } from "../../../../services/serviceRegistry";
+import { characterService, gameService, feedService } from "../../../../services/serviceRegistry";
+import type { PreparedDiceRoll } from "../../../../services/CharacterRollService";
 import type { PlayerRollDraft, TableViewRole } from "../types";
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from "./types";
 
@@ -12,6 +13,7 @@ export interface DomainCardMacroActionContext {
   publication?: RollPublication;
   sourceLabel?: string;
   openRollDraft: (draft: PlayerRollDraft) => void;
+  openDiceDraft?: (draft: PreparedDiceRoll) => void;
   afterAction?: () => void;
 }
 
@@ -35,56 +37,16 @@ export function runDomainCardMacroAction(
     context.afterAction?.();
     return;
   }
-  if (macro.kind === 'damageRoll') {
-    if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
-      void p2pSessionService.submitPlayerRollIntent({
-        actorId: character.id,
-        actorName: character.name,
-        intent: {
-          type: 'damage',
-          formula: macro.formula,
-          damageType: macro.damageType as DamageType | undefined,
-          notes: `${sourceLabel}: ${card.name}. ${macro.label}`
-        }
-      });
-      context.afterAction?.();
-      return;
-    }
-    diceService.rollDamage({
-      actorId: character.id,
-      actorName: character.name,
-      formula: macro.formula,
-      damageType: macro.damageType as DamageType | undefined,
-      notes: `${sourceLabel}: ${card.name}. ${macro.label}`
-    });
-    context.afterAction?.();
-    return;
-  }
-  if (macro.kind === 'diceRoll') {
-    const formula = resolveDomainCardDiceFormula(macro, character.proficiency);
-    const label = formula === macro.formula ? macro.label : `${macro.label} -> ${formula}`;
-    if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
-      void p2pSessionService.submitPlayerRollIntent({
-        actorId: character.id,
-        actorName: character.name,
-        intent: {
-          type: 'manualDice',
-          formula,
-          label,
-          notes: `${sourceLabel}: ${card.name}. ${macro.label}`
-        }
-      });
-      context.afterAction?.();
-      return;
-    }
-    diceService.rollManualDice({
-      actorId: character.id,
-      actorName: character.name,
+  if (macro.kind === 'damageRoll' || macro.kind === 'diceRoll') {
+    const formula = macro.kind === 'diceRoll' ? resolveDomainCardDiceFormula(macro, character.proficiency) : macro.formula;
+    context.openDiceDraft?.({
+      kind: macro.kind === 'damageRoll' ? 'damage' : 'manualDice',
       formula,
-      label,
+      title: `${card.name}: ${macro.label}`,
+      damageType: macro.kind === 'damageRoll' ? macro.damageType as DamageType | undefined : undefined,
       notes: `${sourceLabel}: ${card.name}. ${macro.label}`
     });
-    context.afterAction?.();
+    if (context.openDiceDraft) context.afterAction?.();
     return;
   }
   if (!('amount' in macro)) return;

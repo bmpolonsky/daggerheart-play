@@ -283,6 +283,7 @@ function SharedToolsCharactersTabHost() {
       characterId: character.id
     });
     setCharacterBuilderOpen(false);
+    return character.id;
   };
 
   return (

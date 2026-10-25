@@ -3,6 +3,7 @@ import { Swords, Users } from 'lucide-react';
 import { useState } from 'preact/hooks';
 import { TRAIT_LABELS, TRAITS } from '../../../../../domain/rules/constants';
 import type { TeamworkRollActorOption, TeamworkRollParticipant, TraitId } from '../../../../../domain/rules/types';
+import { teamworkParticipantRollTrait } from '../../../../../domain/rules/teamwork';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { gameService, diceService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
 import { Button } from '../../../../components/common/Button';
@@ -77,7 +78,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
   };
 
   const rollParticipant = (participant: TeamworkRollParticipant) => {
-    const trait = traitsByActor[participant.actorId] ?? participant.pendingRoll?.trait ?? 'agility';
+    const trait = teamworkParticipantRollTrait(participant, traitsByActor[participant.actorId]);
     if (role === 'player' && p2pSessionService.isConnectedPlayerSession()) {
       void p2pSessionService.submitPlayerDecision({
         actorId: participant.actorId,
@@ -123,6 +124,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
         {teamwork.kind === 'groupAction' && teamwork.participants.length > 1 && (
           <p className="feed-teamwork-card__summary">
             Модификатор лидера от реакций: {supportModifier >= 0 ? '+' : ''}{supportModifier}
+            {' '}При смене роли нужен новый бросок; прежний остаётся в чате.
           </p>
         )}
         <div className="feed-rest-card__participants">
@@ -130,7 +132,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
             const isOwner = role === 'player' && actorId === participant.actorId;
             const hasPendingRoll = participant.pendingRoll?.status === 'pending';
             const canRoll = !isClosed && !participant.result && !hasPendingRoll && (role === 'gm' || isOwner);
-            const selectedTrait = traitsByActor[participant.actorId] ?? participant.pendingRoll?.trait ?? 'agility';
+            const selectedTrait = teamworkParticipantRollTrait(participant, traitsByActor[participant.actorId]);
             return (
               <div className={`feed-rest-participant ${canRoll ? 'feed-rest-participant--interactive' : ''}`} key={participant.actorId}>
                 <div className="feed-rest-participant__header">
@@ -149,10 +151,10 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                   <div className="feed-teamwork-card__roll feed-teamwork-card__roll--pending">
                     <span>Игрок просит бросок: {TRAIT_LABELS[selectedTrait]}</span>
                     <Button size="sm" variant="primary" type="button" onClick={() => executeParticipantRoll(participant, selectedTrait)}>
-                      Apply
+                      Применить
                     </Button>
                     <Button size="sm" variant="danger" type="button" onClick={() => feedService.rejectTeamworkParticipantRoll(item.id, participant.actorId)}>
-                      Reject
+                      Отклонить
                     </Button>
                   </div>
                 ) : (

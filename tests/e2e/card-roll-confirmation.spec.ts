@@ -1,0 +1,41 @@
+import { expect, test } from '@playwright/test';
+import { createWeapon } from '../../src/domain/rules/factories';
+import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
+import { openGmGame } from './game-route-helpers';
+
+test('PC preview prepares dice without rolling and returns to the same card after confirmation', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openGmGame(page);
+  const document = createPopulatedGameDocument();
+  const character = document.files['data/characters.json'].entities['e2e-character-cadsuane'];
+  character.proficiency = 2;
+  character.domainCards[0] = { ...character.domainCards[0], text: 'Восстановите 1d4 Ран.' };
+  character.weapons = [createWeapon({ name: 'Тестовый кинжал', damageFormula: '1d6+3' })];
+  await importGameDocument(page, document, 'roll-confirmation.dhgame');
+  await page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
+  const sheet = page.getByLabel('Персонаж игрока');
+  await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Карты', exact: true }).click();
+  await sheet.locator('.dh-list-item').filter({ hasText: 'Заклинание 1' }).click();
+  const preview = page.getByRole('complementary', { name: 'Предпросмотр', exact: true });
+  const rollCount = await page.locator('.player-activity-event--roll').count();
+  await preview.getByRole('button', { name: '1d4', exact: true }).click();
+  await expect(preview).toContainText(`От лица: ${filledCharacterName}`);
+  await expect(preview).toContainText('Кости: 1d4');
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollCount);
+  await preview.getByRole('button', { name: 'К карточке', exact: true }).click();
+  await expect(preview.locator('.feed-domain-card')).toContainText('Заклинание 1');
+  await preview.getByRole('button', { name: '1d4', exact: true }).click();
+  await preview.getByRole('button', { name: 'Бросить кости', exact: true }).click();
+  await expect(preview.locator('.feed-domain-card')).toContainText('Заклинание 1');
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollCount + 1);
+  await preview.getByRole('button', { name: 'Закрыть предпросмотр' }).click();
+
+  await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Оружие', exact: true }).click();
+  await sheet.getByRole('button', { name: /^Тестовый кинжал/ }).click();
+  const confirm = page.getByRole('complementary', { name: 'Подтверждение броска', exact: true });
+  await expect(confirm).toContainText(`От лица: ${filledCharacterName}`);
+  await confirm.getByRole('button', { name: 'Урон', exact: true }).click();
+  await expect(confirm).toContainText('Урон: 2d6+3');
+  await expect(confirm.getByRole('button', { name: 'Бросить действие' })).toHaveCount(0);
+  await expect(confirm.getByRole('button', { name: 'Бросить урон' })).toBeVisible();
+});

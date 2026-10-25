@@ -1,10 +1,11 @@
 /** @jsxImportSource preact */
 import { Bed, CheckSquare, Coffee, RotateCcw } from 'lucide-react';
-import { canApplyRestChoice, canSelectRestChoices, restMoveRequiresRoll } from '../../../../../domain/rules/rest';
+import { canApplyRestChoice, canSelectRestChoices, restMoveLabels, restMoveRequiresRoll, restProgress, restRemainingSummary } from '../../../../../domain/rules/rest';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
-import { feedService, p2pSessionService, tabletopService } from '../../../../../services/serviceRegistry';
+import { p2pSessionService, tabletopService } from '../../../../../services/serviceRegistry';
 import { Button } from '../../../../components/common/Button';
 import { IconButton } from '../../../../components/common/IconButton';
+import { Notice } from '../../../../components/common';
 import { renderRulesText } from '../../sheetText';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
@@ -37,12 +38,13 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
   const choiceLimitLabel = choiceLimits.length === 1 ? `выборов: ${choiceLimits[0]}` : 'лимит указан у каждого';
   const isClosed = rest.status === 'resolved' || rest.status === 'cancelled';
   const canResolve = role === 'gm' && !isClosed;
+  const progress = restProgress(rest);
+  const connectedPlayerSession = p2pSessionService.isConnectedPlayerSession();
   const applyRestChoice = (actorId: string, choiceId: string) => {
     tabletopService.resolveRestMove(item.id, actorId, choiceId);
   };
   const completeRest = () => {
-    const plan = tabletopService.conductRest(rest.restType, { pcCount: rest.participants.length });
-    feedService.completeRest(item.id, plan);
+    tabletopService.completeRest(item.id);
   };
   return (
     <>
@@ -52,9 +54,17 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
           <Icon size={17} />
           <div>
             <strong>{item.title}</strong>
-            <span>{readyCount}/{rest.participants.length} готовы — {choiceLimitLabel}</span>
+            <span>{readyCount}/{rest.participants.length} выбрали ходы — {choiceLimitLabel}</span>
           </div>
         </div>
+        {!isClosed && <p className="feed-rest-card__rule-note">{role === 'gm'
+          ? 'Игроки выбирают ходы; мастер может выбрать за них. Мастер бросает, применяет результаты и завершает отдых.'
+          : connectedPlayerSession
+            ? 'Вы выбираете ходы своего персонажа. Мастер бросает, применяет результаты и завершает отдых.'
+            : 'Вы выбираете и применяете ходы своего персонажа. Завершает отдых мастер.'}</p>}
+        <Notice tone={progress.remainingCount > 0 ? 'warning' : 'success'}>
+          {`${restRemainingSummary(rest)}${canResolve && progress.remainingCount > 0 ? ' Можно завершить отдых сейчас; оставшиеся ходы не будут применены автоматически.' : ''}`}
+        </Notice>
         {rest.participants.length > 0 ? (
           <div className="feed-rest-card__participants">
             {rest.participants.map((participant) => {
@@ -78,8 +88,8 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
                   <div className="feed-rest-participant__header">
                     <CheckSquare size={13} />
                     <strong>{participant.actorName}</strong>
-                    <span>{participant.ready ? 'готов' : `${selectedCount}/${maxChoices}`}</span>
-                    {canSelectChoices && selectedCount > 0 && (
+                    <span>{participant.ready ? 'выбор завершён' : `${selectedCount}/${maxChoices}`}</span>
+                    {canSelectChoices && participant.choices.some((choice) => choice.status !== 'resolved') && (
                       <IconButton
                         className="feed-rest-participant__reset"
                         variant="ghost"
@@ -92,6 +102,10 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
                       </IconButton>
                     )}
                   </div>
+                  <p className="feed-rest-card__rule-note">
+                    Выбрано: {selectedCount}/{maxChoices}. С результатом: {progress.participants.find((item) => item.actorId === participant.actorId)?.appliedCount ?? 0}.
+                    {isClosed && selectedCount < maxChoices && ` Не выбрано: ${maxChoices - selectedCount}.`}
+                  </p>
                   {participant.ruleNotes && participant.ruleNotes.length > 0 && (
                     <p className="feed-rest-card__rule-note" title={participant.ruleNotes.join('\n')}>
                       {participant.ruleNotes.join(' — ')}
@@ -105,6 +119,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
                     canSelect={canSelectChoices}
                     showAvailable={showAvailableChoices}
                     canApply={canApplyChoice}
+                    isClosed={isClosed}
                     onChange={updateChoices}
                     onApply={(choiceId) => applyRestChoice(participant.actorId, choiceId)}
                   />
@@ -138,6 +153,7 @@ function RestMoveList({
   canSelect,
   showAvailable,
   canApply,
+  isClosed,
   onChange,
   onApply
 }: {
@@ -148,12 +164,13 @@ function RestMoveList({
   canSelect: boolean;
   showAvailable: boolean;
   canApply: boolean;
+  isClosed: boolean;
   onChange: (choices: string[]) => void;
   onApply: (choiceId: string) => void;
 }) {
-  const labels = showAvailable ? mergeRestMoveLabels(moves, choices) : selectedRestChoiceLabels(choices);
+  const labels = restMoveLabels(moves, choices, showAvailable);
   if (labels.length === 0) {
-    return <p className="feed-rest-card__empty">Ходы ещё не выбраны.</p>;
+    return <p className="feed-rest-card__empty">{isClosed ? 'Ходы не были выбраны.' : 'Ходы ещё не выбраны.'}</p>;
   }
   const selectedCount = selectedLabels.length;
   return (
@@ -161,7 +178,6 @@ function RestMoveList({
       <div className="feed-rest-moves">
         {labels.map((label) => {
           const count = selectedLabels.filter((choice) => choice === label).length;
-          const selectedChoice = choices.find((choice) => choice.label === label);
           const pendingChoice = choices.find((choice) => choice.label === label && choice.status !== 'resolved');
           const canAdd = canSelect && selectedCount < maxChoices;
           return (
@@ -170,7 +186,7 @@ function RestMoveList({
                 className="feed-rest-move__select"
                 variant={count > 0 ? 'primary' : 'ghost'}
                 size="sm"
-                disabled={!canAdd && count === 0}
+                disabled={!canAdd}
                 type="button"
                 onClick={() => {
                   if (!canAdd) return;
@@ -180,7 +196,7 @@ function RestMoveList({
                 <span>{label}</span>
                 {count > 0 && <b>×{count}</b>}
               </Button>
-              {canSelect && count > 0 && (
+              {canSelect && pendingChoice && count > 0 && (
                 <IconButton
                   className="feed-rest-move__remove"
                   variant="ghost"
@@ -197,29 +213,23 @@ function RestMoveList({
                   {restMoveRequiresRoll(pendingChoice.label) ? 'Бросить' : 'Применить'}
                 </Button>
               )}
-              {selectedChoice?.result && <small>{selectedChoice.result.note}</small>}
+              {choices.filter((choice) => choice.label === label).map((choice) => (
+                <small key={choice.id}>{choice.result && choice.status === 'resolved'
+                  ? `Подтверждено ×${choice.count}: ${choice.result.note}`
+                  : choice.status === 'resolved'
+                    ? `Нет записанного результата ×${choice.count}.`
+                    : isClosed
+                      ? `Не применено при завершении ×${choice.count}.`
+                      : restMoveRequiresRoll(choice.label)
+                        ? `Ожидает броска ×${choice.count}.`
+                        : `Ожидает применения ×${choice.count}.`}</small>
+              ))}
             </div>
           );
         })}
       </div>
     </div>
   );
-}
-
-function mergeRestMoveLabels(moves: string[], choices: RestChoice[]): string[] {
-  const labels = [...moves];
-  choices.forEach((choice) => {
-    if (!labels.includes(choice.label)) labels.push(choice.label);
-  });
-  return labels;
-}
-
-function selectedRestChoiceLabels(choices: RestChoice[]): string[] {
-  const labels: string[] = [];
-  choices.forEach((choice) => {
-    if (!labels.includes(choice.label)) labels.push(choice.label);
-  });
-  return labels;
 }
 
 function removeOneRestChoice(choices: string[], label: string): string[] {

@@ -10,6 +10,7 @@ import { buildLibraryEntries } from './libraryEntries';
 import { LibraryMiniCard } from './LibraryMiniCard';
 import type { LibraryEntry } from './libraryDetailTypes';
 import { CompendiumEntityEditor, type CompendiumEditorTarget } from './CompendiumEntityEditor';
+import { shouldRecoverLibraryFilters } from '../../../../domain/content/libraryPresentation';
 
 export function LibraryResults({
   libraryView,
@@ -42,6 +43,7 @@ export function LibraryResults({
 }) {
   const encounter = useStream(encounterService.encounter$);
   const sceneTable = useStream(sceneTableService.sceneTable$);
+  const content = useStream(contentService.content$);
   const entries = useMemo(
     () => buildLibraryEntries(libraryView, targetCharacterId, targetRule),
     [encounter, libraryView, sceneTable, targetCharacterId, targetRule]
@@ -50,15 +52,28 @@ export function LibraryResults({
   const [actionMessage, setActionMessage] = useState('');
   const previousSearchTerm = useRef('');
   const copiedRouteRef = useRef('');
-  const selectedEntry = entries.find((entry) => entry.id === selectedId) ?? null;
+  const [savedEntrySlug, setSavedEntrySlug] = useState<string | null>(null);
+  useEffect(() => setSavedEntrySlug(null), [libraryView.selectedCollection]);
+  const savedEntry = useMemo(() => {
+    if (!savedEntrySlug) return null;
+    const unfilteredView = contentService.buildLibraryView({
+      ...content,
+      selectedCollection: libraryView.selectedCollection,
+      searchTerm: '', sourceFilter: 'all', tierFilter: 'all', levelFilter: 'all'
+    });
+    return buildLibraryEntries(unfilteredView, targetCharacterId, targetRule)
+      .find((entry) => entry.routeSlug === savedEntrySlug) ?? null;
+  }, [content, libraryView.selectedCollection, savedEntrySlug, targetCharacterId, targetRule]);
+  const selectedEntry = entries.find((entry) => entry.id === selectedId)
+    ?? (selectedEntrySlug === savedEntrySlug ? savedEntry : null);
 
   useEffect(() => {
-    if (!selectedEntrySlug || entries.some((entry) => entry.routeSlug === selectedEntrySlug)) return;
+    if (!shouldRecoverLibraryFilters({ selectedSlug: selectedEntrySlug, visibleSlugs: entries.map((entry) => entry.routeSlug), editorOpen: Boolean(editorTarget), savedSlug: savedEntrySlug })) return;
     if (libraryView.searchTerm) contentService.setSearchTerm('');
     if (libraryView.sourceFilter !== 'all') contentService.setSourceFilter('all');
     if (libraryView.tierFilter !== 'all') contentService.setTierFilter('all');
     if (libraryView.levelFilter !== 'all') contentService.setLevelFilter('all');
-  }, [entries, libraryView.levelFilter, libraryView.searchTerm, libraryView.sourceFilter, libraryView.tierFilter, selectedEntrySlug]);
+  }, [editorTarget, entries, libraryView.levelFilter, libraryView.searchTerm, libraryView.sourceFilter, libraryView.tierFilter, savedEntrySlug, selectedEntrySlug]);
 
   useEffect(() => {
     if (!copyEntrySlug || copyEntrySlug !== selectedEntrySlug) return;
@@ -80,7 +95,8 @@ export function LibraryResults({
     previousSearchTerm.current = searchTerm;
     setSelectedId((current) => {
       if (selectedEntrySlug) {
-        return entries.find((entry) => entry.routeSlug === selectedEntrySlug)?.id ?? '';
+        return entries.find((entry) => entry.routeSlug === selectedEntrySlug)?.id
+          ?? (selectedEntrySlug === savedEntrySlug ? savedEntry?.id : '') ?? '';
       }
       if (searchTerm && (searchChanged || !entries.some((entry) => entry.id === current))) {
         return entries[0]?.id ?? '';
@@ -88,7 +104,7 @@ export function LibraryResults({
       return entries.some((entry) => entry.id === current) ? current : '';
     });
     setActionMessage('');
-  }, [entries, libraryView.searchTerm, selectedEntrySlug]);
+  }, [entries, libraryView.searchTerm, savedEntry, savedEntrySlug, selectedEntrySlug]);
 
   useEffect(() => {
     onDetailOpenChange?.(Boolean(selectedEntry || editorTarget));
@@ -135,7 +151,10 @@ export function LibraryResults({
           onSaved={(target) => {
             onEditorTargetChange?.(target);
             const slug = target.raw.slug ?? target.raw.id;
-            if (slug !== undefined) onEntrySelectionChange?.(String(slug));
+            if (slug !== undefined) {
+              setSavedEntrySlug(String(slug));
+              onEntrySelectionChange?.(String(slug));
+            }
           }}
           onClose={() => onEditorTargetChange?.(null)}
         />

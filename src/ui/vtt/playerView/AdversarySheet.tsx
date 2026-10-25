@@ -8,6 +8,8 @@ import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../doma
 import type { DamageType } from "../../../domain/rules/types";
 import { diceService, encounterService, feedService, gameService, sceneTableService } from "../../../services/serviceRegistry";
 import { compactDamageTypeLabel, signed } from "./helpers";
+import { PreparedDiceRollDialog } from "./CharacterRollDialog";
+import type { PreparedDiceRoll } from "../../../services/CharacterRollService";
 import { AdversaryAttackConfirm } from "./AdversaryAttackConfirm";
 import { SheetSection, TrackRow } from "./PlayerSheetControls";
 import { SheetFeatureSection, SheetHero, SheetLeadBlock, type SheetFeatureView } from "./SheetContent";
@@ -18,8 +20,11 @@ import { ListItem } from "../../components/common/ListItem";
 
 export function AdversarySheet({ adversary, navigation, onBack, readOnly = false }: { adversary: PlayerViewAdversarySummary; navigation?: ComponentChildren; onBack?: () => void; readOnly?: boolean }) {
   const [adversaryAttackConfirmOpen, setAdversaryAttackConfirmOpen] = useState(false);
+  const [featureDiceState, setFeatureDiceState] = useState<{ actorId: string; draft: PreparedDiceRoll } | null>(null);
+  const featureDiceDraft = featureDiceState?.actorId === adversary.id ? featureDiceState.draft : null;
+  const setFeatureDiceDraft = (draft: PreparedDiceRoll | null) => setFeatureDiceState(draft ? { actorId: adversary.id, draft } : null);
   const runFeatureMacro = (feature: SheetFeatureView, macro: DomainCardTextMacro) => {
-    runAdversaryFeatureMacro(adversary, feature, macro);
+    runAdversaryFeatureMacro(adversary, feature, macro, setFeatureDiceDraft);
   };
   const addStatus = (name: string) => {
     if (normalizeStatusTag(name) === ActorStatus.Defeated) {
@@ -41,6 +46,7 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
   };
   return (
     <>
+      {featureDiceDraft && <PreparedDiceRollDialog actor={adversary} draft={featureDiceDraft} role="gm" onClose={() => setFeatureDiceDraft(null)} />}
       <div className="player-character-panel-shell">
         {navigation}
         <aside className="player-character-panel" aria-label="Противник мастера" data-vtt-side-panel>
@@ -159,25 +165,16 @@ function isInteractiveAdversaryFeatureTextMacro(macro: DomainCardTextMacro): boo
 function runAdversaryFeatureMacro(
   adversary: PlayerViewAdversarySummary,
   feature: SheetFeatureView,
-  macro: DomainCardTextMacro
+  macro: DomainCardTextMacro,
+  openDiceDraft: (draft: PreparedDiceRoll) => void
 ): void {
   const featureName = feature.name || 'Особенность';
-  if (macro.kind === 'actionRoll') {
-    diceService.rollManualDice({
-      actorId: adversary.id,
-      actorName: adversary.name,
-      formula: '1d20',
-      label: macro.label,
-      notes: featureMacroNotes(featureName, macro)
-    });
-    return;
-  }
-  if (macro.kind === 'diceRoll' || macro.kind === 'damageRoll') {
-    diceService.rollManualDice({
-      actorId: adversary.id,
-      actorName: adversary.name,
-      formula: macro.formula,
-      label: macro.label,
+  if (macro.kind === 'actionRoll' || macro.kind === 'diceRoll' || macro.kind === 'damageRoll') {
+    openDiceDraft({
+      kind: macro.kind === 'damageRoll' ? 'damage' : 'manualDice',
+      formula: macro.kind === 'actionRoll' ? '1d20' : macro.formula,
+      damageType: macro.kind === 'damageRoll' ? macro.damageType ?? undefined : undefined,
+      title: `${featureName}: ${macro.label}`,
       notes: featureMacroNotes(featureName, macro)
     });
     return;

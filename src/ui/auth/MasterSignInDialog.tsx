@@ -10,7 +10,6 @@ import {
   signOutSupabaseMaster,
   supabaseMasterAuth$
 } from '../../services/supabaseClient';
-import { toastService } from '../../services/ToastService';
 import { Button, Dialog, IconButton, Notice, TextControl, Toolbar } from '../components/common';
 import styles from './MasterSignInDialog.module.css';
 
@@ -46,42 +45,46 @@ export function MasterSignInDialog({ config, onClose }: { config: SupabaseSessio
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     void initializeSupabaseMasterAuth(config);
   }, [config.publishableKey, config.url]);
 
   const signInGoogle = async () => {
+    setError('');
     setBusy(true);
     try {
       await signInSupabaseMaster(config, window.location.href);
     } catch {
       setBusy(false);
-      toastService.show('Не удалось открыть вход через Google.', 'error');
+      setError('Не удалось открыть вход через Google.');
     }
   };
 
   const signInEmail = async () => {
     if (!email.trim()) return;
+    setError('');
     setBusy(true);
     try {
       await signInSupabaseMasterByEmail(config, email, window.location.href);
       setEmailSent(true);
     } catch {
-      toastService.show('Не удалось отправить ссылку для входа.', 'error');
+      setError('Не удалось отправить ссылку для входа.');
     } finally {
       setBusy(false);
     }
   };
 
   const signOut = async () => {
+    setError('');
     setBusy(true);
     try {
       await signOutSupabaseMaster(config);
       onClose();
     } catch {
       setBusy(false);
-      toastService.show('Не удалось выйти из аккаунта.', 'error');
+      setError('Не удалось выйти из аккаунта.');
     }
   };
 
@@ -94,6 +97,7 @@ export function MasterSignInDialog({ config, onClose }: { config: SupabaseSessio
       onClose={onClose}
     >
       <div className={styles.content}>
+        {error && <Notice tone="error" role="alert">{error}</Notice>}
         {auth.status === 'signedIn' ? (
           <div className={styles.account}>
             <Notice tone="success">Вы вошли как {auth.email || 'мастер'}.</Notice>

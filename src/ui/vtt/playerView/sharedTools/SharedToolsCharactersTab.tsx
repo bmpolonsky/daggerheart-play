@@ -28,7 +28,7 @@ export function SharedToolsCharactersTab({
   content: ContentState;
   includePlaytest: ContentAccessInput;
   onCharacterBuilderClose: () => void;
-  onCharacterBuilderCreate: (input: Partial<Character> & { className?: DaggerheartClass }) => void;
+  onCharacterBuilderCreate: (input: Partial<Character> & { className?: DaggerheartClass }) => string | undefined;
   onCharacterBuilderOpen: () => void;
   playerSeats: Array<SceneTableState['participants'][string]>;
   sceneTable: SceneTableState;
@@ -143,7 +143,10 @@ export function SharedToolsCharactersTab({
           equipment={content.equipment}
           includePlaytest={includePlaytest}
           onCancel={onCharacterBuilderClose}
-          onCreate={onCharacterBuilderCreate}
+          onCreate={(input) => {
+            const characterId = onCharacterBuilderCreate(input);
+            if (characterId) openCharacter(characterId);
+          }}
         />
       )}
     </section>
