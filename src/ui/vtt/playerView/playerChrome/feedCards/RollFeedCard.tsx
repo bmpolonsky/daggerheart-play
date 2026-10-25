@@ -231,6 +231,7 @@ function rollDetailRows(roll: NonNullable<TableFeedItem['roll']>): Array<{ label
   if (dice?.kind === 'duality') {
     const staticModifiers = dualityStaticModifiers(dice);
     rows.push({ label: 'Формула', value: dualityFormula(dice) });
+    if (roll.rollType === 'reaction') rows.push({ label: 'Реакция', value: '«С Надеждой» и «со Страхом» обозначают старшую кость. Сам бросок реакции не начисляет Надежду или Страх.' });
     if (staticModifiers.length > 0) rows.push({ label: 'Модификаторы', value: modifierSummary(staticModifiers) });
     if (dice.difficulty > 0) rows.push({ label: 'Сложность', value: String(dice.difficulty) });
   } else if (dice?.kind === 'formula') {
