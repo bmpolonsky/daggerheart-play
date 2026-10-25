@@ -12,11 +12,14 @@ test('long mobile lobby scrolls the document and clears scroll offset when enter
     const lobby = document.querySelector<HTMLElement>('.role-entry')!;
     return { documentHeight: document.documentElement.scrollHeight, viewport: innerHeight,
       lobbyHeight: lobby.clientHeight, lobbyScrollHeight: lobby.scrollHeight,
+      lobbyOverflowY: getComputedStyle(lobby).overflowY,
+      attemptedInnerScroll: (() => { lobby.scrollTop = 200; return lobby.scrollTop; })(),
       overscrollY: getComputedStyle(document.documentElement).overscrollBehaviorY,
       rootScroller: document.scrollingElement === document.documentElement };
   });
   expect(layout.documentHeight).toBeGreaterThan(layout.viewport + 200);
-  expect(layout.lobbyScrollHeight).toBeLessThanOrEqual(layout.lobbyHeight + 1);
+  expect(layout.lobbyOverflowY).toBe('clip');
+  expect(layout.attemptedInnerScroll).toBe(0);
   expect(layout.overscrollY).toBe('auto');
   expect(layout.rootScroller).toBe(true);
   await page.evaluate(() => scrollTo(0, 350));

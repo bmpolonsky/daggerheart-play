@@ -116,12 +116,12 @@ test.describe('manual custom conditions and armor equipment', () => {
 
 test('armor fine-tuning explains replacement and base edits actually recalculate stored thresholds', async ({ page }) => {
   const sheet = await openSyntheticSheet(page);
-  await sheet.getByRole('button', { name: 'Редактировать', exact: true }).click();
+  await page.getByRole('button', { name: 'Редактировать', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Редактор персонажа', exact: true });
   const edit = editor.getByRole('button', { name: 'Редактировать', exact: true });
   if (await edit.isVisible()) await edit.click();
   await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Характеристики', exact: true }).click();
-  const fineTune = editor.locator('details').filter({ has: editor.locator('summary', { hasText: 'Тонкая настройка брони и порогов' }) });
+  const fineTune = editor.locator('details').filter({ hasText: 'Тонкая настройка брони и порогов' });
   await fineTune.locator('summary').click();
   await expect(fineTune).toContainText('Правка базы пересчитывает пороги: база + уровень.');
   await expect(fineTune).toContainText('Выбор доспеха из каталога заменяет название, источник, базы, показатель и свойство');

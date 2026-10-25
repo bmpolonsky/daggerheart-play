@@ -5,8 +5,9 @@ test.use({ viewport: { width: 390, height: 844 } });
 
 async function openCards(page: Page) {
   await openFilledGmGame(page);
-  await page.getByRole('button', { name: filledCharacterName, exact: true }).first().click();
   const layer = page.getByLabel('Слой интерфейса');
+  if (await layer.isVisible()) await layer.getByRole('button', { name: 'Сцена', exact: true }).click();
+  await page.getByRole('button', { name: filledCharacterName, exact: true }).first().click();
   if (await layer.isVisible()) await layer.getByRole('button', { name: 'Лист', exact: true }).click();
   await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Карты', exact: true }).click();
   const sheet = page.getByLabel('Персонаж игрока');
