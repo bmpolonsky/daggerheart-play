@@ -23,6 +23,7 @@ export interface PolyhedralDiceRoll {
 export interface DiceRendererOptions {
   reducedMotion?: boolean;
   onComplete?: (rollId: string) => void;
+  onError?: (rollId: string) => void;
 }
 
 export function polyhedralDiceRollFromTerms(input: {

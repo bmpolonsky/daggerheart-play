@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'vitest';
 import { cleanMarkdownText } from '../../src/core/utils/markdownText';
+import { mapGenericItem } from '../../src/domain/content/mappers';
+import { domainCardFromLibrary } from '../../src/domain/characterBuilder';
 import { parseDomainCardTextMacros } from '../../src/domain/rules/domainCards';
 import { contextualDiceBindingDomainSlugs, resolveContextualDiceBinding, type ContextualDiceActor, type ContextualDiceSource } from '../../src/domain/rules/contextualDiceBindings';
 import { createUnifiedRollDraft, setUnifiedRollQuantity } from '../../src/domain/rules/unifiedRollDraft';
 
-interface RawCard { slug: string; name: string; features: Array<{ id: number; main_body: string }> }
+interface RawCard { slug: string; name: string; features: Array<{ id: number; name?: string | null; main_body: string }> }
 const cards = (JSON.parse(readFileSync(new URL('../../public/data/domain-cards.json', import.meta.url), 'utf8')) as { data: RawCard[] }).data;
 const actor: ContextualDiceActor = { proficiency: 3, level: 5, spellcastTrait: 'instinct', traits: { instinct: 2 } };
 
@@ -186,4 +188,46 @@ test('all 74 actual corpus dice spans resolve with P2/S3 to explicit formulas, s
     }
   }
   assert.equal(count, 74);
+});
+
+
+test('edited canonical source cannot borrow a nearby mastery clause for an unrelated bonus die', () => {
+  const source = { sourceId: 'domain-card:book-of-ava', text: 'Добавьте d6 к Уклонению. Затем нанесите d10+2 урона, используя ваше Мастерство.' };
+  const result = resolve(source, 'd6', { ...actor, proficiency: 2 });
+  assert.equal(result.formula, '');
+  assert.equal(result.quantity?.value, null);
+  assert.match(result.quantity?.label ?? '', /уточните по тексту/);
+  assert.notEqual(result.formula, '2d6');
+});
+
+test('actual mapper-rendered full cards and individual feature bodies remain recognized', () => {
+  let mappedSpans = 0;
+  let bodySpans = 0;
+  for (const card of cards) {
+    if (!contextualDiceBindingDomainSlugs.includes(card.slug)) continue;
+    const mapped = domainCardFromLibrary(mapGenericItem(card as unknown as Parameters<typeof mapGenericItem>[0], 'domain-card'), true);
+    const texts = [mapped.text, ...card.features.map((feature) => cleanMarkdownText(feature.main_body, { stripEmphasis: true, stripCodeTicks: true }))];
+    for (const [textIndex, text] of texts.entries()) {
+      for (const macro of parseDomainCardTextMacros(text)) {
+        if (macro.kind !== 'diceRoll') continue;
+        const result = resolveContextualDiceBinding({ sourceId: mapped.sourceId, cardId: mapped.id, text }, macro, actor);
+        assert.notEqual(result.quantity?.label, 'Количество костей: уточните по тексту', `${card.slug}:${textIndex}:${macro.start}`);
+        assert.notEqual(result.hint, 'Формула взята из текста. Условия и эффекты способности применяются вручную.', `${card.slug}:${textIndex}:${macro.start}`);
+        if (textIndex === 0) mappedSpans++; else bodySpans++;
+      }
+    }
+  }
+  assert.equal(mappedSpans, 74);
+  assert.equal(bodySpans, 74);
+});
+
+test('outside mastery and trait bindings require their own immediate count clause', () => {
+  const tongue = { sourceId: 'ancestry:ribbet', featureId: 253,
+    text: 'Добавьте d12 к Уклонению. Язык наносит d12 физического урона, используя ваше Мастерство.' };
+  assert.equal(resolve(tongue, 'd12').quantity?.value, null);
+  assert.equal(resolve(tongue, 'd12', actor, 1).formula, '3d12');
+  const witch = { cardId: 'sheet-class-witch-2077',
+    text: 'Добавьте d6 к Уклонению. Бросьте количество d6, равное вашей Характеристике Заклинателя. Выберите одно значение из полученных результатов.' };
+  assert.equal(resolve(witch, 'd6').quantity?.value, null);
+  assert.equal(resolve(witch, 'd6', actor, 1).formula, '2d6');
 });

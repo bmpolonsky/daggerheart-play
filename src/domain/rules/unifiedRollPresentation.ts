@@ -14,6 +14,11 @@ export function unifiedRollCompleteFormula(draft: UnifiedRollDraft, staticModifi
   return formula;
 }
 
+/** Preserve ordinary advantage/ disadvantage when an edited typed pool becomes manual. */
+export function unifiedRollDiceConversionFormula(draft: UnifiedRollDraft, editedBaseFormula: string, staticModifier = 0): string {
+  return unifiedRollCompleteFormula({ ...draft, formula: editedBaseFormula }, staticModifier);
+}
+
 /** Only an unchanged typed dice pool can be expressed as an ordinary flat edit. */
 export function applyUnifiedFormulaEdit(draft: UnifiedRollDraft, formula: string, staticModifier = 0): { draft: UnifiedRollDraft; requiresManual: boolean } {
   const terms = parseDiceFormula(formula);

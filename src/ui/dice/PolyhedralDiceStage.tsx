@@ -21,16 +21,26 @@ export function PolyhedralDiceStage({ roll, onComplete }: { roll: PolyhedralDice
 
   useEffect(() => {
     let cancelled = false;
+    let failedForRoll = false;
+    setFailed(false);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fail = () => {
+      if (cancelled || failedForRoll) return;
+      failedForRoll = true;
+      rendererRef.current?.dispose();
+      rendererRef.current = null;
+      setFailed(true);
+      onCompleteRef.current?.(roll.id);
+    };
     const mount = async () => {
       if (!hostRef.current) return;
       try {
         const { PolyhedralDiceRenderer } = await import('./diceBoxRenderer');
         if (cancelled || !hostRef.current) return;
         rendererRef.current?.dispose();
-        rendererRef.current = new PolyhedralDiceRenderer(hostRef.current, roll, { reducedMotion, onComplete: (rollId) => onCompleteRef.current?.(rollId) });
+        rendererRef.current = new PolyhedralDiceRenderer(hostRef.current, roll, { reducedMotion, onComplete: (rollId) => onCompleteRef.current?.(rollId), onError: fail });
       } catch {
-        if (!cancelled) setFailed(true);
+        fail();
       }
     };
     void mount();

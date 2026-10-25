@@ -476,6 +476,7 @@ export class FeedService {
     const resolvedAt = input.status === 'resolved' || input.status === 'cancelled' ? nowIso() : undefined;
     feedStore.update((feed) => feed.map((entry) => {
       if (entry.type !== 'deathMove' || !matchesDeathMoveEntry(entry, deathMoveEntryId)) return entry;
+      if (entry.deathMove.status === 'resolved' || entry.deathMove.status === 'cancelled') return entry;
       if (options.actorId && entry.deathMove.actor.actorId !== options.actorId) return entry;
       const deathMove: DeathMoveFeedRequest = {
         ...entry.deathMove,

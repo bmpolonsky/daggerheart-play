@@ -58,6 +58,7 @@ export function MiniDiceLauncher({ composer, openRequest = 0, onOpenTray, actorN
   const launcherMode = resolveMiniDiceLauncherMode({ role, selectedActorKind });
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const launcherRef = useRef<HTMLElement | null>(null);
   const lastOpenRequest = useRef(0);
   useEffect(() => {
     if (openRequest > lastOpenRequest.current) { setOpen(true); setDismissed(false); }
@@ -162,6 +163,7 @@ export function MiniDiceLauncher({ composer, openRequest = 0, onOpenTray, actorN
 
   return (
     <section
+      ref={launcherRef}
       className={`mini-dice-launcher mini-dice-launcher--${role} ${open ? 'dh-is-open' : ''} ${dismissed ? 'dh-is-dismissed' : ''}`}
       aria-label="Бросок костей"
     >
@@ -226,7 +228,8 @@ export function MiniDiceLauncher({ composer, openRequest = 0, onOpenTray, actorN
         )}
       </div>
       {open && (
-      <DiceTraySurface title={composer ? 'Подготовка броска' : `${actorName}: ${isDualityRoll ? 'Дуальность' : 'Кости'}`} onClose={closeTray}>
+      <DiceTraySurface title={composer ? 'Подготовка броска' : `${actorName}: ${isDualityRoll ? 'Дуальность' : 'Кости'}`} onClose={closeTray}
+        getAnchorElement={() => launcherRef.current?.querySelector<HTMLButtonElement>('.mini-dice-launcher__quick') ?? null}>
         {!composer && <span>{traySummary}</span>}
         {composer ? composer : <>
         {actorControl}
@@ -326,23 +329,52 @@ export function MiniDiceLauncher({ composer, openRequest = 0, onOpenTray, actorN
 }
 
 /** This shell remounts on every reopen; only its position resets. Draft lives outside. */
-function DiceTraySurface({ title, children, onClose }: { title: string; children: ComponentChildren; onClose: () => void }) {
+function DiceTraySurface({ title, children, onClose, getAnchorElement }: { title: string; children: ComponentChildren; onClose: () => void; getAnchorElement: () => HTMLElement | null }) {
   const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 920px)').matches);
+  const layerRef = useRef<HTMLDivElement | null>(null);
+  const getAnchorRect = () => getAnchorElement()?.getBoundingClientRect() ?? null;
+  const readAnchorBounds = () => {
+    const height = typeof window === 'undefined' ? 800 : window.innerHeight;
+    const anchorTop = getAnchorRect()?.top ?? height - 80;
+    const bottom = Math.max(12, height - anchorTop + 10);
+    return { bottom, availableHeight: Math.max(0, height - bottom - 12) };
+  };
+  const [anchorBounds, setAnchorBounds] = useState(readAnchorBounds);
+  useEffect(() => {
+    const update = () => {
+      const next = readAnchorBounds();
+      setAnchorBounds((current) => current.bottom === next.bottom && current.availableHeight === next.availableHeight ? current : next);
+    };
+    update();
+    window.addEventListener('resize', update);
+    const button = getAnchorElement();
+    const observer = typeof ResizeObserver === 'undefined' || !button ? null : new ResizeObserver(update);
+    if (button) observer?.observe(button);
+    return () => { window.removeEventListener('resize', update); observer?.disconnect(); };
+  }, []);
   useEffect(() => {
     const query = window.matchMedia('(max-width: 920px)');
     const update = () => setMobile(query.matches);
+    update();
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
   }, []);
   const close = <IconButton className="mini-dice-launcher__close" variant="ghost" size="sm" type="button" title="Закрыть панель броска" aria-label="Закрыть панель броска" onClick={onClose}><X size={14} aria-hidden="true" /></IconButton>;
   const heading = <span aria-label="Переместить панель броска" data-testid="dice-tray-drag-handle">{title}</span>;
-  const content = <div className="dh-portal-scope mini-dice-launcher-layer">
+  const content = <div ref={layerRef} className="dh-portal-scope mini-dice-launcher-layer" style={{ '--dice-tray-available-height': `${anchorBounds.availableHeight}px` }}>
     {mobile ? <Surface className="mini-dice-launcher__floating-panel mini-dice-launcher__floating-panel--mobile" role="region" aria-label="Подготовка броска" padding="sm">
       <header className="mini-dice-launcher__mobile-head"><strong>{title}</strong>{close}</header>
       <div className="mini-dice-launcher__floating-body">{children}</div>
-    </Surface> : <DraggableSurface className="mini-dice-launcher__floating-panel" role="region" aria-label="Подготовка броска" title={heading} actions={close}
-      defaultPosition={() => ({ x: Math.max(12, (window.innerWidth - Math.min(360, window.innerWidth - 24)) / 2), y: Math.max(12, window.innerHeight - 640) })}
-      bounds={{ top: 12, right: 12, bottom: 12, left: 12 }}>
+    </Surface> : <DraggableSurface className="mini-dice-launcher__floating-panel" role="region" aria-label="Подготовка броска" title={heading} actions={close} reclampOnContentResize
+      defaultPosition={() => {
+        const anchor = getAnchorRect();
+        const panel = layerRef.current?.querySelector<HTMLElement>('.mini-dice-launcher__floating-panel')?.getBoundingClientRect();
+        const width = panel?.width ?? Math.min(360, window.innerWidth - 24);
+        const height = panel?.height ?? 0;
+        return { x: (anchor ? anchor.left + anchor.width / 2 : window.innerWidth / 2) - width / 2,
+          y: (anchor?.top ?? window.innerHeight - 80) - height - 10 };
+      }}
+      bounds={{ top: 12, right: 12, bottom: anchorBounds.bottom, left: 12 }}>
       {children}
     </DraggableSurface>}
   </div>;

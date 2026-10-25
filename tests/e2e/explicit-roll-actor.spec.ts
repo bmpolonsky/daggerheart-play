@@ -10,9 +10,9 @@ test('bottom configured check keeps its explicitly chosen actor while another sh
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
   await expect(tray.getByRole('combobox')).toHaveCount(0);
   await tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true }).click();
-  await tray.getByLabel('Исполнитель броска', { exact: true }).selectOption('character:e2e-character-cadsuane');
+  await tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true }).selectOption('character:e2e-character-cadsuane');
   await tray.getByLabel('Формула броска', { exact: true }).fill('2d6+3');
-  await tray.getByRole('button', { name: 'Скрыть панель', exact: true }).click();
+  await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
 
   await page.getByRole('region', { name: 'Игровая сцена', exact: true }).getByRole('button', { name: 'Ран', exact: true }).click();
   await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();

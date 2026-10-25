@@ -1,17 +1,20 @@
 import { charactersStore, encounterStore, gameStore } from '../stores/gameStores';
-import { unifiedRollDraftError, type UnifiedRollDraft } from '../domain/rules/unifiedRollDraft';
+import { unifiedRollDraftError, unifiedRollPaysForExperiences, type UnifiedRollDraft } from '../domain/rules/unifiedRollDraft';
 import type { RollPublication } from '../domain/rules/types';
 import type { DiceService } from './DiceService';
 import type { P2PSessionService } from './P2PSessionService';
 import type { PlayerRollIntent } from './SyncService';
 
 export class UnifiedRollExecutionService {
-  constructor(private dice: DiceService, private session: P2PSessionService, private currentScope: () => string) {}
+  constructor(private dice: Pick<DiceService, 'rollAction' | 'rollReaction' | 'rollDamage' | 'rollManualDice' | 'rollGmAttackCheck'>,
+    private session: Pick<P2PSessionService, 'isConnectedPlayerSession' | 'submitPlayerRollIntent' | 'session$'>, private currentScope: () => string) {}
 
   error(draft: UnifiedRollDraft, role: 'gm' | 'player', allowedActorIds: readonly string[]): string | null {
     if (draft.scopeKey !== this.currentScope()) return 'Игра или сессия изменилась. Подготовьте бросок заново.';
     const error = unifiedRollDraftError(draft);
     if (error) return error;
+    const session = this.session.session$.get();
+    if (role === 'player' && session.role === 'player' && (!session.connected || session.status !== 'connected')) return 'Соединение с мастером ещё не готово. Бросок не выполнен локально.';
     const actor = draft.actor;
     if (role === 'player' && actor.id && !allowedActorIds.includes(actor.id)) return 'Этот персонаж больше не назначен вам. Подготовьте бросок заново.';
     if (actor.kind === 'character' && (!actor.id || !charactersStore.get().entities[actor.id])) return 'Персонаж этого броска больше недоступен.';
@@ -21,9 +24,10 @@ export class UnifiedRollExecutionService {
     if (draft.mode === 'gmAttack' && (role !== 'gm' || actor.kind !== 'adversary')) return 'Атака противника доступна мастеру от лица противника.';
     if (draft.mode === 'action' || draft.mode === 'reaction') {
       const character = actor.id ? charactersStore.get().entities[actor.id] : null;
-      const experiences = draft.source?.label === 'Компаньон' ? character?.companion?.experiences : character?.experiences;
+      if (draft.source?.isCompanion === true && !character?.companion) return 'Компаньон этого броска больше недоступен.';
+      const experiences = draft.source?.isCompanion === true ? character?.companion?.experiences : character?.experiences;
       const selected = experiences?.filter((item) => draft.experienceIds.includes(item.id)) ?? [];
-      if (draft.spendHopeForExperiences && selected.length > (character?.hope.value ?? 0)) return 'Недостаточно Надежды для выбранных Опытов.';
+      if (unifiedRollPaysForExperiences(draft) && selected.length > (character?.hope.value ?? 0)) return 'Недостаточно Надежды для выбранных Опытов.';
     }
     if (draft.mode === 'gmAttack') {
       const adversary = actor.id ? encounterStore.get().adversaries[actor.id] : null;
@@ -42,15 +46,17 @@ export class UnifiedRollExecutionService {
     if (draft.mode === 'action' || draft.mode === 'reaction') {
       intent = { type: 'duality', rollType: draft.mode, trait: draft.trait, difficulty: draft.difficulty ?? 0,
         manualModifier: draft.manualModifier, advantageCount: draft.advantageCount, disadvantageCount: draft.disadvantageCount,
-        experienceIds: draft.experienceIds, spendHopeForExperiences: draft.spendHopeForExperiences, notes: draft.notes };
+        experienceIds: draft.experienceIds, spendHopeForExperiences: unifiedRollPaysForExperiences(draft), notes: draft.notes };
     } else if (draft.mode === 'damage') {
       intent = { type: 'damage', formula, critical: draft.critical, damageType: draft.damageType, notes: draft.notes };
     } else {
       intent = { type: 'manualDice', formula, label: draft.title, notes: draft.notes, advantageCount: draft.advantageCount, disadvantageCount: draft.disadvantageCount };
     }
     if (role === 'player' && draft.actor.id && this.session.isConnectedPlayerSession()) {
-      const ok = await this.session.submitPlayerRollIntent({ ...actor, actorId: draft.actor.id, intent });
-      return ok ? { ok } : { ok: false, error: this.session.session$.get().message || 'Бросок не принят мастером.' };
+      try {
+        const ok = await this.session.submitPlayerRollIntent({ ...actor, actorId: draft.actor.id, intent });
+        return ok ? { ok } : { ok: false, error: this.session.session$.get().message || 'Бросок не принят мастером.' };
+      } catch { return { ok: false, error: 'Не удалось отправить бросок мастеру. Локальный бросок не выполнен.' }; }
     }
     try {
       if (draft.mode === 'gmAttack') {

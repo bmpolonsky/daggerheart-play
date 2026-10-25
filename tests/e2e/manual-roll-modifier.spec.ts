@@ -8,6 +8,7 @@ test('one bottom tray previews the signed modifier and closing it preserves the 
   await openGmGame(page);
   const document = createPopulatedGameDocument();
   const character = document.files['data/characters.json'].entities['e2e-character-cadsuane'];
+  character.traits.agility = 0;
   character.weapons = [createWeapon({ name: 'QA Manual Dagger' })];
   await importGameDocument(page, document, 'manual-modifier.dhgame');
   await page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();

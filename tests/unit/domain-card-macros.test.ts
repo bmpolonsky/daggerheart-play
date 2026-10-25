@@ -6,6 +6,7 @@ import { buildCharacterSummary } from "../../src/domain/tabletop/playerView";
 import { resetAllStores, feedStore } from "../../src/stores/gameStores";
 import { characterService, diceService } from "../../src/services/serviceRegistry";
 import { runDomainCardMacroAction } from "../../src/ui/vtt/playerView/domainCards/domainCardMacroActions";
+import type { PreparedDiceRoll } from '../../src/services/CharacterRollService';
 import { firstCharacter } from "./helpers";
 
 test('domain card cost parsing stays raw and does not imply a generic activation', () => {
@@ -232,7 +233,7 @@ test('domain card resource actions use cleaned markdown text for GM feed preview
   assert.equal(feedStore.get()[0]?.body, 'Markdown Card — +1 Стресс');
 });
 
-test('domain card dice macros prepare proficiency-scaled dice without rolling before confirmation', () => {
+test('unknown bare dice ask for quantity while explicit dice stay fixed, without rolling on preparation', () => {
   resetAllStores();
   const character = firstCharacter();
   character.proficiency = 3;
@@ -246,7 +247,7 @@ test('domain card dice macros prepare proficiency-scaled dice without rolling be
   const card = summary.loadoutCards.find((item) => item.id === 'dice-card')!;
   const macro = card.macros.find((item) => item.kind === 'diceRoll' && item.formula === 'd4')!;
 
-  const prepared: Array<{ formula: string; kind: string }> = [];
+  const prepared: PreparedDiceRoll[] = [];
   runDomainCardMacroAction(card, macro, {
     character: summary,
     role: 'player',
@@ -256,8 +257,18 @@ test('domain card dice macros prepare proficiency-scaled dice without rolling be
 
   assert.equal(diceService.rollLog$.get().length, 0);
   assert.equal(prepared.length, 1);
-  assert.equal(prepared[0].formula, '3d4');
+  assert.equal(prepared[0].formula, '');
+  assert.equal(prepared[0].quantity?.value, null);
+  assert.equal(prepared[0].quantity?.formulaTemplate, '{count}d4');
   assert.equal(prepared[0].kind, 'manualDice');
+  const explicit = card.macros.find((item) => item.kind === 'diceRoll' && item.formula === '1d4')!;
+  runDomainCardMacroAction(card, explicit, {
+    character: summary, role: 'player', openRollDraft: () => undefined,
+    openDiceDraft: (draft) => prepared.push(draft)
+  });
+  assert.equal(prepared[1].formula, '1d4');
+  assert.equal(prepared[1].quantity, undefined);
+  assert.equal(diceService.rollLog$.get().length, 0);
 });
 
 test('domain card resource macros apply to the acting character without target inference', () => {

@@ -24,6 +24,8 @@ export interface DraggableSurfaceProps extends Omit<HTMLAttributes<HTMLElement>,
   defaultPosition: DraggableSurfacePosition | (() => DraggableSurfacePosition);
   bounds?: DraggableSurfaceBounds;
   resizable?: boolean;
+  /** Keep a non-resizable surface in view when its content changes its size. */
+  reclampOnContentResize?: boolean;
 }
 
 const INTERACTIVE_SELECTOR = 'button, input, select, textarea, a, [role="button"], [data-drag-ignore]';
@@ -35,6 +37,7 @@ export function DraggableSurface({
   defaultPosition,
   bounds,
   resizable = false,
+  reclampOnContentResize = false,
   className = '',
   ...props
 }: DraggableSurfaceProps) {
@@ -69,13 +72,13 @@ export function DraggableSurface({
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || !resizable || typeof ResizeObserver === 'undefined') return;
+    if (!root || (!resizable && !reclampOnContentResize) || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
       setPosition((current) => clampToViewport(current.x, current.y));
     });
     observer.observe(root);
     return () => observer.disconnect();
-  }, [bounds?.bottom, bounds?.left, bounds?.right, bounds?.top, resizable]);
+  }, [bounds?.bottom, bounds?.left, bounds?.right, bounds?.top, resizable, reclampOnContentResize]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

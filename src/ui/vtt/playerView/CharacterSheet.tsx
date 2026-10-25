@@ -383,9 +383,10 @@ export function CharacterSheet({
                 <ListItem
                   density="compact"
                   title={character.companion.attackName}
+                  className="player-sheet-weapon-row"
                   subtitle={`${character.companion.attackRange} / ${companionDamageFormula(character.companion, character.proficiency)} ${compactDamageTypeLabel(character.companion.attackDamageType)}`}
                   tone="featured"
-                  rightAccessory={<span>
+                  rightAccessory={<span className="player-sheet-weapon-actions">
                     <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); setRollDraft({ kind: 'companion', title: character.companion!.attackName, subtitle: character.companion!.name, trait: character.spellcastTrait ?? 'instinct', damageFormula: character.companion!.attackFormula, damageType: character.companion!.attackDamageType }); }}>Атака</Button>
                     <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); prefillWeaponDamage(character, { name: character.companion!.attackName, damageFormula: character.companion!.attackFormula, damageType: character.companion!.attackDamageType }, true); }}>Урон</Button>
                   </span>}
@@ -461,16 +462,17 @@ export function CharacterSheet({
           <ListItem
             key={weapon.id}
             title={weapon.name}
+            className="player-sheet-weapon-row"
             subtitle={`${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`}
             tone="featured"
-            rightAccessory={<span>
+            rightAccessory={<span className="player-sheet-weapon-actions">
               <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); setRollDraft({ kind: 'weapon', title: weapon.name, subtitle: weapon.range, trait: weapon.trait, damageFormula: weapon.damageFormula, damageType: weapon.damageType }); }}>Атака</Button>
               <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); prefillWeaponDamage(character, weapon); }}>Урон</Button>
               <Button size="xs" variant="ghost" aria-label={`Снять оружие ${weapon.name}`} onClick={(event) => {
               event.stopPropagation();
               const result = characterService.unequipWeapon(character.id, weapon.id);
               if (!result.applied) toastService.show(result.message ?? 'Не удалось снять оружие.', 'error');
-            }}>Снять оружие</Button></span>}
+            }}>Снять</Button></span>}
             onClick={() => setRollDraft({ kind: 'weapon', title: weapon.name, subtitle: `${weapon.traitLabel} / ${weapon.range} / ${weapon.damage} ${compactDamageTypeLabel(weapon.damageType)}`, trait: weapon.trait, damageFormula: weapon.damageFormula, damageType: weapon.damageType })}
           />
         ))}

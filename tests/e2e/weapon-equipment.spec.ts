@@ -39,9 +39,9 @@ test('weapon moves to read-only inventory and back without losing editable attac
   await expect(editor.getByRole('button', { name: `Надеть оружие ${name}`, exact: true })).toHaveCount(0);
   await expect(editor.getByRole('button', { name: `Снять оружие ${name}`, exact: true })).toHaveCount(1);
   const weaponEditor = editor.locator('details.character-editor-item').filter({ hasText: name });
-  await expect(weaponEditor.getByLabel('Характеристика', { exact: true })).toHaveValue('finesse');
+  await expect(weaponEditor.getByRole('combobox', { name: 'Характеристика', exact: true })).toHaveValue('finesse');
   await expect(weaponEditor.getByLabel('Урон', { exact: true })).toHaveValue('2d8+3');
-  await expect(weaponEditor.getByLabel('Занятость', { exact: true })).toHaveValue('one-handed');
+  await expect(weaponEditor.getByRole('combobox', { name: 'Занятость', exact: true })).toHaveValue('one-handed');
   await expect(weaponEditor.getByLabel('Источник', { exact: true })).toHaveValue('qa-runic');
   await expect(weaponEditor.getByLabel('Свойство', { exact: true })).toHaveValue('Свойство QA клинка');
 });

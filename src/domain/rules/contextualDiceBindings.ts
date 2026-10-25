@@ -130,6 +130,254 @@ const DOMAIN_RULES: Record<string, Rule> = {
   'zone-of-protection': { kind: 'tracker', guard: /стороной с цифрой 1/, formulas: ['1d6'], hint: 'Эта d6 — счётчик со стартовым значением 1; случайный бросок не требуется.' }
 };
 
+// Normalized length + FNV-1a metadata fingerprint, not an authentication primitive.
+// Generated from the audited corpus: rendered full card, body-only full card,
+// and individual named/unnamed feature bodies. Unknown edited text fails closed.
+const DOMAIN_SOURCE_FINGERPRINTS: Record<string, readonly string[]> = {
+  "rune-ward": [
+    "466:284b8a1a"
+  ],
+  "i-see-it-coming": [
+    "150:d687a9a9"
+  ],
+  "book-of-tyfar": [
+    "582:385e5e70",
+    "533:1c1a17d3",
+    "228:5b7cc552",
+    "241:4d7f21b6",
+    "105:6967034d",
+    "122:66c55059",
+    "198:481aa502",
+    "217:6bf0fc49"
+  ],
+  "vicious-entangle": [
+    "320:2773fe19"
+  ],
+  "cinder-grasp": [
+    "309:5f6af20f"
+  ],
+  "conjure-swarm": [
+    "433:dab3e63b",
+    "394:548a678a",
+    "224:7b18774f",
+    "252:95291dd5",
+    "169:1e503522",
+    "180:0047f449"
+  ],
+  "book-of-korvax": [
+    "568:35724786",
+    "533:1207c6fe",
+    "158:0bc3f769",
+    "169:b0207bce",
+    "160:37554ae6",
+    "174:d96661b9",
+    "213:717dd4f9",
+    "223:8c513fd3"
+  ],
+  "chokehold": [
+    "254:3c117fe6"
+  ],
+  "terrify": [
+    "286:0149299f"
+  ],
+  "book-of-grynn": [
+    "804:f69e7a2c",
+    "747:1d713ef7",
+    "157:0da68ee2",
+    "180:ccb9aec6",
+    "288:50ffec7b",
+    "306:2c0541cf",
+    "300:bdceaf1e",
+    "316:6edd984d"
+  ],
+  "book-of-exota": [
+    "663:5cf9b085",
+    "629:4f6a54b7",
+    "219:23682f9f",
+    "232:e59d3152",
+    "409:66c6d6cf",
+    "430:d63e0276"
+  ],
+  "death-grip": [
+    "467:92378422"
+  ],
+  "chain-lightning": [
+    "624:9b8bce88"
+  ],
+  "rousing-strike": [
+    "170:554bd267"
+  ],
+  "forager": [
+    "509:6173b9df"
+  ],
+  "shrug-it-off": [
+    "195:e0e4d86c"
+  ],
+  "breaking-blow": [
+    "146:e1c97efa"
+  ],
+  "rejuvenation-barrier": [
+    "418:40a7808e"
+  ],
+  "stunning-sunlight": [
+    "560:b3132b57"
+  ],
+  "ground-pound": [
+    "338:cb1dcf79"
+  ],
+  "earthquake": [
+    "523:6aeeedfa"
+  ],
+  "tempest": [
+    "554:7e958854"
+  ],
+  "resurrection": [
+    "286:9220f0ae"
+  ],
+  "unbreakable": [
+    "198:75b1afcd"
+  ],
+  "forceful-push": [
+    "274:b9c28479"
+  ],
+  "strategic-approach": [
+    "532:a07d1988"
+  ],
+  "natural-familiar": [
+    "577:fd48a122"
+  ],
+  "boost": [
+    "289:fc0c4f2b"
+  ],
+  "book-of-ava": [
+    "657:cb825c35",
+    "614:23f1551f",
+    "175:ca6556b6",
+    "191:373554f1",
+    "163:6c4cc562",
+    "177:14686aab",
+    "274:f4007fcb",
+    "287:cca4c3bf"
+  ],
+  "rain-of-blades": [
+    "321:3c0ccb42"
+  ],
+  "blighting-strike": [
+    "365:d0ed7b26"
+  ],
+  "bolt-beacon": [
+    "305:ff663421"
+  ],
+  "hideous-retribution": [
+    "283:f13a91fa"
+  ],
+  "siphon-essence": [
+    "325:c8f5b231"
+  ],
+  "book-of-norai": [
+    "641:0ce0f645",
+    "603:c5267da4",
+    "226:fffba48f",
+    "250:62f4dd7f",
+    "376:ecd2756c",
+    "390:1e8debbd"
+  ],
+  "corrosive-projectile": [
+    "339:2632c72a"
+  ],
+  "towering-stalk": [
+    "509:fb80805d"
+  ],
+  "telekinesis": [
+    "482:db783d9a"
+  ],
+  "midnight-spirit": [
+    "511:0eccacb5"
+  ],
+  "preservation-blast": [
+    "225:f74cb2a7"
+  ],
+  "summon-horror": [
+    "404:49aed4d4"
+  ],
+  "banish": [
+    "514:1546e082"
+  ],
+  "nether-flames": [
+    "336:bdba7eb9"
+  ],
+  "troublemaker": [
+    "282:44ad18e4"
+  ],
+  "redirect": [
+    "279:5a693d84"
+  ],
+  "unyielding-armor": [
+    "176:82b5a7fa"
+  ],
+  "unleash-chaos": [
+    "566:4a4ee422"
+  ],
+  "book-of-illiat": [
+    "683:0b989a80",
+    "651:40eb730d",
+    "199:84e7bf09",
+    "206:d4887c28",
+    "276:e0190ce5",
+    "290:3ff97b62",
+    "174:747b5e49",
+    "185:17fc25e4"
+  ],
+  "thorn-skin": [
+    "487:99cefe21"
+  ],
+  "sigil-of-retribution": [
+    "490:dd5c4d6f"
+  ],
+  "confusing-aura": [
+    "561:20493d2e"
+  ],
+  "arcane-reflection": [
+    "218:9ded9ab6"
+  ],
+  "spellcharge": [
+    "355:44cb1a16"
+  ],
+  "dark-army": [
+    "658:f6563d9f"
+  ],
+  "night-terror": [
+    "519:2e94d68a"
+  ],
+  "twilight-toll": [
+    "477:d5171ce3"
+  ],
+  "damnation": [
+    "322:737738eb"
+  ],
+  "invigoration": [
+    "335:686a3751"
+  ],
+  "falling-sky": [
+    "250:dc36c116"
+  ],
+  "avatar-of-malice": [
+    "407:ae32be2b"
+  ],
+  "tactician": [
+    "238:3b0e19e0"
+  ],
+  "signature-move": [
+    "211:b4ae07f0"
+  ],
+  "wild-surge": [
+    "575:ebd20c4b"
+  ],
+  "zone-of-protection": [
+    "494:2b84c5d4"
+  ]
+};
+
 /** Declarative coverage, not a claim that every custom/edited text can be bound. */
 export const contextualDiceBindingDomainSlugs: readonly string[] = Object.freeze(Object.keys(DOMAIN_RULES));
 
@@ -142,11 +390,11 @@ export function resolveContextualDiceBinding(
   const formula = normalizeFormula(macro.formula);
   const fragment = fragmentContext(source.text, macro, formula);
   if (!fragment) return fallback(formula);
-  const outside = outsideBinding(source, formula, fragment, actor);
+  const outside = outsideBinding(source, formula, fragment, actor, cleanText(source.text.slice(macro.end, macro.end + 180)));
   if (outside) return outside;
   const slug = domainSlug(source);
   const rule = slug ? DOMAIN_RULES[slug] : undefined;
-  if (!rule || !rule.guard.test(fragment) || (rule.formulas && !rule.formulas.includes(formula))) return fallback(formula);
+  if (!rule || !matchesCanonicalDomainText(slug!, source.text) || !rule.guard.test(fragment) || (rule.formulas && !rule.formulas.includes(formula))) return fallback(formula);
   if (rule.kind === 'reference' || rule.kind === 'tracker') return { formula, nonRoll: true, hint: rule.hint };
   if (rule.kind === 'fixed') return { formula, hint: rule.hint };
   if (rule.kind === 'single') return { formula: explicitSingle(formula), hint: rule.hint };
@@ -175,9 +423,10 @@ export function resolveContextualDiceBinding(
   return countedBinding(formula, knownCount(actor.proficiency), 'Мастерство этой атаки', rule.hint);
 }
 
-function outsideBinding(source: ContextualDiceSource, formula: string, fragment: string, actor: ContextualDiceActor): ContextualDiceBinding | null {
+function outsideBinding(source: ContextualDiceSource, formula: string, fragment: string, actor: ContextualDiceActor, followingText: string): ContextualDiceBinding | null {
   if (formula === 'd12' && matchesFeature(source, 'ancestry', 'ribbet', 253)
-    && /используя ваше мастерство/.test(fragment)) {
+    && /используя ваше мастерство/.test(fragment)
+    && /^физического урона, используя ваше мастерство(?:[.,;!?]|$)/.test(followingText)) {
     return countedBinding(formula, knownCount(actor.proficiency), 'Мастерство персонажа', 'Длинный язык использует Мастерство персонажа, не одну d12.');
   }
   if (formula === 'd12+2' && matchesFeature(source, 'beastform', 'armored-sentry', 2005, 282)
@@ -185,7 +434,8 @@ function outsideBinding(source: ContextualDiceSource, formula: string, fragment:
     return quantityBinding(formula, 'Мастерство бросающего союзника', 'Используется Мастерство союзника, который бросает или запускает вас, а не Мастерство владельца этой способности.');
   }
   if (formula === 'd6' && matchesFeature(source, 'class', 'witch', 2077)
-    && /выберите одно значение из полученных/.test(fragment)) {
+    && /выберите одно значение из полученных/.test(fragment)
+    && /^,?\s*равное вашей характеристике заклинателя(?:[.,;!?]|$)/.test(followingText)) {
     return countedBinding(formula, spellcastCount(actor), 'Характеристика Заклинателя', 'Выберите одно отдельное значение по таблице. Можно выбрать не наибольшее; сумма не является результатом гадания.');
   }
   if (formula === 'd6' && matchesFeature(source, 'subclass', 'warden-of-the-elements', 161)
@@ -193,7 +443,8 @@ function outsideBinding(source: ContextualDiceSource, formula: string, fragment:
     return quantityBinding(formula, 'Ран отмечено именно этим событием', 'Используются только Раны, отмеченные сейчас, не весь текущий счётчик Ран. За каждую отдельную 6 уменьшите количество отмеченных Ран на 1 вручную.');
   }
   if (formula === 'd6' && matchesFeature(source, 'class', 'rogue', 0)
-    && /равное вашему рангу/.test(fragment)) {
+    && /равное вашему рангу/.test(fragment)
+    && /^равное вашему рангу(?:\s|[.,;!?]|$)/.test(followingText)) {
     return countedBinding(formula, tierCount(actor.level), 'Ранг персонажа', 'Количество d6 равно Рангу, не Мастерству.');
   }
   return null;
@@ -230,6 +481,17 @@ function fragmentContext(text: string, macro: ContextualDiceMacro, formula: stri
 
 function cleanText(text: string): string {
   return text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`]/g, '').replace(/ё/giu, 'е').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function matchesCanonicalDomainText(slug: string, text: string): boolean {
+  const normalized = cleanText(text);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < normalized.length; index++) {
+    hash ^= normalized.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  const fingerprint = `${normalized.length}:${hash.toString(16).padStart(8, '0')}`;
+  return DOMAIN_SOURCE_FINGERPRINTS[slug]?.includes(fingerprint) ?? false;
 }
 
 function normalizeFormula(formula: string): string {

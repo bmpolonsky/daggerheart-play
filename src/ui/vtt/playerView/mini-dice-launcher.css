@@ -438,6 +438,10 @@
   pointer-events: auto;
 }
 
+.mini-dice-launcher__floating-panel:not(.mini-dice-launcher__floating-panel--mobile) {
+  max-height: var(--dice-tray-available-height, calc(100dvh - 24px));
+}
+
 .mini-dice-launcher__floating-panel > div:last-child,
 .mini-dice-launcher__floating-body {
   min-height: 0;
@@ -482,12 +486,24 @@
 }
 
 .unified-roll-modifier {
-  flex: 0 0 48px;
-  width: 48px;
+  flex: 0 0 40px;
+  width: 40px;
   min-width: 0;
   min-height: 28px;
   padding: 3px 5px;
   text-align: center;
+}
+
+.unified-roll-modifier-label {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.unified-roll-modifier-label > span {
+  color: var(--dh-paper-muted);
+  font-size: 0.62rem;
 }
 
 .unified-roll-selected-experiences small,

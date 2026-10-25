@@ -12,7 +12,7 @@ export function prefillWeaponDamage(character: PlayerViewCharacterSummary, weapo
   unifiedRollDraftService.request({
     actor: { key: `character:${character.id}`, id: character.id, name: companion ? character.companion?.name ?? character.name : character.name, kind: 'character' },
     mode: 'damage', title: `${weapon.name}: Урон`, formula: scaleWeaponFormulaByProficiency(weapon.damageFormula, character.proficiency),
-    damageType: normalizeDamageType(weapon.damageType), source: { label: companion ? 'Компаньон' : 'Оружие' },
+    damageType: normalizeDamageType(weapon.damageType), source: { label: companion ? 'Компаньон' : 'Оружие', isCompanion: companion },
     hint: 'Урон: без характеристики, Опытов и автоматической стоимости Надежды. Формулу можно изменить.'
   });
 }
@@ -31,7 +31,7 @@ export function prefillCharacterRoll(character: PlayerViewCharacterSummary, draf
       difficulty: 'difficulty' in draft ? draft.difficulty : undefined,
       damage,
       notes: 'notes' in draft ? draft.notes : draft.kind === 'weapon' || companion ? `${companion ? 'Компаньон' : 'Оружие'}: ${draft.title}` : undefined,
-      source: { cardId: draft.kind === 'card' ? draft.cardId : undefined, label: companion ? 'Компаньон' : draft.subtitle }
+      source: { cardId: draft.kind === 'card' ? draft.cardId : undefined, label: companion ? 'Компаньон' : draft.subtitle, isCompanion: companion }
     });
 }
 

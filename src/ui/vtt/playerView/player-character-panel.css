@@ -2386,3 +2386,37 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.player-sheet-weapon-row.dh-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.player-sheet-weapon-row .dh-list-item__content,
+.player-sheet-weapon-row .dh-list-item__right-accessory {
+  width: 100%;
+  min-width: 0;
+}
+
+.player-sheet-weapon-row .dh-list-item__right-accessory {
+  justify-content: flex-start;
+}
+
+.player-sheet-weapon-row .dh-list-item__title,
+.player-sheet-weapon-row .dh-list-item__subtitle {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.player-sheet-weapon-row .dh-list-item__subtitle {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.player-sheet-weapon-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

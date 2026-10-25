@@ -239,6 +239,7 @@ Use for floating movable panels over the VTT, such as call widgets or roll confi
 Guidance:
 
 - Build draggable windows from this primitive instead of local pointer hooks.
+- Set `reclampOnContentResize` when a non-resizable surface grows with inline content and must stay inside viewport bounds; it defaults to `false`.
 - Set `--dh-draggable-z-index` on the feature class when layering matters.
 - Put icon-only window controls in `actions`; they are excluded from drag capture.
 - Set `resizable` for desktop panels whose content benefits from more room. Disable it on compact mobile layouts.

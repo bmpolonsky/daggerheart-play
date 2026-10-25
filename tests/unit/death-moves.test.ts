@@ -173,3 +173,41 @@ function deathMoveCardsForActor(actorId: string): DeathMoveFeedEntry[] {
 function isDeathMoveFeedEntry(entry: FeedEntry): entry is DeathMoveFeedEntry {
   return entry.type === 'deathMove';
 }
+
+test('resolved death move denies late player choices, cancellation, reopening and repeated scar result records', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  const entry = feedService.requestDeathMove({ actor: { actorId: character.id, actorName: character.name, actorType: 'character' } });
+  const scarRoll = characterService.chooseAvoidDeath(character.id, 1)!;
+  assert.equal(scarRoll.kind, 'avoidDeathHope');
+  assert.equal(scarRoll.kind === 'avoidDeathHope' && scarRoll.scarGained, true);
+  assert.equal(characterService.getCharacter(character.id)?.scars.length, 1);
+  const resolved = feedService.updateDeathMove(entry.id, { status: 'resolved', choice: 'avoidDeath', roll: scarRoll });
+  assert.equal(resolved?.deathMove.status, 'resolved');
+  const feedBefore = JSON.parse(JSON.stringify(feedStore.get()));
+  const characterBefore = JSON.parse(JSON.stringify(characterService.getCharacter(character.id)));
+
+  assert.equal(feedService.updateDeathMove(entry.id, { choice: 'riskItAll' }, { actorId: character.id }), null);
+  assert.equal(feedService.updateDeathMove(entry.id, { status: 'cancelled' }), null);
+  assert.equal(feedService.updateDeathMove(entry.id, { status: 'pending', choice: undefined }), null);
+  assert.equal(feedService.updateDeathMove(entry.id, { status: 'resolved', choice: 'avoidDeath', roll: scarRoll }), null);
+  assert.deepEqual(JSON.parse(JSON.stringify(feedStore.get())), feedBefore);
+  assert.deepEqual(JSON.parse(JSON.stringify(characterService.getCharacter(character.id))), characterBefore);
+});
+
+test('cancelled death move denies late choices and resolution while another pending event can resolve normally', () => {
+  resetAllStores();
+  const character = firstCharacter();
+  const entry = feedService.requestDeathMove({ actor: { actorId: character.id, actorName: character.name, actorType: 'character' } });
+  const cancelled = feedService.updateDeathMove(entry.id, { status: 'cancelled' });
+  assert.equal(cancelled?.deathMove.status, 'cancelled');
+  const before = JSON.parse(JSON.stringify(feedStore.get()));
+  assert.equal(feedService.updateDeathMove(entry.id, { choice: 'avoidDeath' }, { actorId: character.id }), null);
+  assert.equal(feedService.updateDeathMove(entry.id, { status: 'resolved', choice: 'blazeOfGlory' }), null);
+  assert.deepEqual(JSON.parse(JSON.stringify(feedStore.get())), before);
+
+  const pending = feedService.requestDeathMove({ actor: { actorId: character.id, actorName: character.name, actorType: 'character' } });
+  assert.notEqual(pending.id, entry.id);
+  assert.equal(feedService.updateDeathMove(pending.id, { choice: 'blazeOfGlory' }, { actorId: character.id })?.deathMove.choice, 'blazeOfGlory');
+  assert.equal(feedService.updateDeathMove(pending.id, { status: 'resolved', choice: 'blazeOfGlory' })?.deathMove.status, 'resolved');
+});

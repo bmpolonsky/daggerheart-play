@@ -443,11 +443,24 @@ test.describe('filled-game player character workflows', () => {
 
       await preview.getByRole('button', { name: 'Закрыть предпросмотр' }).click();
       await player.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Оружие' }).click();
-      await sheet.locator('#player-sheet-actions .dh-list-item').first().click();
-      const roll = player.getByRole('dialog', { name: 'Подтверждение броска' });
-      await expect(roll).toBeVisible();
-      const rollActionBox = await roll.getByRole('button', { name: 'Бросить действие' }).boundingBox();
-      expect(rollActionBox?.y).toBeLessThan(420);
+      await sheet.locator('#player-sheet-actions .dh-list-item').first().getByRole('button', { name: 'Атака', exact: true }).click();
+      const roll = player.getByRole('region', { name: 'Подготовка броска', exact: true });
+      await expect(roll).toHaveCount(1);
+      await expect(roll.getByLabel('Формула броска', { exact: true })).toBeVisible();
+      await expect(roll.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toHaveText(filledCharacterName);
+      const submit = roll.getByRole('button', { name: 'Бросить', exact: true });
+      await expect(submit).toHaveCount(1);
+      await expect(submit).toBeVisible();
+      const trayBox = await roll.boundingBox();
+      const submitBox = await submit.boundingBox();
+      expect(trayBox).not.toBeNull();
+      expect(submitBox).not.toBeNull();
+      expect(trayBox!.x).toBeGreaterThanOrEqual(0);
+      expect(trayBox!.x + trayBox!.width).toBeLessThanOrEqual(390);
+      expect(trayBox!.y).toBeGreaterThanOrEqual(0);
+      expect(trayBox!.y + trayBox!.height).toBeLessThanOrEqual(844);
+      expect(submitBox!.y).toBeGreaterThan(844 / 2);
+      expect(submitBox!.y + submitBox!.height).toBeLessThanOrEqual(844);
     } finally {
       await relay.close();
     }
@@ -551,6 +564,8 @@ test.describe('filled-game player character workflows', () => {
       character.className = 'Ranger';
       character.subclassName = 'Звериный союз';
       character.spellcastTrait = 'instinct';
+      character.proficiency = 2;
+      character.traits.instinct = 1;
       character.sheetCards.push({
         id: 'e2e-companion-feature',
         kind: 'subclassFeature',
@@ -615,22 +630,38 @@ test.describe('filled-game player character workflows', () => {
       expect(Math.abs(stressBox!.y - identityBox!.y)).toBeLessThan(identityBox!.height);
       expect(attackBox!.y).toBeGreaterThan(identityBox!.y + identityBox!.height - 2);
 
-      await companion.getByRole('button', { name: 'Когти' }).click();
-      const roll = player.getByLabel('Подтверждение броска');
+      await companion.getByRole('button', { name: 'Атака', exact: true }).click();
+      const roll = player.getByRole('region', { name: 'Подготовка броска', exact: true });
+      await expect(roll).toHaveCount(1);
       await expect(roll).toContainText('Когти');
-      await expect(roll.locator('.dh-draggable-surface')).toHaveCount(0);
+      await expect(roll.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toHaveText('Искра');
       const rollBox = await roll.boundingBox();
-      const sheetBox = await playerSheet.boundingBox();
       expect(rollBox).not.toBeNull();
-      expect(sheetBox).not.toBeNull();
-      expect(rollBox!.x + rollBox!.width).toBeLessThanOrEqual(sheetBox!.x + 1);
-      await expect(roll.getByLabel('Разведчица +2')).toBeVisible();
-      await expect(roll.getByLabel('Защитница +2')).toBeVisible();
-      await expect(roll.getByRole('button', { name: 'Бросить действие' })).toBeVisible();
-      await roll.getByRole('button', { name: 'Урон', exact: true }).click();
-      await expect(roll.getByRole('button', { name: 'Бросить действие' })).toHaveCount(0);
-      await expect(roll.getByRole('button', { name: 'Бросить урон' })).toBeVisible();
-      await roll.getByRole('button', { name: 'Закрыть', exact: true }).click();
+      expect(rollBox!.x).toBeGreaterThanOrEqual(0);
+      expect(rollBox!.x + rollBox!.width).toBeLessThanOrEqual(1440);
+      expect(rollBox!.y).toBeGreaterThanOrEqual(0);
+      expect(rollBox!.y + rollBox!.height).toBeLessThanOrEqual(900);
+      await expect(roll.getByLabel('Формула броска', { exact: true })).toHaveValue('2d12+1');
+      await roll.getByRole('button', { name: 'Опыт', exact: true }).click();
+      await expect(roll.getByRole('checkbox', { name: 'Разведчица +2', exact: true })).toBeVisible();
+      await expect(roll.getByRole('checkbox', { name: 'Защитница +2', exact: true })).toBeVisible();
+      await roll.getByRole('checkbox', { name: 'Разведчица +2', exact: true }).check();
+      await roll.getByRole('checkbox', { name: 'Защитница +2', exact: true }).check();
+      await expect(roll.getByLabel('Формула броска', { exact: true })).toHaveValue('2d12+5');
+      await expect(roll).toContainText('Цена опыта: 2 Надежды');
+      await expect(roll.getByRole('button', { name: 'Бросить', exact: true })).toHaveCount(1);
+      await expect(roll.getByRole('button', { name: 'Бросить', exact: true })).toBeEnabled();
+      await companion.getByRole('button', { name: 'Урон', exact: true }).click();
+      await roll.getByRole('button', { name: 'Заменить подготовленный бросок', exact: true }).click();
+      await expect(roll).toHaveCount(1);
+      await expect(roll.getByLabel('Формула броска', { exact: true })).toHaveValue('2d6');
+      await expect(roll.getByLabel('Модификатор', { exact: true })).toHaveValue('0');
+      await expect(roll.getByRole('checkbox', { name: 'Разведчица +2', exact: true })).toHaveCount(0);
+      await expect(roll.getByRole('checkbox', { name: 'Защитница +2', exact: true })).toHaveCount(0);
+      await expect(roll.getByText(/^Цена опыта:/)).toHaveCount(0);
+      await expect(roll.getByRole('button', { name: 'Бросить', exact: true })).toHaveCount(1);
+      await expect(roll.getByRole('button', { name: 'Бросить', exact: true })).toBeEnabled();
+      await roll.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
 
       await gm.getByLabel('Участники сцены').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
       const gmCompanion = gm.getByLabel('Персонаж игрока').getByLabel('Компаньон следопыта');
@@ -750,7 +781,7 @@ test.describe('filled-game player character workflows', () => {
       await expect(cardTooltip).not.toContainText('Нажмите, чтобы открыть статью');
       await agilityCard.click();
 
-      const roll = player.getByLabel('Подтверждение броска');
+      const roll = player.getByRole('region', { name: 'Подготовка броска', exact: true });
       const agilityTerm = roll.getByRole('button', { name: 'Проворность', exact: true });
       await expect(agilityTerm).toBeVisible();
       await expect(agilityTerm).toHaveCSS('text-decoration-line', 'none');
@@ -759,9 +790,10 @@ test.describe('filled-game player character workflows', () => {
         agilityTerm,
         'Пробежать, Прыгнуть, Маневрировать Высокая Проворность означает, что вы быстры, ловки на пересеченной местности и быстро реагируете на опасность. Вы совершаете бросок Проворности, чтобы взобраться по веревке, спринтом укрыться или перепрыгнуть с крыши на крышу.'
       );
+      await roll.getByRole('button', { name: 'Опыт', exact: true }).click();
       await expectRuleTooltip(
         player,
-        roll.getByRole('button', { name: 'Опыт', exact: true }),
+        roll.getByRole('button', { name: 'Об опытах', exact: true }),
         'Когда один из Опытов вашего персонажа подходит к текущей ситуации, вы можете использовать этот Опыт, чтобы продемонстрировать его мастерство. Перед тем, как совершить действие или бросок реакции, вы можете потратить Надежду, чтобы добавить модификатор Опыта к результату броска. Иногда несколько Опытов вашего персонажа подходят к ситуации (например, если в...'
       );
 

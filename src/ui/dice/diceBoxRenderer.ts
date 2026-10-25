@@ -67,6 +67,7 @@ class SinglePolyhedralDiceRenderer {
   private readonly ready: Promise<void>;
   private disposed = false;
   private pendingRoll: PolyhedralDiceRoll | null;
+  private failed = false;
 
   constructor(
     container: HTMLElement,
@@ -96,12 +97,12 @@ class SinglePolyhedralDiceRenderer {
       strength: this.options.reducedMotion ? 0.62 : 1.18
     });
     disableDiceBoxBumpMapping(this.box);
-    this.ready = this.box.initialize().then(() => this.flushPendingRoll());
+    this.ready = this.box.initialize().then(() => this.flushPendingRoll()).catch(() => this.fail(roll.id));
   }
 
   setRoll(roll: PolyhedralDiceRoll): void {
     this.pendingRoll = roll;
-    void this.ready.then(() => this.flushPendingRoll());
+    void this.ready.then(() => this.flushPendingRoll()).catch(() => this.fail(roll.id));
   }
 
   dispose(): void {
@@ -116,7 +117,7 @@ class SinglePolyhedralDiceRenderer {
   }
 
   private async rollNow(roll: PolyhedralDiceRoll): Promise<void> {
-    if (this.disposed) return;
+    if (this.disposed || this.failed) return;
     const notation = diceBoxNotationForRoll(roll);
     if (!notation) return;
     await this.box.roll(notation);
@@ -126,10 +127,17 @@ class SinglePolyhedralDiceRenderer {
   }
 
   private async flushPendingRoll(): Promise<void> {
-    if (this.disposed || !this.pendingRoll) return;
+    if (this.disposed || this.failed || !this.pendingRoll) return;
     const roll = this.pendingRoll;
     this.pendingRoll = null;
     await this.rollNow(roll);
+  }
+
+  private fail(rollId: string): void {
+    if (this.disposed || this.failed) return;
+    this.failed = true;
+    this.pendingRoll = null;
+    this.options.onError?.(rollId);
   }
 }
 

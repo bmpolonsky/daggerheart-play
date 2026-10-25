@@ -49,7 +49,7 @@ export interface UnifiedRollDraft {
   spendHopeForExperiences: boolean;
   critical: boolean;
   attackModifier?: number;
-  source?: { cardId?: string; sourceId?: string | number; label?: string };
+  source?: { cardId?: string; sourceId?: string | number; label?: string; isCompanion?: boolean };
   quantity?: UnifiedRollQuantity;
   branches?: UnifiedRollBranch[];
   selectedBranchId?: string;
@@ -71,13 +71,18 @@ export function createUnifiedRollDraft(input: UnifiedRollDraftInput): UnifiedRol
     advantageCount: input.advantageCount ?? 0,
     disadvantageCount: input.disadvantageCount ?? 0,
     experienceIds: [...(input.experienceIds ?? [])],
-    spendHopeForExperiences: input.spendHopeForExperiences ?? true,
+    spendHopeForExperiences: input.source?.isCompanion === true && (input.mode === 'action' || input.mode === 'reaction') ? true : input.spendHopeForExperiences ?? true,
     critical: input.critical ?? false
   };
 }
 
 export function isTypedUnifiedRoll(draft: Pick<UnifiedRollDraft, 'mode'>): boolean {
   return draft.mode === 'action' || draft.mode === 'reaction' || draft.mode === 'gmAttack';
+}
+
+export function unifiedRollPaysForExperiences(draft: Pick<UnifiedRollDraft, 'mode' | 'source' | 'spendHopeForExperiences'>): boolean {
+  return draft.source?.isCompanion === true && (draft.mode === 'action' || draft.mode === 'reaction')
+    ? true : draft.spendHopeForExperiences;
 }
 
 /** Caller must explicitly confirm this conversion and provide the complete formula. */
