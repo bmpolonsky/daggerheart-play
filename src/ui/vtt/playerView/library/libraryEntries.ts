@@ -14,7 +14,7 @@ import type { TraitId } from '../../../../domain/rules/types';
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import { characterService, contentService, feedService, sceneTableService } from '../../../../services/serviceRegistry';
 import type { LibraryDetailAction, LibraryDetailSection, LibraryEntry } from './libraryDetailTypes';
-import { libraryPreviewText } from '../../../../domain/content/libraryPresentation';
+import { equipmentLibraryDisplay, libraryPreviewText } from '../../../../domain/content/libraryPresentation';
 
 export function buildLibraryEntries(
   libraryView: ContentLibraryView,
@@ -165,7 +165,8 @@ function environmentEntry(item: LibraryEnvironment): LibraryEntry {
   };
 }
 
-function equipmentEntry(item: LibraryEquipmentItem, targetCharacterId?: string | null): LibraryEntry {
+function equipmentEntry(source: LibraryEquipmentItem, targetCharacterId?: string | null): LibraryEntry {
+  const item = equipmentLibraryDisplay(source);
   const range = formatRange(item.range);
   const damageType = formatDamageType(item.damageType);
   const trait = formatTrait(item.trait);
@@ -202,7 +203,7 @@ function equipmentEntry(item: LibraryEquipmentItem, targetCharacterId?: string |
     stats,
     sections,
     editable: { collection: 'equipment', raw: item.raw, isCustom: isCustomLibrarySource(item.raw.source_slugs) },
-    actions: [equipmentAction(item, targetCharacterId), shareAction(item.name, sections, stats)]
+    actions: [equipmentAction(source, targetCharacterId), shareAction(item.name, sections, stats)]
   };
 }
 

@@ -164,10 +164,26 @@ export function createCharacter(input?: CharacterInput): Character {
 
 function normalizePlayerSyncRevision(value: unknown): Character['playerSyncRevision'] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const input = value as { participantId?: unknown; revision?: unknown };
+  const input = value as { participantId?: unknown; revision?: unknown; receipts?: unknown };
   if (typeof input.participantId !== 'string' || !input.participantId.trim()) return undefined;
   if (typeof input.revision !== 'number' || !Number.isSafeInteger(input.revision) || input.revision < 0) return undefined;
-  return { participantId: input.participantId.trim(), revision: input.revision };
+  const seen = new Set<string>();
+  const receipts: NonNullable<Character['playerSyncRevision']>['receipts'] = [];
+  if (Array.isArray(input.receipts)) {
+    // Inspect from newest to oldest and keep at most sixteen unique receipts.
+    for (let index = input.receipts.length - 1; index >= 0 && receipts.length < 16; index--) {
+      const receipt = input.receipts[index];
+      if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) continue;
+      if (typeof receipt.participantId !== 'string' || !receipt.participantId.trim()
+        || typeof receipt.revision !== 'number' || !Number.isSafeInteger(receipt.revision) || receipt.revision < 1
+        || typeof receipt.operationHash !== 'string' || !/^[a-f0-9]{64}$/.test(receipt.operationHash)) continue;
+      const key = JSON.stringify([receipt.participantId.trim(), receipt.revision]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      receipts.unshift({ participantId: receipt.participantId.trim(), revision: receipt.revision, operationHash: receipt.operationHash });
+    }
+  }
+  return { participantId: input.participantId.trim(), revision: input.revision, ...(receipts.length > 0 ? { receipts } : {}) };
 }
 
 export function sanitizeWealth(input: Partial<CharacterWealth> | null | undefined): CharacterWealth {

@@ -1,7 +1,7 @@
 import type { PlayerViewCharacterSummary } from "../../../../domain/tabletop/playerView";
 import type { DamageType, RollPublication } from "../../../../domain/rules/types";
 import { cleanMarkdownText } from "../../../../core/utils/markdownText";
-import { planDomainCardResourceMacro, resolveDomainCardDiceFormula } from "../../../../domain/rules/domainCards";
+import { isUnleashChaosCard, planDomainCardResourceMacro, resolveDomainCardDiceFormula } from "../../../../domain/rules/domainCards";
 import { characterService, gameService, feedService } from "../../../../services/serviceRegistry";
 import type { PreparedDiceRoll } from "../../../../services/CharacterRollService";
 import type { PlayerRollDraft, TableViewRole } from "../types";
@@ -51,6 +51,16 @@ export function runDomainCardMacroAction(
   }
   if (!('amount' in macro)) return;
   const actionCard = normalizeMacroActionCard(card);
+  if (macro.kind === 'markStress' && macro.amount === 1 && isUnleashChaosCard(actionCard)) {
+    const result = characterService.replenishChaosTokens(character.id, card.id);
+    const detail = result === 'applied' ? 'жетоны восстановлены до Характеристики Заклинателя; отмечен 1 Стресс'
+      : result === 'full' ? 'не применено: запас жетонов уже полон; Стресс не отмечен'
+      : result === 'stress' ? 'не применено: нет свободной ячейки Стресса; жетоны не изменены'
+      : 'не применено: карта должна быть в руке и иметь положительную Характеристику Заклинателя';
+    logDomainCardResourceUse(character.name, card.name, detail, context.publication, sourceLabel);
+    if (result === 'applied') context.afterAction?.();
+    return;
+  }
   const plan = planDomainCardResourceMacro(actionCard, macro, role);
   if (!plan?.canApply) {
     if (plan?.warning) {

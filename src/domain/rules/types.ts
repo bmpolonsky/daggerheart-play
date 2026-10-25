@@ -275,6 +275,19 @@ export interface CharacterCompanionState {
   notes?: string;
 }
 
+/** Authority-owned receipt: raw player operations are never stored here. */
+export interface PlayerCharacterOperationReceipt {
+  participantId: string;
+  revision: number;
+  operationHash: string;
+}
+
+export interface PlayerCharacterSyncRevision {
+  participantId: string;
+  revision: number;
+  receipts?: PlayerCharacterOperationReceipt[];
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -309,7 +322,7 @@ export interface Character {
   usageTrackers?: CharacterUsageTracker[];
   changeHistory?: CharacterChangeRecord[];
   /** Internal monotonic acknowledgement for authoritative player document sync. */
-  playerSyncRevision?: { participantId: string; revision: number };
+  playerSyncRevision?: PlayerCharacterSyncRevision;
   sheetCards: CharacterSheetCard[];
   inventory: CharacterInventoryItem[];
   wealth: CharacterWealth;

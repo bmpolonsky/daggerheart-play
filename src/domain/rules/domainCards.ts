@@ -17,6 +17,14 @@ export type DomainCardTextMacro =
 type DomainCardResourceMacroKind = Extract<DomainCardTextMacro, { amount: number }>['kind'];
 type DomainCardResourceMacroTarget = 'source' | 'gm';
 
+/** Narrow rule for this card; generic Stress links remain resource-only. */
+export function isUnleashChaosCard(card: Pick<DomainCardRecord, 'name' | 'text'>): boolean {
+  const text = normalizeRulesText(card.text).replace(/[*_]/g, '');
+  return /^(?:высвобождение хаоса|unleash chaos)$/i.test(card.name.trim())
+    && tokenMaxUsesSpellcastTrait(text)
+    && /(?:восполнить запас жетонов|replenish[^.?!]*tokens)/i.test(text);
+}
+
 export interface DomainCardResourceMacroPlan {
   cardId: string;
   cardName: string;

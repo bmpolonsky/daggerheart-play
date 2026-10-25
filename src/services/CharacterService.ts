@@ -19,7 +19,7 @@ import {
 } from '../domain/rules/deathMoves';
 import { buildEffectiveCharacterStats } from '../domain/rules/effects';
 import { applyCustomConditionEdit, type CustomConditionDraft } from '../domain/rules/customConditions';
-import { resolveDomainCardTokenMax } from '../domain/rules/domainCards';
+import { isUnleashChaosCard, resolveDomainCardTokenMax } from '../domain/rules/domainCards';
 import { isSameArmorItem, buildEquipmentAttachmentPlan } from '../domain/rules/equipment';
 import { createCharacter, createDomainCard, createExperience, createInventoryItem, createSheetCard, createWeapon, sanitizeWealth } from '../domain/rules/factories';
 import {
@@ -763,6 +763,26 @@ export class CharacterService {
       domainCards: character.domainCards.filter((card) => card.id !== cardId),
       usageTrackers: (character.usageTrackers ?? []).filter((tracker) => tracker.targetKind !== 'card' || tracker.targetId !== cardId)
     }));
+  }
+
+  replenishChaosTokens(id: string, cardId: string): 'applied' | 'full' | 'stress' | 'unavailable' {
+    const character = this.getCharacter(id);
+    const card = character?.domainCards.find((item) => item.id === cardId);
+    if (!character || !character.spellcastTrait || !card || !card.inLoadout || card.permanentlyVaulted || !isUnleashChaosCard(card)) return 'unavailable';
+    const effective = buildEffectiveCharacterStats(character);
+    const max = resolveDomainCardTokenMax(card, effective.traits, character.spellcastTrait);
+    if (max <= 0) return 'unavailable';
+    if (card.tokens.value >= max) return 'full';
+    // This activation pays Stress; it must not invoke markStress's damage
+    // overflow when the character has no free Stress slots.
+    if (effective.stress.marked >= effective.stress.max) return 'stress';
+    this.patchCharacter(id, (current) => ({
+      ...current,
+      stress: { ...current.stress, marked: current.stress.marked + 1 },
+      domainCards: current.domainCards.map((item) => item.id === cardId
+        ? { ...item, tokens: { ...item.tokens, value: max, max } } : item)
+    }), { summary: 'Восстановлены жетоны Высвобождения хаоса за 1 Стресс' });
+    return 'applied';
   }
 
   updateDomainCardTokens(id: string, cardId: string, value: number): void {

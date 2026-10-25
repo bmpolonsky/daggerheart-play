@@ -1,4 +1,20 @@
 import { cleanMarkdownText } from '../../core/utils/markdownText';
+import type { LibraryEquipmentItem } from './types';
+
+/** Keep editor defaults on the record, but show only fields relevant to its type. */
+export function equipmentLibraryDisplay(item: LibraryEquipmentItem): LibraryEquipmentItem {
+  if (item.type !== 'armor') return item;
+  const suppliedType = item.typeName.trim();
+  return {
+    ...item,
+    typeName: !suppliedType || suppliedType.toLowerCase() === 'armor' ? 'Броня' : suppliedType,
+    trait: null,
+    usesSpellcastTrait: false,
+    range: '',
+    damageFormula: '',
+    burden: null
+  };
+}
 
 /** Converts known content markup to text; it never interprets or renders HTML. */
 export function cleanLibraryHtmlText(value: string): string {

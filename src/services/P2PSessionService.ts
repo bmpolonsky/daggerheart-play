@@ -72,7 +72,7 @@ import { createConfiguredP2PTransport } from './p2p/MultiStrategyP2PTransport';
 import { P2PAssetTransferService } from './P2PAssetTransferService';
 import { reportOperationalError } from '../core/observability/sentry';
 import { applyCharacterPatch, createCharacterPatch, createCharacterRollbackPatch, rollbackRejectedCharacterPatch, isCharacterPatch, type CharacterPatch } from '../domain/p2p/characterPatch';
-import { isPlayerCharacterUpdateMessage } from './SyncService';
+import { isPlayerCharacterUpdateMessage, playerCharacterUpdateOperationHash } from './SyncService';
 
 export type P2PSessionRole = 'gm' | 'player';
 export type P2PConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'degraded' | 'error';
@@ -1441,6 +1441,7 @@ export class P2PSessionService {
     if (context && (!gmPeerId || (context.sourcePeerId !== gmPeerId && context.verifiedSourcePeerId !== gmPeerId))) return;
     const pending = this.pendingPlayerCharacterUpdates.get(message.actorId);
     if (!pending || pending.message.revision !== message.revision) return;
+    if (message.operationHash !== undefined && message.operationHash !== playerCharacterUpdateOperationHash(pending.message)) return;
     this.pendingPlayerCharacterUpdates.delete(message.actorId);
     void this.removePersistedPendingPlayerCharacterUpdate(this.session$.get().roomId, message.participantId, message.actorId);
     if (message.accepted === false) {
@@ -1653,40 +1654,80 @@ export class P2PSessionService {
     return applied;
   }
 
-  private acceptPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, peerContext?: RemotePeerContext): 'applied' | 'duplicate' | 'rejected' {
+  private acceptPlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, operationHash: string, peerContext?: RemotePeerContext): 'applied' | 'duplicate' | 'rejected' | 'conflict' | 'unknown-revision' {
     if (!this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) return 'rejected';
     if (!this.characterService) return 'rejected';
     const current = this.characterService.getCharacter(message.actorId);
     if (!current) return 'rejected';
     const currentRevision = current.playerSyncRevision;
-    if (
-      currentRevision?.participantId === message.participantId
-      && message.revision <= currentRevision.revision
-    ) {
-      return 'duplicate';
+    const receipts = currentRevision?.receipts ?? [];
+    const receipt = receipts.find(item => item.participantId === message.participantId && item.revision === message.revision);
+    if (receipt) return receipt.operationHash === operationHash ? 'duplicate' : 'conflict';
+    const highestKnownRevision = Math.max(
+      currentRevision?.participantId === message.participantId ? currentRevision.revision : 0,
+      ...receipts.filter(item => item.participantId === message.participantId).map(item => item.revision)
+    );
+    if (message.revision <= highestKnownRevision) {
+      // Legacy worlds and evicted receipts cannot prove that this operation
+      // was accepted. A numeric revision alone is not a delivery receipt.
+      return 'unknown-revision';
     }
+    const syncRevision: NonNullable<Character['playerSyncRevision']> = {
+      participantId: message.participantId, revision: message.revision,
+      receipts: [...receipts, { participantId: message.participantId, revision: message.revision, operationHash }].slice(-16)
+    };
     return this.characterService.applyTrustedPlayerUpdate(
       message.actorId,
       message.patch ? applyCharacterPatch(current, message.patch) : message.character,
       this.playerChangeActor(message.participantId, message.actorName),
-      { participantId: message.participantId, revision: message.revision }
+      syncRevision
     ) ? 'applied' : 'rejected';
   }
 
   private async receivePlayerCharacterUpdate(message: PlayerCharacterUpdateMessage, context?: SyncEventContext): Promise<void> {
-    const result = this.acceptPlayerCharacterUpdate(message, remotePeerContext(context));
-    if (result === 'rejected') {
-      const reason = 'Мастер отклонил изменения персонажа. Проверьте назначение персонажа.';
+    let operationHash: string;
+    try {
+      operationHash = playerCharacterUpdateOperationHash(message);
+    } catch {
+      // Malformed/non-JSON operations cannot acquire a successful receipt.
+      // Never include their raw content in diagnostics or rejection text.
+      const reason = 'Не удалось подтвердить формат изменения персонажа.';
       this.recordCharacterDelivery(message, 'failed', reason);
-      this.patchSession({ lastRequestAt: nowIso(), message: this.playerActorRejectionMessage(message.participantId, message.actorId, 'Изменения персонажа отклонены') });
       try {
         await this.syncService.publishPlayerCharacterUpdateAck({
           type: 'playerCharacterUpdateAck', participantId: message.participantId,
           actorId: message.actorId, revision: message.revision,
           acknowledgedAt: nowIso(), accepted: false, reason
         }, context?.sourcePeerId);
+      } catch { /* The sender may retry when delivery is restored. */ }
+      return;
+    }
+    const result = this.acceptPlayerCharacterUpdate(message, operationHash, remotePeerContext(context));
+    if (result === 'rejected' || result === 'conflict' || result === 'unknown-revision') {
+      const reason = result === 'conflict'
+        ? 'Конфликт изменений: эта ревизия уже использована другой правкой. Получите актуальное состояние и повторите изменение.'
+        : result === 'unknown-revision'
+          ? 'Не удалось подтвердить старую правку: для этой ревизии нет сохранённого подтверждения. Получите актуальное состояние и повторите изменение.'
+          : 'Мастер отклонил изменения персонажа. Проверьте назначение персонажа.';
+      this.recordCharacterDelivery(message, 'failed', reason);
+      this.patchSession({ lastRequestAt: nowIso(), message: result === 'rejected'
+        ? this.playerActorRejectionMessage(message.participantId, message.actorId, 'Изменения персонажа отклонены')
+        : reason });
+      try {
+        await this.syncService.publishPlayerCharacterUpdateAck({
+          type: 'playerCharacterUpdateAck', participantId: message.participantId,
+          actorId: message.actorId, revision: message.revision,
+          acknowledgedAt: nowIso(), accepted: false, reason, operationHash
+        }, context?.sourcePeerId);
       } catch {
         // The sender retains the pending version and can retry the same refusal.
+      }
+      if (result === 'conflict' || result === 'unknown-revision') {
+        try {
+          await this.syncService.publishSnapshot(snapshotPersistedState(), context?.sourcePeerId);
+        } catch {
+          this.patchSession({ status: 'degraded', message: 'Конфликт правки обнаружен, но актуальное состояние игроку пока не отправлено.' });
+        }
       }
       return;
     }
@@ -1697,7 +1738,8 @@ export class P2PSessionService {
         participantId: message.participantId,
         actorId: message.actorId,
         revision: message.revision,
-        acknowledgedAt: nowIso()
+        acknowledgedAt: nowIso(),
+        operationHash
       }, context?.sourcePeerId);
     } catch {
       // The update is already authoritative. The player keeps it pending and

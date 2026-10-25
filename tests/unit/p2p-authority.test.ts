@@ -633,7 +633,9 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
     assert.equal(updated.sheetCards.some((card) => card.id === 'custom-training'), true);
     assert.equal(updated.usageTrackers?.some((tracker) => tracker.id === 'custom-training-uses'), true);
     assert.equal(buildEffectiveCharacterStats(updated).evasion, updated.evasion + 1);
-    assert.deepEqual(updated.playerSyncRevision, { participantId: participant.id, revision: 2 });
+    assert.equal(updated.playerSyncRevision?.participantId, participant.id);
+    assert.equal(updated.playerSyncRevision?.revision, 2);
+    assert.equal(updated.playerSyncRevision?.receipts?.length, 1);
     assert.equal(updated.changeHistory?.length, 1);
     const authorityRecord = updated.changeHistory?.[0];
     assert.ok(authorityRecord);
@@ -664,7 +666,9 @@ test('P2P GM accepts an owned full-character update, replaces client audit data,
     const afterStaleUpdate = characterService.getCharacter(character.id);
     assert.equal(afterStaleUpdate?.name, 'Ари после правки');
     assert.equal(afterStaleUpdate?.notes, 'Заметка игрока');
-    assert.deepEqual(afterStaleUpdate?.playerSyncRevision, { participantId: participant.id, revision: 2 });
+    assert.equal(afterStaleUpdate?.playerSyncRevision?.participantId, participant.id);
+    assert.equal(afterStaleUpdate?.playerSyncRevision?.revision, 2);
+    assert.equal(afterStaleUpdate?.playerSyncRevision?.receipts?.length, 1);
     assert.equal(afterStaleUpdate?.changeHistory?.length, 1);
     assert.deepEqual(acknowledgedRevisions, [2, 1]);
 

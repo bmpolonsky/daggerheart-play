@@ -92,13 +92,14 @@ for (const [dropAck, dropSnapshot] of [[true, false], [false, true], [true, true
   });
 }
 
-test('stale revision stays acknowledged and receives current state without replaying history', async () => {
+test('unknown stale revision is explicitly unconfirmed and receives current state without replaying history', async () => {
   const { actor, sync, characters, session, internals, context, update, restoreWindow } = setup();
   try {
     await internals.receivePlayerCharacterUpdate({ ...update, revision: 2 }, context);
     const history = characters.getCharacter(actor.id)?.changeHistory?.length;
     await internals.receivePlayerCharacterUpdate({ ...update, patch: { set: { notes: 'Stale' }, unset: [] } }, context);
     assert.deepEqual(sync.deliveredAcks.map(ack => ack.revision), [2, 1]);
+    assert.equal(sync.deliveredAcks.at(-1)?.accepted, false);
     assert.equal(sync.clientCharacter?.notes, 'Player edit');
     assert.equal(characters.getCharacter(actor.id)?.changeHistory?.length, history);
   } finally { await session.stop(); restoreWindow(); }
@@ -125,7 +126,7 @@ test('character update replay after GM service restart stays idempotent using pe
   } finally { await session.stop(); restoreWindow(); }
 });
 
-test('documents unresolved same-participant two-device revision collision without claiming delivery', async () => {
+test('same-participant revision collision is explicitly rejected without applying another device payload', async () => {
   const { actor, sync, characters, session, internals, context, update, restoreWindow } = setup();
   try {
     await internals.receivePlayerCharacterUpdate(update, context);
@@ -134,11 +135,11 @@ test('documents unresolved same-participant two-device revision collision withou
     await internals.receivePlayerCharacterUpdate(phoneUpdate, { sourcePeerId: 'phone-peer', verifiedSourcePeerId: 'verified-phone' });
     assert.equal(sync.deliveredAcks.at(-1)?.accepted, false);
     assert.equal(characters.getCharacter(actor.id)?.notes, 'Player edit');
-    // If both clients share a transport identity, revision alone cannot tell
-    // the second edit from a duplicate. This fixture records that limitation;
-    // it intentionally does not introduce a writer-lock policy.
+    // A shared transport identity is not a writer lock: the operation receipt
+    // distinguishes this different payload from an exact retry.
     await internals.receivePlayerCharacterUpdate(phoneUpdate, context);
-    assert.notEqual(sync.deliveredAcks.at(-1)?.accepted, false);
+    assert.equal(sync.deliveredAcks.at(-1)?.accepted, false);
+    assert.match(sync.deliveredAcks.at(-1)?.reason ?? '', /Конфликт/);
     assert.equal(sync.clientCharacter?.notes, 'Player edit');
     assert.equal(characters.getCharacter(actor.id)?.changeHistory?.length, 1);
   } finally { await session.stop(); restoreWindow(); }
