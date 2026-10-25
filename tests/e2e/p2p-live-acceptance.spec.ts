@@ -64,9 +64,9 @@ test(`@native-p2p ${mode}: initial roster and wound ACK; trusted-room player/GM 
   const roomId = randomBytes(4).toString('hex').slice(0, 6).toUpperCase();
   try {
     await openSharedGmGame(gm, roomId);
-    const document = createPopulatedGameDocument();
-    document.files['data/game.json'].autoApplyRollConsequences = false;
-    await importGameDocument(gm, document, 'synthetic-native-acceptance.dhgame');
+    const gameDocument = createPopulatedGameDocument();
+    gameDocument.files['data/game.json'].autoApplyRollConsequences = false;
+    await importGameDocument(gm, gameDocument, 'synthetic-native-acceptance.dhgame');
     await joinSeat(player, roomId);
     for (const page of [gm, player]) {
       expect(await page.evaluate(() => typeof (window as any).__DAGGERHEART_E2E_P2P_TRANSPORT_FACTORY__ === 'undefined')).toBe(true);
