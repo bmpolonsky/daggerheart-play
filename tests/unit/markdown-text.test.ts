@@ -41,7 +41,7 @@ test('removes rule destinations without inventing or breaking emphasis', () => {
   );
   assert.equal(
     cleanMarkdownText('> ***Совет:** текст *[*Помощь союзнику* ](/rule/help-an-ally) *.', { emphasizeLinks: true }),
-    '> ***Совет:** текст Помощь союзнику*.'
+    '***Совет:** текст Помощь союзнику*.'
   );
   assert.equal(
     cleanMarkdownText('* **Утешение:** один раз за [отдых](/rule/rest) получите [Надежду](/rule/hope).', { emphasizeLinks: true }),
