@@ -151,9 +151,9 @@ test('auto P2P exposes verified physical source separately from claimed logical 
 
   assert.deepEqual(receivedSources, [
     'logical-owner',
-    'torrent:physical-owner',
+    'trystero:physical-owner',
     'logical-owner',
-    'torrent:physical-rogue'
+    'trystero:physical-rogue'
   ]);
   assert.deepEqual(transport.getPeerDiagnostics().map((peer) => peer.peerId), ['logical-owner']);
 });
@@ -362,3 +362,59 @@ class TestP2PTransport implements P2PTransportAdapter {
     this.peerLeaveListeners.forEach((listener) => listener(peerId));
   }
 }
+
+
+function nativeProofEnvelope(id: string, logicalPeerId = 'same-logical-owner'): P2PWireEnvelope {
+  return { version: 2, id, channel: 'data', sender: { peerId: logicalPeerId, role: 'player' }, sentAt: 'now',
+    payload: { id: `sync-${id}`, kind: 'snapshotRequest', authorId: 'owner', createdAt: 'now', value: { requestedAt: 'now', reason: 'manual' } } };
+}
+
+test('the same actual native Trystero endpoint retains authority identity across signaling routes', async () => {
+  const nostr = new TestP2PTransport('nostr', 'ready');
+  const torrent = new TestP2PTransport('torrent', 'ready');
+  const transport = new MultiStrategyP2PTransport({ candidates: ['nostr', 'torrent'], createTransport: options => options.strategy === 'nostr' ? nostr : torrent });
+  const sources: Array<P2PTransportMessageContext | undefined> = [];
+  transport.subscribe((_message, source) => sources.push(source));
+  try {
+    await transport.connect('same-native-proof');
+    nostr.emit(nativeProofEnvelope('presence'), 'native-session-endpoint');
+    torrent.emit(nativeProofEnvelope('character-update'), 'native-session-endpoint');
+    assert.deepEqual(sources, [
+      { sourcePeerId: 'same-logical-owner', verifiedSourcePeerId: 'trystero:native-session-endpoint' },
+      { sourcePeerId: 'same-logical-owner', verifiedSourcePeerId: 'trystero:native-session-endpoint' }
+    ]);
+    // Signaling routes and diagnostics remain separate; only authority identity
+    // is independent of the route used by this native endpoint.
+    const routes = transport.getPeerDiagnostics()[0].routes;
+    assert.deepEqual(routes.map(route => route.strategy), ['nostr', 'torrent']);
+    assert.deepEqual(routes.map(route => route.physicalPeerId), ['native-session-endpoint', 'native-session-endpoint']);
+  } finally { await transport.disconnect(); }
+});
+
+test('a different physical endpoint or reload cannot inherit proof by copying the logical owner ID', async () => {
+  const nostr = new TestP2PTransport('nostr', 'ready');
+  const torrent = new TestP2PTransport('torrent', 'ready');
+  const transport = new MultiStrategyP2PTransport({ candidates: ['nostr', 'torrent'], createTransport: options => options.strategy === 'nostr' ? nostr : torrent });
+  const proofs: Array<string | undefined> = [];
+  transport.subscribe((_message, source) => proofs.push(source?.verifiedSourcePeerId));
+  try {
+    await transport.connect('different-native-proof');
+    nostr.emit(nativeProofEnvelope('first-owner'), 'original-native-endpoint');
+    torrent.emit(nativeProofEnvelope('second-device'), 'other-native-endpoint');
+    nostr.emit(nativeProofEnvelope('after-reload'), 'fresh-native-endpoint');
+    assert.deepEqual(proofs, ['trystero:original-native-endpoint', 'trystero:other-native-endpoint', 'trystero:fresh-native-endpoint']);
+    assert.equal(new Set(proofs).size, 3);
+  } finally { await transport.disconnect(); }
+});
+
+test('missing physical source never promotes the envelope logical ID into verified authority context', async () => {
+  const nostr = new TestP2PTransport('nostr', 'ready');
+  const transport = new MultiStrategyP2PTransport({ candidates: ['nostr'], createTransport: () => nostr });
+  const sources: Array<P2PTransportMessageContext | undefined> = [];
+  transport.subscribe((_message, source) => sources.push(source));
+  try {
+    await transport.connect('missing-native-proof');
+    nostr.emit(nativeProofEnvelope('claimed-only', 'unverified-public-claim'), '');
+    assert.deepEqual(sources, [{ sourcePeerId: 'unverified-public-claim', verifiedSourcePeerId: undefined }]);
+  } finally { await transport.disconnect(); }
+});

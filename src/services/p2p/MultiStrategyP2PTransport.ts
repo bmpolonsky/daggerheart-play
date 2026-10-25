@@ -426,7 +426,11 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
       return;
     }
     this.activateRoute(logicalPeerId, route.strategy, { force: envelope.channel === 'data' });
-    const verifiedSourcePeerId = physicalPeerId ? routePeerKey(route.strategy, physicalPeerId) : logicalPeerId;
+    // All configured Trystero strategies share @trystero-p2p/core's native
+    // selfId in this browser session. The route is not a new authority identity:
+    // retain route-scoped keys for routing, but report the same actual native
+    // endpoint across Nostr/torrent signaling routes. Never substitute a claim.
+    const verifiedSourcePeerId = physicalPeerId ? `trystero:${physicalPeerId}` : undefined;
     this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: logicalPeerId, verifiedSourcePeerId }));
   }
 
