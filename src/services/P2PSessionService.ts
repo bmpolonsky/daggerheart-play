@@ -238,6 +238,8 @@ export class P2PSessionService {
   // Bounded to this GM session; deliberately not a restart-durable receipt.
   private playerRollReceipts = new Map<string, { operationHash: string; accepted?: boolean }>();
   private pendingPlayerRollOperationHash: string | null = null;
+  private foregroundResumeGeneration = 0;
+  private foregroundRefresh: Promise<void> | null = null;
   private capabilitiesGeneration = 0;
   private capabilitiesResponseTimes = new Map<string, number>();
   private capabilitiesRequest: { requestId: string; generation: number; attempts: number; lastAttemptAt?: number; answered: boolean } | null = null;
@@ -812,6 +814,8 @@ export class P2PSessionService {
   }
 
   async stop(options: { forgetSession?: boolean } = {}): Promise<void> {
+    this.foregroundResumeGeneration += 1;
+    this.foregroundRefresh = null;
     this.clearCanonicalCharacterConfirmation();
     this.resetSessionCapabilities();
     this.playerRollReceipts.clear();
@@ -2113,13 +2117,43 @@ export class P2PSessionService {
 
   private handlePlayerResume = (): void => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-    const session = this.sessionStore.get();
-    if (session.role !== 'player' || !session.connected) return;
-    void this.republishPendingPlayerCharacterUpdates();
-    this.recoverCanonicalCharacterConfirmation();
-    this.requestSessionCapabilities();
-    void this.requestSnapshotFromGm('peer-reconnect');
+    this.resumeForegroundRoom('player');
   };
+
+  private resumeForegroundRoom(role: P2PSessionRole): void {
+    const session = this.sessionStore.get();
+    if (session.role !== role || !session.connected || this.foregroundRefresh) return;
+    const connection = this.activeRoomConnection;
+    const generation = this.foregroundResumeGeneration;
+    const recoverCurrentSession = () => {
+      const current = this.sessionStore.get();
+      if (generation !== this.foregroundResumeGeneration || connection !== this.activeRoomConnection
+        || current.role !== role || !current.connected || current.roomId !== session.roomId
+        || current.peerId !== session.peerId) return;
+      if (role === 'gm') {
+        void this.publishSnapshot().catch(() => undefined);
+        return;
+      }
+      void this.republishPendingPlayerCharacterUpdates();
+      this.recoverCanonicalCharacterConfirmation();
+      this.requestSessionCapabilities();
+      void this.requestSnapshotFromGm('peer-reconnect');
+    };
+    // Resume the existing room heartbeat before requesting game state. Mobile
+    // browsers may suspend timers without closing the visible data channel.
+    // A failed control refresh must not suppress the normal snapshot retry.
+    let refresh: Promise<void> | undefined;
+    try { refresh = connection?.refresh?.(); } catch { /* Try normal recovery. */ }
+    if (!refresh) {
+      recoverCurrentSession();
+      return;
+    }
+    const pending = refresh.catch(() => undefined).then(recoverCurrentSession).catch(() => undefined);
+    this.foregroundRefresh = pending;
+    void pending.finally(() => {
+      if (this.foregroundRefresh === pending) this.foregroundRefresh = null;
+    });
+  }
 
   private stopPlayerProductRecoveryPolling(): void {
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.handlePlayerResume);
@@ -2369,7 +2403,7 @@ export class P2PSessionService {
   private handleGmVisibilityChange = (): void => {
     if (document.visibilityState !== 'visible') return;
     void this.acquireGmWakeLock();
-    void this.activeRoomConnection?.refresh().catch(() => undefined);
+    this.resumeForegroundRoom('gm');
   };
 
   private async acquireGmWakeLock(): Promise<void> {
