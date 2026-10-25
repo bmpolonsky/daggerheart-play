@@ -15,15 +15,20 @@ export function PlayerContextPanel({ ariaLabel, children, className = '', closeL
   onClose: () => void;
 }) {
   const closeRef = useRef(onClose);
+  const activeCloseRef = useRef<(() => void) | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [mobile, setMobile] = useState(isMobileLayout);
   closeRef.current = onClose;
+  const currentLocation = typeof window === 'undefined' ? '' : window.location.href;
 
   useEffect(() => {
     const close = () => closeRef.current();
+    activeCloseRef.current = close;
     closeActivePanel?.();
     closeActivePanel = close;
     return () => {
       if (closeActivePanel === close) closeActivePanel = null;
+      if (activeCloseRef.current === close) activeCloseRef.current = null;
     };
   }, []);
 
@@ -44,12 +49,37 @@ export function PlayerContextPanel({ ariaLabel, children, className = '', closeL
     return () => document.removeEventListener('keydown', closeOnEscape);
   }, [mobile]);
 
+  useEffect(() => {
+    if (!mobile || typeof window === 'undefined') return;
+    const returnUrl = new URL(window.location.href);
+    const returnState: unknown = window.history.state;
+    const closeOnHistoryTraversal = (event: PopStateEvent) => {
+      // App navigation also dispatches synthetic popstate. Only a browser
+      // history traversal may dismiss this mobile preview.
+      if (!event.isTrusted || closeActivePanel !== activeCloseRef.current
+        || window.location.origin !== returnUrl.origin) return;
+      const ownDialog = bodyRef.current?.closest('[role="dialog"]');
+      const visibleDialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))
+        .filter((element) => element.getClientRects().length > 0);
+      // Do not consume navigation on behalf of a confirmation or child dialog.
+      if (!ownDialog || visibleDialogs.at(-1) !== ownDialog) return;
+      // No history entry is added when opening a preview. After Back, restore
+      // its existing route before parent bubble listeners read it, then close.
+      // A second Back follows the original route history normally. Traversals
+      // to another document/origin cannot be intercepted by this local guard.
+      window.history.pushState(returnState, '', returnUrl.href);
+      closeRef.current();
+    };
+    window.addEventListener('popstate', closeOnHistoryTraversal, true);
+    return () => window.removeEventListener('popstate', closeOnHistoryTraversal, true);
+  }, [mobile, currentLocation]);
+
   const content = (
     <>
       <IconButton className="player-context-panel__close" variant="ghost" size="sm" title={closeLabel} aria-label={closeLabel} onClick={onClose}>
         <X size={16} aria-hidden="true" />
       </IconButton>
-      <div className="player-context-panel__body">{children}</div>
+      <div ref={bodyRef} className="player-context-panel__body">{children}</div>
     </>
   );
 
