@@ -6,9 +6,13 @@ import { createPopulatedGameDocument, filledCharacterName, importGameDocument } 
 import { openGmGame } from './game-route-helpers';
 import { openGameLibrary } from './tools-helpers';
 
-const output = '/home/codex/outputs/dh-quality-reaudit-20261027/independent';
+const output = process.env.QUALITY_REVIEW_OUTPUT ?? '/home/codex/outputs/dh-quality-reaudit-20261027/independent';
 const actorId = 'e2e-character-cadsuane';
 const trayFor = (page: Page) => page.getByRole('region', { name: 'Подготовка броска', exact: true });
+async function actorName(tray: Locator): Promise<string> {
+  return tray.getByLabel('Исполнитель броска', { exact: true }).evaluate(element => element instanceof HTMLSelectElement
+    ? element.selectedOptions[0]?.textContent?.trim() ?? '' : element.textContent?.trim() ?? '');
+}
 
 async function boot(page: Page) {
   const document = createPopulatedGameDocument();
@@ -51,7 +55,7 @@ async function shot(page: Page, name: string, target?: Locator) {
 
 test('independent: familiar empty tray, true counts, one bonus removal and explicit privacy', async ({ page }) => {
   await boot(page); const tray = await openTray(page);
-  await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toHaveText('Мастер');
+  expect(await actorName(tray)).toBe('Мастер');
   await tray.getByRole('button', { name: 'Сбросить набор', exact: true }).click();
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveCount(0);
   await expect(tray).not.toContainText('Формула пуста');
@@ -70,8 +74,8 @@ test('independent: familiar empty tray, true counts, one bonus removal and expli
   await tray.getByRole('button', { name: 'Помеха', exact: true }).click();
   await expect(tray).toContainText('Костей: 1');
   await expect(tray.locator('.feed-die-icon-wrap--advantage')).toHaveCount(0);
-  await tray.getByRole('button', { name: 'Публичный бросок', exact: true }).click();
-  await expect(tray.getByRole('button', { name: 'Приватный бросок', exact: true })).toBeVisible();
+  await tray.getByRole('button', { name: 'Сделать бросок приватным', exact: true }).click();
+  await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toBeVisible();
   await shot(page, '03-clear-private-state', tray);
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
   await tray.getByRole('button', { name: 'Дуальность', exact: true }).click();
@@ -104,7 +108,7 @@ test('independent: formula and flat modifier stay bidirectional, negative dice a
 
 test('independent: selected PC starts Duality, viewing another sheet never changes the draft actor', async ({ page }) => {
   await boot(page); await selectPc(page); const tray = await openTray(page);
-  await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toHaveText(filledCharacterName);
+  expect(await actorName(tray)).toBe(filledCharacterName);
   await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toBeVisible();
   await expect(tray.getByRole('button', { name: 'Убрать кость Страха', exact: true })).toBeVisible();
   await tray.getByRole('button', { name: 'Сбросить набор', exact: true }).click();
@@ -114,11 +118,9 @@ test('independent: selected PC starts Duality, viewing another sheet never chang
   await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
   await page.getByLabel('Игровая сцена').getByRole('button', { name: 'Ран', exact: true }).click();
   await openTray(page);
-  await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toHaveText(filledCharacterName);
-  await tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true }).click();
+  expect(await actorName(tray)).toBe(filledCharacterName);
   await tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true }).selectOption('gm');
   await expect(tray.getByLabel('Итоговая формула')).toHaveText('1d20');
-  await tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true }).click();
   await tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true }).selectOption(`character:${actorId}`);
   await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toBeVisible();
   await shot(page, '05-explicit-actor-restores-duality', tray);
@@ -260,3 +262,55 @@ test('independent: one explicit typed reaction rolls individual extras and pays 
   await expect(page.getByRole('group', { name: 'Страх', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(0);
   await shot(page, '12-actual-reaction-one-payment');
 });
+
+async function independentRollState(page: Page) {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('daggerheart-play-game'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const library: any = await new Promise((resolve, reject) => { const request = db.transaction('documents').objectStore('documents').get('current-game'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); db.close();
+    const world = library?.worlds?.[library.activeWorldId]; const data = world?.games?.[world.activeGameId]?.state;
+    return { rolls: data?.rollLog ?? [], hope: data?.characters?.entities?.['e2e-character-cadsuane']?.hope.value, fear: data?.game?.fear };
+  });
+}
+
+for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+  test(`independent: literal actor trait bonus privacy submit reset repeat ${viewport.width}`, async ({ page }) => {
+    await page.setViewportSize(viewport); await boot(page); const tray = await openTray(page);
+    const actor = tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true });
+    await actor.selectOption(`character:${actorId}`); expect(await actorName(tray)).toBe(filledCharacterName);
+    const trait = tray.getByRole('combobox', { name: 'Характеристика броска', exact: true });
+    await trait.selectOption('instinct'); await tray.getByRole('button', { name: 'Реакция', exact: true }).click();
+    for (let i = 0; i < 3; i++) await tray.getByRole('button', { name: /^Преим\./ }).click();
+    await tray.getByRole('button', { name: 'Помеха', exact: true }).click();
+    await expect(tray.getByRole('button', { name: 'Преим. 2', exact: true })).toBeVisible();
+    await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+    await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+    await tray.getByRole('checkbox', { name: 'Область 1 +2', exact: true }).check();
+    await tray.getByRole('button', { name: 'Сделать бросок приватным', exact: true }).click();
+    await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(tray).toContainText('Костей: 5');
+    await expect(tray.getByLabel('Итоговая формула')).toHaveText('2d12+1d6+4+2d6');
+    await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+    await shot(page, `literal-ready-${viewport.width}`, tray);
+    await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
+    await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
+    await expect.poll(async () => (await independentRollState(page)).rolls.length).toBe(1);
+    const state = await independentRollState(page); const roll = state.rolls[0];
+    expect(roll.type).toBe('reaction'); expect(roll.advantageRolls).toHaveLength(2); expect(roll.disadvantageRolls).toHaveLength(0);
+    expect(roll.keptExtraDie).toBe(Math.max(...roll.advantageRolls));
+    expect(roll.extraDiceTerms[0].rolls).toHaveLength(1);
+    expect(roll.total).toBe(roll.hopeDie + roll.fearDie + 4 + roll.keptExtraDie + roll.extraDiceTerms[0].rolls[0]);
+    expect(state.hope).toBe(2); expect(roll.publication).toBe('private');
+    await expect(page.locator('.player-activity-event--roll')).toHaveCount(1);
+    await shot(page, `literal-submitted-${viewport.width}`, tray);
+    await writeFile(`${output}/literal-result-${viewport.width}.json`, JSON.stringify(state, null, 2));
+    await tray.getByRole('button', { name: 'Сбросить набор', exact: true }).click();
+    await tray.getByRole('button', { name: 'Дуальность', exact: true }).click();
+    await trait.selectOption('instinct'); await tray.getByRole('button', { name: 'Реакция', exact: true }).click();
+    await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toHaveCount(0);
+    await expect(tray.getByRole('button', { name: 'Убрать дополнительный d6', exact: true })).toHaveCount(0);
+    await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
+    await expect.poll(async () => (await independentRollState(page)).rolls.length).toBe(2);
+    expect((await independentRollState(page)).hope).toBe(2);
+    await shot(page, `literal-reset-repeat-${viewport.width}`, tray);
+  });
+}
