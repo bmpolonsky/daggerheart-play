@@ -7,7 +7,11 @@ for (const role of ['gm', 'player'] as const) for (const width of [1440, 390]) {
   test(`chat composer keeps aligned nested controls and submits once ${role} ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     if (role === 'gm') await openGmGame(page); else await openPlayerGame(page);
-    if (!await page.getByLabel('Чат игры', { exact: true }).isVisible()) await page.getByRole('button', { name: /^Открыть чат/ }).click();
+    if (!await page.getByLabel('Чат игры', { exact: true }).isVisible()) {
+      const tabs = page.getByLabel('Слой интерфейса', { exact: true });
+      if (await tabs.isVisible()) await tabs.getByRole('button', { name: 'Чат', exact: true }).click();
+      else await page.getByRole('button', { name: /^Открыть чат/ }).click();
+    }
     const composer = page.locator('.player-chat-composer');
     const input = composer.getByRole('textbox'); const send = composer.getByRole('button', { name: 'Отправить сообщение', exact: true });
     await expect(composer).toBeVisible(); await expect(send).toBeDisabled();
