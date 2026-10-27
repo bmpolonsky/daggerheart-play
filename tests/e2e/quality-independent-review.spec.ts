@@ -171,7 +171,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
     await expect(button).toBeInViewport();
     const after = await page.getByLabel('Игровая сцена').boundingBox();
     expect(after?.y).toBe(before?.y);
-    await expect(tray.locator('.mini-dice-launcher__mobile-head')).toContainText(filledCharacterName);
+    await expect(tray.locator('.mini-dice-launcher__mobile-head')).toContainText('Бросок');
+    expect(await actorName(tray)).toBe(filledCharacterName);
     await expect(tray.locator('.mini-dice-launcher__mobile-head')).toBeInViewport();
     await shot(page, `07-expanded-options-${viewport.width}x${viewport.height}`, tray);
     await formula(tray, '2d12+5');
