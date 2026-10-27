@@ -1,5 +1,6 @@
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
+import { teamworkParticipantRoleRevision } from '../domain/rules/teamwork';
 import { REST_RULES } from '../domain/rules/rest';
 import type { GameHandout, DeathMoveChoice, DeathMoveFeedEntry, DeathMoveFeedRequest, DeathMoveFeedStatus, DeathMoveRollResult, DomainCardRecord, FeedActorReference, FeedEntry, RestChoiceResult, RestChoiceStatus, RestFeedChoice, RestFeedEntry, RestFeedParticipant, RestFeedRequest, RestFeedStatus, RollLogEntry, RollPublication, TeamworkRollActorOption, TeamworkRollFeedEntry, TeamworkRollKind, TeamworkRollParticipant, TeamworkRollParticipantRequest, TeamworkRollParticipantRole, TeamworkRollRequest, TeamworkRollResult, TeamworkRollStatus, TraitId } from '../domain/rules/types';
 import type { RestFearPlan } from '../domain/rules/rest';
@@ -721,7 +722,7 @@ function applyTeamworkRole(participant: TeamworkRollParticipant, role: TeamworkR
   if (participant.role === role) return participant;
   // A support reaction cannot become the leader's action (or vice versa).
   // The original roll log stays intact; the new role needs a fresh request/roll.
-  return { ...participant, role, pendingRoll: undefined, result: undefined };
+  return { ...participant, role, roleRevision: Math.min(Number.MAX_SAFE_INTEGER, teamworkParticipantRoleRevision(participant) + 1), pendingRoll: undefined, result: undefined };
 }
 
 function updateTeamworkRole(kind: TeamworkRollKind, participants: TeamworkRollParticipant[], actorId: string, role: TeamworkRollParticipantRole): TeamworkRollParticipant[] {

@@ -2,7 +2,7 @@ import { unifiedRollExecutionFormula } from '../domain/rules/unifiedRollPresenta
 import { characterLevelRank } from '../domain/rules/levelUp';
 import { restMoveOperation, restMoveRequiresRoll } from '../domain/rules/rest';
 import { riskItAllOutcome } from '../domain/rules/deathMoves';
-import { teamworkParticipantRollTrait } from '../domain/rules/teamwork';
+import { teamworkParticipantRoleRevision, teamworkParticipantRollTrait } from '../domain/rules/teamwork';
 import { eventRollCompatibility, type EventRollContext, type EventRollRequest } from '../domain/rules/eventRoll';
 import { unifiedRollDraftError, unifiedRollPaysForExperiences, type UnifiedRollDraft, type UnifiedRollDraftInput } from '../domain/rules/unifiedRollDraft';
 import type { ActionRollEntry, ManualDiceRollEntry, ReactionRollEntry, RollPublication } from '../domain/rules/types';
@@ -82,12 +82,12 @@ export class EventRollService {
       ? supports.reduce((sum, participant) => sum + (participant.result ? participant.result.success ? 1 : -1 : 0), 0) : 0;
     const rollType = participant.role === 'support' ? 'reaction' : 'action';
     const eventContext: EventRollContext = { kind: 'teamwork', scopeKey, entryId: entry.id, actorId: character.id,
-      teamworkRole: participant.role, rollType, trait, difficulty: entry.teamwork.difficulty, supportModifier,
+      teamworkRole: participant.role, teamworkRevision: teamworkParticipantRoleRevision(participant), rollType, trait, difficulty: entry.teamwork.difficulty, supportModifier,
       fingerprint: signature([entry.teamwork.kind, participant.role, entry.teamwork.difficulty, participant.pendingRoll ?? null, trait,
         participant.role === 'leader' ? supports.map((support) => [support.actorId, support.result?.rollId ?? null, support.result?.success ?? null]) : []]) };
     return { ok: true, input: { actor, scopeKey, mode: rollType, formula: '2d12', trait, difficulty: entry.teamwork.difficulty,
       manualModifier: supportModifier, spendHopeForExperiences: true, eventContext, title: entry.title,
-      notes: `${entry.title}: ${participant.role}`, source: { label: 'Командный бросок' },
+      notes: `${entry.title}: ${participant.role}`, source: { label: entry.teamwork.kind === 'groupAction' ? 'Групповой бросок' : 'Командный бросок' },
       hint: 'Результат запишется этому участнику события. Ручной итог требует отдельного подтверждения мастера.' } };
   }
 
@@ -164,7 +164,7 @@ export class EventRollService {
     return current.ok && Boolean(current.input.eventContext) && contextSignature(current.input.eventContext!) === contextSignature(context);
   }
   private key(context: EventRollContext): string {
-    return `${context.scopeKey}:${context.kind}:${context.entryId}:${context.actorId}:${context.kind === 'rest' ? context.choiceId : context.kind === 'death' ? context.deathChoice : 'participant'}`;
+    return `${context.scopeKey}:${context.kind}:${context.entryId}:${context.actorId}:${context.kind === 'rest' ? context.choiceId : context.kind === 'death' ? context.deathChoice : `participant:${context.teamworkRole}:${context.teamworkRevision ?? 0}`}`;
   }
   private commitTeamwork(context: Extract<EventRollContext, { kind: 'teamwork' }>, roll: ActionRollEntry | ReactionRollEntry | ManualDiceRollEntry): EventRollExecutionResult {
     const manual = roll.type === 'manual';

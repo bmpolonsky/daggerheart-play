@@ -137,6 +137,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                       <>
                         <SelectControl
                           className="feed-teamwork-card__trait-select"
+                          aria-label={`Характеристика броска: ${participant.actorName}`}
                           value={selectedTrait}
                           onChange={(event) => setTraitsByActor((current) => ({
                             ...current,

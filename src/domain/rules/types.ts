@@ -691,6 +691,8 @@ export interface TeamworkRollParticipantRequest {
 
 export interface TeamworkRollParticipant extends TeamworkRollActorOption {
   role: TeamworkRollParticipantRole;
+  /** Incremented only when the assigned role changes; old saves start at zero. */
+  roleRevision?: number;
   pendingRoll?: TeamworkRollParticipantRequest;
   result?: TeamworkRollResult;
 }

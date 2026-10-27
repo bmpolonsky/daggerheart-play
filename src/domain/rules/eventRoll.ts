@@ -12,7 +12,7 @@ interface EventRollBinding {
 export type EventRollContext = EventRollBinding & (
   | { kind: 'rest'; choiceId: string; formula: string }
   | { kind: 'death'; deathChoice: 'avoidDeath' | 'riskItAll' }
-  | { kind: 'teamwork'; teamworkRole: TeamworkRollParticipantRole; rollType: 'action' | 'reaction'; trait: TraitId; difficulty: number; supportModifier: number }
+  | { kind: 'teamwork'; teamworkRole: TeamworkRollParticipantRole; teamworkRevision?: number; rollType: 'action' | 'reaction'; trait: TraitId; difficulty: number; supportModifier: number }
 );
 export type EventRollRequest =
   | { kind: 'rest'; entryId: string; actorId: string; choiceId: string }

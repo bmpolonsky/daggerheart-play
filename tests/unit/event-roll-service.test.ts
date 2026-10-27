@@ -2,6 +2,8 @@ import { afterEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { EventRollService, type EventRollDependencies } from '../../src/services/EventRollService';
 import { createUnifiedRollDraft, convertUnifiedRollToManual } from '../../src/domain/rules/unifiedRollDraft';
+import * as diceFormula from '../../src/domain/rules/diceFormula';
+import { feedStore, rollLogStore } from '../../src/stores/gameStores';
 import { rollFormula } from '../../src/domain/rules/diceFormula';
 import type { EventRollRequest } from '../../src/domain/rules/eventRoll';
 import type { ManualDiceRollEntry } from '../../src/domain/rules/types';
@@ -261,4 +263,77 @@ test('rest and death refuse separate additive metadata before RNG instead of sil
   assert.equal(h.manual.mock.calls.length, 0);
   assert.equal(characterService.getCharacter(h.character.id)?.hp.marked, 1);
   assert.equal(characterService.getCharacter(h.character.id)?.scars.length, 0);
+});
+
+
+test('reaction to leader starts a new role attempt, while duplicate application and old history stay protected', () => {
+  const h = harness();
+  const mixed = characterService.createCharacter({ name: 'Mixed' });
+  characterService.updateTrait(h.character.id, 'agility', 0);
+  characterService.updateTrait(mixed.id, 'agility', 1);
+  const entry = feedService.requestTeamworkRoll({ kind: 'groupAction', difficulty: 12, participants: [
+    { actorId: h.character.id, actorName: h.character.name }, { actorId: mixed.id, actorName: mixed.name }
+  ] });
+  vi.spyOn(diceFormula, 'rollDie').mockReturnValueOnce(4).mockReturnValueOnce(6)
+    .mockReturnValueOnce(4).mockReturnValueOnce(6).mockReturnValueOnce(5).mockReturnValueOnce(6);
+  const oldReaction = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: mixed.id, trait: 'agility' });
+  assert.equal(h.service.execute(oldReaction, 'gm', 'public', []).ok, true);
+  const oldRoll = rollLogStore.get()[0];
+  assert.equal(oldRoll.total, 11);
+  const cancelledAction = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: h.character.id, trait: 'agility' });
+  assert.equal(cancelledAction.manualModifier, -1);
+  feedService.updateTeamworkParticipantRole(entry.id, mixed.id, 'leader');
+  assert.notEqual(h.service.error(cancelledAction, 'gm', []), null);
+  const newReaction = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: h.character.id, trait: 'agility' });
+  assert.equal(h.service.execute(newReaction, 'gm', 'public', []).ok, true);
+  const action = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: mixed.id, trait: 'agility' });
+  assert.equal(action.mode, 'action'); assert.equal(action.manualModifier, -1);
+  assert.equal(h.service.error(action, 'gm', []), null);
+  assert.equal(h.service.execute(action, 'gm', 'public', []).ok, true);
+  assert.equal(rollLogStore.get().length, 3);
+  assert.ok(rollLogStore.get().some(roll => roll.id === oldRoll.id && roll.total === 11));
+  assert.equal(h.service.execute(action, 'gm', 'public', []).ok, false);
+  assert.equal(h.service.execute(oldReaction, 'gm', 'public', []).ok, false);
+  assert.equal(rollLogStore.get().length, 3);
+  // Same-role assignment is not a way to clear the receipt/result.
+  feedService.updateTeamworkParticipantRole(entry.id, mixed.id, 'leader');
+  assert.equal(h.service.execute(action, 'gm', 'public', []).ok, false);
+  assert.equal(new EventRollService(h.dependencies).execute(action, 'gm', 'public', []).ok, false);
+  assert.equal(rollLogStore.get().length, 3);
+});
+
+test('role round-trip keeps an explicit generation across JSON and rejects stale same-role drafts after reconnect', () => {
+  const h = harness();
+  const mixed = characterService.createCharacter({ name: 'Mixed' });
+  const entry = feedService.requestTeamworkRoll({ kind: 'groupAction', difficulty: 12, participants: [
+    { actorId: h.character.id, actorName: h.character.name }, { actorId: mixed.id, actorName: mixed.name }
+  ] });
+  const oldLeader = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: h.character.id, trait: 'agility' });
+  feedService.updateTeamworkParticipantRole(entry.id, mixed.id, 'leader');
+  feedService.updateTeamworkParticipantRole(entry.id, h.character.id, 'leader');
+  feedStore.set(JSON.parse(JSON.stringify(feedStore.get())));
+  const restored = new EventRollService(h.dependencies);
+  assert.notEqual(restored.error(oldLeader, 'gm', []), null);
+  const fresh = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: h.character.id, trait: 'agility' });
+  assert.equal(restored.error(fresh, 'gm', []), null);
+  assert.equal(restored.execute(fresh, 'gm', 'public', []).ok, true);
+  assert.equal(restored.execute(fresh, 'gm', 'public', []).ok, false);
+  assert.equal(rollLogStore.get().length, 1);
+});
+
+test('a recorded but uncommitted teamwork attempt cannot reroll or pay again by changing its trait', () => {
+  const h = harness();
+  const entry = feedService.requestTeamworkRoll({ kind: 'groupAction', difficulty: 12, participants: [{ actorId: h.character.id, actorName: h.character.name }] });
+  const draft = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: h.character.id, trait: 'agility' });
+  draft.experienceIds = [h.character.experiences[0].id]; draft.spendHopeForExperiences = true;
+  const commit = vi.spyOn(feedService, 'recordTeamworkParticipantResult').mockReturnValueOnce(null);
+  assert.equal(h.service.execute(draft, 'gm', 'public', []).ok, false);
+  assert.equal(rollLogStore.get().length, 1);
+  assert.equal(characterService.getCharacter(h.character.id)?.hope.value, 2);
+  const editedTrait = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: h.character.id, trait: 'strength' });
+  editedTrait.experienceIds = draft.experienceIds; editedTrait.spendHopeForExperiences = true;
+  assert.equal(h.service.execute(editedTrait, 'gm', 'public', []).ok, false);
+  assert.equal(rollLogStore.get().length, 1);
+  assert.equal(characterService.getCharacter(h.character.id)?.hope.value, 2);
+  assert.equal(commit.mock.calls.length, 1);
 });
