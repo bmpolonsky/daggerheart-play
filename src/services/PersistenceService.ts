@@ -17,7 +17,7 @@ import { hydratePersistedState, isPersistedState, snapshotPersistedState } from 
 import type { PersistedState } from '../domain/rules/types';
 import type { AssetService } from './AssetService';
 import { Store } from '../core/store/Store';
-import { readActiveSession } from './p2p/P2PSessionPersistence';
+import { readActiveSession, readWorkspaceRole } from './p2p/P2PSessionPersistence';
 import { reportOperationalError } from '../core/observability/sentry';
 
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
@@ -601,5 +601,9 @@ function isRemotePlayerJoin(): boolean {
   const hashPath = location?.hash?.replace(/^#/, '') ?? '';
   const normalizedPath = (hashPath.startsWith('/') ? hashPath : pathname).replace(/\/+$/, '') || '/';
   const activeSession = readActiveSession();
-  return normalizedPath.endsWith('/game') && activeSession?.role === 'player';
+  // A remembered player room must not disable the explicit GM workspace in
+  // this tab. readWorkspaceRole validates that choice against the saved session.
+  return normalizedPath.endsWith('/game')
+    && activeSession?.role === 'player'
+    && readWorkspaceRole() !== 'gm';
 }
