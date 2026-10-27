@@ -1,0 +1,36 @@
+import { expect, test } from '@playwright/test';
+import { openGmGame } from './game-route-helpers';
+import { openGameLibrary } from './tools-helpers';
+
+test('summary distinguishes final step, valid readiness and unassigned base traits', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 757 });
+  await openGmGame(page);
+  const library = await openGameLibrary(page);
+  await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
+  await library.getByRole('button', { name: /Создать героя/ }).first().click();
+  const builder = page.getByRole('dialog', { name: 'Новый герой', exact: true });
+  await builder.getByRole('button', { name: 'Случайный герой', exact: true }).click();
+  await builder.getByRole('button', { name: 'Итог', exact: true }).click();
+  const step = builder.getByRole('group', { name: 'Шаг: Итог', exact: true });
+  await expect(step.getByRole('heading', { name: 'Готово к сцене', exact: true })).toBeVisible();
+  await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeEnabled();
+  await expect(builder.getByText('Итог — Шаг 11 из 11', { exact: true })).toBeVisible();
+  await expect(builder).not.toContainText('100%');
+  const validSummary = await step.locator('.cinematic-builder-loadout-summary').innerText();
+  await page.screenshot({ path: '/home/codex/outputs/dh-condition-note-20261027/builder-summary-valid.png' });
+  await builder.getByRole('button', { name: 'Характеристики', exact: true }).click();
+  const agility = builder.getByRole('combobox', { name: 'Проворность', exact: true });
+  const original = await agility.inputValue();
+  await agility.selectOption('');
+  await builder.getByRole('button', { name: 'Итог', exact: true }).click();
+  await expect(step.getByRole('heading', { name: 'Итог', exact: true })).toBeVisible();
+  await expect(step).not.toContainText('Готово к сцене');
+  await expect(step.locator('.cinematic-builder-loadout-summary')).toContainText('Проворность не выбрано');
+  await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeDisabled();
+  await page.screenshot({ path: '/home/codex/outputs/dh-condition-note-20261027/builder-summary-empty.png' });
+  await builder.getByRole('button', { name: 'Характеристики', exact: true }).click();
+  await agility.selectOption(original);
+  await builder.getByRole('button', { name: 'Итог', exact: true }).click();
+  expect(await step.locator('.cinematic-builder-loadout-summary').innerText()).toBe(validSummary);
+  await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeEnabled();
+});

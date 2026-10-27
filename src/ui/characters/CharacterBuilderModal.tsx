@@ -28,7 +28,7 @@ import { AncestrySelectionStep } from './builder/AncestrySelectionStep';
 import traitStyles from './builder/TraitDistribution.module.css';
 import ancestryStyles from './builder/AncestrySelectionStep.module.css';
 import { EditableBuilderStat } from './builder/EditableBuilderStat';
-import { domainLabel, initials, signed } from './builder/formatting';
+import { builderTraitValue, domainLabel, initials } from './builder/formatting';
 import { BUILDER_TRAIT_IDS } from './builder/traits';
 import { useCharacterBuilder } from './useCharacterBuilder';
 
@@ -119,13 +119,13 @@ export function CharacterBuilderModal({
               {stagePortraitUrl ? <AssetImage src={stagePortraitUrl} alt="" /> : <span>{initials(selectedClassOption?.name ?? CLASS_LABELS[fields.className])}</span>}
             </div>
             <div className="cinematic-builder-stage-copy">
-              <span className="cinematic-card-meta">{steps[currentStepIndex]?.label ?? 'Создание'} — {progress}%</span>
+              <span className="cinematic-card-meta">{steps[currentStepIndex]?.label ?? 'Создание'} — Шаг {currentStepIndex + 1} из {steps.length}</span>
               <strong>{selectedClassOption?.name ?? CLASS_LABELS[fields.className]}</strong>
               <p>
                 {[builderResult.draft.ancestry, selectedCommunity?.name, selectedSubclass?.name].filter(Boolean).join(' / ') ||
                   options.classDomains.map(domainLabel).join(' + ')}
               </p>
-              <div className="cinematic-builder-progress" aria-label={`Прогресс создания ${progress}%`}>
+              <div className="cinematic-builder-progress" aria-label={`Положение: шаг ${currentStepIndex + 1} из ${steps.length}`}>
                 <span style={{ width: `${progress}%` }} />
               </div>
             </div>
@@ -402,7 +402,7 @@ export function CharacterBuilderModal({
             {step === 'loadout' && (
               <section className="cinematic-builder-step" role="group" aria-label="Шаг: Итог">
                 <header className="cinematic-builder-step-head">
-                  <h3 className="cinematic-builder-title">Готово к сцене</h3>
+                  <h3 className="cinematic-builder-title">{builder.canCreate ? 'Готово к сцене' : 'Итог'}</h3>
                 </header>
                 <div className="cinematic-builder-choice-area dh-scroll">
                   <article className="cinematic-builder-loadout-summary">
@@ -412,7 +412,7 @@ export function CharacterBuilderModal({
                     <span>Карты: {selectedCards.map((card) => card.name).join(' / ') || 'не выбраны'}</span>
                     <span>Оружие: {builderResult.draft.weapons?.map((weapon) => weapon.name).join(' / ')}</span>
                     <span>Броня: {builderResult.draft.armor?.name} — уклонение {effectiveArmorEvasion}</span>
-                    <span>{BUILDER_TRAIT_IDS.map((trait) => `${TRAIT_LABELS[trait]} ${signed(clamp((builderResult.draft.traits?.[trait] ?? fields.traits[trait] ?? 0) + (selectedArmor?.traitModifiers?.[trait] ?? 0), -10, 20))}`).join(' / ')}</span>
+                    <span>{BUILDER_TRAIT_IDS.map((trait) => `${TRAIT_LABELS[trait]} ${builderTraitValue(fields.traits[trait], builderResult.draft.traits?.[trait], selectedArmor?.traitModifiers?.[trait])}`).join(' / ')}</span>
                     <span>Деньги: {formatWealthSummary(builderResult.draft.wealth)}</span>
                     <span>Инвентарь: {builderResult.draft.inventory?.map((item) => item.name).join(' / ')}</span>
                   </article>
