@@ -228,7 +228,7 @@ export function MiniDiceLauncher({ composer, openRequest = 0, onOpenTray, actorN
         )}
       </div>
       {open && (
-      <DiceTraySurface title={composer ? `Кости · ${actorName}` : `${actorName}: ${isDualityRoll ? 'Дуальность' : 'Кости'}`} onClose={closeTray}
+      <DiceTraySurface title={composer ? 'Бросок' : `${actorName}: ${isDualityRoll ? 'Дуальность' : 'Кости'}`} onClose={closeTray}
         getAnchorElement={() => launcherRef.current?.querySelector<HTMLButtonElement>('.mini-dice-launcher__quick') ?? null}>
         {!composer && <span>{traySummary}</span>}
         {composer ? composer : <>

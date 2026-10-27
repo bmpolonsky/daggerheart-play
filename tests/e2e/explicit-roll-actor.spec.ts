@@ -10,8 +10,7 @@ test('bottom configured check keeps its explicitly chosen actor while another sh
   await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
   await openUnifiedFormulaEditor(tray);
-  await expect(tray.getByRole('combobox')).toHaveCount(0);
-  await tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true }).click();
+  await expect(tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true })).toBeVisible();
   await tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true }).selectOption('character:e2e-character-cadsuane');
   await tray.getByLabel('Формула броска', { exact: true }).fill('2d6+3');
   await expect(tray.getByRole('button', { name: 'Бросить', exact: true })).toBeDisabled();
@@ -20,7 +19,7 @@ test('bottom configured check keeps its explicitly chosen actor while another sh
 
   await page.getByRole('region', { name: 'Игровая сцена', exact: true }).getByRole('button', { name: 'Ран', exact: true }).click();
   await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
-  await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toContainText(filledCharacterName);
+  await expect(tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true })).toHaveValue('character:e2e-character-cadsuane');
   await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('2d6+3');
   await expect(page.getByLabel('Подтверждение броска', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Проверка персонажа', exact: true })).toHaveCount(0);
@@ -35,7 +34,6 @@ test('one tray adds from its palette, removes prepared dice and resets without a
   await openUnifiedFormulaEditor(tray);
   // This scenario deliberately exercises a free GM pool regardless of the
   // character previously selected during fixture import.
-  await tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true }).click();
   await tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true }).selectOption('gm');
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Убрать d20', exact: true })).toHaveCount(1);

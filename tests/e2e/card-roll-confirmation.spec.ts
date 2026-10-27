@@ -23,7 +23,7 @@ test('PC card and weapon commands prepare the same editable bottom tray without 
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
   await openUnifiedFormulaEditor(tray);
   await expect(tray).toBeVisible();
-  await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toContainText(filledCharacterName);
+  await expect(tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true })).toHaveValue('character:e2e-character-cadsuane');
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d4');
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollCount);
   await expect(preview.locator('.feed-domain-card')).toContainText('Заклинание 1');

@@ -618,3 +618,48 @@
 
 .mini-dice-launcher__drag-heading { display: inline-flex; align-items: center; gap: 6px; }
 .mini-dice-launcher__drag-heading > svg { flex: 0 0 auto; opacity: .8; }
+
+/* Direct compact choices replace intermediate disclosure rows in the tray. */
+.unified-roll-heading { flex-wrap: nowrap; }
+.unified-roll-actor-control {
+  flex: 1 1 110px;
+  width: 0;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 22px 4px 8px;
+  font-size: .75rem;
+}
+.unified-roll-actor-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .75rem;
+}
+.unified-roll-heading > .unified-roll-privacy {
+  flex: 0 0 auto;
+  margin-left: 0;
+  gap: 4px;
+  padding-inline: 5px;
+  font-size: .65rem;
+  white-space: nowrap;
+}
+.unified-roll-source-title {
+  font-size: .67rem;
+  color: var(--dh-paper-muted);
+  overflow-wrap: anywhere;
+}
+.unified-roll-source-line { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+.unified-roll-source-line > small { flex: 1; min-width: 0; }
+.unified-roll-source-line > button { margin-left: auto; flex: 0 0 auto; }
+.unified-roll-trait-control {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 160px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 20px 3px 7px;
+  font-size: .72rem;
+}

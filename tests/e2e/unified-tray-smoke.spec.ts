@@ -32,7 +32,7 @@ test('weapon action, damage and contextual Chaos all prepare one editable tray w
   await openUnifiedFormulaEditor(tray);
   await expect(tray).toHaveCount(1);
   await expect(tray).toBeVisible();
-  await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toContainText(filledCharacterName);
+  await expect(tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true })).toHaveValue('character:e2e-character-cadsuane');
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/2d12/);
   await page.screenshot({ path: testInfo.outputPath('tray-normal.png') });
   await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
