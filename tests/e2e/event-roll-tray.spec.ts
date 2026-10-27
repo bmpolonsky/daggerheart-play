@@ -1,3 +1,4 @@
+import { openUnifiedFormulaEditor } from './unified-formula-helpers';
 import { expect, test, type Page } from '@playwright/test';
 import type { FeedEntry, PersistedState } from '../../src/domain/rules/types';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
@@ -73,7 +74,7 @@ test('rest roll is prepared without RNG, then one tray submit applies the same r
   await card.getByRole('button', { name: 'Бросить', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
   await expect(tray).toHaveCount(1);
-  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d4+1');
+  await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('1d4+1');
   await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toBeDisabled();
   await expect.poll(async () => manualDiceCount(await storedState(page))).toBe(0);
   await expect.poll(async () => (await storedState(page))?.characters.entities[actorId].hp.marked).toBe(1);
@@ -110,6 +111,7 @@ test('death fixed-pool incompatibility blocks event application until the origin
   const card = await openEvent(page, 'deathMove');
   await card.getByRole('button', { name: 'Избежать смерти', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
   const formula = tray.getByLabel('Формула броска', { exact: true });
   await expect(formula).toHaveValue('1d12');
   await formula.fill('1d20');
