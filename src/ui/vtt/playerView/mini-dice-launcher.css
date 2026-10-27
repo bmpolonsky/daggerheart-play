@@ -608,3 +608,10 @@
 .unified-roll-modifier-label > span { font-size: .65rem; margin-right: 3px; }
 .unified-roll-modifier-label .unified-roll-modifier { width: 48px; flex-basis: 48px; }
 .unified-roll-modifier-label > button { width: 28px; min-width: 28px; min-height: 28px; padding: 0; }
+
+.unified-roll-formula-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.unified-roll-formula-row > output { min-width: 0; }
+.unified-roll-formula-row > button { flex: 0 0 auto; }
+.unified-roll-modifier-label { gap: 2px; }
+.unified-roll-modifier-label .unified-roll-modifier { width: 40px; flex-basis: 40px; }
+.unified-roll-modifier-label > button { width: 24px; min-width: 24px; }

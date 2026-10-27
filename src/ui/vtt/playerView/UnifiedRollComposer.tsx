@@ -99,7 +99,8 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       hint: mode === 'manual' ? 'Ручной бросок показывает сумму и каждую кость. Исход Дуальности, опыт и его стоимость не применяются автоматически.' : draft.hint });
   };
   const pool = unifiedRollPoolPresentation(draft);
-  const visibleError = !draft.formula.trim() && !draft.quantity && !draft.branches?.length ? null : error;
+  const emptyPool = !draft.formula.trim() && !draft.quantity && !draft.branches?.length;
+  const visibleError = emptyPool && /^(Формула пуста|Нет костей для броска)/.test(error ?? '') ? null : error;
   return <section className="unified-roll-composer">
     <div className="unified-roll-composer__body">
     {state.pending && <Notice tone="warning">
@@ -128,7 +129,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
     </div>}
     {draft.eventUnlinked && <Notice role="status">Привязка снята. Обычный бросок не применит результат к событию.</Notice>}
     {contextOpen && draft.hint && <small>{draft.hint}</small>}
-    {(isTypedUnifiedRoll(draft) || draft.damage || character) && <div className="unified-roll-modes">
+    {(isTypedUnifiedRoll(draft) || draft.damage) && <div className="unified-roll-modes">
       {character && <Button size="xs" variant={draft.mode === 'action' ? 'primary' : 'ghost'} disabled={controlsBlocked || (eventContext?.kind === 'teamwork' && eventContext.rollType !== 'action')} onClick={() => changeMode('action')}>Действие</Button>}
       {character && <Button size="xs" variant={draft.mode === 'reaction' ? 'primary' : 'ghost'} disabled={controlsBlocked || (eventContext?.kind === 'teamwork' && eventContext.rollType !== 'reaction')} onClick={() => changeMode('reaction')}>Реакция</Button>}
       {role === 'gm' && adversary && <Button size="xs" variant={draft.mode === 'gmAttack' ? 'primary' : 'ghost'} disabled={controlsBlocked} onClick={() => changeMode('gmAttack')}>Атака</Button>}
@@ -169,7 +170,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
     {pool.rolledDiceCount > 0 && <small className="unified-roll-pool-count">Костей: {pool.rolledDiceCount}{pool.evaluationHint ? ` · ${pool.evaluationHint}` : ''}</small>}
     <div className="unified-roll-options-row" aria-label="Преимущество и помеха">
       <Button size="xs" variant={draft.advantageCount ? 'primary' : 'ghost'} disabled={controlsBlocked || draft.mode === 'damage'} onClick={() => { update(addAdvantageDie(draft, 'advantage')); resetFormulaEditor(); }}>Преим.{draft.advantageCount ? ` ${draft.advantageCount}` : ''}</Button>
-      <Button size="xs" variant="ghost" disabled={controlsBlocked} onClick={() => { update({ advantageCount: 0, disadvantageCount: 0 }); resetFormulaEditor(); }}>Обычный</Button>
+      <IconButton size="sm" variant="ghost" title="Обычный бросок: убрать преимущество и помеху" aria-label="Сбросить преимущество и помеху" disabled={controlsBlocked || (!draft.advantageCount && !draft.disadvantageCount)} onClick={() => { update({ advantageCount: 0, disadvantageCount: 0 }); resetFormulaEditor(); }}>×</IconButton>
       <Button size="xs" variant={draft.disadvantageCount ? 'danger' : 'ghost'} disabled={controlsBlocked || draft.mode === 'damage'} onClick={() => { update(addAdvantageDie(draft, 'disadvantage')); resetFormulaEditor(); }}>Помеха{draft.disadvantageCount ? ` ${draft.disadvantageCount}` : ''}</Button>
       <span className="unified-roll-modifier-label"><span>Модификатор</span><IconButton size="sm" variant="ghost" aria-label="Уменьшить модификатор" disabled={controlsBlocked} onClick={() => unifiedRollDraftService.setModifier(unifiedRollEditableModifier(draft) - 1)}>−</IconButton><TextControl className="unified-roll-modifier" aria-label="Модификатор" inputMode="numeric" value={modifierInput ?? String(unifiedRollEditableModifier(draft))} disabled={controlsBlocked} onInput={(event) => unifiedRollDraftService.editModifier(event.currentTarget.value)} /><IconButton size="sm" variant="ghost" aria-label="Увеличить модификатор" disabled={controlsBlocked} onClick={() => unifiedRollDraftService.setModifier(unifiedRollEditableModifier(draft) + 1)}>+</IconButton></span>
       {experiences.length > 0 && <Button size="xs" variant={selectedExperiences.length ? 'primary' : 'ghost'} aria-expanded={experiencesOpen} onClick={() => setExperiencesOpen((open) => !open)}>Опыт</Button>}
@@ -185,13 +186,13 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       {draft.experienceIds.length > 0 && paymentOpen && !companion && <Checkbox label={draft.mode === 'gmAttack' ? 'Потратить Страх за опыт' : 'Потратить Надежду за опыт'} checked={unifiedRollPaysForExperiences(draft)} disabled={controlsBlocked || companion} onChange={(event) => update({ spendHopeForExperiences: event.currentTarget.checked })} />}
     </div>}
     {draft.mode === 'damage' && <Checkbox label="Критический урон" checked={draft.critical} onChange={(event) => update({ critical: event.currentTarget.checked })} />}
-    <Button size="xs" variant="ghost" className="unified-roll-formula-toggle" aria-expanded={formulaOpen} onClick={() => setFormulaOpen((open) => !open)}>Изменить формулу</Button>
     {formulaOpen && <TextField label={draft.mode === 'damage' ? 'Базовая формула урона' : 'Формула броска'} aria-label="Формула броска" value={formulaInput ?? completeFormula} onInput={(event) => unifiedRollDraftService.editFormula(event.currentTarget.value, staticModifier)} onBlur={() => unifiedRollDraftService.finishFormulaEdit()} />}
     {(visibleError || formulaError || !modifier.valid) && <Notice tone="warning">{formulaError ?? (!modifier.valid ? 'Введите целый модификатор.' : visibleError)}</Notice>}
     {resultMessage && <Notice>{resultMessage}</Notice>}
     </div>
     <footer className="unified-roll-composer__footer" role="region" aria-label="Итог броска">
-      <output className="unified-roll-formula-summary" aria-label="Итоговая формула">{proposal ? 'Подтвердите ручной набор' : formulaError ? 'Исправьте формулу' : `${formulaPresentation.effectiveFormula}${draft.mode !== 'action' && draft.mode !== 'reaction' && draft.mode !== 'damage' && draft.advantageCount !== draft.disadvantageCount ? draft.advantageCount > draft.disadvantageCount ? ' · преимущество' : ' · помеха' : ''}` || 'Выберите кости'}</output>
+      <div className="unified-roll-formula-row"><output className="unified-roll-formula-summary" aria-label="Итоговая формула">{emptyPool && !proposal && !formulaError ? '' : proposal ? 'Подтвердите ручной набор' : formulaError ? 'Исправьте формулу' : `${formulaPresentation.effectiveFormula}${draft.mode !== 'action' && draft.mode !== 'reaction' && draft.mode !== 'damage' && draft.advantageCount !== draft.disadvantageCount ? draft.advantageCount > draft.disadvantageCount ? ' · преимущество' : ' · помеха' : ''}` || 'Выберите кости'}</output>
+<Button size="xs" variant="ghost" className="unified-roll-formula-toggle" aria-expanded={formulaOpen} onClick={() => setFormulaOpen((open) => !open)}>Изменить формулу</Button></div>
       {draft.mode === 'damage' && draft.critical && formulaPresentation.criticalBonus !== 0 && <small>Крит: {signed(formulaPresentation.criticalBonus)}</small>}
     {isTypedUnifiedRoll(draft) && unifiedRollPaysForExperiences(draft) && selectedExperiences.length > 0 && <small className="unified-roll-cost">Цена опыта: {selectedExperiences.length} {draft.mode === 'gmAttack' ? 'Страха' : 'Надежды'}</small>}
     <Button variant="primary" size="md" fullWidth disabled={rollDisabled || rollPending || submitting || Boolean(error || formulaError || proposal) || !modifier.valid} onClick={async () => {
