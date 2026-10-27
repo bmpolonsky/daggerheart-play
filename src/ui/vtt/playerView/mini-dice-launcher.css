@@ -663,3 +663,13 @@
   padding: 3px 20px 3px 7px;
   font-size: .72rem;
 }
+
+/* Native popups otherwise combine the dark tray text with a light OS menu. */
+.unified-roll-actor-control,
+.unified-roll-trait-control { color-scheme: dark; }
+.unified-roll-actor-control option,
+.unified-roll-trait-control option {
+  background-color: var(--dh-ink-900);
+  color: var(--dh-paper-100);
+}
+.unified-roll-heading > .unified-roll-privacy { font-size: .72rem; }
