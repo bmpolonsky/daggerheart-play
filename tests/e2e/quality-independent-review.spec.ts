@@ -259,9 +259,21 @@ test('independent: one explicit typed reaction rolls individual extras and pays 
   await expect(hope).toHaveCount(2);
   const roll = page.locator('.player-activity-event--roll');
   await expect(roll).toContainText('Реакция');
-  await expect(roll.locator('.feed-die-chip')).toHaveCount(5);
+  // The main row intentionally summarizes the kept bonus; every rolled
+  // bonus value must remain inspectable in existing details.
+  await expect(roll.locator('.feed-die-chip')).toHaveCount(4);
+  await expect.poll(async () => (await independentRollState(page)).rolls.length).toBe(1);
+  const actual = (await independentRollState(page)).rolls[0];
+  expect(actual.advantageRolls).toHaveLength(2);
+  expect(actual.keptExtraDie).toBe(Math.max(...actual.advantageRolls));
+  expect(actual.extraDiceTerms[0].rolls).toHaveLength(1);
+  expect(actual.total).toBe(actual.hopeDie + actual.fearDie + 4 + actual.keptExtraDie + actual.extraDiceTerms[0].rolls[0]);
+  await roll.getByRole('button', { name: 'Подробности броска', exact: true }).click();
+  const bonusDetails = roll.locator('.feed-roll-details-panel');
+  await expect(bonusDetails).toContainText(actual.advantageRolls.join(', '));
+  await expect(bonusDetails).toContainText(`${actual.advantageRolls.join(', ')} → +${actual.keptExtraDie} (максимум)`);
   await expect(page.getByRole('group', { name: 'Страх', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(0);
-  await shot(page, '12-actual-reaction-one-payment');
+  await shot(page, '12-actual-reaction-one-payment-details');
 });
 
 async function independentRollState(page: Page) {
@@ -275,7 +287,10 @@ async function independentRollState(page: Page) {
 
 for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
   test(`independent: literal actor trait bonus privacy submit reset repeat ${viewport.width}`, async ({ page }) => {
-    await page.setViewportSize(viewport); await boot(page); const tray = await openTray(page);
+    await page.setViewportSize(viewport); await boot(page);
+    const layers = page.getByLabel('Слой интерфейса');
+    if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
+    const tray = await openTray(page);
     const actor = tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true });
     await actor.selectOption(`character:${actorId}`); expect(await actorName(tray)).toBe(filledCharacterName);
     const trait = tray.getByRole('combobox', { name: 'Характеристика броска', exact: true });
@@ -289,7 +304,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     await tray.getByRole('button', { name: 'Сделать бросок приватным', exact: true }).click();
     await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(tray).toContainText('Костей: 5');
-    await expect(tray.getByLabel('Итоговая формула')).toHaveText('2d12+1d6+4+2d6');
+    await expect(tray.getByLabel('Итоговая формула')).toHaveText('2d12+1d6+2d6+4');
     await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
     await shot(page, `literal-ready-${viewport.width}`, tray);
     await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
