@@ -232,8 +232,8 @@ function rollDetailRows(roll: NonNullable<TableFeedItem['roll']>): Array<{ label
   if (dice?.kind === 'duality') {
     const staticModifiers = dualityStaticModifiers(dice);
     rows.push({ label: 'Формула', value: dualityFormula(dice) });
-    if (dice.advantageRolls.length > 1) rows.push({ label: 'Кости преимущества', value: formatKeptDiceValues(dice.advantageRolls, Math.max(0, dice.keptExtraDie)) });
-    if (dice.disadvantageRolls.length > 1) rows.push({ label: 'Кости помехи', value: formatKeptDiceValues(dice.disadvantageRolls, Math.min(0, dice.keptExtraDie)) });
+    if (dice.advantageRolls.length > 1) rows.push({ label: 'Преимущество', value: formatKeptDiceValues(dice.advantageRolls, Math.max(0, dice.keptExtraDie)) });
+    if (dice.disadvantageRolls.length > 1) rows.push({ label: 'Помеха', value: formatKeptDiceValues(dice.disadvantageRolls, Math.min(0, dice.keptExtraDie)) });
     if (roll.rollType === 'reaction') rows.push({ label: 'Реакция', value: '«С Надеждой» и «со Страхом» обозначают старшую кость. Сам бросок реакции не начисляет Надежду или Страх.' });
     if (staticModifiers.length > 0) rows.push({ label: 'Модификаторы', value: modifierSummary(staticModifiers) });
     if (dice.difficulty > 0) rows.push({ label: 'Сложность', value: String(dice.difficulty) });
