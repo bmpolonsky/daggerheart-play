@@ -72,7 +72,8 @@ test.describe('dark glass visual system smoke', () => {
     const builder = page.getByRole('dialog', { name: 'Новый герой' });
     await expect(builder).toBeVisible();
     await expectInsideViewport(page, builder);
-    await expect(builder.getByLabel('Сводка героя')).toHaveCSS('color', /rgb\(243, 234, 216\)|rgb\(255, 247, 231\)/);
+    // Approved graphite/gold GM chrome uses the neutral --dh-paper-100 token.
+    await expect(builder.getByLabel('Сводка героя')).toHaveCSS('color', 'rgb(238, 234, 226)');
     await expectNoHorizontalOverflow(page, 1440);
   });
 
