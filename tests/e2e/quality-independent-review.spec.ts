@@ -65,14 +65,14 @@ test('independent: familiar empty tray, true counts, one bonus removal and expli
   await expect(tray.getByLabel('Итоговая формула')).toHaveText('1d20');
   await tray.getByRole('button', { name: /^Преим\./ }).click();
   await tray.getByRole('button', { name: /^Преим\./ }).click();
-  await expect(tray).toContainText('Костей: 3');
+  await expect(tray).not.toContainText('Костей:');
   await expect(tray.locator('.feed-die-icon-wrap--advantage')).toHaveCount(1);
   await shot(page, '02-two-green-d20', tray);
   await tray.getByRole('button', { name: 'Убрать преимущество', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Преим. 1', exact: true })).toBeVisible();
-  await expect(tray).toContainText('Костей: 2');
+  await expect(tray).not.toContainText('Костей:');
   await tray.getByRole('button', { name: 'Помеха', exact: true }).click();
-  await expect(tray).toContainText('Костей: 1');
+  await expect(tray).not.toContainText('Костей:');
   await expect(tray.locator('.feed-die-icon-wrap--advantage')).toHaveCount(0);
   await tray.getByRole('button', { name: 'Сделать бросок приватным', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toBeVisible();
@@ -241,7 +241,7 @@ test('independent: one explicit typed reaction rolls individual extras and pays 
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await tray.getByRole('button', { name: /^Преим\./ }).click();
   await tray.getByRole('button', { name: /^Преим\./ }).click();
-  await expect(tray).toContainText('Костей: 5');
+  await expect(tray).not.toContainText('Костей:');
   const sheet = page.getByLabel('Персонаж игрока', { exact: true });
   const hope = sheet.getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]');
   await expect(hope).toHaveCount(3);
@@ -303,7 +303,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     await tray.getByRole('checkbox', { name: 'Область 1 +2', exact: true }).check();
     await tray.getByRole('button', { name: 'Сделать бросок приватным', exact: true }).click();
     await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(tray).toContainText('Костей: 5');
+    await expect(tray).not.toContainText('Костей:');
     await expect(tray.getByLabel('Итоговая формула')).toHaveText('2d12+1d6+2d6+4');
     await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
     await shot(page, `literal-ready-${viewport.width}`, tray);

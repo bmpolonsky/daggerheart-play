@@ -82,7 +82,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     for (const count of [1, 2, 3]) {
       await tray.getByRole('button', { name: /^Преим\./ }).click();
       await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toContainText(count > 1 ? `${count}×d6` : 'd6');
-      await expect(tray).toContainText(`Костей: ${2 + count}`);
+      await expect(tray).not.toContainText('Костей:');
     }
     await snapshot(page, tray, `${viewport.width}-three-advantage`);
     await tray.getByRole('button', { name: 'Помеха', exact: true }).click();

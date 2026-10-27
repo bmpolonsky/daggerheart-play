@@ -673,3 +673,10 @@
   color: var(--dh-paper-100);
 }
 .unified-roll-heading > .unified-roll-privacy { font-size: .72rem; }
+
+/* Experience names stay compact; the whole row remains clickable. */
+.unified-roll-composer .unified-roll-experiences { gap: 2px; }
+.unified-roll-experiences > .dh-checkbox { min-height: 32px; font-size: .72rem; }
+@media (max-width: 600px), (pointer: coarse) {
+  .unified-roll-experiences > .dh-checkbox { min-height: 40px; }
+}

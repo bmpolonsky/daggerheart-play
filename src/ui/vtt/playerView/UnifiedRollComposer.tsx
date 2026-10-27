@@ -173,7 +173,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       }}><DiceIcon kind="duality" label="Дуальность" /></IconButton>
       {SIDES.map((sides) => <IconButton key={sides} variant="ghost" size="sm" aria-label={`Добавить d${sides}`} disabled={controlsBlocked} onClick={() => editDice(sides, 1)}><DiceIcon kind={`d${sides}`} label={`d${sides}`} mark={`d${sides}`} /></IconButton>)}
     </div>
-    {pool.rolledDiceCount > 0 && <small className="unified-roll-pool-count">Костей: {pool.rolledDiceCount}{pool.evaluationHint ? ` — ${pool.evaluationHint}` : ''}</small>}
+    {pool.evaluationHint && <small className="unified-roll-pool-count">{pool.evaluationHint}</small>}
     <div className="unified-roll-options-row" aria-label="Преимущество и помеха">
       <Button size="xs" variant={draft.advantageCount ? 'primary' : 'ghost'} disabled={controlsBlocked || draft.mode === 'damage'} onClick={() => { update(addAdvantageDie(draft, 'advantage')); resetFormulaEditor(); }}>Преим.{draft.advantageCount ? ` ${draft.advantageCount}` : ''}</Button>
       <IconButton size="sm" variant="ghost" title="Обычный бросок: убрать преимущество и помеху" aria-label="Сбросить преимущество и помеху" disabled={controlsBlocked || (!draft.advantageCount && !draft.disadvantageCount)} onClick={() => { update({ advantageCount: 0, disadvantageCount: 0 }); resetFormulaEditor(); }}>×</IconButton>
@@ -183,15 +183,15 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       {experiences.length > 0 && <CompendiumRuleTerm ruleSlug="experience" sectionAnchor="using-experiences"><span aria-label="Об опытах"><Info size={12} aria-hidden="true" /></span></CompendiumRuleTerm>}
     </div>
     {!experiencesOpen && selectedExperiences.length > 0 && <div className="unified-roll-selected-experiences">{selectedExperiences.map((experience) => <small key={experience.id}>{experience.name} {signed(experience.modifier)}</small>)}</div>}
-    {experiencesOpen && experiences.length > 0 && <div className="player-roll-confirm__checks">
-      {experiences.map((experience) => <Checkbox key={experience.id} label={`${experience.name} ${signed(experience.modifier)}`} checked={draft.experienceIds.includes(experience.id)} disabled={controlsBlocked} onChange={() => { update({ experienceIds: draft.experienceIds.includes(experience.id) ? draft.experienceIds.filter((id) => id !== experience.id) : [...draft.experienceIds, experience.id] }); resetFormulaEditor(); }} />)}
+    {experiencesOpen && experiences.length > 0 && <div className="player-roll-confirm__checks unified-roll-experiences">
+      {experiences.map((experience) => <Checkbox key={experience.id} size="sm" boxPosition="start" label={experience.name} meta={signed(experience.modifier)} aria-label={`${experience.name} ${signed(experience.modifier)}`} title={experience.name} checked={draft.experienceIds.includes(experience.id)} disabled={controlsBlocked} onChange={() => { update({ experienceIds: draft.experienceIds.includes(experience.id) ? draft.experienceIds.filter((id) => id !== experience.id) : [...draft.experienceIds, experience.id] }); resetFormulaEditor(); }} />)}
       {draft.experienceIds.length > 0 && !companion && <Button size="xs" variant="ghost" onClick={() => setPaymentOpen((open) => !open)}>Настроить стоимость</Button>}
       {draft.experienceIds.length > 0 && paymentOpen && !companion && <Checkbox label={draft.mode === 'gmAttack' ? 'Потратить Страх за опыт' : 'Потратить Надежду за опыт'} checked={unifiedRollPaysForExperiences(draft)} disabled={controlsBlocked || companion} onChange={(event) => update({ spendHopeForExperiences: event.currentTarget.checked })} />}
     </div>}
     {draft.mode === 'damage' && <Checkbox label="Критический урон" checked={draft.critical} onChange={(event) => update({ critical: event.currentTarget.checked })} />}
     {formulaOpen && <TextField label={draft.mode === 'damage' ? 'Базовая формула урона' : 'Формула броска'} aria-label="Формула броска" value={formulaInput ?? completeFormula} onInput={(event) => unifiedRollDraftService.editFormula(event.currentTarget.value, staticModifier)} onBlur={() => unifiedRollDraftService.finishFormulaEdit()} />}
     {(visibleError || formulaError || !modifier.valid) && <Notice tone="warning">{formulaError ?? (!modifier.valid ? 'Введите целый модификатор.' : visibleError)}</Notice>}
-    {resultMessage && <Notice>{resultMessage}</Notice>}
+    {resultMessage && <Notice role="status" aria-live="polite">{resultMessage}</Notice>}
     </div>
     <footer className="unified-roll-composer__footer" role="region" aria-label="Итог броска">
       <div className="unified-roll-formula-row"><output className="unified-roll-formula-summary" aria-label="Итоговая формула">{emptyPool && !proposal && !formulaError ? '' : proposal ? 'Подтвердите ручной набор' : formulaError ? 'Исправьте формулу' : `${formulaPresentation.effectiveFormula}${draft.mode !== 'action' && draft.mode !== 'reaction' && draft.mode !== 'damage' && draft.advantageCount !== draft.disadvantageCount ? draft.advantageCount > draft.disadvantageCount ? ' — преимущество' : ' — помеха' : ''}` || 'Выберите кости'}</output>
@@ -201,7 +201,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
     <Button variant="primary" size="md" fullWidth disabled={rollDisabled || rollPending || submitting || Boolean(error || formulaError || proposal) || !modifier.valid} onClick={async () => {
       setSubmitting(true);
       const result = await execution.execute(draft, role, privateRoll ? 'private' : 'public', allowedActorIds);
-      setSubmitting(false); setResultMessage(result.ok ? role === 'player' && p2pSessionService.isConnectedPlayerSession() ? 'Бросок отправлен мастеру.' : 'Бросок выполнен.' : result.error ?? 'Бросок не выполнен.');
+      setSubmitting(false); setResultMessage(result.ok ? role === 'player' && p2pSessionService.isConnectedPlayerSession() ? 'Бросок отправлен мастеру.' : null : result.error ?? 'Бросок не выполнен.');
       if (result.ok) unifiedRollDraftService.markRolled();
     }}>Бросить</Button>
     </footer>
