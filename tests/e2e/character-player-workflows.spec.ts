@@ -447,7 +447,7 @@ test.describe('filled-game player character workflows', () => {
       const roll = player.getByRole('region', { name: 'Подготовка броска', exact: true });
       await expect(roll).toHaveCount(1);
       await expect(roll.getByLabel('Итоговая формула', { exact: true })).toBeVisible();
-      await expect(roll.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toHaveText(filledCharacterName);
+      await expect.poll(() => roll.getByLabel('Исполнитель броска', { exact: true }).evaluate((element) => element instanceof HTMLSelectElement ? element.selectedOptions[0]?.textContent?.trim() : element.textContent?.trim())).toBe(filledCharacterName);
       const submit = roll.getByRole('button', { name: 'Бросить', exact: true });
       await expect(submit).toHaveCount(1);
       await expect(submit).toBeVisible();
@@ -634,7 +634,7 @@ test.describe('filled-game player character workflows', () => {
       const roll = player.getByRole('region', { name: 'Подготовка броска', exact: true });
       await expect(roll).toHaveCount(1);
       await expect(roll).toContainText('Когти');
-      await expect(roll.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toHaveText('Искра');
+      await expect.poll(() => roll.getByLabel('Исполнитель броска', { exact: true }).evaluate((element) => element instanceof HTMLSelectElement ? element.selectedOptions[0]?.textContent?.trim() : element.textContent?.trim())).toBe('Искра');
       const rollBox = await roll.boundingBox();
       expect(rollBox).not.toBeNull();
       expect(rollBox!.x).toBeGreaterThanOrEqual(0);

@@ -75,7 +75,8 @@ test('rest roll is prepared without RNG, then one tray submit applies the same r
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
   await expect(tray).toHaveCount(1);
   await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('1d4+1');
-  await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toBeDisabled();
+  await expect(tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true })).toHaveCount(0);
+  await expect(tray.getByLabel('Исполнитель броска', { exact: true })).toHaveAttribute('title', /исполнитель связан с событием/);
   await expect.poll(async () => manualDiceCount(await storedState(page))).toBe(0);
   await expect.poll(async () => (await storedState(page))?.characters.entities[actorId].hp.marked).toBe(1);
   await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
