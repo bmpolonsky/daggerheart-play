@@ -55,6 +55,21 @@
 .layout :global(.character-editor-vitals > :last-child) { grid-column: auto; }
 .layout :global(.character-editor-vitals strong) { white-space: normal; overflow-wrap: break-word; }
 
+.layout :global(.player-tools-character-editor .resource-title) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: start;
+}
+.layout :global(.player-tools-character-editor .resource-title > span) {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.layout :global(.player-tools-character-editor .resource-title > strong) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
 .layout :global(.player-tools-character-editor .trait-grid--compact),
 .layout :global(.character-editor-section[aria-label="Характеристики персонажа"] > .stat-strip) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
