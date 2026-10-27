@@ -515,7 +515,7 @@ function CharacterLoadoutSummary({ character }: { character: Character }) {
         <ListItem
           key={weapon.id}
           title={weapon.name}
-          subtitle={`${TRAIT_LABELS[weapon.trait]} — ${weapon.range} — ${weapon.damageFormula}`}
+          subtitle={`${TRAIT_LABELS[weapon.trait]} — ${weapon.range} — Базовый урон: ${weapon.damageFormula}`}
         />
       ))}
       <SectionHeader title="Карты доменов" />

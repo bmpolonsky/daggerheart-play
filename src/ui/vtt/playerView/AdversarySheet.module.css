@@ -9,6 +9,35 @@
   font-weight: 700;
 }
 
-.incomingDamage > :not(summary) {
+.damageControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 8px;
+}
+
+.damageControls .damageInput {
+  width: 6.5rem;
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 8px;
+}
+
+.damageHint,
+.damageMessage {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.damageHint {
+  color: var(--dh-paper-muted);
+}
+
+.damageMessage {
+  color: var(--dh-paper-100);
+}
+
+.damageError {
+  color: var(--dh-danger-500);
 }

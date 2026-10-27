@@ -469,11 +469,11 @@ export function CharacterSheet({
             rightAccessory={<span className="player-sheet-weapon-actions">
               <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); setRollDraft({ kind: 'weapon', title: weapon.name, subtitle: weapon.range, trait: weapon.trait, damageFormula: weapon.damageFormula, damageType: weapon.damageType }); }}>Атака</Button>
               <Button size="xs" variant="ghost" onClick={(event) => { event.stopPropagation(); prefillWeaponDamage(character, weapon); }}>Урон</Button>
-              <Button size="xs" variant="ghost" aria-label={`Снять оружие ${weapon.name}`} onClick={(event) => {
+              {!weapon.id.startsWith('beastform:') && <Button size="xs" variant="ghost" aria-label={`Снять оружие ${weapon.name}`} onClick={(event) => {
               event.stopPropagation();
               const result = characterService.unequipWeapon(character.id, weapon.id);
               if (!result.applied) toastService.show(result.message ?? 'Не удалось снять оружие.', 'error');
-            }}>Снять</Button></span>}
+            }}>Снять</Button>}</span>}
             onClick={() => onFeaturePreview?.(character, {
               id: weapon.id,
               sourceId: weapon.sourceId,

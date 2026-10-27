@@ -218,10 +218,15 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             subtitle={isStoredWeapon(item.weapon) ? `Оружие в инвентаре — ${item.weapon.damageFormula}` : 'Данные оружия неполны. Предмет сохранён, но надеть его нельзя.'}
             detail={item.text || undefined}
             lines={2}
-            rightAccessory={<Button size="sm" variant="secondary" disabled={!isStoredWeapon(item.weapon)} aria-label={`Надеть оружие ${item.name}`} onClick={() => {
-              const result = characterService.equipInventoryWeapon(character.id, item.id);
-              if (!result.applied) toastService.show(result.message ?? 'Не удалось надеть оружие.', 'error');
-            }}>Надеть оружие</Button>}
+            rightAccessory={<span className="row-end">
+              <Button size="sm" variant="secondary" disabled={!isStoredWeapon(item.weapon)} aria-label={`Надеть оружие ${item.name}`} onClick={() => {
+                const result = characterService.equipInventoryWeapon(character.id, item.id);
+                if (!result.applied) toastService.show(result.message ?? 'Не удалось надеть оружие.', 'error');
+              }}>Надеть оружие</Button>
+              <IconButton variant="danger" size="sm" type="button" title="Удалить предмет" aria-label={`Удалить предмет ${item.name}`} onClick={() => characterService.removeInventoryItem(character.id, item.id)}>
+                <Trash2 size={15} aria-hidden="true" />
+              </IconButton>
+            </span>}
           />
         ) : (
           <details className="character-editor-item" key={item.id} open={index === 0}>

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument, openFilledGmGame } from './filled-game-helpers';
 import { openGmGame } from './game-route-helpers';
 import { openGameLibrary } from './tools-helpers';
-import { createWeapon } from '../../src/domain/rules/factories';
+import { createInventoryItem, createWeapon } from '../../src/domain/rules/factories';
 
 const name = 'QA Рунический клинок';
 
@@ -66,4 +66,47 @@ test('wizard explicit no-secondary choice survives a two-handed primary and back
   await expect(none).toHaveClass(/dh-is-selected/);
   await builder.getByRole('button', { name: 'Итог', exact: true }).click();
   await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeEnabled();
+});
+
+test('a beastform attack shows effective damage and cannot be stowed as an inventory weapon', async ({ page }) => {
+  await openGmGame(page);
+  const document = createPopulatedGameDocument();
+  const character = document.files['data/characters.json'].entities['e2e-character-cadsuane'];
+  character.proficiency = 2;
+  character.activeBeastform = {
+    slug: 'qa-beast', name: 'QA Звероформа', tier: 1, level: 1,
+    evasionModifier: 0, traitType: 'agility', traitBonus: 0,
+    attackTrait: 'agility', attackRange: 'Melee', attackFormula: '1d6+2',
+    attackDamageType: 'physical', featureText: '', activatedAt: '2026-10-27T09:00:00.000Z'
+  };
+  await importGameDocument(page, document, 'beastform-effective-damage.dhgame');
+  await page.locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
+  const sheet = page.getByLabel('Персонаж игрока');
+  const attack = sheet.locator('.dh-list-item').filter({ hasText: 'QA Звероформа: атака' });
+  await expect(attack).toContainText('2d6+2');
+  await expect(attack.getByRole('button', { name: /^Снять оружие/ })).toHaveCount(0);
+  await expect(attack.getByRole('button', { name: 'Атака', exact: true })).toHaveCount(1);
+  await expect(attack.getByRole('button', { name: 'Урон', exact: true })).toHaveCount(1);
+});
+
+test('stored weapon can be discarded directly while both hands are occupied', async ({ page }) => {
+  await openGmGame(page);
+  const document = createPopulatedGameDocument();
+  const character = document.files['data/characters.json'].entities['e2e-character-cadsuane'];
+  character.weapons = [createWeapon({ id: 'qa-bow', name: 'QA Двуручный лук', burden: 'two-handed', category: 'primary' })];
+  const stowed = createWeapon({ id: 'qa-stowed', name: 'QA Запасной клинок', burden: 'one-handed', category: 'secondary' });
+  character.inventory = [createInventoryItem({ id: 'qa-stowed-item', name: stowed.name, quantity: 1, weapon: stowed })];
+  await importGameDocument(page, document, 'stored-weapon-delete.dhgame');
+  const library = await openGameLibrary(page);
+  await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
+  await library.getByLabel('Ростер персонажей').getByRole('button', { name: filledCharacterName, exact: true }).click();
+  const editor = library.getByLabel('Редактор персонажа');
+  await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Снаряжение', exact: true }).click();
+  await expect(editor).toContainText('Базовый урон:');
+  await editor.getByRole('button', { name: 'Редактировать', exact: true }).click();
+  const remove = editor.getByRole('button', { name: 'Удалить предмет QA Запасной клинок', exact: true });
+  await expect(remove).toHaveCount(1);
+  await remove.click();
+  await expect(editor.getByRole('button', { name: 'Надеть оружие QA Запасной клинок', exact: true })).toHaveCount(0);
+  await expect(editor.getByRole('button', { name: 'Снять оружие QA Двуручный лук', exact: true })).toHaveCount(1);
 });

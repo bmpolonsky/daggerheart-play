@@ -25,3 +25,16 @@ test('weapon display scales each dice term and preserves flat modifiers', () => 
   assert.equal(weapon.damage, '4d6+2d4-3');
   assert.equal(weapon.damageFormula, '2d6+1d4-3');
 });
+
+test('beastform attack display includes proficiency without changing its base roll formula', () => {
+  const character = createCharacter({ proficiency: 2, activeBeastform: {
+    slug: 'qa-beast', name: 'QA Звероформа', tier: 1, level: 1,
+    evasionModifier: 0, traitType: 'agility', traitBonus: 0,
+    attackTrait: 'agility', attackRange: 'Melee', attackFormula: '1d6+2',
+    attackDamageType: 'physical', featureText: '', activatedAt: '2026-10-27T09:00:00.000Z'
+  } });
+  const weapon = buildCharacterSummary(character).weapons[0];
+  assert.equal(weapon.damage, '2d6+2');
+  assert.equal(weapon.damageFormula, '1d6+2');
+  assert.equal(character.activeBeastform?.attackFormula, '1d6+2');
+});

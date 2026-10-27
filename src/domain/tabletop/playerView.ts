@@ -404,7 +404,7 @@ function adversarySubtitle(adversary: Pick<Adversary, 'tier' | 'type'>): string 
   return `Ранг ${adversary.tier} / ${adversaryTypeLabel(adversary.type)}`;
 }
 
-function beastformAttackSummary(form: CharacterBeastformState): PlayerViewCharacterSummary['weapons'][number] {
+function beastformAttackSummary(form: CharacterBeastformState, proficiency: number): PlayerViewCharacterSummary['weapons'][number] {
   return {
     id: `beastform:${form.slug}:attack`,
     sourceId: form.sourceId,
@@ -414,7 +414,7 @@ function beastformAttackSummary(form: CharacterBeastformState): PlayerViewCharac
     trait: form.attackTrait,
     traitLabel: TRAIT_LABELS[form.attackTrait],
     range: rangeLabel(form.attackRange),
-    damage: form.attackFormula,
+    damage: scaleWeaponFormulaByProficiency(form.attackFormula, proficiency),
     damageFormula: form.attackFormula,
     damageType: form.attackDamageType
   };
@@ -479,7 +479,7 @@ export function buildCharacterSummary(character: Character): PlayerViewCharacter
       name: experience.name,
       modifier: experience.modifier
     })),
-    weapons: (character.activeBeastform ? [beastformAttackSummary(character.activeBeastform)] : character.weapons.map((weapon) => ({
+    weapons: (character.activeBeastform ? [beastformAttackSummary(character.activeBeastform, character.proficiency)] : character.weapons.map((weapon) => ({
       id: weapon.id,
       sourceId: weapon.sourceId,
       sourceSlug: weapon.sourceSlug,
