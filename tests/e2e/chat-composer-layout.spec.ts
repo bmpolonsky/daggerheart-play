@@ -9,7 +9,7 @@ for (const role of ['gm', 'player'] as const) for (const width of [1440, 390]) {
     if (role === 'gm') await openGmGame(page); else await openPlayerGame(page);
     if (!await page.getByLabel('Чат игры', { exact: true }).isVisible()) {
       const tabs = page.getByLabel('Слой интерфейса', { exact: true });
-      if (await tabs.isVisible()) await tabs.getByRole('button', { name: 'Чат', exact: true }).click();
+      if (await tabs.isVisible()) await tabs.getByRole('button', { name: /^Чат(?:\.|$)/ }).click();
       else await page.getByRole('button', { name: /^Открыть чат/ }).click();
     }
     const composer = page.locator('.player-chat-composer');
