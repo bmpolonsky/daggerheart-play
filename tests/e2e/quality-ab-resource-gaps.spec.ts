@@ -33,8 +33,11 @@ async function boot(page: Page, baseURL: string | undefined, document: ReturnTyp
   await importGameDocument(page, await sharedQualityDocument(document, variant), 'paired-resource-gaps.dhgame');
 }
 async function sheet(page: Page) {
-  await page.locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
-  const panel = page.getByLabel('Персонаж игрока', { exact: true }); await expect(panel).toBeVisible(); return panel;
+  const panel = page.getByLabel('Персонаж игрока', { exact: true });
+  if (!await panel.isVisible() || !await panel.getByText(filledCharacterName, { exact: true }).first().isVisible()) {
+    await page.getByRole('region', { name: 'Игровая сцена', exact: true }).getByRole('button', { name: filledCharacterName, exact: true }).click();
+  }
+  await expect(panel).toBeVisible(); return panel;
 }
 async function library(page: Page) {
   const existing = page.getByRole('dialog', { name: 'Библиотека игры', exact: true });
