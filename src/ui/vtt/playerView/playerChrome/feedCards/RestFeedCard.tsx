@@ -2,7 +2,7 @@
 import { unifiedRollDraftService } from '../../../../../services/UnifiedRollDraftService';
 import { toastService } from '../../../../../services/ToastService';
 import { Bed, CheckSquare, Coffee, RotateCcw } from 'lucide-react';
-import { canApplyRestChoice, canSelectRestChoices, restMoveLabels, restMoveRequiresRoll, restProgress, restRemainingSummary } from '../../../../../domain/rules/rest';
+import { canApplyRestChoice, canSelectRestChoices, restMoveLabels, restMoveRequiresRoll, restProgress } from '../../../../../domain/rules/rest';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import { eventRollService, p2pSessionService, tabletopService } from '../../../../../services/serviceRegistry';
 import { Button } from '../../../../components/common/Button';
@@ -11,6 +11,7 @@ import { Notice } from '../../../../components/common';
 import { renderRulesText } from '../../sheetText';
 import type { TableViewRole } from '../../types';
 import { FeedCardHeader } from './RollFeedCard';
+import { restChoiceSummary, restOutstandingSummary } from './restPresentation';
 
 type RestRequest = NonNullable<TableFeedItem['rest']>;
 type RestParticipant = RestRequest['participants'][number];
@@ -35,9 +36,6 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
     );
   }
   const Icon = rest.restType === 'short' ? Coffee : Bed;
-  const readyCount = rest.participants.filter((participant) => participant.ready).length;
-  const choiceLimits = Array.from(new Set(rest.participants.map((participant) => participant.maxChoices ?? rest.maxChoicesPerParticipant)));
-  const choiceLimitLabel = choiceLimits.length === 1 ? `выборов: ${choiceLimits[0]}` : 'лимит указан у каждого';
   const isClosed = rest.status === 'resolved' || rest.status === 'cancelled';
   const canResolve = role === 'gm' && !isClosed;
   const progress = restProgress(rest);
@@ -63,7 +61,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
           <Icon size={17} />
           <div>
             <strong>{item.title}</strong>
-            <span>{readyCount}/{rest.participants.length} выбрали ходы — {choiceLimitLabel}</span>
+            <span>Участников: {rest.participants.length}</span>
           </div>
         </div>
         {!isClosed && <p className="feed-rest-card__rule-note">{role === 'gm'
@@ -71,9 +69,9 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
           : connectedPlayerSession
             ? 'Вы выбираете ходы своего персонажа. Мастер бросает, применяет результаты и завершает отдых.'
             : 'Вы выбираете и применяете ходы своего персонажа. Завершает отдых мастер.'}</p>}
-        <Notice tone={progress.remainingCount > 0 ? 'warning' : 'success'}>
-          {`${restRemainingSummary(rest)}${canResolve && progress.remainingCount > 0 ? ' Можно завершить отдых сейчас; оставшиеся ходы не будут применены автоматически.' : ''}`}
-        </Notice>
+        {progress.remainingCount > 0 && <Notice tone="warning">
+          {`${restOutstandingSummary(rest)}${canResolve && progress.remainingCount > 0 ? ' Можно завершить отдых сейчас; оставшиеся ходы не будут применены автоматически.' : ''}`}
+        </Notice>}
         {rest.participants.length > 0 ? (
           <div className="feed-rest-card__participants">
             {rest.participants.map((participant) => {
@@ -97,7 +95,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
                   <div className="feed-rest-participant__header">
                     <CheckSquare size={13} />
                     <strong>{participant.actorName}</strong>
-                    <span>{participant.ready ? 'выбор завершён' : `${selectedCount}/${maxChoices}`}</span>
+                    {!isClosed && !participant.ready && <span>Выберите ходы: {selectedCount} из {maxChoices}</span>}
                     {canSelectChoices && participant.choices.some((choice) => choice.status !== 'resolved') && (
                       <IconButton
                         className="feed-rest-participant__reset"
@@ -111,10 +109,6 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
                       </IconButton>
                     )}
                   </div>
-                  <p className="feed-rest-card__rule-note">
-                    Выбрано: {selectedCount}/{maxChoices}. С результатом: {progress.participants.find((item) => item.actorId === participant.actorId)?.appliedCount ?? 0}.
-                    {isClosed && selectedCount < maxChoices && ` Не выбрано: ${maxChoices - selectedCount}.`}
-                  </p>
                   {participant.ruleNotes && participant.ruleNotes.length > 0 && (
                     <p className="feed-rest-card__rule-note" title={participant.ruleNotes.join('\n')}>
                       {participant.ruleNotes.join(' — ')}
@@ -141,7 +135,7 @@ export function RestFeedCard({ actorId, item, role }: { actorId: string | null; 
         )}
         {rest.fearPlan && (
           <p className="feed-rest-card__result">
-            Страх: {rest.fearPlan.formula} = {rest.fearPlan.total}
+            Мастеру Страх: {rest.fearPlan.formula} = {rest.fearPlan.total}
           </p>
         )}
         {canResolve && (
@@ -203,7 +197,7 @@ function RestMoveList({
                 }}
               >
                 <span>{label}</span>
-                {count > 0 && <b>×{count}</b>}
+                {count > 1 && <b>×{count}</b>}
               </Button>
               {canSelect && pendingChoice && count > 0 && (
                 <IconButton
@@ -223,15 +217,7 @@ function RestMoveList({
                 </Button>
               )}
               {choices.filter((choice) => choice.label === label).map((choice) => (
-                <small key={choice.id}>{choice.result && choice.status === 'resolved'
-                  ? `Подтверждено ×${choice.count}: ${choice.result.note}`
-                  : choice.status === 'resolved'
-                    ? `Нет записанного результата ×${choice.count}.`
-                    : isClosed
-                      ? `Не применено при завершении ×${choice.count}.`
-                      : restMoveRequiresRoll(choice.label)
-                        ? `Ожидает броска ×${choice.count}.`
-                        : `Ожидает применения ×${choice.count}.`}</small>
+                <small key={choice.id}>{restChoiceSummary(choice, isClosed)}</small>
               ))}
             </div>
           );

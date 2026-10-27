@@ -129,7 +129,7 @@ test('rest recovery reports one healed wound when the recovery roll is six', asy
     Math.random = () => { Math.random = original; return 0.999; };
   });
   await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
-  await expect(move).toContainText('Исцелено ран: 1.');
+  await expect(move).toContainText('Бросок: 1d4+2 = 6. Исцелено ран: 1.');
   await expect.poll(async () => {
     const state = await storedState(page);
     const result = state?.feed.filter((entry) => entry.type === 'rest').at(-1)?.rest.participants[0].choices[0].result;
@@ -143,13 +143,13 @@ test('GM can finish with remaining moves and the closed card does not claim an u
   await importGameDocument(page, sceneRestFixture(), 'scene-rest-unapplied-heal.dhgame');
   const card = await startRest(page, 'Короткий отдых');
   await card.getByRole('button', { name: 'Залечить Раны', exact: true }).click();
-  await expect(card).toContainText('Осталось ходов без результата: 2');
-  await expect(card).toContainText(`${filledCharacterName} (2)`);
+  await expect(card).toContainText('не выбрано ходов: 1; ожидают применения: 1');
+  await expect(card).toContainText(`${filledCharacterName} —`);
   const finish = card.getByRole('button', { name: 'Получить страх и завершить', exact: true });
   await expect(finish).toBeEnabled();
   await finish.click();
-  await expect(card).toContainText('Не применено при завершении ×1.');
-  await expect(card).toContainText('Не выбрано: 1.');
+  await expect(card).toContainText('Не применено: отдых завершён.');
+  await expect(card).toContainText('не выбрано ходов: 1');
   await expect(card).not.toContainText('Исцелено ран:');
   await expect.poll(async () => {
     const state = await storedState(page);
