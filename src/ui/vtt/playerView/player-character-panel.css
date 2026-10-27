@@ -1289,7 +1289,31 @@
 }
 
 .player-beastform-panel__controls {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) auto auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.player-beastform-panel__picker,
+.player-beastform-panel__controls > select {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.player-beastform-panel__picker .dh-button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  gap: 3px 8px;
+}
+
+.player-beastform-panel__picker .dh-button > span {
+  grid-column: 1;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.player-beastform-panel__picker .dh-button > svg {
+  grid-column: 2;
+  grid-row: 1 / 3;
 }
 
 .player-beastform-panel__active > span {

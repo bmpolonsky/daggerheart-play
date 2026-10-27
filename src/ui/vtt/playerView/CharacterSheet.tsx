@@ -308,7 +308,7 @@ export function CharacterSheet({
                   }))}
                   onChange={setSelectedBeastformId}
                 />
-                <SelectControl value={evolutionTrait} onChange={(event) => setEvolutionTrait(event.currentTarget.value as TraitId)} aria-label="Характеристика Эволюции">
+                <SelectControl value={evolutionTrait} onChange={(event) => setEvolutionTrait(event.currentTarget.value as TraitId)} aria-label="Характеристика Эволюции" title="Характеристика Эволюции">
                   {character.traits.map((trait) => <option key={trait.id} value={trait.id}>{trait.label}</option>)}
                 </SelectControl>
                 <Button size="sm" variant="secondary" type="button" disabled={!selectedBeastform} onClick={() => selectedBeastform && enterBeastform(character, selectedBeastform, 'stress')}>
