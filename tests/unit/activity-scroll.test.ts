@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { countNewActivityIds, isActivityNearBottom } from '../../src/ui/vtt/playerView/playerChrome/activityScroll';
+import { activityScopeKey, countNewActivityIds, isActivityNearBottom } from '../../src/ui/vtt/playerView/playerChrome/activityScroll';
 
 test('a hidden activity list is not treated as a reader at the bottom', () => {
   assert.equal(isActivityNearBottom({ scrollTop: 0, scrollHeight: 0, clientHeight: 0 }), false);
@@ -17,4 +17,16 @@ test('unread additions exclude removals, reorder, updated events and empty place
   assert.equal(countNewActivityIds(['a', 'b'], ['a']), 0);
   assert.equal(countNewActivityIds(['a'], ['a', 'b', 'c']), 2);
   assert.equal(countNewActivityIds([], ['feed-empty']), 0);
+});
+
+
+test('chat reading scope separates imported copies, stored games, room, role and player selection', () => {
+  const base = { gameId: 'same-exported-game', worldId: 'world-A', storedGameId: 'saved-A', role: 'gm' as const };
+  const key = activityScopeKey(base);
+  assert.equal(activityScopeKey({ ...base }), key);
+  assert.notEqual(activityScopeKey({ ...base, worldId: 'world-B' }), key);
+  assert.notEqual(activityScopeKey({ ...base, storedGameId: 'saved-B' }), key);
+  assert.notEqual(activityScopeKey({ ...base, roomId: 'room-B' }), key);
+  assert.notEqual(activityScopeKey({ ...base, role: 'player' }), key);
+  assert.notEqual(activityScopeKey({ ...base, actorId: 'hero-B' }), key);
 });

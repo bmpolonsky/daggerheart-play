@@ -1,11 +1,11 @@
 /** @jsxImportSource preact */
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Eye, EyeOff, Minus, Plus, SendHorizontal, X } from 'lucide-react';
 import { useStream } from '../../../../core/hooks/useStream';
 import type { Countdown } from '../../../../domain/rules/types';
 import type { PlayerViewCharacterSummary, PlayerViewModel } from '../../../../domain/tabletop/playerView';
 import type { TableFeedItem } from '../../../../domain/tabletop/feed';
-import { encounterService, feedService, p2pSessionService } from '../../../../services/serviceRegistry';
+import { encounterService, feedService, gameService, persistenceService, p2pSessionService } from '../../../../services/serviceRegistry';
 import { EmptyState } from '../../../components/common/EmptyState';
 import { IconButton } from '../../../components/common/IconButton';
 import { TextControl } from '../../../components/common/Field';
@@ -22,7 +22,7 @@ import { PlayerRailTabs } from '../PlayerRailTabs';
 import { PlayerRailHeaderActions } from '../PlayerRailHeaderActions';
 import { delaysRollResult, unrevealedRollIdsFromHistoricalActivity } from './activityReveal';
 import { FeedCard } from './feedCards/FeedCard';
-import { countNewActivityIds, isActivityNearBottom } from './activityScroll';
+import { activityScopeKey, countNewActivityIds, isActivityNearBottom } from './activityScroll';
 
 type FeedCardRollDraftState = {
   draft: PlayerRollDraft;
@@ -48,6 +48,13 @@ export function PlayerLeftRail({
   const [rollDraftState, setRollDraftState] = useState<FeedCardRollDraftState | null>(null);
   const [diceDraftState, setDiceDraftState] = useState<{ draft: PreparedDiceRoll; character: PlayerViewCharacterSummary } | null>(null);
   const encounter = useStream(encounterService.encounter$);
+  const game = useStream(gameService.game$);
+  const session = useStream(p2pSessionService.session$);
+  const worlds = useStream(persistenceService.storedWorlds$);
+  const activeWorld = worlds.find((world) => world.active);
+  const activeStoredGame = activeWorld?.games.find((storedGame) => storedGame.active);
+  const scopeKey = activityScopeKey({ gameId: game.id, worldId: activeWorld?.id, storedGameId: activeStoredGame?.id,
+    role, roomId: session.roomId, actorId: role === 'player' ? model.character?.id : undefined });
   const { ephemeralFeedItem } = useStream(playerViewUi$);
   const [revealedRollIds, setRevealedRollIds] = useState<Set<string>>(() => revealedRollIdsFromActivity(model.activity));
   const mountedAtRef = useRef(Date.now());
@@ -72,13 +79,24 @@ export function PlayerLeftRail({
   const pendingRollRevealKey = pendingRollRevealIds.join('|');
   const visibleCountdowns = useMemo(() => encounter.countdowns.filter((countdown) => role === 'gm' || countdown.visibility === 'public'), [encounter.countdowns, role]);
 
+  // Reading an older event is local to this game/room, never a preference
+  // inherited by a different world's feed (even an imported copy with the same IDs).
+  useLayoutEffect(() => {
+    followingActivityRef.current = true;
+    activityPositionInitializedRef.current = false;
+    previousActivityIdsRef.current = activityIds;
+    mountedAtRef.current = Date.now();
+    setUnreadActivityCount(0);
+    setRevealedRollIds(revealedRollIdsFromActivity(model.activity));
+  }, [scopeKey]);
+
   useEffect(() => {
     const addedCount = countNewActivityIds(previousActivityIdsRef.current, activityIds);
     previousActivityIdsRef.current = activityIds;
     if (activityPositionInitializedRef.current && !followingActivityRef.current && addedCount > 0) {
       setUnreadActivityCount((count) => count + addedCount);
     }
-  }, [activityIdsKey]);
+  }, [scopeKey, activityIdsKey]);
 
   useEffect(() => {
     if (!accessible) return;
@@ -112,7 +130,7 @@ export function PlayerLeftRail({
       window.cancelAnimationFrame(frame);
       observer?.disconnect();
     };
-  }, [accessible, activityIdsKey]);
+  }, [accessible, scopeKey, activityIdsKey]);
 
   useEffect(() => {
     setRevealedRollIds((current) => unrevealedRollIdsFromHistoricalActivity(current, activity, mountedAtRef.current) ?? current);

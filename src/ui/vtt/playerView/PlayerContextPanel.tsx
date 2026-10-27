@@ -3,7 +3,7 @@ import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { X } from 'lucide-react';
-import { registerMobilePreviewHistory } from '../../../app/mobilePreviewHistory';
+import { currentPreviewHistoryIndex, previewHistoryDirection, registerMobilePreviewHistory } from '../../../app/mobilePreviewHistory';
 import { Dialog, IconButton, Surface } from '../../components/common';
 
 let closeActivePanel: (() => void) | null = null;
@@ -56,11 +56,14 @@ export function PlayerContextPanel({ ariaLabel, children, className = '', closeL
     if (typeof window === 'undefined') return;
     const returnUrl = new URL(window.location.href);
     const returnState: unknown = window.history.state;
+    const returnIndex = currentPreviewHistoryIndex();
     const closeOnHistoryTraversal = (event: PopStateEvent) => {
       // App navigation also dispatches synthetic popstate. Only a browser
       // history traversal may dismiss this preview, on either layout.
       if (!event.isTrusted || closeActivePanel !== activeCloseRef.current
         || window.location.origin !== returnUrl.origin) return false;
+      const direction = previewHistoryDirection(returnIndex, currentPreviewHistoryIndex());
+      if (direction === 'forward' || direction === 'same') return false;
       const ownDialog = bodyRef.current?.closest('[role="dialog"]');
       const visibleDialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))
         .filter((element) => element.getClientRects().length > 0

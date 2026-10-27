@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { consumeMobilePreviewHistory, registerMobilePreviewHistory } from '../../src/app/mobilePreviewHistory';
+import { consumeMobilePreviewHistory, currentPreviewHistoryIndex, previewHistoryDirection, registerMobilePreviewHistory } from '../../src/app/mobilePreviewHistory';
 
 const back = () => ({ type: 'popstate', isTrusted: true } as Event);
 test('routers consult the active preview before navigation; closing it is consumed once', () => {
@@ -27,4 +27,17 @@ test('an older preview cleanup cannot remove the replacement; a topmost-dialog r
   try { removeOld(); assert.equal(consumeMobilePreviewHistory(back()), false); }
   finally { removeNew(); }
   assert.equal(consumeMobilePreviewHistory(back()), false);
+});
+
+
+test('preview guard can distinguish Back, Forward and same entry without mutating history', () => {
+  assert.equal(previewHistoryDirection(4, 3), 'back');
+  assert.equal(previewHistoryDirection(4, 1), 'back');
+  assert.equal(previewHistoryDirection(4, 5), 'forward');
+  assert.equal(previewHistoryDirection(4, 4), 'same');
+  assert.equal(previewHistoryDirection(null, 3), 'unknown');
+  assert.equal(previewHistoryDirection(4, null), 'unknown');
+  assert.equal(previewHistoryDirection(-1, 3), 'unknown');
+  assert.equal(previewHistoryDirection(Number.NaN, 3), 'unknown');
+  assert.equal(currentPreviewHistoryIndex(), null);
 });

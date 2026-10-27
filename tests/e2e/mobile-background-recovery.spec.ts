@@ -139,7 +139,7 @@ test('mocked transport: mobile foreground restores latest resources and complete
     await showChat(player);
     const playerRest = player.locator('.player-activity-event--rest');
     await expect(playerRest.getByText('Завершён', { exact: true })).toBeVisible();
-    await expect(playerRest.getByText(/Очищены все раны: 2/)).toBeVisible();
+    await expect(playerRest.getByText(/Исцелено ран: 2/)).toBeVisible();
     await expect(playerRest.getByText(/Получено Надежды: 1/)).toBeVisible();
     await expect(playerRest.getByRole('button', { name: 'Применить', exact: true })).toHaveCount(0);
     // Connected player views are hydrated live; their saved local world is
@@ -171,7 +171,7 @@ test('mocked transport: mobile foreground restores latest resources and complete
     await expect(playerSheet.getByRole('button', { name: 'Раны 1 из 5', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await showChat(player);
     await expect(playerRest.getByText('Завершён', { exact: true })).toBeVisible();
-    await expect(playerRest.getByText(/Очищены все раны: 2/)).toBeVisible();
+    await expect(playerRest.getByText(/Исцелено ран: 2/)).toBeVisible();
     await expect(playerRest.getByText(/Получено Надежды: 1/)).toBeVisible();
     await expect(playerRest.getByRole('button', { name: 'Применить', exact: true })).toHaveCount(0);
     await expect.poll(() => snapshotState(gm)).toEqual(expected);
