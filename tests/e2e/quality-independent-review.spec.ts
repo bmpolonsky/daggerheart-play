@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { createDomainCard, createExperience } from '../../src/domain/rules/factories';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { openGmGame } from './game-route-helpers';
+import { openGameLibrary } from './tools-helpers';
 
 const output = '/home/codex/outputs/dh-quality-reaudit-20261027/independent';
 const actorId = 'e2e-character-cadsuane';
@@ -27,7 +28,7 @@ async function boot(page: Page) {
 async function selectPc(page: Page) {
   const layers = page.getByLabel('Слой интерфейса');
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
-  await page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
+  await page.getByLabel('Игровая сцена').getByRole('button', { name: filledCharacterName, exact: true }).click();
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Лист', exact: true }).click();
 }
 async function openTray(page: Page) {
@@ -105,7 +106,7 @@ test('independent: selected PC starts Duality, viewing another sheet never chang
   await tray.getByRole('button', { name: 'Дуальность', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toBeVisible();
   await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
-  await page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: 'Ран' }).first().click();
+  await page.getByLabel('Игровая сцена').getByRole('button', { name: 'Ран', exact: true }).click();
   await openTray(page);
   await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toHaveText(filledCharacterName);
   await tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true }).click();
@@ -169,8 +170,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
 
 test('independent: incoming NPC damage is compact, capped, and requires one explicit application', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); await boot(page);
-  await page.getByLabel('Игровая сцена').getByRole('button', { name: 'Алая Слизь', exact: true }).click();
   const layers = page.getByLabel('Слой интерфейса');
+  if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
+  await page.getByLabel('Игровая сцена').getByRole('button', { name: 'Алая Слизь', exact: true }).click();
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Лист', exact: true }).click();
   const sheet = page.getByLabel('Противник мастера', { exact: true });
   const details = sheet.locator('details').filter({ has: page.locator('summary', { hasText: 'Входящий урон' }) });
@@ -188,3 +190,34 @@ test('independent: incoming NPC damage is compact, capped, and requires one expl
   await expect(details.getByRole('status')).toContainText('Отмечено Ран: 2 (5/5)');
   await shot(page, '09-capped-incoming-damage', details);
 });
+
+for (const width of [1188, 390]) {
+  test(`independent: Forward to Library cannot resurrect an old card on return at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const chaosName = await boot(page);
+    const library = await openGameLibrary(page);
+    await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
+    await library.getByRole('button', { name: 'Закрыть библиотеку', exact: true }).click();
+    // Traverse actual UI-created entries, retaining Library in the forward stack.
+    let found = false;
+    for (let index = 0; index < 8; index++) {
+      await page.goBack();
+      if (new URL(page.url()).hash === '#/game' && await page.locator('[data-vtt-root]').count()) { found = true; break; }
+      if (!new URL(page.url()).hash.startsWith('#/library')) break;
+    }
+    expect(found, 'a real prior game entry must exist').toBe(true);
+    await selectPc(page);
+    await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Карты', exact: true }).click();
+    await page.getByLabel('Персонаж игрока').locator('.dh-list-item').filter({ hasText: chaosName }).click();
+    await expect(page.getByLabel('Предпросмотр', { exact: true })).toBeVisible();
+    await page.goForward();
+    await expect(page.getByRole('dialog', { name: 'Библиотека игры', exact: true })).toBeVisible();
+    await shot(page, `10-forward-Library-${width}`);
+    const previewAfterForward = await page.getByLabel('Предпросмотр', { exact: true }).count();
+    await page.goBack();
+    await expect.poll(() => new URL(page.url()).hash).toBe('#/game');
+    await shot(page, `11-return-from-Library-${width}`);
+    expect(previewAfterForward, 'leaving the game via Forward should dismiss its preview').toBe(0);
+    await expect(page.getByLabel('Предпросмотр', { exact: true })).toHaveCount(0);
+  });
+}

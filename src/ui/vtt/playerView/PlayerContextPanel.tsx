@@ -63,7 +63,13 @@ export function PlayerContextPanel({ ariaLabel, children, className = '', closeL
       if (!event.isTrusted || closeActivePanel !== activeCloseRef.current
         || window.location.origin !== returnUrl.origin) return false;
       const direction = previewHistoryDirection(returnIndex, currentPreviewHistoryIndex());
-      if (direction === 'forward' || direction === 'same') return false;
+      if (direction === 'forward') {
+        // Route normally, but do not retain this game's transient preview
+        // behind the Library and resurrect it when the user returns.
+        closeRef.current();
+        return false;
+      }
+      if (direction === 'same') return false;
       const ownDialog = bodyRef.current?.closest('[role="dialog"]');
       const visibleDialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))
         .filter((element) => element.getClientRects().length > 0
