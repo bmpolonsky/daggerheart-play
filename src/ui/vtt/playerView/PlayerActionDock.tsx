@@ -7,6 +7,7 @@ import { resolveRollActor, type RollActorOption } from '../../../domain/tabletop
 import { CharacterRollService } from '../../../services/CharacterRollService';
 import { UnifiedRollComposer } from './UnifiedRollComposer';
 import { unifiedRollDraftService } from '../../../services/UnifiedRollDraftService';
+import { freeUnifiedRollInput } from '../../../domain/rules/unifiedRollDraft';
 import { gameStore } from '../../../stores/gameStores';
 import { MiniDiceLauncher } from '../MiniDiceLauncher';
 import type { PlayerRollDraft, TableViewRole } from './types';
@@ -72,11 +73,16 @@ export function PlayerActionDock({
       selectedActorKind={actingActor.kind === 'character' || actingActor.kind === 'adversary' ? actingActor.kind : null}
       openRequest={draftState.openRequest}
       onOpenTray={() => {
-        if (unifiedRollDraftService.state$.get().draft) return;
-        unifiedRollDraftService.request({ actor: actingActor, mode: actingCharacter ? 'action' : 'manual', title: actingCharacter ? 'Проверка персонажа' : 'Кости',
-          formula: actingCharacter ? '2d12' : '1d20', trait: actingCharacter?.spellcastTrait ?? 'agility' });
+        const existing = unifiedRollDraftService.state$.get().draft;
+        if (existing?.scopeKey === unifiedRollDraftService.currentScopeKey()) return;
+        if (existing) unifiedRollDraftService.clear();
+        const initialActor = !selectedActorKey && role === 'gm' && displayedCharacter
+          ? actorOptions.find((actor) => actor.id === displayedCharacter.id && actor.kind === 'character') ?? actingActor : actingActor;
+        setSelectedActorKey(initialActor.key);
+        const initialCharacter = initialActor.id ? rollCharacters[initialActor.id] : null;
+        unifiedRollDraftService.request(freeUnifiedRollInput(initialActor, { trait: initialCharacter?.spellcastTrait ?? 'agility' }));
       }}
-      composer={<UnifiedRollComposer role={role} actorOptions={actorOptions} rollCharacters={rollCharacters}
+      composer={<UnifiedRollComposer onActorChange={setSelectedActorKey} role={role} actorOptions={actorOptions} rollCharacters={rollCharacters}
         rollPending={role === 'player' && p2pSession.rollPending} rollDisabled={role === 'player' && p2pSession.status !== 'connected'} />}
       role={role}
       callState={callState}

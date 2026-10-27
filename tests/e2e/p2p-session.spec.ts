@@ -471,9 +471,8 @@ test.describe('P2P session workflow', () => {
       await player.setViewportSize({ width: 1440, height: 900 });
 
       await player.getByRole('button', { name: 'Открыть панель костей' }).click();
-      const privacy = player.getByRole('button', { name: 'Приватный бросок', exact: true });
-      await privacy.click();
-      await expect(privacy).toHaveAttribute('aria-pressed', 'true');
+      await player.getByRole('button', { name: 'Публичный бросок', exact: true }).click();
+      await expect(player.getByRole('button', { name: 'Приватный бросок', exact: true })).toHaveAttribute('aria-pressed', 'true');
       await player.getByRole('button', { name: 'Бросить', exact: true }).click();
 
       await expect(player.locator('.player-dice-overlay .polyhedral-dice-stage')).toBeVisible({ timeout: 15_000 });

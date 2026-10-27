@@ -1,3 +1,4 @@
+import { openUnifiedFormulaEditor } from './unified-formula-helpers';
 import { expect, test } from '@playwright/test';
 import { createExperience, createWeapon } from '../../src/domain/rules/factories';
 import { createPopulatedGameDocument, filledAdversaryName, filledCharacterName, importGameDocument } from './filled-game-helpers';
@@ -16,6 +17,7 @@ test('NPC attack and damage prepare one tray, with Fear payment only on attack s
   await page.locator('.player-roster__item').filter({ hasText: filledAdversaryName }).first().click();
   const sheet = page.getByLabel('Противник мастера', { exact: true });
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
   await sheet.getByRole('button', { name: 'Атака', exact: true }).click();
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d20+3');
   await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
@@ -52,10 +54,12 @@ test('critical damage shows its maximum-dice bonus before submit and in the chat
   await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Оружие', exact: true }).click();
   await page.getByLabel('Персонаж игрока').locator('.dh-list-item').filter({ hasText: 'QA Крит' }).getByRole('button', { name: 'Урон', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveCount(0);
   const critical = tray.getByRole('checkbox', { name: 'Критический урон', exact: true });
   const summary = tray.getByRole('region', { name: 'Итог броска' });
   await critical.check();
-  await expect(summary).toContainText('1d10+3+10');
+  await expect(summary.getByLabel('Итоговая формула', { exact: true })).toHaveText('1d10+13');
+  await expect(summary).toContainText('Крит: +10');
   await critical.uncheck();
   await expect(summary).not.toContainText('+10');
   await critical.check();

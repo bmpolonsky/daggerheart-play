@@ -10,13 +10,13 @@ function damage(formula: string) {
 test('critical damage preview shows the maximum exactly once and keeps its editable base unchanged', () => {
   const draft = damage('1d10+3');
   const before = JSON.stringify(draft);
-  assert.deepEqual(unifiedRollFormulaPresentation(draft), { baseFormula: '1d10+3', effectiveFormula: '1d10+3+10', criticalBonus: 10 });
+  assert.deepEqual(unifiedRollFormulaPresentation(draft), { baseFormula: '1d10+3', effectiveFormula: '1d10+13', criticalBonus: 10 });
   assert.equal(JSON.stringify(draft), before);
 });
 
 test('critical maximum counts dice only, not flat or manually added modifiers', () => {
   const draft = { ...damage('2d6+1d4+3'), manualModifier: -2 };
-  assert.deepEqual(unifiedRollFormulaPresentation(draft), { baseFormula: '2d6+1d4+3-2', effectiveFormula: '2d6+1d4+3-2+16', criticalBonus: 16 });
+  assert.deepEqual(unifiedRollFormulaPresentation(draft), { baseFormula: '2d6+1d4+1', effectiveFormula: '2d6+1d4+17', criticalBonus: 16 });
 });
 
 test('ordinary damage and non-damage modes do not acquire a presentation critical bonus', () => {

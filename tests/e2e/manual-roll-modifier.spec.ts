@@ -1,3 +1,4 @@
+import { openUnifiedFormulaEditor } from './unified-formula-helpers';
 import { expect, test } from '@playwright/test';
 import { createWeapon } from '../../src/domain/rules/factories';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
@@ -16,6 +17,7 @@ test('one bottom tray previews the signed modifier and closing it preserves the 
   await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Оружие', exact: true }).click();
   await sheet.locator('#player-sheet-actions .dh-list-item').filter({ hasText: 'QA Manual Dagger' }).getByRole('button', { name: 'Атака', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
   const input = tray.getByLabel('Модификатор', { exact: true });
   await input.fill('6');
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/\+\s*6/);

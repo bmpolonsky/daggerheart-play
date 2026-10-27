@@ -1,3 +1,4 @@
+import { openUnifiedFormulaEditor } from './unified-formula-helpers';
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { createDomainCard, createExperience, createWeapon } from '../../src/domain/rules/factories';
@@ -28,6 +29,7 @@ test('weapon action, damage and contextual Chaos all prepare one editable tray w
   const rollsBefore = await page.locator('.player-activity-event--roll').count();
   await weapon.getByRole('button', { name: 'Атака', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
   await expect(tray).toHaveCount(1);
   await expect(tray).toBeVisible();
   await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toContainText(filledCharacterName);
@@ -43,7 +45,7 @@ test('weapon action, damage and contextual Chaos all prepare one editable tray w
   await expect(tray.getByRole('button', { name: 'Заменить подготовленный бросок', exact: true })).toBeVisible();
   await tray.getByRole('button', { name: 'Заменить подготовленный бросок', exact: true }).click();
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d6+3');
-  await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('0');
+  await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('3');
   await expect(tray.getByRole('checkbox', { name: /QA опыт/ })).toHaveCount(0);
   await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
   await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Карты', exact: true }).click();

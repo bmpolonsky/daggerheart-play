@@ -2,7 +2,7 @@ import { createId } from '../../core/utils/id';
 import { parseDiceFormula, type ParsedFormulaTerm } from './diceFormula';
 import type { DamageType, TraitId } from './types';
 import type { EventRollContext } from './eventRoll';
-import { normalizeExtraDice, type ExtraDieTerm } from './extraDice';
+import { extraDiceFormula, normalizeExtraDice, type ExtraDieTerm } from './extraDice';
 
 export interface UnifiedRollActor {
   key: string;
@@ -59,6 +59,8 @@ export interface UnifiedRollDraft {
   hint?: string;
   eventContext?: EventRollContext;
   eventUnlinked?: boolean;
+  /** Local editor provenance only; never part of a roll request or saved game. */
+  origin?: 'free' | 'prepared';
 }
 
 export type UnifiedRollDraftInput = Pick<UnifiedRollDraft, 'actor' | 'mode' | 'title' | 'formula'> & Partial<Omit<UnifiedRollDraft, 'actor' | 'mode' | 'title' | 'formula'>>;
@@ -67,6 +69,7 @@ export function createUnifiedRollDraft(input: UnifiedRollDraftInput): UnifiedRol
   return {
     ...input,
     id: input.id ?? createId('roll-draft'),
+    origin: input.origin ?? 'prepared',
     actor: { ...input.actor },
     ...(input.extraDice !== undefined ? { extraDice: normalizeExtraDice(input.extraDice) } : {}),
     ...(input.source ? { source: { ...input.source } } : {}),
@@ -80,6 +83,57 @@ export function createUnifiedRollDraft(input: UnifiedRollDraftInput): UnifiedRol
     experienceIds: [...(input.experienceIds ?? [])],
     spendHopeForExperiences: input.source?.isCompanion === true && (input.mode === 'action' || input.mode === 'reaction') ? true : input.spendHopeForExperiences ?? true,
     critical: input.critical ?? false
+  };
+}
+
+export interface UnifiedRollActorChangeOptions { trait?: TraitId | null }
+
+/** Opening free Dice uses the explicitly selected acting actor, not a viewed sheet. */
+export function freeUnifiedRollInput(actor: UnifiedRollActor, options: UnifiedRollActorChangeOptions = {}): UnifiedRollDraftInput {
+  const character = actor.kind === 'character';
+  const adversary = actor.kind === 'adversary';
+  return {
+    actor: { ...actor }, origin: 'free',
+    mode: character ? 'action' : adversary ? 'gmAttack' : 'manual',
+    title: character ? 'Проверка персонажа' : adversary ? 'Атака' : 'Кости',
+    formula: character ? '2d12' : '1d20',
+    trait: character ? options.trait ?? 'agility' : undefined
+  };
+}
+
+/** A reset empties the pool, but cannot silently detach an event or refresh scope. */
+export function resetUnifiedRollDraft(draft: UnifiedRollDraft): UnifiedRollDraft {
+  return {
+    ...draft, origin: 'free', mode: 'manual', formula: '', title: draft.eventContext ? draft.title : 'Кости',
+    trait: undefined, difficulty: undefined, damageType: undefined, damage: undefined, notes: undefined,
+    manualModifier: 0, extraDice: undefined, advantageCount: 0, disadvantageCount: 0,
+    experienceIds: [], spendHopeForExperiences: true, critical: false, attackModifier: undefined,
+    source: undefined, quantity: undefined, branches: undefined, selectedBranchId: undefined, hint: undefined
+  };
+}
+
+/** Explicit actor changes preserve custom pools, but never a previous actor's costs or source binding. */
+export function changeUnifiedRollActor(draft: UnifiedRollDraft, actor: UnifiedRollActor, options: UnifiedRollActorChangeOptions = {}): UnifiedRollDraft {
+  if (draft.eventContext && (actor.kind !== 'character' || actor.id !== draft.eventContext.actorId)) throw new Error('Исполнитель связан с событием. Сначала отвяжите бросок.');
+  if (actor.key === draft.actor.key) return { ...draft, actor: { ...actor } };
+  const previousTyped = isTypedUnifiedRoll(draft);
+  const freeDefault = draft.origin === 'free' && draft.mode === 'manual' && draft.formula.replace(/\s+/g, '').toLowerCase() === '1d20';
+  const next = {
+    ...draft, actor: { ...actor }, experienceIds: [], spendHopeForExperiences: true,
+    source: undefined, damage: undefined, attackModifier: undefined, notes: undefined,
+    quantity: undefined, branches: undefined, selectedBranchId: undefined, hint: undefined,
+    trait: undefined, difficulty: undefined, critical: false
+  };
+  if (!previousTyped && !freeDefault) return next;
+  const seed = freeUnifiedRollInput(actor, options);
+  // The base check follows the explicit actor choice. User-added ordinary dice survive.
+  const extras = normalizeExtraDice(draft.extraDice);
+  const typed = seed.mode !== 'manual';
+  return {
+    ...next, mode: draft.mode === 'reaction' && actor.kind === 'character' ? 'reaction' : seed.mode,
+    title: seed.title, formula: `${seed.formula}${!typed && extras.length ? `+${extraDiceFormula(extras)}` : ''}`,
+    trait: seed.trait, extraDice: typed && extras.length ? extras : undefined,
+    spendHopeForExperiences: typed
   };
 }
 
@@ -130,8 +184,11 @@ export function unifiedRollDraftError(draft: UnifiedRollDraft): string | null {
   if (!Number.isSafeInteger(draft.manualModifier)) return 'Доп. модификатор должен быть целым числом.';
   if ((draft.mode === 'action' || draft.mode === 'reaction') && draft.formula.replace(/\s+/g, '').toLowerCase() !== '2d12') return 'Для изменения базовых костей явно перейдите к ручному броску.';
   if (draft.mode === 'gmAttack' && draft.formula.replace(/\s+/g, '').toLowerCase() !== '1d20') return 'Для изменения базовой кости явно перейдите к ручному броску.';
+  if (!draft.formula.trim()) return 'Добавьте кости в набор.';
   try {
     const terms = parseDiceFormula(draft.formula);
+    const flat = terms.reduce((sum, term) => sum + (term.kind === 'flat' ? term.sign * term.value : 0), 0);
+    if (!Number.isSafeInteger(flat)) return 'Модификатор должен быть безопасным целым числом.';
     if ((draft.mode === 'manual' || draft.mode === 'damage') && !terms.some((term) => term.kind === 'dice' && term.sign === 1 && term.count > 0)) return 'Нет костей для броска. Измените количество или добавьте кости.';
   } catch (error) { return error instanceof Error ? error.message : 'Некорректная формула.'; }
   return null;
@@ -157,10 +214,11 @@ export function selectUnifiedRollBranch(draft: UnifiedRollDraft, branchId: strin
 
 export type UnifiedRollDiceEdit = { requiresManual: boolean; draft: UnifiedRollDraft; proposedFormula: string };
 
-/** Add/remove one ordinary die. Typed checks require an explicit manual conversion. */
-export function editUnifiedRollDice(draft: UnifiedRollDraft, sides: number, delta: number, target?: 'base' | 'extra'): UnifiedRollDiceEdit {
-  if (!Number.isSafeInteger(sides) || sides < 2 || sides > 1000 || !Number.isSafeInteger(delta)) throw new Error('Некорректное изменение костей.');
-  if (isTypedUnifiedRoll(draft) && target !== 'base') {
+/** Add/remove an ordinary die; editing a typed base requires explicit conversion. */
+export function editUnifiedRollDice(draft: UnifiedRollDraft, sides: number, delta: number, target?: 'base' | 'extra', sign: 1 | -1 = 1): UnifiedRollDiceEdit {
+  if (!Number.isSafeInteger(sides) || sides < 2 || sides > 1000 || !Number.isSafeInteger(delta) || (sign !== 1 && sign !== -1)) throw new Error('Некорректное изменение костей.');
+  if (target === 'extra' && sign !== 1) throw new Error('Отрицательная кость принадлежит ручному набору, а не дополнительному пулу проверки.');
+  if (isTypedUnifiedRoll(draft) && target !== 'base' && sign === 1) {
     const extra = normalizeExtraDice(draft.extraDice);
     const existing = extra.find((term) => term.sides === sides);
     if (delta >= 0 || existing || target === 'extra') {
@@ -171,21 +229,23 @@ export function editUnifiedRollDice(draft: UnifiedRollDraft, sides: number, delt
       return { requiresManual: false, draft: updated, proposedFormula: draft.formula };
     }
   }
-  const terms = parseDiceFormula(draft.formula);
-  const index = terms.findIndex((term) => term.kind === 'dice' && term.sides === sides && term.sign === 1);
+  const terms = draft.formula.trim() ? parseDiceFormula(draft.formula) : [];
+  const index = terms.findIndex((term) => term.kind === 'dice' && term.sides === sides && term.sign === sign);
   if (index >= 0) {
     const term = terms[index];
     if (term.kind === 'dice') term.count = Math.max(0, term.count + delta);
-  } else if (delta > 0) terms.push({ kind: 'dice', sign: 1, count: delta, sides });
-  const proposedFormula = serializeFormulaTerms(terms);
+  } else if (delta > 0) terms.push({ kind: 'dice', sign, count: delta, sides });
+  const serialized = serializeFormulaTerms(terms);
+  const requiresManual = isTypedUnifiedRoll(draft) && serialized !== draft.formula;
+  // A typed base removal still needs a nonempty explicit conversion proposal.
+  const proposedFormula = requiresManual && !serialized ? '0' : serialized;
   // Reuse the established parser's count limits before accepting edits.
-  parseDiceFormula(proposedFormula);
-  const requiresManual = isTypedUnifiedRoll(draft) && proposedFormula !== draft.formula;
+  if (proposedFormula) parseDiceFormula(proposedFormula);
   return { requiresManual, proposedFormula, draft: requiresManual ? draft : { ...draft, formula: proposedFormula, quantity: undefined } };
 }
 
 function serializeFormulaTerms(terms: ParsedFormulaTerm[]): string {
-  const text = terms.filter((term) => term.kind !== 'dice' || term.count > 0)
+  const text = terms.filter((term) => term.kind === 'dice' ? term.count > 0 : term.value !== 0)
     .map((term) => `${term.sign < 0 ? '-' : '+'}${term.kind === 'dice' ? `${term.count}d${term.sides}` : term.value}`).join('');
-  return text.replace(/^\+/, '') || '0';
+  return text.replace(/^\+/, '');
 }

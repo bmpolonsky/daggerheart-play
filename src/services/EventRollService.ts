@@ -1,3 +1,4 @@
+import { unifiedRollExecutionFormula } from '../domain/rules/unifiedRollPresentation';
 import { characterLevelRank } from '../domain/rules/levelUp';
 import { restMoveOperation, restMoveRequiresRoll } from '../domain/rules/rest';
 import { riskItAllOutcome } from '../domain/rules/deathMoves';
@@ -139,7 +140,7 @@ export class EventRollService {
         if (!this.canCommit(context, role)) return { ok: false, error: 'Событие изменилось после броска. Результат записан, повторного броска нет.', rollId: roll.id };
         return this.commitTeamwork(context, roll);
       }
-      const formula = `${draft.formula}${draft.manualModifier === 0 ? '' : draft.manualModifier > 0 ? `+${draft.manualModifier}` : draft.manualModifier}`;
+      const formula = unifiedRollExecutionFormula(draft);
       const roll = this.dependencies.diceService.rollManualDice({ ...actor, formula, label: context.manualOverride ? `Ручной итог: ${draft.title}` : draft.title,
         advantageCount: draft.advantageCount, disadvantageCount: draft.disadvantageCount,
         diceTones: context.kind === 'death' ? context.deathChoice === 'avoidDeath' ? ['hope'] : ['hope', 'fear'] : undefined, notes: draft.notes });

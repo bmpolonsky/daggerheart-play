@@ -598,3 +598,13 @@
     z-index: 780;
   }
 }
+
+/* Dice-first local controls: no extra panel or page-tab chrome. */
+.unified-roll-heading { flex-wrap: wrap; }
+.unified-roll-heading > button:last-child { margin-left: auto; gap: 4px; }
+.unified-roll-pool-count, .unified-roll-empty { color: var(--dh-paper-muted); font-size: .65rem; }
+.unified-roll-formula-toggle { justify-self: start; min-height: 24px; }
+.unified-roll-modifier-label { gap: 4px; }
+.unified-roll-modifier-label > span { font-size: .65rem; margin-right: 3px; }
+.unified-roll-modifier-label .unified-roll-modifier { width: 48px; flex-basis: 48px; }
+.unified-roll-modifier-label > button { width: 28px; min-width: 28px; min-height: 28px; padding: 0; }

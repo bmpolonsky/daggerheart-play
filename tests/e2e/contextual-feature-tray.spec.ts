@@ -1,3 +1,4 @@
+import { openUnifiedFormulaEditor } from './unified-formula-helpers';
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { cleanMarkdownText } from '../../src/core/utils/markdownText';
@@ -29,6 +30,7 @@ test('PC feature preview binds Prayer pool to Spellcast plus the selected upgrad
   const preview = page.getByRole('complementary', { name: 'Предпросмотр', exact: true });
   await preview.getByRole('button', { name: 'd4', exact: true }).first().click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('3d4');
   await expect(preview).toBeVisible();
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
@@ -51,6 +53,7 @@ test('a named Patron pool with no dN text prepares tier dice in the same tray', 
   const named = parseContextualDiceMacros(wrath).find(macro => macro.kind === 'diceRoll' && macro.contextualBinding)!;
   await preview.getByRole('button', { name: named.label, exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('3d8');
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
 });
@@ -67,6 +70,7 @@ test('NPC contextual pool uses that NPC marked wounds rather than the viewed PC'
   await page.locator('.player-roster__item').filter({ hasText: filledAdversaryName }).first().click();
   await page.getByLabel('Противник мастера', { exact: true }).getByRole('button', { name: 'd6', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d6');
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
 });

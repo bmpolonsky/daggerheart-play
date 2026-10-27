@@ -1,3 +1,4 @@
+import { openUnifiedFormulaEditor } from './unified-formula-helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { createExperience, createWeapon } from '../../src/domain/rules/factories';
 import { parseDiceFormula } from '../../src/domain/rules/diceFormula';
@@ -19,7 +20,9 @@ async function prepareAction(page: Page) {
   const sheet = page.getByLabel('Персонаж игрока');
   await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Оружие', exact: true }).click();
   await sheet.locator('#player-sheet-actions .dh-list-item').filter({ hasText: 'QA Платёж' }).getByRole('button', { name: 'Атака', exact: true }).click();
-  return { sheet, tray: page.getByRole('region', { name: 'Подготовка броска', exact: true }) };
+  const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
+  return { sheet, tray };
 }
 
 test('preparing and closing pays nothing; one typed submit pays one Hope for one experience', async ({ page }) => {

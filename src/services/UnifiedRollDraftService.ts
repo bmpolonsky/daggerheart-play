@@ -1,5 +1,7 @@
 import { Store } from '../core/store/Store';
-import { createUnifiedRollDraft, type UnifiedRollDraft, type UnifiedRollDraftInput } from '../domain/rules/unifiedRollDraft';
+import { changeUnifiedRollActor, createUnifiedRollDraft, resetUnifiedRollDraft, type UnifiedRollActor, type UnifiedRollActorChangeOptions, type UnifiedRollDraft, type UnifiedRollDraftInput } from '../domain/rules/unifiedRollDraft';
+import { applyUnifiedFormulaEdit, setUnifiedRollEditableModifier } from '../domain/rules/unifiedRollPresentation';
+import { parseManualRollModifier } from '../domain/rules/manualRollModifier';
 import { gameStore } from '../stores/gameStores';
 
 export interface UnifiedRollDraftState {
@@ -43,6 +45,62 @@ export class UnifiedRollDraftService {
       ...state,
       draft: typeof patch === 'function' ? patch(state.draft) : { ...state.draft, ...patch },
       dirty: true
+    });
+  }
+
+  /** Formula and modifier are two editors for the same effective flat value. */
+  editFormula(text: string, staticModifier = 0): void {
+    this.store.update((state) => {
+      if (!state.draft) return state;
+      const editor = { ...emptyEditor(), ...state.editor, formulaInput: text, formulaError: null, proposal: null };
+      try {
+        const next = applyUnifiedFormulaEdit(state.draft, text, staticModifier);
+        return { ...state, draft: next.draft, dirty: true,
+          editor: { ...editor, proposal: next.requiresManual ? text : null,
+            modifierInput: next.requiresManual ? editor.modifierInput : null } };
+      } catch (error) {
+        return { ...state, dirty: true, editor: { ...editor, formulaError: error instanceof Error ? error.message : 'Некорректная формула.' } };
+      }
+    });
+  }
+
+  finishFormulaEdit(): void {
+    this.store.update((state) => state.editor?.formulaError || state.editor?.proposal ? state : {
+      ...state, editor: { ...emptyEditor(), ...state.editor, formulaInput: null }
+    });
+  }
+
+  /** Incomplete signed input is retained; it never silently replaces the last valid value. */
+  editModifier(text: string): void {
+    this.store.update((state) => {
+      if (!state.draft) return state;
+      const parsed = parseManualRollModifier(text);
+      const editor = { ...emptyEditor(), ...state.editor, modifierInput: text };
+      if (!parsed.valid) return { ...state, dirty: true, editor };
+      try {
+        return { ...state, draft: setUnifiedRollEditableModifier(state.draft, parsed.value), dirty: true,
+          editor: { ...editor, formulaInput: null, formulaError: null, proposal: null } };
+      } catch (error) {
+        // A source formula must be corrected before its effective flat can be edited.
+        return { ...state, dirty: true, editor: { ...editor, formulaError: error instanceof Error ? error.message : 'Некорректный модификатор.' } };
+      }
+    });
+  }
+
+  setModifier(value: number): void {
+    if (!Number.isSafeInteger(value)) throw new Error('Модификатор должен быть целым числом.');
+    this.editModifier(String(value));
+  }
+
+  resetDraft(): void {
+    this.store.update((state) => !state.draft ? state : {
+      ...state, draft: resetUnifiedRollDraft(state.draft), dirty: true, editor: emptyEditor()
+    });
+  }
+
+  changeActor(actor: UnifiedRollActor, options: UnifiedRollActorChangeOptions = {}): void {
+    this.store.update((state) => !state.draft ? state : {
+      ...state, draft: changeUnifiedRollActor(state.draft, actor, options), dirty: true, editor: emptyEditor()
     });
   }
 

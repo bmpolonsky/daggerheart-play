@@ -1,3 +1,4 @@
+import { openUnifiedFormulaEditor } from './unified-formula-helpers';
 import { expect, test } from '@playwright/test';
 import { createWeapon } from '../../src/domain/rules/factories';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
@@ -20,6 +21,7 @@ test('PC card and weapon commands prepare the same editable bottom tray without 
   const rollCount = await page.locator('.player-activity-event--roll').count();
   await preview.getByRole('button', { name: '1d4', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await openUnifiedFormulaEditor(tray);
   await expect(tray).toBeVisible();
   await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toContainText(filledCharacterName);
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d4');

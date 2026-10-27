@@ -1,3 +1,4 @@
+import { unifiedRollExecutionFormula } from '../domain/rules/unifiedRollPresentation';
 import { charactersStore, encounterStore, gameStore } from '../stores/gameStores';
 import { unifiedRollDraftError, unifiedRollPaysForExperiences, type UnifiedRollDraft } from '../domain/rules/unifiedRollDraft';
 import type { RollPublication } from '../domain/rules/types';
@@ -59,7 +60,7 @@ export class UnifiedRollExecutionService {
     }
     const actor = { actorId: draft.actor.id, actorName: draft.actor.name, publication };
     const extraDice = normalizeExtraDice(draft.extraDice);
-    const formula = draft.manualModifier ? `${draft.formula}${draft.manualModifier > 0 ? '+' : ''}${draft.manualModifier}` : draft.formula;
+    const formula = unifiedRollExecutionFormula(draft);
     let intent: PlayerRollIntent;
     if (draft.mode === 'action' || draft.mode === 'reaction') {
       intent = { type: 'duality', rollType: draft.mode, trait: draft.trait, difficulty: draft.difficulty ?? 0,

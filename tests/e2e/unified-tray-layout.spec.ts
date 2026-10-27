@@ -31,7 +31,7 @@ test('desktop tray anchors above Dice, clamps after growing and resizing, and le
   await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toBeVisible();
   await expect(tray.getByRole('button', { name: 'Убрать кость Страха', exact: true })).toBeVisible();
   const before = (await tray.boundingBox())!;
-  const lock = (await tray.getByRole('button', { name: 'Приватный бросок', exact: true }).boundingBox())!;
+  const lock = (await tray.getByRole('button', { name: 'Публичный бросок', exact: true }).boundingBox())!;
   await page.mouse.move(lock.x + lock.width / 2, lock.y + lock.height / 2);
   await page.mouse.down(); await page.mouse.move(lock.x + 30, lock.y + 25); await page.mouse.up();
   expect(Math.abs((await tray.boundingBox())!.x - before.x)).toBeLessThan(2);
