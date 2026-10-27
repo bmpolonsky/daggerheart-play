@@ -246,7 +246,7 @@ test('independent: one explicit typed reaction rolls individual extras and pays 
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await tray.getByRole('button', { name: /^Преим\./ }).click();
   await tray.getByRole('button', { name: /^Преим\./ }).click();
-  await expect(tray).toContainText('Костей: 4');
+  await expect(tray).toContainText('Костей: 5');
   const sheet = page.getByLabel('Персонаж игрока', { exact: true });
   const hope = sheet.getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]');
   await expect(hope).toHaveCount(3);
@@ -259,7 +259,7 @@ test('independent: one explicit typed reaction rolls individual extras and pays 
   await expect(hope).toHaveCount(2);
   const roll = page.locator('.player-activity-event--roll');
   await expect(roll).toContainText('Реакция');
-  await expect(roll.locator('.feed-die-chip')).toHaveCount(4);
+  await expect(roll.locator('.feed-die-chip')).toHaveCount(5);
   await expect(page.getByRole('group', { name: 'Страх', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(0);
   await shot(page, '12-actual-reaction-one-payment');
 });
