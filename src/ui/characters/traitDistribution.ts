@@ -1,3 +1,4 @@
+import { TRAITS } from '../../domain/rules/constants';
 import type { TraitId } from '../../domain/rules/types';
 
 export type TraitDraft = Partial<Record<TraitId, number>>;
@@ -27,4 +28,19 @@ export function formatTraitValue(value: number): string {
 export function isCompleteStartingTraitDistribution(draft: TraitDraft): draft is Record<TraitId, number> {
   const values = Object.values(draft).filter((value): value is number => typeof value === 'number');
   return values.length === 6 && values.sort((left, right) => right - left).join(',') === '2,1,1,0,0,-1';
+}
+
+/** Assign one starting slot. Exhausted values release one stable owner, never swap. */
+export function assignStartingTrait(draft: TraitDraft, trait: TraitId, value: number | null): { traits: TraitDraft; clearedTrait?: TraitId } {
+  if ((value === null && draft[trait] === undefined) || (value !== null && draft[trait] === value)) return { traits: draft };
+  if (value !== null && !STARTING_TRAIT_OPTIONS.some((option) => option === value)) return { traits: draft };
+  const traits = { ...draft };
+  delete traits[trait];
+  if (value === null) return { traits };
+  const owners = TRAITS.map((item) => item.id).filter((id) => id !== trait && traits[id] === value);
+  const slots = STARTING_TRAIT_DISTRIBUTION.filter((slot) => slot === value).length;
+  const clearedTrait = owners.length >= slots ? owners[0] : undefined;
+  if (clearedTrait) delete traits[clearedTrait];
+  traits[trait] = value;
+  return { traits, clearedTrait };
 }

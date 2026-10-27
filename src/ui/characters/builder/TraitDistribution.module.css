@@ -1,0 +1,15 @@
+.explanation,
+.announcement {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--dh-paper-muted);
+}
+.announcement:empty { display: none; }
+.announcement { color: var(--dh-gold-400); }
+.cleared { background: var(--dh-gold-soft); }
+.hint {
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  color: var(--dh-gold-400);
+}

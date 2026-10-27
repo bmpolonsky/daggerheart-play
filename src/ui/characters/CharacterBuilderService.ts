@@ -12,11 +12,11 @@ import {
 import { buildCharacterBuilderCatalog, buildCharacterBuilderQuickStart } from '../../domain/characterBuilder/catalog';
 import { BUILDER_STEPS, nextBuilderStep, previousBuilderStep, type BuilderStep } from '../../domain/characterBuilder/flow';
 import { validateCharacterBuilderReadiness } from '../../domain/characterBuilder/validation';
-import { CLASS_RECOMMENDED_TRAITS, DEFAULT_TRAITS } from '../../domain/rules/constants';
+import { CLASS_RECOMMENDED_TRAITS, DEFAULT_TRAITS, TRAIT_LABELS } from '../../domain/rules/constants';
 import { CLASS_STARTING_ITEMS } from '../../domain/rules/equipment';
 import { startingDomainCardCount } from '../../domain/rules/characterRuleModifiers';
 import type { DaggerheartClass, TraitId } from '../../domain/rules/types';
-import { isCompleteStartingTraitDistribution, type TraitDraft } from './traitDistribution';
+import { assignStartingTrait, isCompleteStartingTraitDistribution, type TraitDraft } from './traitDistribution';
 
 interface CharacterBuilderConnectionAnswer {
   answer?: string;
@@ -43,6 +43,8 @@ interface CharacterBuilderDraftState {
   experienceOne: string;
   experienceTwo: string;
   traits: TraitDraft;
+  clearedTraits: TraitId[];
+  traitAnnouncement: string;
   armorId: string;
   primaryWeaponId: string;
   secondaryWeaponId: string | null;
@@ -174,6 +176,8 @@ export class CharacterBuilderService {
         experienceOne,
         experienceTwo,
         traits,
+        clearedTraits: draft.clearedTraits,
+        traitAnnouncement: draft.traitAnnouncement,
         armorId: effectiveArmorId,
         primaryWeaponId: effectivePrimaryWeaponId,
         secondaryWeaponId: effectiveSecondaryWeaponId,
@@ -258,6 +262,8 @@ export class CharacterBuilderService {
       subclassId: '',
       selectedCardIds: [],
       classItem: '',
+      clearedTraits: [],
+      traitAnnouncement: '',
       traits: { ...(CLASS_RECOMMENDED_TRAITS[className] ?? DEFAULT_TRAITS) }
     });
   }
@@ -278,15 +284,15 @@ export class CharacterBuilderService {
 
   private setTrait(trait: TraitId, value: number | null): void {
     this.draftStore.update((current) => {
-      const traits = { ...current.traits };
-      if (value === null) {
-        delete traits[trait];
-      } else {
-        traits[trait] = value;
-      }
+      const change = assignStartingTrait(current.traits, trait, value);
+      if (change.traits === current.traits) return current;
+      const clearedTraits = current.clearedTraits.filter((id) => change.traits[id] === undefined);
+      if (change.clearedTrait && !clearedTraits.includes(change.clearedTrait)) clearedTraits.push(change.clearedTrait);
       return {
         ...current,
-        traits
+        traits: change.traits,
+        clearedTraits,
+        traitAnnouncement: change.clearedTrait ? `Освобождена характеристика «${TRAIT_LABELS[change.clearedTrait]}». Выберите для неё значение.` : ''
       };
     });
   }
@@ -308,6 +314,8 @@ export class CharacterBuilderService {
         ...current,
         className,
         classId,
+        clearedTraits: [],
+        traitAnnouncement: '',
         traits: { ...(CLASS_RECOMMENDED_TRAITS[className] ?? DEFAULT_TRAITS) },
         ancestryId: quick.ancestryId,
         secondaryAncestryId: undefined,
@@ -372,6 +380,8 @@ function createDefaultCharacterBuilderDraft(): CharacterBuilderDraftState {
     experienceOne: 'Искатель приключений',
     experienceTwo: 'Верный товарищ',
     traits: { ...CLASS_RECOMMENDED_TRAITS.Bard },
+    clearedTraits: [],
+    traitAnnouncement: '',
     armorId: '',
     primaryWeaponId: '',
     secondaryWeaponId: '',

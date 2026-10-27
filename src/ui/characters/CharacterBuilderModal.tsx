@@ -25,6 +25,7 @@ import { RichChoicePicker } from '../components/common/RichChoicePicker';
 import { WizardStepButton } from '../components/common/WizardStepButton';
 import { BuilderChoiceDetail } from './builder/BuilderChoiceDetail';
 import { AncestrySelectionStep } from './builder/AncestrySelectionStep';
+import traitStyles from './builder/TraitDistribution.module.css';
 import ancestryStyles from './builder/AncestrySelectionStep.module.css';
 import { EditableBuilderStat } from './builder/EditableBuilderStat';
 import { domainLabel, initials, signed } from './builder/formatting';
@@ -224,10 +225,12 @@ export function CharacterBuilderModal({
               <section className="cinematic-builder-step" role="group" aria-label="Шаг: Характеристики">
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Характеристики</h3>
+                  <p className={traitStyles.explanation}>Распределите +2, +1, +1, 0, 0 и −1. Если значение уже занято, освободится одна другая характеристика.</p>
+                  <p className={traitStyles.announcement} role="status" aria-live="polite" aria-atomic="true">{fields.traitAnnouncement}</p>
                 </header>
                 <div className="dh-stat-grid cinematic-builder-choice-area dh-scroll">
                   {BUILDER_TRAIT_IDS.map((trait) => (
-                    <EditableBuilderStat key={trait} label={TRAIT_LABELS[trait]} trait={trait} values={fields.traits} onChange={(value) => handlers.setTrait(trait, value)} />
+                    <EditableBuilderStat key={trait} label={TRAIT_LABELS[trait]} trait={trait} cleared={fields.clearedTraits.includes(trait)} values={fields.traits} onChange={(value) => handlers.setTrait(trait, value)} />
                   ))}
                 </div>
               </section>
