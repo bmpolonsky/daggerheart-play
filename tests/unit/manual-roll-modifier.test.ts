@@ -18,15 +18,15 @@ test('manual modifier accepts signed safe integers and refuses malformed values 
 test('manual modifier composes with trait and experience and does not replace other terms', () => {
   assert.equal(actionRollFormulaPreview({ traitModifier: 2, experienceModifier: 3, manualModifier: -2, advantageCount: 1, disadvantageCount: 0 }), '2d12 + 2 + 3 − 2 + d6');
   assert.equal(actionRollFormulaPreview({ traitModifier: 0, experienceModifier: 0, manualModifier: 6, advantageCount: 1, disadvantageCount: 1 }), '2d12 + 6');
-  assert.equal(actionRollFormulaPreview({ traitModifier: 0, experienceModifier: 0, manualModifier: 0, advantageCount: 3, disadvantageCount: 1 }), '2d12 + d6');
-  assert.equal(actionRollFormulaPreview({ traitModifier: 0, experienceModifier: 0, manualModifier: 0, advantageCount: 0, disadvantageCount: 3 }), '2d12 − d6');
+  assert.equal(actionRollFormulaPreview({ traitModifier: 0, experienceModifier: 0, manualModifier: 0, advantageCount: 3, disadvantageCount: 1 }), '2d12 + 2d6');
+  assert.equal(actionRollFormulaPreview({ traitModifier: 0, experienceModifier: 0, manualModifier: 0, advantageCount: 0, disadvantageCount: 3 }), '2d12 − 3d6');
   const state = { advantageMode: 0 as const, experienceIds: [], spendHopeForExperiences: true, manualModifier: -2 };
   assert.equal(normalizeActionComposerState(null, state).manualModifier, -2);
   assert.equal(buildActionComposerRollOptions(state).manualModifier, -2);
   assert.equal('manualModifier' in buildActionComposerRollOptions({ ...state, manualModifier: 0 }), false);
 });
 
-test('ordinary action and reaction sources cancel pairwise and leave at most one newly rolled d6', () => {
+test('ordinary action and reaction sources cancel pairwise and roll all remaining dice, keeping the maximum', () => {
   resetAllStores();
   const originalRandom = Math.random;
   Math.random = () => 0;
@@ -35,8 +35,8 @@ test('ordinary action and reaction sources cancel pairwise and leave at most one
       for (const [advantageCount, disadvantageCount, sign] of [[4, 1, 1], [1, 4, -1], [3, 3, 0]] as const) {
         const request = { difficulty: 12, advantageCount, disadvantageCount, manualModifier: 6 };
         const result = rollType === 'action' ? diceService.rollAction(request) : diceService.rollReaction(request);
-        assert.equal(result.advantageRolls.length, sign > 0 ? 1 : 0);
-        assert.equal(result.disadvantageRolls.length, sign < 0 ? 1 : 0);
+        assert.equal(result.advantageRolls.length, sign > 0 ? advantageCount - disadvantageCount : 0);
+        assert.equal(result.disadvantageRolls.length, sign < 0 ? disadvantageCount - advantageCount : 0);
         assert.equal(result.keptExtraDie, sign);
         assert.equal(result.modifiers.find((part) => part.label === 'Вручную')?.value, 6);
       }

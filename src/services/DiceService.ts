@@ -137,13 +137,17 @@ export class DiceService {
     let keptExtraDie = 0;
 
     if (effectiveExtraDice > 0) {
-      advantageRolls.push(rollDie(6));
+      for (let index = 0; index < effectiveExtraDice; index += 1) {
+        advantageRolls.push(rollDie(6));
+      }
       keptExtraDie = Math.max(...advantageRolls);
       modifiers.push({ label: 'Преимущество', value: keptExtraDie });
     }
 
     if (effectiveExtraDice < 0) {
-      disadvantageRolls.push(rollDie(6));
+      for (let index = 0; index < Math.abs(effectiveExtraDice); index += 1) {
+        disadvantageRolls.push(rollDie(6));
+      }
       keptExtraDie = -Math.max(...disadvantageRolls);
       modifiers.push({ label: 'Помеха', value: keptExtraDie });
     }
@@ -239,13 +243,17 @@ export class DiceService {
     let keptExtraDie = 0;
 
     if (effectiveExtraDice > 0) {
-      advantageRolls.push(rollDie(6));
+      for (let index = 0; index < effectiveExtraDice; index += 1) {
+        advantageRolls.push(rollDie(6));
+      }
       keptExtraDie = Math.max(...advantageRolls);
       modifiers.push({ label: 'Преимущество', value: keptExtraDie });
     }
 
     if (effectiveExtraDice < 0) {
-      disadvantageRolls.push(rollDie(6));
+      for (let index = 0; index < Math.abs(effectiveExtraDice); index += 1) {
+        disadvantageRolls.push(rollDie(6));
+      }
       keptExtraDie = -Math.max(...disadvantageRolls);
       modifiers.push({ label: 'Помеха', value: keptExtraDie });
     }

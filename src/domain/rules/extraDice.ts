@@ -1,5 +1,27 @@
 import { parseDiceFormula } from './diceFormula';
 
+/** Existing manual engine uses d20 selection only for a lone positive d20 plus flats. */
+export function manualAdvantageDiceSides(formula: string): 6 | 20 {
+  const terms = formula.trim() ? parseDiceFormula(formula) : [];
+  return terms.filter((term) => term.kind === 'dice' && term.sign === 1 && term.count === 1 && term.sides === 20).length === 1
+    && terms.filter((term) => term.kind === 'dice' && !(term.sign === 1 && term.count === 1 && term.sides === 20)).length === 0 ? 20 : 6;
+}
+
+/** Remove the displayed selection pool, leaving independent additive dice untouched. */
+export function stripReservedDice(formula: string, count: number, sides: number, sign: 1 | -1): string {
+  const terms = parseDiceFormula(formula);
+  let remaining = count;
+  for (const term of terms) {
+    if (term.kind !== 'dice' || term.sign !== sign || term.sides !== sides) continue;
+    const consumed = Math.min(remaining, term.count);
+    term.count -= consumed;
+    remaining -= consumed;
+  }
+  if (remaining) throw new Error('Сохраните кости преимущества или помехи в формуле либо сначала сбросьте их.');
+  return terms.filter((term) => term.kind === 'dice' ? term.count > 0 : term.value !== 0)
+    .map((term) => `${term.sign < 0 ? '-' : '+'}${term.kind === 'dice' ? `${term.count}d${term.sides}` : term.value}`).join('').replace(/^\+/, '') || '0';
+}
+
 export interface ExtraDieTerm {
   count: number;
   sides: number;
@@ -40,7 +62,7 @@ export function extraDiceFormula(input: unknown): string {
 export interface TypedExtraDiceContext {
   base: '2d12' | '1d20';
   /** Only the ordinary die actually displayed in the edited formula. */
-  ordinaryDie?: { sides: 6 | 20; sign: 1 | -1 };
+  ordinaryDie?: { sides: 6 | 20; sign: 1 | -1; count?: number };
   /** Trait + selected experiences + attack bonus, excluding the manual modifier. */
   fixedModifier: number;
 }
@@ -56,7 +78,8 @@ export function extractTypedExtraDice(formula: string, context: TypedExtraDiceCo
   if (context.base !== '2d12' && context.base !== '1d20') return invalid('Неизвестная базовая формула проверки.');
   if (!Number.isSafeInteger(context.fixedModifier)) return invalid('Фиксированный модификатор должен быть целым числом.');
   if (context.ordinaryDie && (context.base === '1d20' || context.ordinaryDie.sides !== 6
-    || (context.ordinaryDie.sign !== 1 && context.ordinaryDie.sign !== -1))) return invalid('Преимущество и помеха настраиваются отдельными элементами управления.');
+    || (context.ordinaryDie.sign !== 1 && context.ordinaryDie.sign !== -1)
+    || !Number.isSafeInteger(context.ordinaryDie.count ?? 1) || (context.ordinaryDie.count ?? 1) < 1 || (context.ordinaryDie.count ?? 1) > 20)) return invalid('Преимущество и помеха настраиваются отдельными элементами управления.');
   let terms: ReturnType<typeof parseDiceFormula>;
   try { terms = parseDiceFormula(formula); } catch (error) { return invalid(error instanceof Error ? error.message : 'Некорректная формула.'); }
   let flat = 0;
@@ -78,8 +101,9 @@ export function extractTypedExtraDice(formula: string, context: TypedExtraDiceCo
   base.count -= baseCount;
   if (context.ordinaryDie) {
     const ordinary = dice.get(`${context.ordinaryDie.sign}:${context.ordinaryDie.sides}`);
-    if (!ordinary || ordinary.count < 1) return invalid('Сохраните обычную кость преимущества или помехи в формуле либо измените её отдельными элементами управления.');
-    ordinary.count -= 1;
+    const count = context.ordinaryDie.count ?? 1;
+    if (!ordinary || ordinary.count < count) return invalid('Сохраните кости преимущества или помехи в формуле либо измените их отдельными элементами управления.');
+    ordinary.count -= count;
   }
   if ([...dice.values()].some((term) => term.sign === -1 && term.count > 0)) return invalid('Дополнительные кости могут только прибавляться. Отрицательные кости требуют явного ручного броска.');
   let extraDice: ExtraDieTerm[];

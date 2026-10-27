@@ -22,6 +22,6 @@ export function actionRollFormulaPreview(input: {
   }
   const counts = normalizeAdvantageCounts(input.advantageCount, input.disadvantageCount);
   const net = counts.advantageCount - counts.disadvantageCount;
-  if (net !== 0) parts.push(`${net < 0 ? '−' : '+'} d6`);
+  if (net !== 0) parts.push(`${net < 0 ? '−' : '+'} ${Math.abs(net) > 1 ? Math.abs(net) : ''}d6`);
   return parts.join(' ');
 }

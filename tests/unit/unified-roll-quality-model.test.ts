@@ -108,8 +108,8 @@ test('source recovery formula remains nominal until the user actually changes it
 test('visible pool reports actual dice and existing advantage selection semantics', () => {
   const action = createUnifiedRollDraft({ ...freeUnifiedRollInput(pc), advantageCount: 3, extraDice: [{ count: 2, sides: 8 }] });
   const playerPool = unifiedRollPoolPresentation(action);
-  assert.equal(playerPool.rolledDiceCount, 5); // Hope + Fear + two ordinary d8 + ONE ordinary advantage d6.
-  assert.equal(playerPool.chips.find((chip) => chip.kind === 'advantage')?.count, 1);
+  assert.equal(playerPool.rolledDiceCount, 7); // Hope + Fear + two ordinary d8 + three advantage d6.
+  assert.equal(playerPool.chips.find((chip) => chip.kind === 'advantage')?.count, 3);
   assert.equal(playerPool.chips.find((chip) => chip.target === 'extra')?.count, 2);
   const gmPool = unifiedRollPoolPresentation(createUnifiedRollDraft({ ...freeUnifiedRollInput(npc), advantageCount: 2 }));
   assert.equal(gmPool.rolledDiceCount, 3);
@@ -122,7 +122,7 @@ test('visible pool reports actual dice and existing advantage selection semantic
   assert.equal(mixed.rolledDiceCount, 4);
   assert.equal(mixed.chips.find((chip) => chip.kind === 'advantage')?.sides, 6);
   assert.equal(mixed.chips.find((chip) => chip.kind === 'advantage')?.count, 2);
-  assert.match(mixed.evaluationHint!, /зелёных d6/);
+  assert.match(mixed.evaluationHint!, /2d6/);
   assert.equal(unifiedRollPoolPresentation(createUnifiedRollDraft({ ...freeUnifiedRollInput(pc), advantageCount: 2, disadvantageCount: 2 })).rolledDiceCount, 2);
 });
 

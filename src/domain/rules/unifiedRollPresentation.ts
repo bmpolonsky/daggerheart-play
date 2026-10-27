@@ -1,6 +1,6 @@
 import { maxDiceValue, parseDiceFormula } from './diceFormula';
-import { isTypedUnifiedRoll, type UnifiedRollDraft } from './unifiedRollDraft';
-import { extraDiceFormula, extractTypedExtraDice, normalizeExtraDice } from './extraDice';
+import { assertUnifiedManualAdvantageFamily, isTypedUnifiedRoll, type UnifiedRollDraft } from './unifiedRollDraft';
+import { extraDiceFormula, extractTypedExtraDice, manualAdvantageDiceSides, normalizeExtraDice, stripReservedDice } from './extraDice';
 import { normalizeAdvantageCounts } from './actionComposer';
 
 /** The one editable flat value: manual pools include their source's embedded flat. */
@@ -53,9 +53,9 @@ export function unifiedRollExecutionFormula(draft: UnifiedRollDraft): string {
 export function unifiedRollCompleteFormula(draft: UnifiedRollDraft, staticModifier = 0): string {
   const extras = isTypedUnifiedRoll(draft) ? extraDiceFormula(draft.extraDice) : '';
   let formula = appendRollModifier(`${draft.formula}${extras ? `+${extras}` : ''}`, draft.manualModifier + (isTypedUnifiedRoll(draft) ? staticModifier : 0));
-  if (draft.mode === 'action' || draft.mode === 'reaction') {
+  if (draft.mode === 'action' || draft.mode === 'reaction' || (draft.mode === 'manual' && manualAdvantageDiceSides(draft.formula) === 6)) {
     const net = draft.advantageCount - draft.disadvantageCount;
-    if (net) formula += net > 0 ? '+1d6' : '-1d6';
+    if (net) formula += `${net > 0 ? '+' : '-'}${Math.abs(net)}d6`;
   }
   return formula;
 }
@@ -79,10 +79,15 @@ export function unifiedRollDiceConversionFormula(draft: UnifiedRollDraft, edited
 export function applyUnifiedFormulaEdit(draft: UnifiedRollDraft, formula: string, staticModifier = 0): { draft: UnifiedRollDraft; requiresManual: boolean } {
   parseDiceFormula(formula);
   formulaFlat(formula);
-  if (!isTypedUnifiedRoll(draft)) return { draft: { ...draft, formula, manualModifier: 0, quantity: undefined }, requiresManual: false };
   const net = draft.advantageCount - draft.disadvantageCount;
+  if (!isTypedUnifiedRoll(draft)) {
+    const base = draft.mode === 'manual' && net && manualAdvantageDiceSides(draft.formula) === 6
+      ? stripReservedDice(formula, Math.abs(net), 6, net > 0 ? 1 : -1) : formula;
+    assertUnifiedManualAdvantageFamily(draft, base);
+    return { draft: { ...draft, formula: base, manualModifier: 0, quantity: undefined }, requiresManual: false };
+  }
   const extracted = extractTypedExtraDice(formula, { base: draft.mode === 'gmAttack' ? '1d20' : '2d12', fixedModifier: staticModifier,
-    ...((draft.mode === 'action' || draft.mode === 'reaction') && net ? { ordinaryDie: { sides: 6 as const, sign: net > 0 ? 1 as const : -1 as const } } : {}) });
+    ...((draft.mode === 'action' || draft.mode === 'reaction') && net ? { ordinaryDie: { sides: 6 as const, sign: net > 0 ? 1 as const : -1 as const, count: Math.abs(net) } } : {}) });
   if (extracted.kind === 'manual-required') return { draft, requiresManual: true };
   if (extracted.kind === 'invalid') throw new Error(extracted.error);
   return { draft: { ...draft, manualModifier: extracted.manualModifier, extraDice: extracted.extraDice }, requiresManual: false };
@@ -124,17 +129,16 @@ export function unifiedRollPoolPresentation(draft: UnifiedRollDraft): UnifiedRol
   const net = counts.advantageCount - counts.disadvantageCount;
   let evaluationHint: string | null = null;
   if (net !== 0 && draft.mode !== 'damage' && terms.some((term) => term.kind === 'dice' && term.count > 0)) {
-    const duality = draft.mode === 'action' || draft.mode === 'reaction';
     // Use the same single-d20 predicate as DiceService.rollManualDiceFormula.
     const singleD20 = draft.mode === 'gmAttack' || (draft.mode === 'manual'
       && terms.filter((term) => term.kind === 'dice' && term.sign > 0 && term.count === 1 && term.sides === 20).length === 1
       && terms.filter((term) => term.kind === 'dice' && !(term.sign > 0 && term.count === 1 && term.sides === 20)).length === 0);
     const sides = singleD20 ? 20 : 6;
-    const count = duality ? 1 : Math.abs(net);
+    const count = Math.abs(net);
     const kind = net > 0 ? 'advantage' as const : 'disadvantage' as const;
     chips.push({ id: kind, kind, sides, count, sign: singleD20 || net > 0 ? 1 : -1, target: kind });
     if (singleD20) evaluationHint = net > 0 ? 'Из d20 берётся наибольший результат.' : 'Из d20 берётся наименьший результат.';
-    else if (count > 1) evaluationHint = net > 0 ? 'Из зелёных d6 прибавляется наибольший результат.' : 'Из красных d6 вычитается наибольший результат.';
+    else if (count > 1) evaluationHint = `Из ${count}d6 ${net > 0 ? 'прибавляется' : 'вычитается'} наибольший результат.`;
   }
   return { chips, rolledDiceCount: chips.reduce((sum, chip) => sum + chip.count, 0), evaluationHint };
 }

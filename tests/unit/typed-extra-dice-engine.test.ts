@@ -61,9 +61,9 @@ test('only the reserved Hope/Fear pair determines critical and tone, never an ex
 
 test('ordinary advantage and an additive same-sided d6 remain separate random terms', () => {
   const { actor, dice } = setup();
-  const roll = withRolls([0.1, 0.5, 0.99, 0], () => dice.rollAction({ actorId: actor.id, difficulty: 12,
+  const roll = withRolls([0.1, 0.5, 0.99, 0, 0], () => dice.rollAction({ actorId: actor.id, difficulty: 12,
     advantageCount: 3, disadvantageCount: 1, extraDice: [{ count: 1, sides: 6 }] }));
-  assert.deepEqual(roll.advantageRolls, [6]);
+  assert.deepEqual(roll.advantageRolls, [6, 1]);
   assert.equal(roll.keptExtraDie, 6);
   assert.deepEqual(roll.extraDiceTerms?.[0].rolls, [1]);
   assert.equal(roll.total, 2 + 7 + 6 + 1);

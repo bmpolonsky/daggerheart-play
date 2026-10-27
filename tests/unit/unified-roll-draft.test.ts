@@ -92,10 +92,10 @@ test('explicit manual conversion uses the supplied full formula and clears typed
   const draft = createUnifiedRollDraft({ ...input, experienceIds: ['scout'], manualModifier: 2, advantageCount: 1 });
   const converted = convertUnifiedRollToManual(draft, '2d12+1d6+4');
   assert.equal(converted.mode, 'manual');
-  assert.equal(converted.formula, '2d12+1d6+4');
+  assert.equal(converted.formula, '2d12+4');
   assert.deepEqual(converted.experienceIds, []);
   assert.equal(converted.manualModifier, 0);
-  assert.equal(converted.advantageCount, 0);
+  assert.equal(converted.advantageCount, 1);
   assert.equal(converted.spendHopeForExperiences, false);
   assert.equal(converted.actor.id, draft.actor.id);
   assert.equal(unifiedRollDraftError(converted), null);

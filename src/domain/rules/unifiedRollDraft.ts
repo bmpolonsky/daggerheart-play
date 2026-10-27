@@ -2,7 +2,8 @@ import { createId } from '../../core/utils/id';
 import { parseDiceFormula, type ParsedFormulaTerm } from './diceFormula';
 import type { DamageType, TraitId } from './types';
 import type { EventRollContext } from './eventRoll';
-import { extraDiceFormula, normalizeExtraDice, type ExtraDieTerm } from './extraDice';
+import { extraDiceFormula, manualAdvantageDiceSides, normalizeExtraDice, stripReservedDice, type ExtraDieTerm } from './extraDice';
+import { normalizeAdvantageCounts } from './actionComposer';
 
 export interface UnifiedRollActor {
   key: string;
@@ -154,20 +155,41 @@ export function unlinkUnifiedRollEvent(draft: UnifiedRollDraft): UnifiedRollDraf
 /** Caller must explicitly confirm this conversion and provide the complete formula. */
 export function convertUnifiedRollToManual(draft: UnifiedRollDraft, completeFormula: string): UnifiedRollDraft {
   parseDiceFormula(completeFormula);
+  const counts = normalizeAdvantageCounts(draft.advantageCount, draft.disadvantageCount);
+  const net = counts.advantageCount - counts.disadvantageCount;
+  const usesD6 = draft.mode === 'action' || draft.mode === 'reaction' || (draft.mode === 'manual' && manualAdvantageDiceSides(draft.formula) === 6);
+  const formula = usesD6 && net ? stripReservedDice(completeFormula, Math.abs(net), 6, net > 0 ? 1 : -1) : completeFormula;
+  const singleD20 = manualAdvantageDiceSides(formula) === 20;
+  if (net && (draft.mode === 'action' || draft.mode === 'reaction') && singleD20) {
+    throw new Error('Ручной одиночный d20 использует другое преимущество. Сначала сбросьте преимущество и помеху или сохраните проверку Дуальности.');
+  }
+  if (net && draft.mode === 'gmAttack' && !singleD20) {
+    throw new Error('Этот ручной набор не сохранит выбор лучшего или худшего d20. Сначала сбросьте преимущество и помеху или сохраните атаку.');
+  }
+  assertUnifiedManualAdvantageFamily(draft, formula);
   return {
     ...draft,
     mode: 'manual',
-    formula: completeFormula,
+    formula,
     trait: undefined,
     experienceIds: [],
     spendHopeForExperiences: false,
     manualModifier: 0,
     extraDice: undefined,
-    advantageCount: 0,
-    disadvantageCount: 0,
+    advantageCount: counts.advantageCount,
+    disadvantageCount: counts.disadvantageCount,
     critical: false,
     quantity: undefined
   };
+}
+
+/** Editing ordinary dice cannot silently change existing MAX-d6 into best/worst-d20. */
+export function assertUnifiedManualAdvantageFamily(draft: UnifiedRollDraft, formula: string): void {
+  const counts = normalizeAdvantageCounts(draft.advantageCount, draft.disadvantageCount);
+  if (draft.mode === 'manual' && counts.advantageCount !== counts.disadvantageCount
+    && manualAdvantageDiceSides(draft.formula) !== manualAdvantageDiceSides(formula)) {
+    throw new Error('Меняется тип костей преимущества или помехи. Сначала сбросьте преимущество и помеху, затем измените набор.');
+  }
 }
 
 export function unifiedRollDraftError(draft: UnifiedRollDraft): string | null {
@@ -241,6 +263,7 @@ export function editUnifiedRollDice(draft: UnifiedRollDraft, sides: number, delt
   const proposedFormula = requiresManual && !serialized ? '0' : serialized;
   // Reuse the established parser's count limits before accepting edits.
   if (proposedFormula) parseDiceFormula(proposedFormula);
+  assertUnifiedManualAdvantageFamily(draft, proposedFormula);
   return { requiresManual, proposedFormula, draft: requiresManual ? draft : { ...draft, formula: proposedFormula, quantity: undefined } };
 }
 

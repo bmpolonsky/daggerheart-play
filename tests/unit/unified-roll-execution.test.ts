@@ -105,7 +105,7 @@ test('online player refusal or transport exception cannot fall back to local exe
   assert.equal(sent[0].type === 'duality' ? sent[0].manualModifier : undefined, -2);
 });
 
-test('typed dice palette conversion preserves current ordinary advantage or disadvantage as an explicit die', () => {
+test('typed dice palette conversion preserves advantage or disadvantage as MAX metadata', () => {
   resetAllStores();
   for (const [advantageCount, disadvantageCount, suffix] of [[1, 0, '+1d6'], [0, 1, '-1d6']] as const) {
     const { draft } = actorDraft({ advantageCount, disadvantageCount, manualModifier: 3, extraDice: [{ count: 1, sides: 8 }] });
@@ -114,9 +114,9 @@ test('typed dice palette conversion preserves current ordinary advantage or disa
     const complete = unifiedRollDiceConversionFormula(draft, edit.proposedFormula, 2);
     assert.equal(complete, `1d12+1d8+5${suffix}`);
     const manual = convertUnifiedRollToManual(draft, complete);
-    assert.equal(manual.formula, complete);
-    assert.equal(manual.advantageCount, 0);
-    assert.equal(manual.disadvantageCount, 0);
+    assert.equal(manual.formula, `1d12+1d8+5`);
+    assert.equal(manual.advantageCount, advantageCount);
+    assert.equal(manual.disadvantageCount, disadvantageCount);
   }
 });
 
