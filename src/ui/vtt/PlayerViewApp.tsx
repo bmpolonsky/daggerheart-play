@@ -364,13 +364,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       id: `ephemeral-feature-${character.id}-${feature.id}`,
       createdAt: nowIso(),
       authorName: character.name,
-      feature: {
-        id: feature.id,
-        name: feature.name,
-        subtitle: feature.subtitle,
-        text: feature.text,
-        sourceLabel: feature.sourceLabel
-      },
+      feature: { ...feature },
       actor: {
         actorId: character.id,
         actorName: character.name,

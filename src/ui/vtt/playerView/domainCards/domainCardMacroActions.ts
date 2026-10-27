@@ -40,7 +40,10 @@ export function runDomainCardMacroAction(
     return;
   }
   if (macro.kind === 'damageRoll' || macro.kind === 'diceRoll') {
-    const text = cleanMarkdownText(card.text, { stripEmphasis: true, stripCodeTicks: true });
+    // Macro offsets refer to this exact rendered source. Cleaning it again can
+    // remove markup before the span and turn a known binding into a fallback.
+    // The resolver validates the span and the canonical text itself.
+    const text = card.text;
     const binding = resolveContextualDiceBinding({ sourceId: card.sourceId, cardId: card.id, featureId: card.featureId, collection: card.collection ?? 'domain-cards', slug: card.slug, weaponFormula: card.weaponFormula, text }, macro, character);
     if (binding.nonRoll) return;
     const formula = binding.formula;
