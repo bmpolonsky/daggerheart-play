@@ -1,3 +1,4 @@
+import { chooseMixedAncestryMode, chooseAncestryFeature } from './ancestry-selection-helpers';
 import { expect, test } from '@playwright/test';
 import { openFilledGmGame } from './filled-game-helpers';
 import { openGameLibrary } from './tools-helpers';
@@ -17,21 +18,18 @@ test('mixed ancestry blocks the same pair and saves Elf first plus Giant second 
   await builder.getByLabel('Имя', { exact: true }).blur();
   await builder.getByRole('button', { name: 'Родословная', exact: true }).click();
   const ancestry = builder.getByRole('group', { name: 'Шаг: Родословная', exact: true });
-  await ancestry.getByRole('checkbox', { name: 'Смешанная родословная', exact: true }).check();
-  await ancestry.locator('.dh-choice-grid').getByRole('button').filter({ has: page.getByText('Великан', { exact: true }) }).click();
+  await chooseMixedAncestryMode(ancestry);
+  await chooseAncestryFeature(page, ancestry, 0, 'Великан');
 
-  await ancestry.getByRole('button', { name: 'Второе свойство — родословная', exact: true }).click();
-  const secondPicker = page.getByRole('dialog', { name: 'Выбор: Второе свойство — родословная', exact: true });
-  await secondPicker.getByRole('option').filter({ has: page.getByText('Великан', { exact: true }) }).click();
-  await secondPicker.getByRole('button', { name: 'Выбрать', exact: true }).click();
+  await chooseAncestryFeature(page, ancestry, 1, 'Великан');
   await builder.getByRole('button', { name: 'Итог', exact: true }).click();
-  await expect(builder.getByRole('group', { name: 'Шаг: Итог', exact: true }).getByText('Для смешанного наследия выберите две разные родословные.', { exact: true })).toBeVisible();
+  await expect(builder.getByRole('group', { name: 'Шаг: Итог', exact: true })).toContainText('Для смешанного наследия выберите две разные родословные.');
   await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeDisabled();
   await expect(roster.locator('.player-tools-character-card')).toHaveCount(initialCount);
 
   // Keep Giant as the second source and reverse the first source to Elf.
   await builder.getByRole('button', { name: 'Родословная', exact: true }).click();
-  await ancestry.locator('.dh-choice-grid').getByRole('button').filter({ has: page.getByText('Эльф', { exact: true }) }).click();
+  await chooseAncestryFeature(page, ancestry, 0, 'Эльф');
   await builder.getByRole('button', { name: 'Итог', exact: true }).click();
   await expect(builder.locator('.cinematic-builder-loadout-summary')).toContainText('Эльф / Великан');
   await expect(builder.getByText('Для смешанного наследия выберите две разные родословные.', { exact: true })).toHaveCount(0);

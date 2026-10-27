@@ -1,3 +1,4 @@
+import { hasMixedAncestryMode, chooseMixedAncestryMode, chooseAncestryFeature } from './ancestry-selection-helpers';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createDomainCard } from '../../src/domain/rules/factories';
@@ -164,18 +165,12 @@ test('resource gaps A/B: mixed ancestry rejects same pair and saves both orienta
     await builder.getByLabel('Имя', { exact: true }).fill(name); await builder.getByLabel('Имя', { exact: true }).blur();
     await builder.getByRole('button', { name: 'Родословная', exact: true }).click();
     const ancestry = builder.getByRole('group', { name: 'Шаг: Родословная', exact: true });
-    const mixed = ancestry.getByRole('checkbox', { name: 'Смешанная родословная', exact: true });
-    const supported = await mixed.count() > 0;
+    const supported = await hasMixedAncestryMode(ancestry);
     await capture(page, `mixed-${first}-availability`, builder, { supported, limit: 'Random-generated class/stats are not compared; ancestry choices are explicit.' });
     if (!supported) { if (fixed) throw new Error('Mixed ancestry unexpectedly unavailable.'); return; }
-    await mixed.check();
-    await ancestry.locator('.dh-choice-grid').getByRole('button').filter({ has: page.getByText(first, { exact: true }) }).click();
-    async function pickSecond(title: string) {
-      await ancestry.getByRole('button', { name: 'Второе свойство — родословная', exact: true }).click();
-      const picker = page.getByRole('dialog', { name: 'Выбор: Второе свойство — родословная', exact: true });
-      await picker.getByRole('option').filter({ has: page.getByText(title, { exact: true }) }).click();
-      await picker.getByRole('button', { name: 'Выбрать', exact: true }).click();
-    }
+    await chooseMixedAncestryMode(ancestry);
+    await chooseAncestryFeature(page, ancestry, 0, first);
+    const pickSecond = (title: string) => chooseAncestryFeature(page, ancestry, 1, title);
     await pickSecond(first);
     await builder.getByRole('button', { name: 'Итог', exact: true }).click();
     await capture(page, `mixed-${first}-same-pair`, builder);

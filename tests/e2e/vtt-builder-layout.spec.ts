@@ -74,8 +74,8 @@ test.describe('character builder composition', () => {
     const builder = page.getByRole('dialog', { name: 'Новый герой' });
     const stageImage = builder.getByLabel('Сводка героя').locator('.cinematic-builder-stage-art img');
     const initialStageImageUrl = await stageImage.getAttribute('src');
-    await page.getByLabel('Родословная').click();
-    const choiceDetail = builder.getByLabel('Описание выбора');
+    await builder.getByRole('button', { name: 'Родословная', exact: true }).click();
+    const choiceDetail = builder.getByRole('region', { name: 'Свойства выбранной родословной', exact: true });
     const ancestryStep = builder.getByRole('group', { name: 'Шаг: Родословная' });
     const firstCard = ancestryStep.getByRole('button').filter({ has: page.locator('img') }).first();
     const firstCardBody = firstCard.locator('span').last();
@@ -86,7 +86,7 @@ test.describe('character builder composition', () => {
     await expect(stageImage).toHaveAttribute('src', ancestryImageUrl ?? '');
     expect(ancestryImageUrl).not.toBe(initialStageImageUrl);
     await expect(choiceDetail).toBeVisible();
-    await expectLeftOf(ancestryStep, choiceDetail, 4);
+    await expectLeftOf(ancestryStep.getByRole('region', { name: 'Родословные', exact: true }), choiceDetail, 4);
     await expect(firstCard).toBeVisible();
     const cardBox = await rect(firstCard);
     const bodyBox = await rect(firstCardBody);

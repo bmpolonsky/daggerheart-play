@@ -1,0 +1,188 @@
+.step {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.header {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+
+.heading h3,
+.featureBlock h4,
+.singleDetail h4 {
+  margin: 0;
+}
+
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  color: var(--dh-paper-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.body {
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  overflow: auto;
+  align-content: start;
+}
+
+.featureBlock {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.featureBlock h4,
+.singleDetail h4 {
+  color: var(--dh-paper-100);
+  font-size: 0.86rem;
+}
+
+.options {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  max-height: 17rem;
+  overflow: auto;
+  padding: 2px 6px 2px 2px;
+  overscroll-behavior: contain;
+}
+
+.options .option {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px;
+}
+
+.options .option[aria-pressed='true'] {
+  background: var(--dh-gold-soft);
+}
+
+.optionCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.optionCopy strong {
+  color: var(--dh-paper-100);
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.optionCopy > span,
+.empty {
+  color: var(--dh-paper-muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.feature {
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.feature > strong {
+  color: var(--dh-gold-400);
+  font-size: 0.8rem;
+}
+
+.feature p,
+.description p {
+  margin: 6px 0 0;
+  color: var(--dh-paper-200);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.singleDetail {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.description {
+  color: var(--dh-paper-muted);
+  font-size: 0.76rem;
+}
+
+.description summary {
+  cursor: pointer;
+}
+
+.description .ancestryArt {
+  display: block;
+  width: 12rem;
+  max-width: 100%;
+  max-height: 12rem;
+  margin-top: 8px;
+  border-radius: var(--dh-radius);
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .options {
+    max-height: 12rem;
+  }
+
+  .heading {
+    gap: 8px;
+  }
+}
+
+/* Only this wizard step sheds redundant summary art on short screens. The
+   mode, two choices, descriptions and ordinary wizard footer stay reachable. */
+@media (max-height: 500px) {
+  .ancestryWizard :global(.cinematic-builder-stage) {
+    display: none;
+  }
+
+  .ancestryWizard :global(.cinematic-builder-panel) {
+    gap: 8px;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .step {
+    gap: 8px;
+  }
+
+  .options {
+    max-height: 8rem;
+  }
+}

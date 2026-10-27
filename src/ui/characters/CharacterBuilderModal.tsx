@@ -16,7 +16,6 @@ import { formatWealthSummary } from '../../domain/rules/wealthPresentation';
 import { Button } from '../components/common/Button';
 import { AssetImage } from '../components/common/AssetImage';
 import { ChoiceCard } from '../components/common/ChoiceCard';
-import { Checkbox } from '../components/common/Checkbox';
 import { Dialog } from '../components/common/Dialog';
 import { SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
@@ -25,6 +24,8 @@ import { ImageFilePicker } from '../components/common/ImageFilePicker';
 import { RichChoicePicker } from '../components/common/RichChoicePicker';
 import { WizardStepButton } from '../components/common/WizardStepButton';
 import { BuilderChoiceDetail } from './builder/BuilderChoiceDetail';
+import { AncestrySelectionStep } from './builder/AncestrySelectionStep';
+import ancestryStyles from './builder/AncestrySelectionStep.module.css';
 import { EditableBuilderStat } from './builder/EditableBuilderStat';
 import { domainLabel, initials, signed } from './builder/formatting';
 import { BUILDER_TRAIT_IDS } from './builder/traits';
@@ -48,7 +49,6 @@ export function CharacterBuilderModal({
   const builder = useCharacterBuilder({ content, classes, equipment, includePlaytest });
   const { step, steps, fields, options, result: builderResult, selections, handlers } = builder;
   const selectedAncestry = selections.ancestry;
-  const mixedAncestry = fields.secondaryAncestryId !== undefined;
   const selectedCommunity = selections.community;
   const selectedSubclass = selections.subclass;
   const selectedCards = selections.domainCards;
@@ -76,7 +76,7 @@ export function CharacterBuilderModal({
   });
   const choicePreviewKey = choicePreview ? `${step}:${choicePreview.kicker}:${choicePreview.title}:${choicePreview.subtitle ?? ''}` : '';
   const [hiddenChoicePreviewKey, setHiddenChoicePreviewKey] = useState('');
-  const visibleChoicePreview = choicePreview && hiddenChoicePreviewKey !== choicePreviewKey ? choicePreview : null;
+  const visibleChoicePreview = step !== 'ancestry' && choicePreview && hiddenChoicePreviewKey !== choicePreviewKey ? choicePreview : null;
   const currentStepIndex = steps.findIndex((item) => item.id === step);
   const progress = Math.round(((currentStepIndex + 1) / steps.length) * 100);
   const blockingIssues = builder.issues.filter((issue) => issue.severity === 'blocking');
@@ -91,7 +91,7 @@ export function CharacterBuilderModal({
   };
 
   return (
-    <Dialog aria-label="Новый герой" className="cinematic-builder" onClose={onCancel}>
+    <Dialog aria-label="Новый герой" className={`cinematic-builder ${step === 'ancestry' ? ancestryStyles.ancestryWizard : ''}`} onClose={onCancel}>
         <nav className="cinematic-builder-nav" aria-label="Шаги создания">
           <div className="cinematic-builder-header">
             <h2 className="cinematic-builder-title">Новый герой</h2>
@@ -161,38 +161,14 @@ export function CharacterBuilderModal({
             )}
 
             {step === 'ancestry' && (
-              <section className="cinematic-builder-step" role="group" aria-label="Шаг: Родословная">
-                <header className="cinematic-builder-step-head">
-                  <h3 className="cinematic-builder-title">Родословная</h3>
-                </header>
-                <Checkbox label="Смешанная родословная" checked={mixedAncestry} onChange={(event) => handlers.setMixedAncestry(event.currentTarget.checked)} />
-                {mixedAncestry && (
-                  <RichChoicePicker
-                    label="Второе свойство — родословная"
-                    value={fields.secondaryAncestryId ?? ''}
-                    placeholder="Выберите родословную для второго свойства"
-                    items={options.secondAncestryFeatures}
-                    onChange={handlers.selectSecondaryAncestry}
-                  />
-                )}
-                {mixedAncestry && <h4>Первое свойство — родословная</h4>}
-                <div className="dh-choice-grid dh-choice-grid--media cinematic-builder-choice-area dh-scroll">
-                  {options.builderContent.ancestries.slice(0, 36).map((item) => (
-                    <ChoiceCard
-                      layout="media"
-                      mediaFallback={item.imageUrl ? undefined : initials(item.name)}
-                      selected={selectedAncestry?.id === item.id}
-                      key={item.id}
-                      type="button"
-                      onClick={() => handlers.selectAncestry(item.id)}
-                    >
-                      {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
-                      <strong className="cinematic-card-title">{item.name}</strong>
-                      <span className="cinematic-card-body">{mixedAncestry ? options.firstAncestryFeatures.find((choice) => choice.id === item.id)?.subtitle ?? 'Первое свойство недоступно' : featureListText(item) || cleanRulesText(item.body)}</span>
-                    </ChoiceCard>
-                  ))}
-                </div>
-              </section>
+              <AncestrySelectionStep
+                ancestries={options.builderContent.ancestries}
+                firstId={fields.ancestryId}
+                secondId={fields.secondaryAncestryId}
+                onModeChange={handlers.setMixedAncestry}
+                onFirstChange={handlers.selectAncestry}
+                onSecondChange={handlers.selectSecondaryAncestry}
+              />
             )}
 
             {step === 'community' && (

@@ -1,3 +1,4 @@
+import { hasMixedAncestryMode } from './ancestry-selection-helpers';
 import { sharedQualityDocument, installQualityClickCounter, qualityClickCount, qualityViewRole } from './quality-ab-fixtures';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 test.beforeEach(async ({ page }) => { await installQualityClickCounter(page); });
@@ -176,7 +177,7 @@ test('create second hero preserves independent scene sheet context', async ({ pa
   const builder = page.getByRole('dialog', { name: 'Новый герой', exact: true });
   await builder.getByRole('button', { name: 'Случайный герой', exact: true }).click();
   await builder.getByRole('button', { name: 'Родословная', exact: true }).click();
-  observations.push({ action: 'mixed ancestry capability', available: await builder.getByRole('checkbox', { name: 'Смешанная родословная', exact: true }).count() > 0 });
+  observations.push({ action: 'mixed ancestry capability', available: await hasMixedAncestryMode(builder) });
   await snap(page, 'builder-ancestry', builder);
   await builder.getByRole('button', { name: 'Экипировка', exact: true }).click();
   const oneHandedPrimary = builder.getByRole('group', { name: 'Шаг: Стартовая экипировка', exact: true }).getByRole('button').filter({ has: page.getByText('Палаш', { exact: true }) }).first();
