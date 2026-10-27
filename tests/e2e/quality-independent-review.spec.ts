@@ -55,6 +55,7 @@ test('independent: familiar empty tray, true counts, one bonus removal and expli
   await tray.getByRole('button', { name: 'Сбросить набор', exact: true }).click();
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveCount(0);
   await expect(tray).not.toContainText('Формула пуста');
+  await expect(tray).not.toContainText('Добавьте кости в набор.');
   await shot(page, '01-empty-dice-first', tray);
   await tray.getByRole('button', { name: 'Добавить d20', exact: true }).click();
   await expect(tray.getByLabel('Итоговая формула')).toHaveText('1d20');
@@ -168,6 +169,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
     await expect(button).toBeInViewport();
     const after = await page.getByLabel('Игровая сцена').boundingBox();
     expect(after?.y).toBe(before?.y);
+    await expect(tray.locator('.mini-dice-launcher__mobile-head')).toContainText(filledCharacterName);
+    await expect(tray.locator('.mini-dice-launcher__mobile-head')).toBeInViewport();
     await shot(page, `07-expanded-options-${viewport.width}x${viewport.height}`, tray);
     await formula(tray, '2d12+5');
     await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('1');
@@ -230,3 +233,30 @@ for (const width of [1188, 390]) {
     await expect(page.getByLabel('Предпросмотр', { exact: true })).toHaveCount(0);
   });
 }
+
+
+test('independent: one explicit typed reaction rolls individual extras and pays an experience once', async ({ page }) => {
+  await boot(page); await selectPc(page); const tray = await openTray(page);
+  await tray.getByRole('button', { name: 'Реакция', exact: true }).click();
+  await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+  await tray.getByRole('checkbox', { name: 'Область 1 +2', exact: true }).check();
+  await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await tray.getByRole('button', { name: /^Преим\./ }).click();
+  await tray.getByRole('button', { name: /^Преим\./ }).click();
+  await expect(tray).toContainText('Костей: 4');
+  const sheet = page.getByLabel('Персонаж игрока', { exact: true });
+  const hope = sheet.getByRole('group', { name: 'Надежда', exact: true }).locator('[aria-pressed="true"]');
+  await expect(hope).toHaveCount(3);
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
+  await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
+  await expect(hope).toHaveCount(3);
+  await openTray(page);
+  await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(1);
+  await expect(hope).toHaveCount(2);
+  const roll = page.locator('.player-activity-event--roll');
+  await expect(roll).toContainText('Реакция');
+  await expect(roll.locator('.feed-die-chip')).toHaveCount(4);
+  await expect(page.getByRole('group', { name: 'Страх', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(0);
+  await shot(page, '12-actual-reaction-one-payment');
+});

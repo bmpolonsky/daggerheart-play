@@ -100,7 +100,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
   };
   const pool = unifiedRollPoolPresentation(draft);
   const emptyPool = !draft.formula.trim() && !draft.quantity && !draft.branches?.length;
-  const visibleError = emptyPool && /^(Формула пуста|Нет костей для броска)/.test(error ?? '') ? null : error;
+  const visibleError = emptyPool && /^(Формула пуста|Нет костей для броска|Добавьте кости в набор)/.test(error ?? '') ? null : error;
   return <section className="unified-roll-composer">
     <div className="unified-roll-composer__body">
     {state.pending && <Notice tone="warning">
