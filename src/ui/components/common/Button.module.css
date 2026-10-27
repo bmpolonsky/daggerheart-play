@@ -46,24 +46,25 @@
 
 .primary {
   border-color: transparent;
-  background: var(--dh-control-active);
-  color: #fff7e7;
+  background: var(--dh-primary-bg, var(--dh-control-active));
+  color: var(--dh-primary-color, #fff7e7);
 }
 
 .primary:hover:not(:disabled) {
   border-color: transparent;
-  background: rgba(216, 173, 83, 0.24);
+  background: var(--dh-primary-hover, rgba(216, 173, 83, 0.24));
+  color: var(--dh-primary-color, #fff7e7);
 }
 
 .secondary {
   border-color: transparent;
-  background: rgba(220, 190, 141, 0.12);
+  background: var(--dh-secondary-bg, rgba(220, 190, 141, 0.12));
   color: rgba(255, 247, 231, 0.94);
 }
 
 .secondary:hover:not(:disabled) {
   border-color: transparent;
-  background: rgba(229, 199, 150, 0.18);
+  background: var(--dh-secondary-hover, rgba(229, 199, 150, 0.18));
   color: #fff7e7;
 }
 

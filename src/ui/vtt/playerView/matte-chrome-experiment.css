@@ -1,0 +1,159 @@
+/* Separate GM chrome experiment: graphite / restrained brass. No game rules,
+   resource colors, art, card faces or other workspaces are changed. */
+body:has(.player-view--gm),
+body:has(.player-view--gm) :is(.player-view, .dh-portal-scope) {
+  --dh-ink-950: #0b0e12;
+  --dh-ink-900: #12161c;
+  --dh-ink-800: #1c232c;
+  --dh-paper-100: #eeeae2;
+  --dh-paper-200: #d1cfc9;
+  --dh-paper-muted: #aeb3bb;
+  --dh-paper-faint: #939da9;
+  --dh-glass: #0d1116;
+  --dh-glass-strong: #131a21;
+  --dh-glass-subtle: transparent;
+  --dh-control: rgba(164, 181, 199, 0.08);
+  --dh-control-hover: rgba(179, 194, 210, 0.14);
+  --dh-control-active: rgba(212, 178, 110, 0.16);
+  --dh-secondary-bg: var(--dh-control);
+  --dh-secondary-hover: var(--dh-control-hover);
+  --dh-primary-bg: #d4b26e;
+  --dh-primary-hover: #e7c88d;
+  --dh-primary-color: #171b21;
+  --dh-border: rgba(171, 189, 208, 0.1);
+  --dh-border-strong: rgba(191, 202, 216, 0.24);
+  --dh-chrome-accent: #d4b26e;
+  --dh-chrome-card: rgba(152, 175, 198, 0.045);
+  --dh-chrome-chat: #080c10;
+  --dh-blur: none;
+  --dh-shadow: 0 16px 42px rgba(0, 0, 0, 0.38);
+  --dh-shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.25);
+  --dh-focus: 0 0 0 2px color-mix(in srgb, var(--dh-chrome-accent) 65%, transparent);
+}
+
+/* Dark receding rails, with no bright rectangular outline. The tray is a
+   higher opaque plane so it remains readable when moved over another panel. */
+.player-view--gm :is(.player-left-rail, .player-character-panel-shell),
+body:has(.player-view--gm) :is(.mini-dice-launcher__floating-panel, .player-context-panel) {
+  background: var(--dh-glass);
+  border: 1px solid transparent;
+  box-shadow: var(--dh-shadow-soft);
+  backdrop-filter: none;
+}
+.player-view--gm :is(.player-left-rail:hover, .player-left-rail:focus-within) {
+  background: var(--dh-glass);
+}
+body:has(.player-view--gm) .mini-dice-launcher__floating-panel {
+  background: var(--dh-glass-strong);
+  box-shadow: var(--dh-shadow), inset 0 1px 0 var(--dh-border-strong);
+}
+.player-view--gm :is(.player-activity-card, .player-character-panel),
+.player-view--gm .player-character-panel-shell > .player-character-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* Content has hierarchy through space and typography, not framed sections. */
+.player-view--gm :is(.player-character-panel__hope, .player-track-list, .player-sheet-status-block),
+.player-view--gm :is(.player-threshold-row, .player-defense-row) > div,
+.player-view--gm .player-trait-grid .dh-choice-card,
+.player-view--gm .player-sheet-section > .dh-list-item {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  backdrop-filter: none;
+}
+.player-view--gm .player-character-panel__hope { padding: 8px; }
+.player-view--gm .player-sheet-section + .player-sheet-section {
+  border-top: 1px solid var(--dh-border);
+  padding-top: 10px;
+}
+.player-view--gm :is(.player-threshold-row, .player-defense-row) > div + div {
+  border-inline-start: 1px solid var(--dh-border);
+}
+.player-view--gm :is(.player-sheet-section h3, .player-sheet-status-block > header, .player-character-panel__section-title) {
+  color: var(--dh-chrome-accent);
+}
+.player-view--gm :is(.player-track-row, .player-threshold-row span, .player-defense-row span) { color: var(--dh-paper-muted); }
+.player-view--gm .player-trait-grid .dh-choice-card:hover:not(:disabled),
+.player-view--gm .player-sheet-section > .dh-list-item:hover {
+  background: var(--dh-control);
+  border-radius: var(--dh-radius-sm);
+}
+
+/* Quiet repeated actor objects; a selection gains accent rather than chrome. */
+.player-view--gm :is(.player-roster__item, .player-people-row, .player-prepared__list > .dh-list-item) {
+  background: var(--dh-chrome-card);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.player-view--gm :is(.player-roster__row, .player-roster__tracks, .player-participant-group) {
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.player-view--gm :is(.player-roster__item:hover, .player-people-row:hover) { background: var(--dh-control-hover); }
+.player-view--gm .player-roster__item.dh-is-selected { background: var(--dh-control-active); }
+.player-view--gm .player-participant-group + .player-participant-group { border-top: 1px solid var(--dh-border); }
+
+.player-view--gm :is(.player-chat-composer, .mini-dice-launcher, .player-fear-track),
+.player-view--gm .player-context-navigation {
+  background: var(--dh-glass);
+  backdrop-filter: none;
+  box-shadow: none;
+}
+.player-view--gm .player-chat-composer { background: var(--dh-control); }
+.player-view--gm .player-context-navigation { border-bottom: 1px solid var(--dh-border); }
+.player-view--gm .player-mobile-layer-tabs {
+  background: var(--dh-ink-900);
+  border-radius: var(--dh-radius);
+}
+.player-view--gm .player-mobile-layer-tabs button[aria-pressed="true"],
+.player-view--gm .dh-tab[aria-pressed="true"] {
+  background: var(--dh-control-active);
+  color: var(--dh-chrome-accent);
+}
+.player-view--gm :is(.player-fear-track__label, .player-fear-track__value) {
+  color: var(--dh-paper-100);
+  text-shadow: none;
+}
+body:has(.player-view--gm) .mini-dice-launcher__floating-panel > header {
+  background: transparent;
+  border-bottom: 1px solid var(--dh-border);
+}
+body:has(.player-view--gm) .mini-dice-launcher__floating-panel > header > span:first-child { color: var(--dh-chrome-accent); }
+body:has(.player-view--gm) :is(.unified-roll-composer__footer, .mini-dice-launcher__tray) {
+  background: transparent;
+  box-shadow: none;
+}
+body:has(.player-view--gm) .unified-roll-composer__footer {
+  border-top: 1px solid var(--dh-border);
+  padding-top: 8px;
+}
+@media (min-width: 921px) {
+  .player-view--gm :is(.player-left-rail, .player-left-rail:hover, .player-left-rail:focus-within) {
+    background: var(--dh-chrome-chat);
+    border-color: transparent;
+    box-shadow: none;
+  }
+}
+@media (max-width: 920px) {
+  .player-view--gm .player-character-panel__section-rail {
+    border-radius: 0;
+    border-bottom: 1px solid var(--dh-border);
+    background: transparent;
+  }
+  .player-view--gm .player-character-panel__section-rail [aria-current="step"] {
+    background: var(--dh-control-active);
+    color: var(--dh-chrome-accent);
+  }
+}
+
+/* Selected options stay below the submit command in the visual hierarchy. */
+body:has(.player-view--gm) .unified-roll-composer__body {
+  --dh-primary-bg: var(--dh-control-active);
+  --dh-primary-hover: var(--dh-control-hover);
+  --dh-primary-color: var(--dh-chrome-accent);
+}

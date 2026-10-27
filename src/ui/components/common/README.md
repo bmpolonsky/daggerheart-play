@@ -816,3 +816,7 @@ Before merging UI work:
 - Card creator print/card preview styles remain isolated from editor chrome.
 
 `AssetImage`, `Avatar`, and `ImageFilePicker` resolve `asset:<id>` references through the existing local/cloud asset storage. Use `useAssetUrl` for CSS backgrounds; it releases object URLs when the view changes. File pickers disable selection during an upload and show failures without clearing the previous value.
+
+Game chrome may scope the optional `--dh-secondary-bg`, `--dh-secondary-hover`, and `--dh-primary-hover` hooks to a workspace. Button/IconButton retain their existing defaults when unset; map themed secondary fills to `--dh-control`/`--dh-control-hover` rather than styling variant class names.
+
+Visual chrome experiments may also scope `--dh-primary-bg` and `--dh-primary-color` together for a high-contrast primary command. Unset hooks preserve the existing Button/IconButton styling. Keep resource colors independent from chrome accent tokens.
