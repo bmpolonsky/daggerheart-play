@@ -185,7 +185,12 @@ function RestMoveList({
           const canAdd = canSelect && selectedCount < maxChoices;
           return (
             <div className="feed-rest-move" key={label}>
-              <Button
+              {isClosed ? (
+                <strong className="feed-rest-move__label">
+                  <span>{label}</span>
+                  {count > 1 && <b>×{count}</b>}
+                </strong>
+              ) : <Button
                 className="feed-rest-move__select"
                 variant={count > 0 ? 'primary' : 'ghost'}
                 size="sm"
@@ -198,7 +203,7 @@ function RestMoveList({
               >
                 <span>{label}</span>
                 {count > 1 && <b>×{count}</b>}
-              </Button>
+              </Button>}
               {canSelect && pendingChoice && count > 0 && (
                 <IconButton
                   className="feed-rest-move__remove"

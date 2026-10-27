@@ -49,11 +49,6 @@
   box-shadow: var(--dh-focus);
 }
 
-.option:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-
 .active {
   color: var(--dh-paper-100);
 }
@@ -65,4 +60,10 @@
 .gold .active {
   background: rgba(216, 173, 83, 0.22);
   color: #fff4d6;
+}
+
+.option:disabled {
+  cursor: default;
+  opacity: 1;
+  color: var(--dh-paper-muted);
 }

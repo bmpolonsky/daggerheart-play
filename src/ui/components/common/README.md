@@ -46,6 +46,7 @@ Do not introduce new global color systems for screens. If a tool needs local ali
 ## Component Rules
 
 - Use `Button` for text commands.
+- Disabled commands retain readable text and use a muted fill instead of fading the entire control. Completed results should use ordinary text, not disabled command chrome.
 - Use `AssetImage` for repeated public content images that should lazy-load.
 - Use `Avatar` for round image/fallback identity accessories.
 - Use `IconButton` for icon-only commands. Every icon-only button needs `aria-label` or `title`.

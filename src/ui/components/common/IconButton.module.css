@@ -34,7 +34,12 @@
 
 .root:disabled {
   cursor: not-allowed;
-  opacity: 0.48;
+  opacity: 1;
+  color: var(--dh-paper-muted);
+}
+
+.primary:disabled {
+  background: var(--dh-control-active);
 }
 
 .primary {
