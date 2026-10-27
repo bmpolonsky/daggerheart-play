@@ -73,6 +73,11 @@ test('independent: familiar empty tray, true counts, one bonus removal and expli
   await expect(tray.getByRole('button', { name: 'Приватный бросок', exact: true })).toBeVisible();
   await shot(page, '03-clear-private-state', tray);
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
+  await tray.getByRole('button', { name: 'Дуальность', exact: true }).click();
+  await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toBeVisible();
+  await expect(tray.getByRole('button', { name: 'Убрать кость Страха', exact: true })).toBeVisible();
+  await shot(page, '03b-GM-explicit-duality', tray);
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
 });
 
 test('independent: formula and flat modifier stay bidirectional, negative dice are removable', async ({ page }) => {
@@ -164,6 +169,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
     const after = await page.getByLabel('Игровая сцена').boundingBox();
     expect(after?.y).toBe(before?.y);
     await shot(page, `07-expanded-options-${viewport.width}x${viewport.height}`, tray);
+    await formula(tray, '2d12+5');
+    await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('1');
+    await expect(button).toBeInViewport();
+    await shot(page, `07b-expanded-formula-${viewport.width}x${viewport.height}`, tray);
     await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
   });
 }
