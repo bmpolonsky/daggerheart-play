@@ -272,6 +272,11 @@ test('independent: one explicit typed reaction rolls individual extras and pays 
   const bonusDetails = roll.locator('.feed-roll-details-panel');
   await expect(bonusDetails).toContainText(actual.advantageRolls.join(', '));
   await expect(bonusDetails).toContainText(`${actual.advantageRolls.join(', ')} → +${actual.keptExtraDie} (максимум)`);
+  const bonusRow = bonusDetails.locator('div').filter({ has: page.locator('dt', { hasText: /^Преимущество$/ }) });
+  await expect(bonusRow).toHaveCount(1);
+  const labelBounds = (await bonusRow.locator('dt').boundingBox())!;
+  const valueBounds = (await bonusRow.locator('dd').boundingBox())!;
+  expect(labelBounds.x + labelBounds.width).toBeLessThan(valueBounds.x);
   await expect(page.getByRole('group', { name: 'Страх', exact: true }).locator('[aria-pressed="true"]')).toHaveCount(0);
   await shot(page, '12-actual-reaction-one-payment-details');
 });
