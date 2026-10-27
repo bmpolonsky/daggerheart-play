@@ -874,8 +874,8 @@ test.describe('filled-game player character workflows', () => {
       await expect(playerEditor.getByText(/уровень 1/i)).toBeVisible({ timeout: 15_000 });
       await playerEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы' }).click();
       await playerEditor.getByRole('button', { name: 'Свободное редактирование' }).click();
-      await expect(playerEditor.getByLabel('Макс. Ран')).toHaveValue(String(filledCharacterResources.hp.max));
-      await expect(playerEditor.getByLabel('Макс. Стресса')).toHaveValue(String(filledCharacterResources.stress.max));
+      await expect(playerEditor.getByLabel('Базовый максимум Ран')).toHaveValue(String(filledCharacterResources.hp.max));
+      await expect(playerEditor.getByLabel('Базовый максимум Стресса')).toHaveValue(String(filledCharacterResources.stress.max));
     } finally {
       await relay.close();
     }

@@ -4,6 +4,7 @@ import { buildEffectiveCharacterStats } from '../../domain/rules/effects';
 import type { Character } from '../../domain/rules/types';
 import { gameService, characterService } from '../../services/serviceRegistry';
 import { useStream } from '../../core/hooks/useStream';
+import styles from './ResourcePanel.module.css';
 
 export function ResourcePanel({ character, allowStructureEdit = false }: { character: Character; allowStructureEdit?: boolean }) {
   const game = useStream(gameService.game$);
@@ -42,19 +43,19 @@ export function ResourcePanel({ character, allowStructureEdit = false }: { chara
         />
       </div>
       {allowStructureEdit && (
-        <div className="grid-4">
+        <div className={styles.baseFields}>
           <NumberField
-            label="Макс. Ран"
+            label="Базовый максимум Ран"
             value={character.hp.max}
             onChange={(event) => characterService.updateResourceMax(character.id, 'hp', Number(event.currentTarget.value))}
           />
           <NumberField
-            label="Макс. Стресса"
+            label="Базовый максимум Стресса"
             value={character.stress.max}
             onChange={(event) => characterService.updateResourceMax(character.id, 'stress', Number(event.currentTarget.value))}
           />
           <NumberField
-            label="Макс. Надежды"
+            label="Базовый максимум Надежды"
             value={character.hope.max}
             onChange={(event) => characterService.updateResourceMax(character.id, 'hope', Number(event.currentTarget.value))}
           />
@@ -65,6 +66,7 @@ export function ResourcePanel({ character, allowStructureEdit = false }: { chara
               onChange={(event) => characterService.setActionTokens(character.id, Number(event.currentTarget.value))}
             />
           )}
+          <small className={styles.hint}>Максимумы без бонусов свойств. Итоги показаны в шкалах выше.</small>
         </div>
       )}
     </div>

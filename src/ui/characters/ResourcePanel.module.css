@@ -1,0 +1,13 @@
+.baseFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  align-items: start;
+  gap: 10px;
+}
+
+.hint {
+  grid-column: 1 / -1;
+  color: var(--dh-paper-muted);
+  font-size: .7rem;
+  line-height: 1.4;
+}

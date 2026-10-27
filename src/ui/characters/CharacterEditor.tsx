@@ -201,7 +201,7 @@ export function CharacterEditor({
               onChange={(event) => characterService.setArmorEquipped(character.id, event.currentTarget.checked)}
             />
             <div className="grid-3">
-              <NumberField label="Уклонение" value={character.evasion} onChange={(event) => characterService.updateEvasion(character.id, Number(event.currentTarget.value))} />
+              <NumberField label="Базовое уклонение" title="Без бонусов брони и свойств; итоговое Уклонение показано в шапке." aria-description="Без бонусов брони и свойств; итоговое Уклонение показано в шапке." value={character.evasion} onChange={(event) => characterService.updateEvasion(character.id, Number(event.currentTarget.value))} />
               <NumberField label="Мастерство" value={character.proficiency} onChange={(event) => characterService.updateProficiency(character.id, Number(event.currentTarget.value))} />
               {armorOptions.length > 0 ? (
                 <RichChoicePicker
