@@ -22,6 +22,18 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
   // Start from explicit values, independent of random class recommendations.
   for (const field of fields) await field.selectOption('');
   for (let i = 0; i < fields.length; i++) await fields[i].selectOption(['0', '-1', '1', '0', '2', '1'][i]);
+  await fields[5].selectOption('');
+  await fields[1].selectOption('1');
+  await expect(fields[2]).toHaveValue('1');
+  await expect(fields[4]).toHaveValue('2');
+  await expect(fields[5]).toHaveValue('');
+  const freeOutput = process.env.TRAIT_OUTPUT_DIR;
+  if (freeOutput) {
+    await mkdir(freeOutput, { recursive: true });
+    await page.screenshot({ path: path.join(freeOutput, `free-slot-${viewport.width}x${viewport.height}.png`) });
+  }
+  await fields[1].selectOption('-1');
+  await fields[5].selectOption('1');
   await fields[1].selectOption('2');
   await expect(fields[4]).toHaveValue('');
   await expect(group.getByRole('status')).toContainText('Влияние');
