@@ -1,7 +1,4 @@
 /** @jsxImportSource preact */
-import styles from './AdversarySheet.module.css';
-import { previewAdversaryDamage } from '../../../domain/rules/adversaryDamage';
-import { NumberControl } from '../../components/common';
 import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import { ChevronLeft, Heart, Zap } from "lucide-react";
@@ -28,18 +25,6 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
   const setFeatureDiceDraft = (draft: PreparedDiceRoll | null) => setFeatureDiceState(draft ? { actorId: adversary.id, draft } : null);
   const runFeatureMacro = (feature: SheetFeatureView, macro: DomainCardTextMacro) => {
     runAdversaryFeatureMacro(adversary, feature, macro, setFeatureDiceDraft);
-  };
-  const [incomingDamage, setIncomingDamage] = useState<{ actorId: string; value: string }>({ actorId: adversary.id, value: '' });
-  const [damageResult, setDamageResult] = useState<{ actorId: string; message: string; applied: boolean } | null>(null);
-  const damageValue = incomingDamage.actorId === adversary.id ? incomingDamage.value : '';
-  const damagePreview = previewAdversaryDamage(adversary, damageValue.trim() === '' ? null : Number(damageValue));
-  const applyIncomingDamage = () => {
-    if (!damagePreview.valid) return;
-    const result = encounterService.applyAdversaryDamage(damagePreview);
-    setDamageResult({ actorId: adversary.id, applied: result.applied, message: result.applied && result.appliedWounds !== undefined
-      ? `Отмечено Ран: ${result.appliedWounds} (${damagePreview.markedAfter}/${damagePreview.hpMax}).`
-      : result.message });
-    if (result.applied) setIncomingDamage({ actorId: adversary.id, value: '' });
   };
   const addStatus = (name: string) => {
     if (normalizeStatusTag(name) === ActorStatus.Defeated) {
@@ -109,20 +94,6 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
               <strong>{adversary.thresholds.severe}+</strong>
             </div>
           </section>
-          {!readOnly && <details className={styles.incomingDamage}>
-            <summary>Входящий урон</summary>
-            <div className={styles.damageControls}>
-              <NumberControl className={styles.damageInput} aria-label="Полученный урон" placeholder="Урон" min={0} step={1} inputMode="numeric" value={damageValue}
-                aria-describedby={`incoming-damage-hint-${adversary.id}`}
-                onInput={(event) => { setIncomingDamage({ actorId: adversary.id, value: event.currentTarget.value }); setDamageResult(null); }} />
-              <Button size="sm" aria-label="Применить урон" disabled={!damagePreview.valid || damagePreview.appliedWounds === 0} onClick={applyIncomingDamage}>Применить</Button>
-            </div>
-            <p id={`incoming-damage-hint-${adversary.id}`} className={styles.damageHint}>После сопротивлений и особых свойств.</p>
-            {damageValue.trim() !== '' && <p className={`${styles.damageMessage} ${!damagePreview.valid ? styles.damageError : ''}`} aria-live="polite">{damagePreview.valid
-              ? `Раны: +${damagePreview.appliedWounds} (${damagePreview.markedBefore} → ${damagePreview.markedAfter} из ${damagePreview.hpMax}).`
-              : damagePreview.reason}</p>}
-            {damageResult?.actorId === adversary.id && <p className={`${styles.damageMessage} ${!damageResult.applied ? styles.damageError : ''}`} role={damageResult.applied ? 'status' : 'alert'}>{damageResult.message}</p>}
-          </details>}
           <section className="player-sheet-status-block">
             <header>
               <span>Состояния</span>

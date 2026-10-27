@@ -183,27 +183,22 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
   });
 }
 
-test('independent: incoming NPC damage is compact, capped, and requires one explicit application', async ({ page }) => {
+test('independent: NPC thresholds and direct wounds replace the removed incoming calculator', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); await boot(page);
   const layers = page.getByLabel('Слой интерфейса');
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
   await page.getByLabel('Игровая сцена').getByRole('button', { name: 'Алая Слизь', exact: true }).click();
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Лист', exact: true }).click();
   const sheet = page.getByLabel('Противник мастера', { exact: true });
-  const details = sheet.locator('details').filter({ has: page.locator('summary', { hasText: 'Входящий урон' }) });
-  await details.locator('summary').click();
-  await details.getByRole('spinbutton', { name: 'Полученный урон', exact: true }).fill('14');
-  expect((await details.boundingBox())!.height).toBeLessThan(170);
-  await expect(details).toContainText('0 → 3 из 5');
-  await shot(page, '08-compact-incoming-damage', details);
-  await details.getByRole('button', { name: 'Применить урон', exact: true }).click();
-  await expect(details.getByRole('spinbutton', { name: 'Полученный урон', exact: true })).toHaveValue('');
-  await expect(details.getByRole('button', { name: 'Применить урон', exact: true })).toBeDisabled();
-  await details.getByRole('spinbutton', { name: 'Полученный урон', exact: true }).fill('14');
-  await expect(details).toContainText('3 → 5 из 5');
-  await details.getByRole('button', { name: 'Применить урон', exact: true }).click();
-  await expect(details.getByRole('status')).toContainText('Отмечено Ран: 2 (5/5)');
-  await shot(page, '09-capped-incoming-damage', details);
+  await expect(sheet.getByText('Входящий урон', { exact: true })).toHaveCount(0);
+  await expect(sheet.getByRole('spinbutton', { name: 'Полученный урон', exact: true })).toHaveCount(0);
+  await expect(sheet.getByLabel('Пороги противника')).toContainText('14+');
+  const wounds = sheet.getByRole('group', { name: 'Раны', exact: true });
+  await wounds.getByRole('button', { name: 'Раны 3 из 5', exact: true }).click();
+  await expect(wounds.locator('[aria-pressed="true"]')).toHaveCount(3);
+  await wounds.getByRole('button', { name: 'Раны 5 из 5', exact: true }).click();
+  await expect(sheet.getByRole('button', { name: 'Снять состояние Побеждён', exact: true })).toBeVisible();
+  await shot(page, '08-direct-wounds-without-calculator', sheet);
 });
 
 for (const width of [1188, 390]) {
