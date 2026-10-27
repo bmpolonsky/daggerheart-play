@@ -70,6 +70,7 @@ test('named Patron pool preserves markdown offsets and tier-sized dice', () => {
   const patron = source('subclasses', 'playtest-pact-of-the-wraithful', 1978);
   const macro = parseContextualDiceMacros(patron).find(macro => macro.kind === 'diceRoll' && macro.contextualBinding)!;
   assert.ok(macro, 'Canonical Patron text has a named pool macro');
+  assert.ok(macro.kind === 'diceRoll');
   const result = prepare(patron, macro);
   assert.equal(result.formula, '3d8');
   assert.equal(result.quantity, undefined);
