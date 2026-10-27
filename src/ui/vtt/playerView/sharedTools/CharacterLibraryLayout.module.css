@@ -39,6 +39,10 @@
 }
 
 .layout :global(.character-editor-heading) { display: grid; gap: 10px; }
+.layout :global(.player-tools-character-editor),
+.layout :global(.character-editor-compact),
+.layout :global(.character-editor-heading) { grid-template-columns: minmax(0, 1fr); }
+.layout :global(.player-tools-character-backbar > button) { flex-shrink: 0; }
 .layout :global(.character-editor-heading > div) { min-width: 0; }
 .layout :global(.character-editor-heading h2) { overflow-wrap: break-word; }
 .layout :global(.character-editor-heading .dh-section-header__actions),

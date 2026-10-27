@@ -58,6 +58,14 @@ for (const width of [1180, 1440, 390]) test(`character list and editor remain us
   await expect(remove).toBeVisible();
   await second.getByRole('button', { name: longName, exact: true }).click();
   await expect(editor.getByRole('heading', { name: longName, exact: true })).toBeVisible();
+  expect(await editor.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+  const headingBox = (await editor.getByRole('heading', { name: longName, exact: true }).boundingBox())!;
+  expect(headingBox.x + headingBox.width).toBeLessThanOrEqual(width);
+  await editor.getByRole('button', { name: 'Редактировать', exact: true }).click();
+  const done = editor.getByRole('button', { name: 'Готово', exact: true });
+  const doneBox = (await done.boundingBox())!;
+  expect(doneBox.x + doneBox.width).toBeLessThanOrEqual(width);
+  await done.click();
   await page.screenshot({ path: `${out}/after-${width}-long-name.png` });
   expect(await page.locator('body').evaluate(el => el.scrollWidth)).toBeLessThanOrEqual(width);
 });
