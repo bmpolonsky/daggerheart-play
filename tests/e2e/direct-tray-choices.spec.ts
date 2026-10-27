@@ -50,7 +50,8 @@ async function savedState(page: Page): Promise<any> {
       };
     });
     const world = stored?.worlds?.[stored.activeWorldId] ?? stored;
-    return world?.games?.[world.activeGameId]?.state;
+    const state = world?.games?.[world.activeGameId]?.state;
+    return state ? { ...state, __qaStorage: { worldId: stored.activeWorldId, gameId: world.activeGameId } } : undefined;
   });
 }
 
@@ -123,6 +124,17 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     const repeated = await savedState(page);
     expect(repeated.characters.entities[actorId].hope.value).toBe(2);
     await snapshot(page, tray, `${viewport.width}-reset-repeat`);
+    const retained = { storage: repeated.__qaStorage, rollIds: repeated.rollLog.map((entry: any) => entry.id),
+      actorIds: repeated.characters.order, selectedCharacterId: repeated.ui.selectedCharacterId, hope: 2, fear: repeated.game.fear };
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-vtt-root]')).toBeVisible();
+    await expect.poll(async () => {
+      const restored = await savedState(page);
+      return restored ? { storage: restored.__qaStorage, rollIds: restored.rollLog.map((entry: any) => entry.id),
+        actorIds: restored.characters.order, selectedCharacterId: restored.ui.selectedCharacterId,
+        hope: restored.characters.entities[actorId].hope.value, fear: restored.game.fear } : null;
+    }).toEqual(retained);
+    await writeFile(`${output}/${viewport.width}-reload-retained.json`, JSON.stringify(retained, null, 2));
   });
 }
 
