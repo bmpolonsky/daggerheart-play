@@ -57,6 +57,18 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     await mkdir(output, { recursive: true });
     await page.screenshot({ path: path.join(output, `released-trait-${viewport.width}x${viewport.height}.png`) });
   }
+  for (const field of fields) {
+    const controlBox = (await field.boundingBox())!;
+    const cardBox = (await field.locator('..').boundingBox())!;
+    expect(controlBox.y + controlBox.height).toBeLessThanOrEqual(cardBox.y + cardBox.height + 1);
+  }
+  if (viewport.height < 500) {
+    const scroller = group.locator('.dh-stat-grid');
+    await scroller.hover(); await page.mouse.wheel(0, 400);
+    await fields[5].click({ trial: true });
+    if (output) await page.screenshot({ path: path.join(output, `last-trait-${viewport.width}x${viewport.height}.png`) });
+    await page.mouse.wheel(0, -400);
+  }
   await fields[1].selectOption('2');
   await expect(fields[0]).toHaveValue('0');
   await expect(fields[2]).toHaveValue('1');
