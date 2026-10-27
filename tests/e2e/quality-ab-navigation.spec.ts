@@ -1,4 +1,6 @@
+import { sharedQualityDocument, installQualityClickCounter, qualityClickCount, qualityViewRole } from './quality-ab-fixtures';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+test.beforeEach(async ({ page }) => { await installQualityClickCounter(page); });
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
@@ -66,7 +68,7 @@ async function observe(page: Page, report: Report, stage: string, extra: Record<
     navigationIndex: (window as Window & { navigation?: { currentEntry?: { index?: number } } }).navigation?.currentEntry?.index ?? null,
     libraryOpen: Array.from(document.querySelectorAll('[role="dialog"]')).some(element => element.getAttribute('aria-label') === 'Библиотека игры'),
     documentScroll: scrollY, viewport: { width: innerWidth, height: innerHeight } }));
-  report.observations.push({ stage, screenshot, ...state, ...extra });
+  report.observations.push({ stage, screenshot, pointerClicks: await qualityClickCount(page), role: await qualityViewRole(page), ...state, ...extra });
   await writeFile(join(directory, `${report.probe}.json`), JSON.stringify(report, null, 2));
 }
 async function openCard(page: Page) {
@@ -94,7 +96,7 @@ test('quality A/B: chat initial position, deliberate reading and world switch', 
   await page.setViewportSize({ width: 390, height: 844 });
   const report: Report = { probe: 'navigation-chat-world-switch', label, transport: 'local game; deterministic fixture installed, no network room', observations: [], differences: {} };
   await openLocalGame(page, info);
-  await importGameDocument(page, historyFixture('A'), 'quality-history-A.dhgame');
+  await importGameDocument(page, await sharedQualityDocument(historyFixture('A'), 'history-A'), 'quality-history-A.dhgame');
   await showChat(page);
   await expect(page.locator('.player-activity-event--message')).toHaveCount(22);
   await observe(page, report, '01-initial-A', { chat: await metrics(page) });
@@ -108,7 +110,7 @@ test('quality A/B: chat initial position, deliberate reading and world switch', 
   await observe(page, report, '02-reading-A-with-new-message', { chat: await metrics(page),
     unreadButton: await page.getByRole('button', { name: /^Новые события:/ }).allTextContents() });
   // Importing a second game is an ordinary UI world switch, preserving the app shell.
-  await importGameDocument(page, historyFixture('B'), 'quality-history-B.dhgame');
+  await importGameDocument(page, await sharedQualityDocument(historyFixture('B'), 'history-B'), 'quality-history-B.dhgame');
   await showChat(page);
   await expect(page.locator('.player-activity-event--message')).toHaveCount(22);
   await expect(page.locator('.player-activity-list')).toContainText('Мир B');
@@ -127,7 +129,7 @@ for (const width of [1188, 390]) {
     await page.setViewportSize({ width, height: 844 });
     const report: Report = { probe: `navigation-preview-${width}`, label, transport: 'local synthetic game; no network room', observations: [], differences: {} };
     await openLocalGame(page, info);
-    await importGameDocument(page, createPopulatedGameDocument(), 'quality-preview.dhgame');
+    await importGameDocument(page, await sharedQualityDocument(createPopulatedGameDocument()), 'quality-preview.dhgame');
     const library = await openGameLibrary(page);
     await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
     await library.getByRole('button', { name: 'Закрыть библиотеку', exact: true }).click();
@@ -203,7 +205,7 @@ test('quality A/B: modeled player resource synchronization and post-ACK mobile d
   try {
     await player.setViewportSize({ width: 390, height: 844 });
     await openQualityRoom(gm, info, room, 'gm');
-    await importGameDocument(gm, createPopulatedGameDocument(), 'quality-player-sync.dhgame');
+    await importGameDocument(gm, await sharedQualityDocument(createPopulatedGameDocument()), 'quality-player-sync.dhgame');
     await openQualityRoom(player, info, room, 'player');
     const picker = player.getByRole('region', { name: 'Выбор игрока' });
     await expect(picker).toBeVisible();

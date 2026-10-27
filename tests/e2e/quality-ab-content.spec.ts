@@ -1,4 +1,6 @@
+import { sharedQualityDocument, installQualityClickCounter, qualityClickCount, qualityViewRole } from './quality-ab-fixtures';
 import { expect, test, type Page, type TestInfo, type Locator } from '@playwright/test';
+test.beforeEach(async ({ page }) => { await installQualityClickCounter(page); });
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { installDeterministicP2PTransport } from './game-route-helpers';
@@ -13,7 +15,7 @@ let clicks: string[] = [];
 async function click(target: Locator, name: string) { clicks.push(name); await target.click(); }
 async function capture(page: Page, name: string, target?: Locator) {
   await mkdir(directory, { recursive: true });
-  observations.push({ name, actions: [...clicks], actionCount: clicks.length,
+  observations.push({ name, pointerClicks: await qualityClickCount(page), role: await qualityViewRole(page), actions: [...clicks], actionCount: clicks.length,
     text: target ? await target.innerText() : undefined, bounds: target ? await target.boundingBox() : undefined,
     rollEntries: await page.locator('.player-activity-event--roll').count(),
     inputs: await page.locator('.unified-roll-composer input').evaluateAll(elements => elements.map((element: any) => ({ name: element.getAttribute('aria-label'), value: element.value }))),
@@ -26,7 +28,7 @@ async function boot(page: Page, baseURL: string | undefined, document = createPo
   await installDeterministicP2PTransport(page);
   await page.goto(`${baseURL ?? 'http://127.0.0.1:4208/'}#/game`);
   await expect(page.locator('[data-vtt-root]')).toBeVisible();
-  await importGameDocument(page, document, 'quality-content-identical.dhgame');
+  await importGameDocument(page, await sharedQualityDocument(document), 'quality-content-identical.dhgame');
 }
 async function library(page: Page, collection: string) {
   const workspace = await openGameLibrary(page); clicks.push('open Library');

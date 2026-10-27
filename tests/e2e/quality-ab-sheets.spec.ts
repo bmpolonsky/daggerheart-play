@@ -1,4 +1,6 @@
+import { sharedQualityDocument, installQualityClickCounter, qualityClickCount, qualityViewRole } from './quality-ab-fixtures';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+test.beforeEach(async ({ page }) => { await installQualityClickCounter(page); });
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { createWeapon } from '../../src/domain/rules/factories';
@@ -43,7 +45,7 @@ async function open(page: Page, baseURL: string | undefined, variant?: (document
   await installDeterministicP2PTransport(page);
   await page.goto(`${baseURL ?? 'http://127.0.0.1:4208/'}#/game`);
   await expect(page.locator('[data-vtt-root]')).toBeVisible();
-  await importGameDocument(page, document, 'paired-identical.dhgame');
+  await importGameDocument(page, await sharedQualityDocument(document), 'paired-identical.dhgame');
 }
 
 async function snap(page: Page, name: string, target?: Locator) {
@@ -56,7 +58,7 @@ async function snap(page: Page, name: string, target?: Locator) {
     const item = target.getByText(itemName, { exact: true }).first();
     if (await item.count()) await item.scrollIntoViewIfNeeded();
   }
-  observations.push({ step: name, url: page.url(), text: target ? await target.innerText() : undefined,
+  observations.push({ step: name, pointerClicks: await qualityClickCount(page), role: await qualityViewRole(page), url: page.url(), text: target ? await target.innerText() : undefined,
     bounds: target ? await target.boundingBox() : undefined,
     controls: target ? await target.locator('button,input,select,textarea').evaluateAll(elements => elements.map(element => ({
       tag: element.tagName, text: element.textContent?.trim(), aria: element.getAttribute('aria-label'),
