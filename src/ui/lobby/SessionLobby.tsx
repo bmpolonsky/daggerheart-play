@@ -65,7 +65,7 @@ export function SessionLobby({ initialPlayerRoomId = '', inviteContext, onEnterG
                 lines={2}
                 leftAccessory={<HardDrive size={17} aria-hidden="true" />}
                 title={activeGame?.name || 'Без названия'}
-                subtitle={activeGame ? 'Текущая игра · на устройстве' : 'Выберите или создайте игру'}
+                subtitle={activeGame ? 'Текущая игра на этом устройстве' : 'Выберите или создайте игру'}
                 rightAccessory={<Button size="xs" variant="ghost" onClick={() => setGamesOpen(true)}>Сменить</Button>}
               />
             </Surface>

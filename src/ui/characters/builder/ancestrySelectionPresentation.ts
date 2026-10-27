@@ -21,7 +21,7 @@ export function ancestrySelectionPresentation(ancestries: GenericLibraryItem[], 
       first ? `${first.title} — ${first.subtitle}` : 'Первое свойство не выбрано',
       second ? `${second.title} — ${second.subtitle}` : 'Второе свойство не выбрано'
     ],
-    singleOptions: ancestries.map(item => ({ ...item, featureNames: item.raw.features?.map(feature => feature.name).filter(Boolean).join(' · ') ?? '' })),
+    singleOptions: ancestries.map(item => ({ ...item, featureNames: item.raw.features?.map(feature => feature.name).filter(Boolean).join(', ') ?? '' })),
     singleFeatures: firstAncestry?.raw.features?.map((feature, index) => ({
       id: String(feature.id ?? index), name: feature.name ?? 'Свойство',
       description: cleanMarkdownText(feature.main_body ?? feature.text ?? '', { stripEmphasis: true })

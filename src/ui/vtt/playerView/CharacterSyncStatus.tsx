@@ -31,7 +31,7 @@ export function CharacterSyncStatus({ role, actorId }: { role: TableViewRole; ac
           {events.slice(0, 10).map((event) => (
             <li key={`${event.actorId}:${event.revision}:${event.state}:${event.at}`}>
               <strong>{characters.entities[event.actorId]?.name ?? 'Персонаж'}</strong>
-              <span>{labels[event.state]} · версия {event.revision}</span>
+              <span>{labels[event.state]}, версия {event.revision}</span>
               <time dateTime={event.at}>{new Date(event.at).toLocaleTimeString()}</time>
             </li>
           ))}

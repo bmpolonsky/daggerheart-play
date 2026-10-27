@@ -119,7 +119,7 @@ export function AdversarySheet({ adversary, navigation, onBack, readOnly = false
             </div>
             <p id={`incoming-damage-hint-${adversary.id}`} className={styles.damageHint}>После сопротивлений и особых свойств.</p>
             {damageValue.trim() !== '' && <p className={`${styles.damageMessage} ${!damagePreview.valid ? styles.damageError : ''}`} aria-live="polite">{damagePreview.valid
-              ? `Раны: +${damagePreview.appliedWounds} · ${damagePreview.markedBefore} → ${damagePreview.markedAfter} из ${damagePreview.hpMax}.`
+              ? `Раны: +${damagePreview.appliedWounds} (${damagePreview.markedBefore} → ${damagePreview.markedAfter} из ${damagePreview.hpMax}).`
               : damagePreview.reason}</p>}
             {damageResult?.actorId === adversary.id && <p className={`${styles.damageMessage} ${!damageResult.applied ? styles.damageError : ''}`} role={damageResult.applied ? 'status' : 'alert'}>{damageResult.message}</p>}
           </details>}

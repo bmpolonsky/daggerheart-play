@@ -457,7 +457,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
             className="player-tools-media-card"
             key={`${connection.strategy}:${connection.physicalPeerId}`}
             title={peerNames.get(connection.peerId) ?? fallbackPeerName(connection.peerId, role)}
-            subtitle={`${P2P_ROUTE_LABELS[connection.strategy]} · ${formatIceRoute(connection)}`}
+            subtitle={`${P2P_ROUTE_LABELS[connection.strategy]}: ${formatIceRoute(connection)}`}
             actions={<Badge tone={connection.connectionState === 'connected' ? 'success' : connection.connectionState === 'failed' ? 'danger' : 'gold'}>
               {formatConnectionState(connection.connectionState)}
             </Badge>}
@@ -577,7 +577,7 @@ function formatMediaFlowDetail(stat?: DisplayMediaRtpDiagnostic): string {
     stat.jitterMs === null ? null : `jitter ${stat.jitterMs.toFixed(1)} мс`,
     stat.kind === 'audio' && stat.audioLevel !== null ? `уровень ${Math.round(stat.audioLevel * 100)}%` : null
   ].filter((part): part is string => Boolean(part));
-  return parts.join(' · ');
+  return parts.join(', ');
 }
 
 function formatByteCount(bytes: number): string {
@@ -594,7 +594,7 @@ function formatIceRoute(connection: P2PMediaConnectionDiagnostic): string {
     candidates || 'ICE-кандидат неизвестен',
     connection.protocol?.toUpperCase(),
     `ICE ${connection.iceConnectionState}`
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(', ');
 }
 
 function formatConnectionState(state: RTCPeerConnectionState): string {

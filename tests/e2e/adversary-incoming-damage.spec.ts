@@ -21,7 +21,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await damage.locator('summary').click();
     const input = damage.getByRole('spinbutton', { name: /^Полученный урон/ });
     await input.fill('10');
-    await expect(damage).toContainText('Раны: +2 · 0 → 2 из 4.');
+    await expect(damage).toContainText('Раны: +2 (0 → 2 из 4).');
     const inputBox = await input.boundingBox();
     const applyBox = await damage.getByRole('button', { name: 'Применить урон', exact: true }).boundingBox();
     expect(inputBox).not.toBeNull(); expect(applyBox).not.toBeNull();
@@ -33,7 +33,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await expect(input).toHaveValue('');
     await expect(damage.getByRole('button', { name: 'Применить урон', exact: true })).toBeDisabled();
     await input.fill('20');
-    await expect(damage).toContainText('Раны: +2 · 2 → 4 из 4.');
+    await expect(damage).toContainText('Раны: +2 (2 → 4 из 4).');
     await damage.getByRole('button', { name: 'Применить урон', exact: true }).click();
     await expect(damage.getByRole('status')).toContainText('Отмечено Ран: 2 (4/4)');
     await expect(sheet.getByRole('button', { name: 'Снять состояние Побеждён', exact: true })).toBeVisible();

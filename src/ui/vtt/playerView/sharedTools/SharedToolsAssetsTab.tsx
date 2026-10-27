@@ -78,7 +78,7 @@ export function SharedToolsAssetsTab({ assets }: { assets: Record<string, MapAss
                 className="player-tools-asset-card"
                 key={asset.id}
                 title={asset.name}
-                subtitle={[formatByteCount(asset.byteSize), usages ? `${usages} ${usages === 1 ? 'использование' : 'исп.'}` : 'Не используется'].filter(Boolean).join(' · ')}
+                subtitle={[formatByteCount(asset.byteSize), usages ? `использований: ${usages}` : 'не используется'].filter(Boolean).join(', ')}
                 actions={(
                   <IconButton
                     variant="danger"

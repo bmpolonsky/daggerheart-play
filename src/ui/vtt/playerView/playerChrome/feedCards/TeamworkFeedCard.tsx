@@ -150,7 +150,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                         </Button>
                       </>
                     )}
-                    {!canRoll && <span>{TRAIT_LABELS[selectedTrait]}{hasPendingRoll ? ' · Ожидает решения мастера' : ''}</span>}
+                    {!canRoll && <span>{TRAIT_LABELS[selectedTrait]}{hasPendingRoll ? '. Ожидает решения мастера.' : ''}</span>}
                   </div>
                 )}
               </div>

@@ -296,7 +296,7 @@ export function EncounterPanel({
                     </Button>
                     <div className="truncate text-xs capitalize text-slate-500">
                       {entry.adversary.roleName}
-                      {entry.count > 1 ? ` • x${entry.count}` : ""}
+                      {entry.count > 1 ? `, количество: ${entry.count}` : ""}
                     </div>
                   </div>
 

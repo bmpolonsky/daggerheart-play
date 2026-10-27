@@ -115,7 +115,7 @@ function FloatingVideo({ handRaised, local = false, participant }: { handRaised:
   return (
     <article className={`floating-call__video ${local ? 'dh-is-local' : ''}`.trim()}>
       {participant.stream && !participant.cameraOff ? <MediaStreamVideo key={mediaStreamRenderKey(participant.stream)} muted stream={participant.stream} /> : <span>{initials(name)}</span>}
-      <small>{name}{local ? ' · вы' : ''}</small>
+      <small>{name}{local && participant.displayName ? ' (вы)' : ''}</small>
       <div className="floating-call__video-status">
         {handRaised && <Hand size={13} aria-label="Игровая рука поднята" />}
         {participant.micMuted && <MicOff size={13} aria-label="Микрофон выключен" />}

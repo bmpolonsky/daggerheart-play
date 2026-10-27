@@ -168,7 +168,7 @@ export function WorldLibraryPanel({ onOpen }: { onOpen?: () => void }) {
                 lines={2}
                 tone={world.active ? 'featured' : 'default'}
                 title={<span className={`${styles.title} ${styles.worldTitle}`}>{world.name || 'Без названия'}{world.active && <Badge size="xs" tone="gold">Текущий</Badge>}</span>}
-                subtitle={`${world.gameCount} ${world.gameCount === 1 ? 'игра' : 'игр'}${world.updatedAt ? ` · ${formatDateTime(world.updatedAt)}` : ''}`}
+                subtitle={`Игр: ${world.gameCount}${world.updatedAt ? `, обновлено: ${formatDateTime(world.updatedAt)}` : ''}`}
                 leftAccessory={<Globe2 size={17} aria-hidden="true" />}
                 rightAccessory={(
                   <Toolbar className={styles.rowActions}>
@@ -229,7 +229,7 @@ export function WorldLibraryPanel({ onOpen }: { onOpen?: () => void }) {
                 lines={2}
                 key={world.id}
                 title={world.name}
-                subtitle={`${world.gameCount} ${world.gameCount === 1 ? 'игра' : 'игр'}${world.updatedAt ? ` · ${formatDateTime(world.updatedAt)}` : ''}${world.byteSize ? ` · ${formatBytes(world.byteSize)}` : ''}`}
+                subtitle={`Игр: ${world.gameCount}${world.updatedAt ? `, обновлено: ${formatDateTime(world.updatedAt)}` : ''}${world.byteSize ? `, размер: ${formatBytes(world.byteSize)}` : ''}`}
                 leftAccessory={<CloudDownload size={17} aria-hidden="true" />}
                 rightAccessory={(
                   <Toolbar className={styles.rowActions}>
