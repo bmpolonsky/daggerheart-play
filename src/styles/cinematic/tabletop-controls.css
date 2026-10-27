@@ -330,6 +330,20 @@
   padding: 0 8px;
 }
 
+/* Reserve room for a signed value and the native select arrow independently. */
+.cinematic-builder .dh-stat {
+  grid-template-columns: minmax(0, 1fr) 72px;
+}
+
+.cinematic-builder .dh-stat .dh-select {
+  min-width: 0;
+  padding: 0 24px 0 8px;
+}
+
+.cinematic-builder .dh-stat-label {
+  overflow-wrap: anywhere;
+}
+
 .dh-stat--crest {
   position: relative;
   min-height: 76px;
