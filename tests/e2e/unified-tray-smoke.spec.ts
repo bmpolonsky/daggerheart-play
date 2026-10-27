@@ -55,7 +55,7 @@ test('weapon action, damage and contextual Chaos all prepare one editable tray w
   await expect(tray).toBeVisible();
   await expect(tray.getByRole('button', { name: 'Бросить', exact: true })).toBeDisabled();
   await tray.getByRole('spinbutton', { name: /^Жетонов потрачено на эту атаку/ }).fill('2');
-  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d10');
+  await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('2d10');
   const originalBox = (await tray.boundingBox())!;
   const handle = (await page.getByTestId('dice-tray-drag-handle').boundingBox())!;
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
@@ -64,7 +64,7 @@ test('weapon action, damage and contextual Chaos all prepare one editable tray w
   await page.mouse.up();
   expect((await tray.boundingBox())!.x).toBeLessThan(originalBox.x - 100);
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
-  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/2d10.*1d6/);
+  await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText(/2d10.*1d6/);
   await expect(preview).toBeVisible();
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollsBefore);
   await expect(page.getByLabel('Подтверждение броска', { exact: true })).toHaveCount(0);
@@ -73,7 +73,7 @@ test('weapon action, damage and contextual Chaos all prepare one editable tray w
   await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
   await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
   expect(Math.abs((await tray.boundingBox())!.x - originalBox.x)).toBeLessThan(4);
-  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/2d10.*1d6/);
+  await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText(/2d10.*1d6/);
   await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollsBefore + 1);
 });

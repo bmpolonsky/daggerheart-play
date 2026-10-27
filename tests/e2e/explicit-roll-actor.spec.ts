@@ -21,7 +21,7 @@ test('bottom configured check keeps its explicitly chosen actor while another sh
   await page.getByRole('region', { name: 'Игровая сцена', exact: true }).getByRole('button', { name: 'Ран', exact: true }).click();
   await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Выбрать исполнителя броска', exact: true })).toContainText(filledCharacterName);
-  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d6+3');
+  await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('2d6+3');
   await expect(page.getByLabel('Подтверждение броска', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Проверка персонажа', exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Персонаж игрока')).toContainText('Ран');

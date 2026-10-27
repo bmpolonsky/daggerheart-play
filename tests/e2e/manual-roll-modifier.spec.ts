@@ -30,6 +30,6 @@ test('one bottom tray previews the signed modifier and closing it preserves the 
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollsBefore);
   await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
   await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('-2');
-  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/[-−]\s*2/);
+  await expect(tray.getByLabel('Итоговая формула', { exact: true })).toContainText(/[-−]\s*2/);
   await expect(page.getByLabel('Подтверждение броска', { exact: true })).toHaveCount(0);
 });
