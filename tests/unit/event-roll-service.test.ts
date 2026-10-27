@@ -279,7 +279,7 @@ test('reaction to leader starts a new role attempt, while duplicate application 
   const oldReaction = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: mixed.id, trait: 'agility' });
   assert.equal(h.service.execute(oldReaction, 'gm', 'public', []).ok, true);
   const oldRoll = rollLogStore.get()[0];
-  assert.equal(oldRoll.total, 11);
+  assert.equal('total' in oldRoll ? oldRoll.total : undefined, 11);
   const cancelledAction = h.prepare({ kind: 'teamwork', entryId: entry.id, actorId: h.character.id, trait: 'agility' });
   assert.equal(cancelledAction.manualModifier, -1);
   feedService.updateTeamworkParticipantRole(entry.id, mixed.id, 'leader');
@@ -291,7 +291,7 @@ test('reaction to leader starts a new role attempt, while duplicate application 
   assert.equal(h.service.error(action, 'gm', []), null);
   assert.equal(h.service.execute(action, 'gm', 'public', []).ok, true);
   assert.equal(rollLogStore.get().length, 3);
-  assert.ok(rollLogStore.get().some(roll => roll.id === oldRoll.id && roll.total === 11));
+  assert.ok(rollLogStore.get().some(roll => roll.id === oldRoll.id && 'total' in roll && roll.total === 11));
   assert.equal(h.service.execute(action, 'gm', 'public', []).ok, false);
   assert.equal(h.service.execute(oldReaction, 'gm', 'public', []).ok, false);
   assert.equal(rollLogStore.get().length, 3);
