@@ -1,0 +1,75 @@
+.layout :global(.player-tools-character-workspace) {
+  --dh-list-detail-list-min: 260px;
+  --dh-list-detail-list-max: 300px;
+}
+
+.layout :global(.player-tools-character-card) {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 8px 10px;
+}
+
+.layout :global(.player-tools-character-card .dh-list-item__title) {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.layout :global(.player-tools-character-card .dh-list-item__detail) {
+  font-size: .72rem;
+  overflow-wrap: anywhere;
+  color: var(--dh-paper-muted);
+}
+
+.layout :global(.player-tools-character-card .dh-list-item__right-accessory) {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.layout :global(.character-editor-hero) {
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.layout :global(.character-portrait-picker) { max-width: 80px; }
+.layout :global(.character-portrait-picker .image-file-picker__empty) {
+  flex-direction: column;
+  gap: 4px;
+  font-size: .65rem;
+}
+
+.layout :global(.character-editor-heading) { display: grid; gap: 10px; }
+.layout :global(.character-editor-heading > div) { min-width: 0; }
+.layout :global(.character-editor-heading h2) { overflow-wrap: break-word; }
+.layout :global(.character-editor-heading .dh-section-header__actions),
+.layout :global(.character-editor-heading .dh-toolbar) { justify-content: flex-start; }
+
+.layout :global(.character-editor-vitals) {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.layout :global(.character-editor-vitals > :last-child) { grid-column: auto; }
+.layout :global(.character-editor-vitals strong) { white-space: normal; overflow-wrap: break-word; }
+
+.layout :global(.player-tools-character-editor .trait-grid--compact),
+.layout :global(.character-editor-section[aria-label="Характеристики персонажа"] > .stat-strip) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.layout :global(.player-tools-character-editor .trait-grid--compact .trait-card) {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+}
+.layout :global(.player-tools-character-editor .trait-card > span) { white-space: nowrap; }
+.layout :global(.player-tools-character-editor .trait-card select) {
+  width: 72px;
+  padding: 0 24px 0 8px;
+}
+
+@media (max-width: 600px) {
+  .layout :global(.character-editor-vitals) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .layout :global(.character-editor-vitals > :last-child) { grid-column: 1 / -1; }
+  .layout :global(.player-tools-character-editor .trait-grid--compact),
+  .layout :global(.character-editor-section[aria-label="Характеристики персонажа"] > .stat-strip) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -9,6 +9,8 @@ import { sceneTableService } from '../../../../services/serviceRegistry';
 import { CharacterBuilderModal } from '../../../characters/CharacterBuilderModal';
 import { CharacterEditor } from '../../../characters/CharacterEditor';
 import { AssetImage, Button, EmptyState, ListDetailLayout, ListItem, Toolbar } from '../../../components/common';
+import { characterRosterPlayerCaption } from './characterRosterPresentation';
+import styles from './CharacterLibraryLayout.module.css';
 
 export function SharedToolsCharactersTab({
   characterBuilderOpen,
@@ -51,7 +53,7 @@ export function SharedToolsCharactersTab({
   };
 
   return (
-    <section className={`player-tools-section player-tools-characters-section ${editorOpen ? 'player-tools-characters-section--editing' : ''}`}>
+    <section className={`player-tools-section player-tools-characters-section ${styles.layout} ${editorOpen ? 'player-tools-characters-section--editing' : ''}`}>
       <Toolbar className="player-tools-section-actions" aria-label="Действия с персонажами">
         <Button variant="primary" size="sm" type="button" iconBefore={<Plus size={15} aria-hidden="true" />} onClick={onCharacterBuilderOpen}>
           Создать героя
@@ -73,7 +75,7 @@ export function SharedToolsCharactersTab({
                 key={character.id}
                 title={character.name || 'Без имени'}
                 subtitle={`${characterClassLabel(character)} — уровень ${character.level}`}
-                detail={assignedSeat ? assignedSeatName || 'Игрок без имени' : 'Игрок не назначен'}
+                detail={characterRosterPlayerCaption(character.name, assignedSeat ? assignedSeatName ?? '' : null)}
                 leftAccessory={<CharacterPortrait character={character} />}
                 rightAccessory={<div className="player-tools-character-actions">
                   {isOnScene ? (
