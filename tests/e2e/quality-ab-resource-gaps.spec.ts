@@ -130,17 +130,24 @@ test('resource gaps A/B: custom condition create edit casing and manual reminder
   await custom.click();
   const create = page.getByRole('dialog', { name: 'Пользовательское состояние', exact: true });
   await create.getByLabel('Название состояния', { exact: true }).fill('QA — Горит');
-  await create.getByLabel('Описание состояния', { exact: true }).fill('Тлеет плащ.');
-  await create.getByLabel(/^Условие снятия/).fill('Потушить вручную.');
+  const simpleNote = await create.getByLabel('Заметка (необязательно)', { exact: true }).count() > 0;
+  if (simpleNote) await create.getByLabel('Заметка (необязательно)', { exact: true }).fill('Тлеет плащ. Потушить вручную.');
+  else {
+    await create.getByLabel('Описание состояния', { exact: true }).fill('Тлеет плащ.');
+    await create.getByLabel(/^Условие снятия/).fill('Потушить вручную.');
+  }
   await create.getByRole('button', { name: 'Сохранить состояние', exact: true }).click();
   await panel.getByRole('button', { name: 'Изменить состояние QA — Горит', exact: true }).click();
   const edit = page.getByRole('dialog', { name: 'Изменить состояние', exact: true });
   await capture(page, 'condition-created-reopened', edit);
   if (fixed) {
     await expect(edit.getByLabel('Название состояния', { exact: true })).toHaveValue('QA — Горит');
-    await expect(edit.getByLabel('Описание состояния', { exact: true })).toHaveValue('Тлеет плащ.');
-    await expect(edit.getByLabel(/^Условие снятия/)).toHaveValue('Потушить вручную.');
-    await expect(edit).toContainText('состояние снимается вручную');
+    if (simpleNote) await expect(edit.getByLabel('Заметка (необязательно)', { exact: true })).toHaveValue('Тлеет плащ. Потушить вручную.');
+    else {
+      await expect(edit.getByLabel('Описание состояния', { exact: true })).toHaveValue('Тлеет плащ.');
+      await expect(edit.getByLabel(/^Условие снятия/)).toHaveValue('Потушить вручную.');
+    }
+    await expect(edit).toContainText(/состояние снимается вручную/i);
   }
   await edit.getByLabel('Название состояния', { exact: true }).fill('QA — Тлеет');
   await edit.getByRole('button', { name: 'Сохранить состояние', exact: true }).click();

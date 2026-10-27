@@ -9,6 +9,16 @@ export interface CustomConditionDraft {
 
 export type CustomConditionRecord = CharacterCondition & { removalCondition?: string };
 
+/** Read legacy reminders as ordinary text without migrating saved characters. */
+export function customConditionNote(condition?: Pick<CustomConditionRecord, 'notes' | 'removalCondition'>): string {
+  return [condition?.notes, condition?.removalCondition ? `Условие снятия: ${condition.removalCondition}` : '']
+    .filter(Boolean).join('\n\n');
+}
+
+export function customConditionDraft(condition?: CustomConditionRecord): CustomConditionDraft {
+  return { name: condition?.name ?? '', notes: customConditionNote(condition) };
+}
+
 const reservedNames = new Set(ACTOR_STATUS_TAGS.flatMap((tag) => [normalizeStatusTag(tag), normalizeStatusTag(statusLabel(tag))]));
 
 export function isCustomCondition(condition: Pick<CharacterCondition, 'name'>): boolean {

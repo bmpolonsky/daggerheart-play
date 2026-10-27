@@ -3,7 +3,7 @@ import { createPopulatedGameDocument, filledCharacterName, importGameDocument } 
 import { openGmGame } from './game-route-helpers';
 import { createDomainCard } from '../../src/domain/rules/factories';
 
-async function openSyntheticSheet(page: Page, bareBones = false) {
+async function openSyntheticSheet(page: Page, bareBones = false, legacy = false) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openGmGame(page);
   const document = createPopulatedGameDocument();
@@ -12,6 +12,7 @@ async function openSyntheticSheet(page: Page, bareBones = false) {
   character.sheetCards = [];
   character.domainCards = [];
   character.conditions = [{ id: 'core-hidden', name: 'hidden' }];
+  if (legacy) character.conditions.push({ id: 'legacy-cold', name: 'Старый холод', notes: 'Болит рука', removalCondition: 'Согреться' });
   character.armor = {
     name: 'Тестовый доспех', equipped: true,
     baseMajor: 6, baseSevere: 13, score: 3, markedSlots: 2,
@@ -35,7 +36,7 @@ async function openSyntheticSheet(page: Page, bareBones = false) {
 test.describe('manual custom conditions and armor equipment', () => {
   test.describe.configure({ timeout: 90_000 });
 
-  test('creates and edits manual description/removal reminder without changing core status', async ({ page }) => {
+  test('creates and edits optional notes without changing core status', async ({ page }) => {
     const sheet = await openSyntheticSheet(page);
     const hidden = sheet.getByRole('button', { name: 'Снять состояние Скрыт', exact: true });
     await expect(hidden).toBeVisible();
@@ -43,25 +44,28 @@ test.describe('manual custom conditions and armor equipment', () => {
     await sheet.getByRole('menuitem', { name: 'Своё состояние', exact: true }).click();
     const create = page.getByRole('dialog', { name: 'Пользовательское состояние', exact: true });
     await create.getByLabel('Название состояния', { exact: true }).fill('Обморожение');
-    await create.getByLabel('Описание состояния', { exact: true }).fill('Пальцы онемели от холода.');
-    await create.getByLabel(/^Условие снятия/).fill('Согреться у костра.');
-    await expect(create).toContainText('состояние снимается вручную');
+    await create.getByLabel('Заметка (необязательно)', { exact: true }).fill('Пальцы онемели от холода.');
+    await expect(create.getByLabel(/^Условие снятия/)).toHaveCount(0);
+    await expect(create).toContainText('Состояние снимается вручную');
     await create.getByRole('button', { name: 'Сохранить состояние', exact: true }).click();
     await expect(create).toHaveCount(0);
     await expect(hidden).toBeVisible();
 
     await sheet.getByRole('button', { name: 'Изменить состояние Обморожение', exact: true }).click();
     const edit = page.getByRole('dialog', { name: 'Изменить состояние', exact: true });
-    await expect(edit.getByLabel('Описание состояния', { exact: true })).toHaveValue('Пальцы онемели от холода.');
-    await expect(edit.getByLabel(/^Условие снятия/)).toHaveValue('Согреться у костра.');
+    await expect(edit.getByLabel('Заметка (необязательно)', { exact: true })).toHaveValue('Пальцы онемели от холода.');
+    await expect(edit.getByLabel(/^Условие снятия/)).toHaveCount(0);
     await edit.getByLabel('Название состояния', { exact: true }).fill('Остаточный холод');
-    await edit.getByLabel('Описание состояния', { exact: true }).fill('Осталась дрожь.');
-    await edit.getByLabel(/^Условие снятия/).fill('Завершить отдых.');
+    await edit.getByLabel('Заметка (необязательно)', { exact: true }).fill('Осталась дрожь.');
+
     await edit.getByRole('button', { name: 'Сохранить состояние', exact: true }).click();
     await expect(sheet.getByRole('button', { name: 'Изменить состояние Обморожение', exact: true })).toHaveCount(0);
     await sheet.getByRole('button', { name: 'Изменить состояние Остаточный холод', exact: true }).click();
-    await expect(edit.getByLabel('Описание состояния', { exact: true })).toHaveValue('Осталась дрожь.');
-    await expect(edit.getByLabel(/^Условие снятия/)).toHaveValue('Завершить отдых.');
+    await expect(edit.getByLabel('Заметка (необязательно)', { exact: true })).toHaveValue('Осталась дрожь.');
+    await edit.getByLabel('Заметка (необязательно)', { exact: true }).fill('Несохранённый текст');
+    await edit.getByRole('button', { name: 'Отмена', exact: true }).click();
+    await sheet.getByRole('button', { name: 'Изменить состояние Остаточный холод', exact: true }).click();
+    await expect(edit.getByLabel('Заметка (необязательно)', { exact: true })).toHaveValue('Осталась дрожь.');
     await edit.getByRole('button', { name: 'Отмена', exact: true }).click();
     await sheet.getByRole('button', { name: 'Снять состояние Остаточный холод', exact: true }).click();
     await expect(hidden).toBeVisible();
@@ -70,6 +74,36 @@ test.describe('manual custom conditions and armor equipment', () => {
     await sheet.getByRole('menuitem', { name: 'Обездвижен', exact: true }).click();
     await expect(sheet.getByRole('button', { name: 'Снять состояние Обездвижен', exact: true })).toBeVisible();
     await expect(hidden).toBeVisible();
+  });
+
+
+  test('legacy description and removal text remain visible, cancel is harmless and save does not duplicate them', async ({ page }) => {
+    const sheet = await openSyntheticSheet(page, false, true);
+    await sheet.getByRole('button', { name: 'Изменить состояние Старый холод', exact: true }).click();
+    const edit = page.getByRole('dialog', { name: 'Изменить состояние', exact: true });
+    const note = edit.getByLabel('Заметка (необязательно)', { exact: true });
+    await expect(note).toHaveValue('Болит рука\n\nУсловие снятия: Согреться');
+    await page.screenshot({ path: '/home/codex/outputs/dh-condition-note-20261027/legacy-editor.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(edit).toBeInViewport();
+    await page.screenshot({ path: '/home/codex/outputs/dh-condition-note-20261027/legacy-editor-mobile.png' });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await note.fill('Не сохранять');
+    await edit.getByRole('button', { name: 'Отмена', exact: true }).click();
+    await sheet.getByRole('button', { name: 'Изменить состояние Старый холод', exact: true }).click();
+    await expect(note).toHaveValue('Болит рука\n\nУсловие снятия: Согреться');
+    await edit.getByRole('button', { name: 'Сохранить состояние', exact: true }).click();
+    await sheet.getByRole('button', { name: 'Изменить состояние Старый холод', exact: true }).click();
+    await expect(note).toHaveValue('Болит рука\n\nУсловие снятия: Согреться');
+    await edit.getByRole('button', { name: 'Отмена', exact: true }).click();
+    await sheet.getByRole('button', { name: 'Добавить состояние', exact: true }).click();
+    await sheet.getByRole('menuitem', { name: 'Своё состояние', exact: true }).click();
+    const create = page.getByRole('dialog', { name: 'Пользовательское состояние', exact: true });
+    await create.getByLabel('Название состояния', { exact: true }).fill('Без заметки');
+    await create.getByRole('button', { name: 'Сохранить состояние', exact: true }).click();
+    await expect(sheet.getByRole('button', { name: 'Снять состояние Без заметки', exact: true })).toBeVisible();
+    await sheet.getByRole('button', { name: 'Снять состояние Старый холод', exact: true }).click();
+    await expect(sheet.getByRole('button', { name: 'Снять состояние Скрыт', exact: true })).toBeVisible();
   });
 
   test('unequipping uses unarmored thresholds while preserving the armor name and marked slots', async ({ page }) => {

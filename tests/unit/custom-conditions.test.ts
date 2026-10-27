@@ -1,6 +1,20 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { applyCustomConditionEdit, isCustomCondition } from '../../src/domain/rules/customConditions';
+import { applyCustomConditionEdit, customConditionDraft, isCustomCondition } from '../../src/domain/rules/customConditions';
+
+test('simple editor preserves legacy text without migrating on open, and folds it only on save', () => {
+  const legacy = { id: 'cold', name: 'Холод', notes: 'Болит рука', removalCondition: 'Согреться' };
+  const original = { ...legacy };
+  const draft = customConditionDraft(legacy);
+  assert.deepEqual(draft, { name: 'Холод', notes: 'Болит рука\n\nУсловие снятия: Согреться' });
+  assert.deepEqual(legacy, original);
+  const saved = applyCustomConditionEdit([legacy], draft, legacy.id).conditions[0];
+  assert.equal(saved.notes, draft.notes);
+  assert.equal(saved.removalCondition, undefined);
+  assert.deepEqual(customConditionDraft(saved), draft);
+  assert.deepEqual(customConditionDraft(), { name: '', notes: '' });
+  assert.equal(customConditionDraft({ id: 'x', name: 'Тест', removalCondition: 'Отдых' }).notes, 'Условие снятия: Отдых');
+});
 
 test('manual conditions preserve name, description and removal reminder through an edit', () => {
   const added = applyCustomConditionEdit([], { name: '  Обморожение  ', notes: ' Болит рука ', removalCondition: ' После согревания ' }, 'cold');

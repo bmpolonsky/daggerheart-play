@@ -1,5 +1,8 @@
 .dialog {
   width: min(440px, calc(100vw - 24px));
+  align-self: center;
+  justify-self: center;
+  overflow: auto;
 }
 
 .form {
