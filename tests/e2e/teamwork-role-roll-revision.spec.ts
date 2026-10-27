@@ -65,6 +65,10 @@ test('group reaction becomes a fresh leader action while history, repeat guard a
   expect(snapshot.feed.find((e:any)=>e.id===eventId).teamwork.participants[1].result.rollType).toBe('action');
   await page.screenshot({path:'/home/codex/outputs/dh-group-role-roll-20261027/new-leader-applied.png'});
   await page.reload();await expect(page.locator('[data-vtt-root]')).toBeVisible();
+  if (!await page.getByLabel('Чат игры').isVisible()) await page.getByRole('button',{name:/^Открыть чат/}).click();
+  await expect(page.locator('.feed-teamwork-card')).toBeVisible();
+  await expect(page.locator('.feed-teamwork-card').getByRole('button',{name:'Бросок действия',exact:true})).toHaveCount(0);
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(3);
   await expect.poll(async()=>(await stored(page))?.rollLog.length).toBe(3);
   const after=await stored(page);expect(after.rollLog.some((r:any)=>r.id===oldRollId)).toBe(true);
   expect(after.feed.find((e:any)=>e.id===eventId).teamwork.participants[1].roleRevision).toBe(1);
