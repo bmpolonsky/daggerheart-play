@@ -2,6 +2,14 @@ import type { ActionRollOutcome, RollLogEntry } from './types';
 
 type ActionRollLike = Pick<Extract<RollLogEntry, { type: 'action' }>, 'fearDie' | 'hopeDie' | 'isCritical' | 'total'>;
 
+/** Explain recorded selection dice without changing their stored contribution. */
+export function formatKeptDiceValues(rolls: readonly number[], kept: number): string {
+  if (rolls.length === 0) return '';
+  const signed = kept > 0 ? `+${kept}` : kept < 0 ? `−${Math.abs(kept)}` : '0';
+  const selection = kept !== 0 && Math.abs(kept) === Math.max(...rolls) ? ' (максимум)' : '';
+  return `${rolls.join(', ')} → ${signed}${selection}`;
+}
+
 export function formatDualityResult(roll: ActionRollLike): string {
   if (roll.isCritical) {
     return `${roll.total} критически`;
