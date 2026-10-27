@@ -14,7 +14,7 @@
   color: var(--dh-gold-400);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 600px), (max-height: 500px) {
   .traitsWizard :global(.dh-stat-label),
   .traitsWizard :global(.dh-stat .dh-select) {
     grid-column: 1 / -1;
