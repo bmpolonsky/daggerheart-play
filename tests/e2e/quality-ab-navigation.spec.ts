@@ -104,8 +104,10 @@ test('quality A/B: chat initial position, deliberate reading and world switch', 
   await page.locator('.player-activity-list').hover();
   await page.mouse.wheel(0, -10000);
   await expect.poll(async () => (await metrics(page)).top).toBeLessThan(10);
-  await page.getByLabel('Сообщение игрока').fill('QA новое сообщение при чтении мира A');
-  await page.getByLabel('Сообщение игрока').press('Enter');
+  // Historical release/v8 retain the old accessible name; current uses the role-neutral label.
+  const chatComposer = page.getByRole('textbox', { name: /^Сообщение (?:в чат|игрока)$/ });
+  await chatComposer.fill('QA новое сообщение при чтении мира A');
+  await chatComposer.press('Enter');
   await expect(page.locator('.player-activity-event--message')).toHaveCount(23);
   await observe(page, report, '02-reading-A-with-new-message', { chat: await metrics(page),
     unreadButton: await page.getByRole('button', { name: /^Новые события:/ }).allTextContents() });

@@ -154,7 +154,7 @@ test.describe('P2P session workflow', () => {
     await chronicleTab.click();
     await expect(root).toHaveClass(/player-view--mobile-feed/);
     await expect(chronicle).toBeVisible();
-    await page.getByLabel('Сообщение игрока').fill('Заполненный чат для проверки заголовка');
+    await page.getByLabel('Сообщение в чат').fill('Заполненный чат для проверки заголовка');
     await page.getByRole('button', { name: 'Отправить сообщение' }).click();
     await chronicle.getByRole('button', { name: 'Ещё', exact: true }).click();
     await expect(page.getByRole('menuitem', { name: 'Заметки' })).toBeVisible();
@@ -667,7 +667,7 @@ test.describe('P2P session workflow', () => {
     await player.getByRole('dialog', { name: 'Библиотека игры' }).getByRole('button', { name: 'Закрыть библиотеку' }).click();
     await expect(player.getByLabel('Чат игры')).toBeVisible();
     const playerChat = 'сообщение игрока из live P2P smoke';
-    await player.getByLabel('Сообщение игрока').fill(playerChat);
+    await player.getByLabel('Сообщение в чат').fill(playerChat);
     await player.getByRole('button', { name: 'Отправить сообщение' }).click();
     await expect(gm.getByText(playerChat)).toBeVisible({ timeout: 15_000 });
 

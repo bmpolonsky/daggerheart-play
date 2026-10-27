@@ -268,7 +268,7 @@ export function PlayerLeftRail({
           </Button>
         )}
         <form className="player-chat-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
-          <TextControl tone="plain" aria-label="Сообщение игрока" value={message} onInput={(event) => setMessage(event.currentTarget.value)} placeholder={`Сообщение от ${model.character?.name ?? (role === 'gm' ? 'Мастера' : 'игрока')}`} />
+          <TextControl tone="plain" aria-label="Сообщение в чат" value={message} onInput={(event) => setMessage(event.currentTarget.value)} placeholder={`Сообщение от ${model.character?.name ?? (role === 'gm' ? 'Мастера' : 'игрока')}`} />
           <IconButton variant="primary" size="md" type="submit" disabled={!message.trim()} aria-label="Отправить сообщение" title="Отправить сообщение">
             <SendHorizontal size={15} aria-hidden="true" />
           </IconButton>

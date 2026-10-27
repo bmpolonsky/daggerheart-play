@@ -29,7 +29,7 @@ test('mobile chat opens at the latest event and preserves deliberate history rea
     element.scrollTop = 0;
     element.dispatchEvent(new Event('scroll'));
   });
-  const composer = page.getByLabel('Сообщение игрока');
+  const composer = page.getByLabel('Сообщение в чат');
   await composer.fill('Новое событие во время чтения истории');
   await composer.press('Enter');
   await expect(page.getByRole('button', { name: 'Новые события: 1', exact: true })).toBeVisible();

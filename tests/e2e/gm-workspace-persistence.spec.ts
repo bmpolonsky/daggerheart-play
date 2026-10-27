@@ -82,7 +82,7 @@ async function addNpcTokenAndChat(page: Page, messageText: string) {
   await library.getByRole('button', { name: 'Закрыть библиотеку', exact: true }).click();
   await page.getByRole('button', { name: 'Подготовлено', exact: true }).click();
   await page.getByRole('button', { name: /^Добавить Бандит.*на сцену$/ }).click();
-  const message = page.getByRole('textbox', { name: 'Сообщение игрока', exact: true });
+  const message = page.getByRole('textbox', { name: 'Сообщение в чат', exact: true });
   await message.fill(messageText);
   await message.press('Enter');
   await expect(page.getByText(messageText, { exact: true })).toBeVisible();
