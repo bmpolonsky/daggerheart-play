@@ -615,3 +615,6 @@
 .unified-roll-modifier-label { gap: 2px; }
 .unified-roll-modifier-label .unified-roll-modifier { width: 40px; flex-basis: 40px; }
 .unified-roll-modifier-label > button { width: 24px; min-width: 24px; }
+
+.mini-dice-launcher__drag-heading { display: inline-flex; align-items: center; gap: 6px; }
+.mini-dice-launcher__drag-heading > svg { flex: 0 0 auto; opacity: .8; }

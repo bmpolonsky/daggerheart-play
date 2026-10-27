@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Hand, LoaderCircle, Phone, PhoneCall, RotateCcw, Users, X } from 'lucide-react';
+import { GripHorizontal, Hand, LoaderCircle, Phone, PhoneCall, RotateCcw, Users, X } from 'lucide-react';
 import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
 import { DraggableSurface, Surface } from '../components/common';
@@ -360,7 +360,7 @@ function DiceTraySurface({ title, children, onClose, getAnchorElement }: { title
     return () => query.removeEventListener('change', update);
   }, []);
   const close = <IconButton className="mini-dice-launcher__close" variant="ghost" size="sm" type="button" title="Закрыть панель броска" aria-label="Закрыть панель броска" onClick={onClose}><X size={14} aria-hidden="true" /></IconButton>;
-  const heading = <span aria-label="Переместить панель броска" data-testid="dice-tray-drag-handle">{title}</span>;
+  const heading = <span className="mini-dice-launcher__drag-heading" title="Перетащите панель за заголовок" aria-label="Переместить панель броска" data-testid="dice-tray-drag-handle"><GripHorizontal size={14} aria-hidden="true" />{title}</span>;
   const content = <div ref={layerRef} className="dh-portal-scope mini-dice-launcher-layer" style={{ '--dice-tray-available-height': `${anchorBounds.availableHeight}px` }}>
     {mobile ? <Surface className="mini-dice-launcher__floating-panel mini-dice-launcher__floating-panel--mobile" role="region" aria-label="Подготовка броска" padding="sm">
       <header className="mini-dice-launcher__mobile-head"><strong>{title}</strong>{close}</header>

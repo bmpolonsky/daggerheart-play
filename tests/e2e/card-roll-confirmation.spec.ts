@@ -30,6 +30,17 @@ test('PC card and weapon commands prepare the same editable bottom tray without 
   await expect(page.getByLabel('Подтверждение броска', { exact: true })).toHaveCount(0);
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/1d4.*1d6/);
+  // The persistent tray is above the card. Move it aside with its actual
+  // handle before using the card again, rather than clicking through it.
+  const visibleHandle = page.getByTitle('Перетащите панель за заголовок', { exact: true });
+  await expect(visibleHandle.locator('svg')).toBeVisible();
+  const handle = (await visibleHandle.boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + 12);
+  await page.mouse.down();
+  await page.mouse.move(200, 220, { steps: 8 });
+  await page.mouse.up();
+  await expect(preview).toBeVisible();
+  await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollCount);
   await preview.getByRole('button', { name: '1d4', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Оставить текущий', exact: true })).toBeVisible();
   await tray.getByRole('button', { name: 'Оставить текущий', exact: true }).click();
