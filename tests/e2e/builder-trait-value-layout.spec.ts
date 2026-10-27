@@ -21,6 +21,7 @@ for(const width of [1440,1024,390]) for(const zoom of [1,.9]) {
    return {value:e.value,text:e.selectedOptions[0]?.text??'',width:e.clientWidth,contentWidth:e.clientWidth-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight),textWidth:c.measureText(e.selectedOptions[0]?.text??'').width};
   }));
   for(const metric of metrics){expect(metric.width).toBeGreaterThanOrEqual(70);expect(metric.contentWidth).toBeGreaterThan(metric.textWidth+8);}
+  if(width===390) for(const label of await traits.locator('.dh-stat-label').all()) expect((await label.boundingBox())!.height).toBeLessThan(20);
   expect(metrics.map(m=>m.value)).toEqual(['0','-1','1','1','2','0']);
   expect(await page.locator('body').evaluate(e=>e.scrollWidth)).toBeLessThanOrEqual(Math.ceil(width/zoom));
   const output='/home/codex/outputs/dh-builder-clipping-20261027';await mkdir(output,{recursive:true});

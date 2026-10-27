@@ -92,7 +92,7 @@ export function CharacterBuilderModal({
   };
 
   return (
-    <Dialog aria-label="Новый герой" className={`cinematic-builder ${step === 'ancestry' ? ancestryStyles.ancestryWizard : ''}`} onClose={onCancel}>
+    <Dialog aria-label="Новый герой" className={`cinematic-builder ${step === 'ancestry' ? ancestryStyles.ancestryWizard : step === 'traits' ? traitStyles.traitsWizard : ''}`} onClose={onCancel}>
         <nav className="cinematic-builder-nav" aria-label="Шаги создания">
           <div className="cinematic-builder-header">
             <h2 className="cinematic-builder-title">Новый герой</h2>

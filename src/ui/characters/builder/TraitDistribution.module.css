@@ -13,3 +13,23 @@
   line-height: 1.2;
   color: var(--dh-gold-400);
 }
+
+@media (max-width: 600px) {
+  .traitsWizard :global(.dh-stat-label),
+  .traitsWizard :global(.dh-stat .dh-select) {
+    grid-column: 1 / -1;
+  }
+  .traitsWizard :global(.dh-stat-label) {
+    overflow-wrap: normal;
+  }
+}
+
+@media (max-height: 500px) {
+  .traitsWizard :global(.cinematic-builder-stage) {
+    display: none;
+  }
+  .traitsWizard :global(.cinematic-builder-panel) {
+    gap: 8px;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+}
