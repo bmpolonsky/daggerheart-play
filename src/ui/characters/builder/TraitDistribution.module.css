@@ -48,3 +48,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Native option popups need an explicit dark scheme as well as closed-field
+   text color; browser chrome may otherwise choose a light OS menu. */
+.traitsWizard :global(select) { color-scheme: dark; }
+.traitsWizard :global(select option) {
+  color: var(--dh-paper-100);
+  background-color: var(--dh-ink-800);
+}
