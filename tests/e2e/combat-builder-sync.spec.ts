@@ -65,7 +65,7 @@ test.describe('combat builder sync', () => {
     await secondBuilder.getByTitle('Увеличить').first().click();
     await waitForStoredEncounterSize(secondBuilder, 2);
     await expect(builder.locator('.combat-encounter-panel')).toContainText('2 противников');
-    await expect(builder.locator('.combat-encounter-panel')).toContainText('x2');
+    await expect(builder.locator('.combat-encounter-panel')).toContainText('количество: 2');
 
     await secondBuilder.getByTitle('Уменьшить / Удалить').first().click();
     await secondBuilder.getByTitle('Уменьшить / Удалить').first().click();

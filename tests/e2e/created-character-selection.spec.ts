@@ -20,7 +20,7 @@ test('creating a second hero opens its Library editor without replacing the view
   const builder = page.getByRole('dialog', { name: 'Новый герой' });
   await builder.getByRole('button', { name: 'Случайный герой', exact: true }).click();
   await builder.getByRole('button', { name: 'Итог', exact: true }).click();
-  const name = (await builder.locator('.cinematic-builder-loadout-summary > strong').textContent())?.trim();
+  const name = (await builder.getByRole('region', { name: 'Персонаж', exact: true }).locator('strong').textContent())?.trim();
   expect(name).toBeTruthy();
   expect(name).not.toBe(filledCharacterName);
   await builder.getByRole('button', { name: 'Создать', exact: true }).click();
