@@ -1,3 +1,4 @@
+import { normalizeSelectionFormula } from './selectionNotation';
 import { createId } from '../../core/utils/id';
 import { parseDiceFormula, type ParsedFormulaTerm } from './diceFormula';
 import type { DamageType, TraitId } from './types';
@@ -154,6 +155,7 @@ export function unlinkUnifiedRollEvent(draft: UnifiedRollDraft): UnifiedRollDraf
 
 /** Caller must explicitly confirm this conversion and provide the complete formula. */
 export function convertUnifiedRollToManual(draft: UnifiedRollDraft, completeFormula: string): UnifiedRollDraft {
+  completeFormula = normalizeSelectionFormula(completeFormula, draft);
   parseDiceFormula(completeFormula);
   const counts = normalizeAdvantageCounts(draft.advantageCount, draft.disadvantageCount);
   const net = counts.advantageCount - counts.disadvantageCount;

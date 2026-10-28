@@ -1,3 +1,4 @@
+import { normalizeSelectionFormula } from './selectionNotation';
 import { maxDiceValue, parseDiceFormula } from './diceFormula';
 import { assertUnifiedManualAdvantageFamily, isTypedUnifiedRoll, type UnifiedRollDraft } from './unifiedRollDraft';
 import { extraDiceFormula, extractTypedExtraDice, manualAdvantageDiceSides, normalizeExtraDice, stripReservedDice } from './extraDice';
@@ -77,6 +78,7 @@ export function unifiedRollDiceConversionFormula(draft: UnifiedRollDraft, edited
 
 /** Only an unchanged typed dice pool can be expressed as an ordinary flat edit. */
 export function applyUnifiedFormulaEdit(draft: UnifiedRollDraft, formula: string, staticModifier = 0): { draft: UnifiedRollDraft; requiresManual: boolean } {
+  formula = normalizeSelectionFormula(formula, draft);
   parseDiceFormula(formula);
   formulaFlat(formula);
   const net = draft.advantageCount - draft.disadvantageCount;

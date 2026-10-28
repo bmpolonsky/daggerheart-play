@@ -5,9 +5,11 @@ type ActionRollLike = Pick<Extract<RollLogEntry, { type: 'action' }>, 'fearDie' 
 /** Explain recorded selection dice without changing their stored contribution. */
 export function formatKeptDiceValues(rolls: readonly number[], kept: number): string {
   if (rolls.length === 0) return '';
-  const signed = kept > 0 ? `+${kept}` : kept < 0 ? `−${Math.abs(kept)}` : '0';
-  const selection = kept !== 0 && Math.abs(kept) === Math.max(...rolls) ? ' (максимум)' : '';
-  return `${rolls.join(', ')} → ${signed}${selection}`;
+  if (kept === 0 || !rolls.includes(Math.abs(kept))) return `${rolls.join(', ')} → ${kept > 0 ? `+${kept}` : kept < 0 ? `−${Math.abs(kept)}` : '0'}`;
+  const selectedIndex = rolls.indexOf(Math.abs(kept));
+  const signed = kept > 0 ? `+${kept}` : `−${Math.abs(kept)}`;
+  const discarded = rolls.filter((_value, index) => index !== selectedIndex);
+  return `Учтено ${signed}${discarded.length ? `; отброшено: ${discarded.join(', ')}` : ''}`;
 }
 
 export function formatDualityResult(roll: ActionRollLike): string {

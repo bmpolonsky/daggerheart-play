@@ -240,6 +240,9 @@ function rollDetailRows(roll: NonNullable<TableFeedItem['roll']>): Array<{ label
   } else if (dice?.kind === 'formula') {
     const baseFormula = formulaFromTerms(dice) || dice.formula;
     rows.push({ label: 'Формула', value: dice.critical && dice.criticalBonus ? `${baseFormula} ${formatSignedTerm(dice.criticalBonus)} (крит)` : baseFormula });
+    for (const term of dice.terms) {
+      if ('sides' in term && keepSuffixForTerm(term)) rows.push({ label: `${term.count}d${term.sides}`, value: formatKeptDiceValues(term.rolls, term.subtotal) });
+    }
     if (dice.critical) rows.push({ label: 'Крит', value: dice.criticalBonus ? `+${dice.criticalBonus}` : 'да' });
     if (dice.damageType) rows.push({ label: 'Тип', value: compactDamageTypeLabel(dice.damageType) });
   }
@@ -251,10 +254,10 @@ function dualityFormula(dice: Extract<TableFeedDiceSummary, { kind: 'duality' }>
   const parts = ['2d12'];
   dice.extraDiceTerms?.forEach((term) => parts.push(`${term.sign < 0 ? '-' : '+'} ${term.count}d${term.sides}`));
   if (dice.advantageRolls.length > 0) {
-    parts.push(`+ ${dice.advantageRolls.length}d6kh`);
+    parts.push(`+ ${dice.advantageRolls.length}d6kh1`);
   }
   if (dice.disadvantageRolls.length > 0) {
-    parts.push(`- ${dice.disadvantageRolls.length}d6kh`);
+    parts.push(`- ${dice.disadvantageRolls.length}d6kh1`);
   }
   const flatModifier = dualityStaticModifierTotal(dice);
   if (flatModifier !== 0) parts.push(formatSignedTerm(flatModifier));
@@ -286,8 +289,8 @@ function keepSuffixForTerm(term: Extract<Extract<TableFeedDiceSummary, { kind: '
   const rolledTotal = term.rolls.reduce((sum, value) => sum + value, 0) * term.sign;
   if (term.subtotal === rolledTotal) return '';
   const kept = Math.abs(term.subtotal);
-  if (kept === Math.min(...term.rolls)) return 'kl';
-  if (kept === Math.max(...term.rolls)) return 'kh';
+  if (kept === Math.max(...term.rolls)) return 'kh1';
+  if (kept === Math.min(...term.rolls)) return 'kl1';
   return '';
 }
 
