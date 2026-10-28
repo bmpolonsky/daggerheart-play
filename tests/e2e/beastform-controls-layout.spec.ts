@@ -12,17 +12,31 @@ for (const width of [1181, 500, 390]) test(`beastform controls preserve selectio
   await importGameDocument(page, doc, 'beastform-layout.dhgame');
   await page.getByLabel('Участники сцены').locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
   const sheet = page.getByLabel('Персонаж игрока', { exact: true });
-  const panel = sheet.getByRole('region', { name: 'Звериная форма', exact: true });
+  const entry = sheet.getByRole('button', {name:'Управление звериной формой',exact:true});
+  if(!before){await expect(entry).toContainText('Не активна');await entry.click();}
+  const preview = page.getByLabel('Предпросмотр',{exact:true});
+  const panel = (before ? sheet : preview).getByRole('region', { name: 'Звериная форма', exact: true });
   const form = panel.getByRole('button', { name: 'Звериная форма', exact: true });
   await form.click();
   const picker = page.getByRole('dialog', { name: 'Выбор: Звериная форма', exact: true });
   await picker.getByRole('option', { name: /^Водный разведчик/ }).click();
   await picker.getByRole('button', { name: /^(Выбрать|Выбрано)$/ }).click();
+  if(!before)await preview.getByRole('button',{name:'Закрыть предпросмотр',exact:true}).click();
   await page.setViewportSize({ width, height: 757 });
   const layers = page.getByLabel('Слой интерфейса');
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Лист', exact: true }).click();
+  if(!before){
+    await expect(sheet.getByRole('group',{name:'Стресс',exact:true}).getByRole('button',{pressed:true})).toHaveCount(0);
+    await entry.scrollIntoViewIfNeeded();
+    await page.screenshot({path:`/home/codex/outputs/dh-beastform-preview-20261028/collapsed-${width}.png`});
+    await entry.click();
+    await panel.getByRole('button',{name:'Звериная форма',exact:true}).click();
+    const reopenPicker=page.getByRole('dialog',{name:'Выбор: Звериная форма',exact:true});
+    await reopenPicker.getByRole('option',{name:/^Водный разведчик/}).click();
+    await reopenPicker.getByRole('button',{name:/^(Выбрать|Выбрано)$/}).click();
+  }
   await panel.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `/home/codex/outputs/dh-beastform-layout-20261027/${before ? 'before' : 'after'}-${width}.png` });
+  await page.screenshot({ path: `/home/codex/outputs/dh-beastform-preview-20261028/${before ? 'before' : 'after'}-${width}.png` });
   if (before) return;
   await expect(form).toContainText('Водный разведчик');
   const name = form.locator('span').first();
@@ -40,8 +54,57 @@ for (const width of [1181, 500, 390]) test(`beastform controls preserve selectio
   await panel.getByRole('button', { name: 'Эволюция', exact: true }).click();
   await expect(hope).toHaveCount(0); await expect(stress).toHaveCount(1);
   await expect(panel).toContainText('Сила +1');
+  await preview.getByRole('button',{name:'Закрыть предпросмотр',exact:true}).click();
+  await expect(entry).toContainText('Активна: Водный разведчик');
+  await page.screenshot({path:`/home/codex/outputs/dh-beastform-preview-20261028/active-${width}.png`});
+  await page.reload();
+  const roster=page.getByLabel('Участники сцены').locator('.player-roster__item').filter({hasText:filledCharacterName}).first();
+  await expect(page.locator('[data-vtt-root]')).toBeVisible();
+  const layerAfterReload=page.getByLabel('Слой интерфейса');
+  if(await layerAfterReload.isVisible())await layerAfterReload.getByRole('button',{name:'Лист',exact:true}).click();
+  await roster.click();
+  await expect(entry).toContainText('Активна: Водный разведчик');
+  await entry.click();
   await panel.getByRole('button', { name: 'Выйти', exact: true }).click();
   await expect(panel.getByRole('button', { name: 'Эволюция', exact: true })).toBeDisabled();
   await expect(panel.getByRole('button', { name: 'Форма', exact: true })).toBeEnabled();
-  await expect(form).toContainText('Водный разведчик'); await expect(trait).toHaveValue('strength');
+  await expect(entry).toContainText('Не активна');
+  await expect(form).toContainText('Водный разведчик');await expect(trait).toHaveValue('strength');
+});
+
+test('player opens the same ephemeral controller and cancels without spending', async ({browser}) => {
+  const {createIsolatedDeterministicP2PRelay,openSharedGmGame,openSharedPlayerGame}=await import('./game-route-helpers');
+  const relay=await createIsolatedDeterministicP2PRelay(browser,['beast-gm','beast-player']);
+  const [gm,player]=relay.clients.map(c=>c.page);
+  try {
+    const doc=createPopulatedGameDocument();const hero=doc.files['data/characters.json'].entities['e2e-character-cadsuane'];
+    hero.className='Druid';hero.classSlug='druid';hero.classSourceId='class:druid';hero.hope.value=3;hero.stress.marked=0;hero.sheetCards=[];hero.domainCards=[];
+    const room=`BEAST${Date.now()}`;await openSharedGmGame(gm,room);await importGameDocument(gm,doc,'beast-player.dhgame');await openSharedPlayerGame(player,room);
+    await player.getByRole('region',{name:'Выбор игрока'}).getByRole('button',{name:`Игрок 1 ${filledCharacterName}`}).click();
+    await player.setViewportSize({width:390,height:844});const layers=player.getByLabel('Слой интерфейса');if(await layers.isVisible())await layers.getByRole('button',{name:'Лист',exact:true}).click();
+    const sheet=player.getByLabel('Персонаж игрока',{exact:true});const entry=sheet.getByRole('button',{name:'Управление звериной формой',exact:true});
+    await entry.scrollIntoViewIfNeeded();await entry.dblclick();const preview=player.getByLabel('Предпросмотр',{exact:true});await expect(preview).toHaveCount(1);
+    await preview.getByRole('button',{name:'Звериная форма',exact:true}).click();
+    const picker=player.getByRole('dialog',{name:'Выбор: Звериная форма',exact:true});await picker.getByRole('option',{name:/^Водный разведчик/}).click();
+    await picker.getByRole('button',{name:'Закрыть выбор: Звериная форма',exact:true}).click();
+    await preview.getByRole('button',{name:'Закрыть предпросмотр',exact:true}).click();
+    await expect(entry).toContainText('Не активна');await expect(sheet.getByRole('group',{name:'Стресс',exact:true}).getByRole('button',{pressed:true})).toHaveCount(0);
+    await expect(sheet.getByRole('group',{name:'Надежда',exact:true}).getByRole('button',{pressed:true})).toHaveCount(3);
+    await entry.click();await preview.getByRole('button',{name:'Форма',exact:true}).click();
+    await expect(preview.getByRole('button',{name:'Выйти',exact:true})).toBeVisible();
+    await expect(sheet.getByRole('group',{name:'Стресс',exact:true}).getByRole('button',{pressed:true})).toHaveCount(1);
+    await preview.getByRole('button',{name:'Выйти',exact:true}).click();await expect(entry).toContainText('Не активна');
+    await player.screenshot({path:'/home/codex/outputs/dh-beastform-preview-20261028/player-390.png'});
+  } finally {await relay.close();}
+});
+
+test('feature-granted form remains available and an unrelated class gets no controller',async({page})=>{
+  await openGmGame(page);const doc=createPopulatedGameDocument();const hero=doc.files['data/characters.json'].entities['e2e-character-cadsuane'];
+  hero.className='Guardian';hero.hope.value=2;hero.sheetCards=[{id:'qa-beastform',kind:'custom',name:'Дар звериной формы',text:'Звериная форма.'}];hero.domainCards=[];
+  await importGameDocument(page,doc,'beast-feature.dhgame');await page.getByLabel('Участники сцены').locator('.player-roster__item').filter({hasText:filledCharacterName}).first().click();
+  const sheet=page.getByLabel('Персонаж игрока',{exact:true});const entry=sheet.getByRole('button',{name:'Управление звериной формой',exact:true});
+  await entry.click();const preview=page.getByLabel('Предпросмотр',{exact:true});await expect(preview.getByRole('button',{name:'Эволюция',exact:true})).toBeDisabled();
+  await preview.getByRole('button',{name:'Закрыть предпросмотр',exact:true}).click();
+  await page.getByRole('group',{name:'Контекст мастера'}).getByRole('button',{name:'Участники',exact:true}).click();
+  await page.getByLabel('Участники сцены').locator('.player-roster__item').filter({hasText:'Ири'}).first().click();await expect(entry).toHaveCount(0);
 });

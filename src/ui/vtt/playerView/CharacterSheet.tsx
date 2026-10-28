@@ -12,7 +12,6 @@ import type { LibraryBeastform } from "../../../domain/content/types";
 import { groupPlayerViewFeatures, type PlayerViewCharacterSummary } from "../../../domain/tabletop/playerView";
 import type { TableFeedFeaturePreview } from "../../../domain/tabletop/feed";
 import { defaultCharacterPortraitUrl } from "../../../domain/tabletop/defaultArt";
-import { characterLevelRank } from "../../../domain/rules/levelUp";
 import { companionDamageFormula } from "../../../domain/rules/rangerCompanion";
 import { CORE_STATUS_TAGS, ActorStatus, normalizeStatusTag } from "../../../domain/rules/statuses";
 import type { TraitId } from "../../../domain/rules/types";
@@ -28,11 +27,9 @@ import type { PlayerRollDraft, PlayerSheetSectionId, TableViewRole } from "./typ
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { ChoiceCard } from "../../components/common/ChoiceCard";
-import { SelectControl } from "../../components/common/Field";
 import { IconButton } from "../../components/common/IconButton";
 import { ListItem } from "../../components/common/ListItem";
 import { ResourcePips } from "../../components/common/ResourcePips";
-import { RichChoicePicker } from "../../components/common/RichChoicePicker";
 import { PLAYER_SHEET_SECTIONS } from "./constants";
 import { UsageTrackerControl } from "../../characters/UsageTrackerControl";
 import { analyzeFeatureRules } from "../../../domain/rules/featureEffects";
@@ -52,6 +49,7 @@ export function CharacterSheet({
   onDomainCardPreview,
   onFeaturePreview,
   onWealthEdit,
+  onBeastformEdit,
   onEdit
 }: {
   character: PlayerViewCharacterSummary;
@@ -65,6 +63,7 @@ export function CharacterSheet({
   onDomainCardPreview?: (character: PlayerViewCharacterSummary, card: PlayerViewDomainCard) => void;
   onFeaturePreview?: (character: PlayerViewCharacterSummary, feature: TableFeedFeaturePreview) => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
+  onBeastformEdit?: (character: PlayerViewCharacterSummary) => void;
   onEdit?: () => void;
 }) {
   const game = useStream(gameService.game$);
@@ -80,19 +79,24 @@ export function CharacterSheet({
       return draft ? { actorId: character.id, draft } : null;
     });
   };
-  const [selectedBeastformId, setSelectedBeastformId] = useState('');
   const [companionEditorOpen, setCompanionEditorOpen] = useState(false);
-  const [evolutionTrait, setEvolutionTrait] = useState(character.traits[0]?.id ?? 'agility');
-  const availableBeastforms = useMemo(() => {
-    const rank = characterLevelRank(character.level);
-    return beastforms.filter((beastform) => beastform.tier <= rank);
-  }, [beastforms, character.level]);
   const featureGroups = useMemo(() => groupPlayerViewFeatures(character.features), [character.features]);
   const featureRuleEffects = useMemo(() => character.features.flatMap((feature) => (
     uniqueRuleEffectMessages(analyzeFeatureRules(feature.text).effects).map((effect) => ({ feature, effect }))
   )), [character.features]);
-  const selectedBeastform = availableBeastforms.find((beastform) => beastform.id === selectedBeastformId) ?? availableBeastforms[0] ?? null;
   const canUseBeastform = character.className === 'Druid' || character.features.some((feature) => /зверин|beastform|beast form/i.test(`${feature.name}\n${feature.text}`));
+  const sheetFeatureGroups = canUseBeastform && !featureGroups.some(group => group.id === 'class')
+    ? [{id: 'class', label: 'Класс', features: []}, ...featureGroups]
+    : featureGroups;
+  const beastformEntry = canUseBeastform ? <ListItem
+    aria-label="Управление звериной формой"
+    aria-description={character.activeBeastform ? `Активна: ${character.activeBeastform.name}` : 'Не активна'}
+    title="Звериная форма"
+    subtitle={character.activeBeastform ? `Активна: ${character.activeBeastform.name}` : 'Не активна'}
+    lines={2}
+    density="compact"
+    onClick={() => onBeastformEdit?.(character)}
+  /> : null;
   const canUseCompanion = character.className === 'Ranger' && (
     /зверин|beastbound|beast bound/i.test(character.subtitle) ||
     character.features.some((feature) => /компаньон|companion|зверин/i.test(`${feature.name}\n${feature.text}`))
@@ -268,59 +272,6 @@ export function CharacterSheet({
             </div>
           </div>
         </section>
-        {canUseBeastform && (
-          <section className="player-beastform-panel" aria-label="Звериная форма">
-            <header>
-              <span>Звериная форма</span>
-              {character.activeBeastform && <strong>{character.activeBeastform.name}</strong>}
-            </header>
-            {character.activeBeastform ? (
-              <div className="player-beastform-panel__active">
-                <span>
-                  Уклонение {signed(character.activeBeastform.evasionModifier)}
-                  {character.activeBeastform.traitType ? ` / ${traitLabel(character, character.activeBeastform.traitType)} ${signed(character.activeBeastform.traitBonus)}` : ''}
-                  {character.activeBeastform.evolutionTrait ? ` / ${traitLabel(character, character.activeBeastform.evolutionTrait)} +1` : ''}
-                </span>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  type="button"
-                  onClick={() => {
-                    characterService.exitBeastform(character.id);
-                    feedService.addMessage(character.name, `${character.activeBeastform?.name ?? 'Форма'} — выход`, { title: 'Форма', publication: 'public' });
-                  }}
-                >
-                  Выйти
-                </Button>
-              </div>
-            ) : (
-              <div className="player-beastform-panel__controls">
-                <RichChoicePicker
-                  className="player-beastform-panel__picker"
-                  label="Звериная форма"
-                  value={selectedBeastform?.id ?? ''}
-                  placeholder="Выберите форму"
-                  items={availableBeastforms.map((beastform) => ({
-                    id: beastform.id,
-                    title: beastform.name,
-                    subtitle: `Ранг ${beastform.tier} — уклонение ${signed(beastform.evasionModifier)}`,
-                    description: [beastform.summary, beastform.advantages, beastform.featureText].filter(Boolean).join('\n\n')
-                  }))}
-                  onChange={setSelectedBeastformId}
-                />
-                <SelectControl value={evolutionTrait} onChange={(event) => setEvolutionTrait(event.currentTarget.value as TraitId)} aria-label="Характеристика Эволюции" title="Характеристика Эволюции">
-                  {character.traits.map((trait) => <option key={trait.id} value={trait.id}>{trait.label}</option>)}
-                </SelectControl>
-                <Button size="sm" variant="secondary" type="button" disabled={!selectedBeastform} onClick={() => selectedBeastform && enterBeastform(character, selectedBeastform, 'stress')}>
-                  Форма
-                </Button>
-                <Button size="sm" variant="primary" type="button" disabled={!selectedBeastform || character.hope.value < 3} onClick={() => selectedBeastform && enterBeastform(character, selectedBeastform, 'evolution', evolutionTrait)}>
-                  Эволюция
-                </Button>
-              </div>
-            )}
-          </section>
-        )}
         {canUseCompanion && (
           <section className="player-companion-panel" aria-label="Компаньон следопыта">
             <header>
@@ -488,6 +439,7 @@ export function CharacterSheet({
           />
         ))}
       </SheetSection>
+      {showRuleEffects && beastformEntry && <SheetSection title="Классовые способности">{beastformEntry}</SheetSection>}
       {showRuleEffects ? (
         <SheetFeatureSection
           id="player-sheet-features"
@@ -513,16 +465,17 @@ export function CharacterSheet({
         />
       ) : (
         <SheetSection id="player-sheet-features" title="Свойства" emptyLabel="Свойства появятся после заполнения листа">
-          {featureGroups.map((group) => (
+          {sheetFeatureGroups.map((group) => (
             <section className="player-sheet-feature-group" aria-label={`Свойства: ${group.label}`} key={group.id}>
               <h4>{group.label}</h4>
+              {group.id === 'class' && beastformEntry}
               {group.features.map((feature) => {
                 return (
                   <ListItem
                     aria-label={feature.name}
                     density="compact"
                     key={feature.id}
-                    title={<span className="player-sheet-feature-title">{feature.name}{feature.subtitle && <Badge size="xs">{feature.subtitle}</Badge>}</span>}
+                    title={<span className="player-sheet-feature-title">{canUseBeastform && group.id === 'class' && /^(звериная форма|beastform|beast form)$/i.test(feature.name.trim()) ? 'Правила звериной формы' : feature.name}{feature.subtitle && <Badge size="xs">{feature.subtitle}</Badge>}</span>}
                     onClick={() => onFeaturePreview?.(character, feature)}
                   />
                 );
@@ -625,27 +578,6 @@ export function CharacterSheet({
       </aside>
     </div>
   );
-}
-
-function enterBeastform(
-  character: PlayerViewCharacterSummary,
-  beastform: LibraryBeastform,
-  mode: 'stress' | 'evolution',
-  evolutionTrait?: TraitId
-): void {
-  const applied = characterService.enterBeastform(character.id, beastform, { mode, evolutionTrait });
-  if (!applied) {
-    feedService.addMessage(character.name, `${beastform.name} — не хватает Надежды`, { title: 'Форма', publication: 'public' });
-    return;
-  }
-  const cost = mode === 'evolution'
-    ? `-3 Надежды${evolutionTrait ? `, ${traitLabel(character, evolutionTrait)} +1` : ''}`
-    : '+1 Стресс';
-  feedService.addMessage(character.name, `${beastform.name} — ${cost}`, { title: 'Форма', publication: 'public' });
-}
-
-function traitLabel(character: PlayerViewCharacterSummary, traitId: TraitId): string {
-  return character.traits.find((trait) => trait.id === traitId)?.label ?? traitId;
 }
 
 function inventoryQuantityLabel(item: PlayerViewCharacterSummary['inventory'][number]): string {

@@ -2444,3 +2444,12 @@
   align-items: center;
   gap: 4px;
 }
+
+/* The existing preview hosts form controls; let active names/effects wrap. */
+.player-beastform-panel > header { flex-wrap: wrap; }
+.player-beastform-panel > header strong { white-space: normal; overflow-wrap: break-word; }
+.player-beastform-panel__active { grid-template-columns: minmax(0, 1fr); }
+.player-beastform-panel__active > span { white-space: normal; }
+.player-beastform-panel__active > button { justify-self: start; }
+
+.player-beastform-panel__evolution { grid-column: 1 / -1; }

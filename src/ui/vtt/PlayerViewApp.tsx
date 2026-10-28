@@ -11,7 +11,7 @@ import {
   type PlayerViewCharacterSummary
 } from '../../domain/tabletop/playerView';
 import { buildRollActorOptions } from '../../domain/tabletop/rollActorContext';
-import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildHandoutDraftFeedItem, buildWealthEditorFeedItem, type TableFeedFeaturePreview, type TableFeedItem } from '../../domain/tabletop/feed';
+import { buildCharacterFeaturePreviewFeedItem, buildDomainCardPreviewFeedItem, buildHandoutDraftFeedItem, buildWealthEditorFeedItem, buildBeastformEditorFeedItem, type TableFeedFeaturePreview, type TableFeedItem } from '../../domain/tabletop/feed';
 import { latestVisibleRollLogEntry } from '../../domain/tabletop/rollPublication';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import { readWorkspaceRole } from '../../services/p2p/P2PSessionPersistence';
@@ -392,6 +392,12 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
       }
     }));
   }, []);
+  const editBeastform = useCallback((character: PlayerViewCharacterSummary) => {
+    setContentPreviewItem(buildBeastformEditorFeedItem({
+      id: `ephemeral-beastform-${character.id}`, createdAt: nowIso(), authorName: character.name, characterId: character.id,
+      actor: {actorId: character.id, actorName: character.name, actorType: 'character'}
+    }));
+  }, []);
   const needsSeatSelection = role === 'player' && playerSeats.length > 0 && !selectedPlayerSeat;
   const openRoster = useCallback(() => {
     setPanelOpen(true);
@@ -539,6 +545,7 @@ export function PlayerViewApp({ role: roleProp }: { role?: TableViewRole }) {
           onCreateHandout={role === 'gm' ? createHandout : undefined}
           onOpenPlayersSettings={role === 'gm' ? () => changeSettingsSection('players') : undefined}
           onWealthEdit={editCharacterWealth}
+          onBeastformEdit={editBeastform}
           onEditCharacter={displayedCharacter ? () => setEditingCharacterId(displayedCharacter.id) : undefined}
           onOpenTool={openTool}
           onEmptyAction={role === 'player' ? () => setPlayerCharacterBuilderOpen(true) : undefined}

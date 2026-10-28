@@ -7,7 +7,7 @@ import type { ActionRollOutcome, Countdown, GameHandout, Character, DeathMoveFee
 import { canViewFeedEntry, canViewRollLogEntry, feedEntryPublication, rollLogEntryPublication } from './rollPublication';
 import type { TableSyncRole, TableVisibility } from './types';
 
-export type TableFeedItemKind = 'system' | 'message' | 'roll' | 'card' | 'feature' | 'handout' | 'rest' | 'teamwork' | 'deathMove' | 'countdownComposer' | 'wealth';
+export type TableFeedItemKind = 'system' | 'message' | 'roll' | 'card' | 'feature' | 'handout' | 'rest' | 'teamwork' | 'deathMove' | 'countdownComposer' | 'wealth' | 'beastformEditor';
 
 export interface TableFeedDieResult {
   sides: number;
@@ -95,6 +95,7 @@ export interface TableFeedItem {
   deathMove?: DeathMoveFeedRequest;
   countdownComposer?: CountdownComposerDraft;
   wealthEditor?: TableFeedWealthEditor;
+  beastformEditor?: {characterId: string};
   roll?: TableFeedRollSummary;
   rollId?: string;
   publication: RollPublication;
@@ -299,6 +300,13 @@ export function buildWealthEditorFeedItem(input: {
     publication: 'private',
     ephemeral: true
   };
+}
+
+// Client-local preview descriptor, never appended to the shared feed.
+export function buildBeastformEditorFeedItem(input: {id: string; createdAt: string; authorName: string; characterId: string; actor: FeedActorReference}): TableFeedItem {
+  return {id: input.id, kind: 'beastformEditor', createdAt: input.createdAt, authorName: input.authorName,
+    kicker: 'Классовая способность', title: 'Звериная форма', body: '', tone: 'hope', actor: input.actor,
+    beastformEditor: {characterId: input.characterId}, publication: 'private', ephemeral: true};
 }
 
 export function buildCountdownComposerFeedItem(input: {

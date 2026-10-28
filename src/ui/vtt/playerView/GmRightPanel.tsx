@@ -51,6 +51,7 @@ export function GmRightPanel({
   onCreateHandout,
   onOpenPlayersSettings,
   onWealthEdit,
+  onBeastformEdit,
   onEditCharacter,
   onOpenTool,
   onOpenActor
@@ -76,6 +77,7 @@ export function GmRightPanel({
   onCreateHandout?: () => void;
   onOpenPlayersSettings?: () => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
+  onBeastformEdit?: (character: PlayerViewCharacterSummary) => void;
   onEditCharacter?: () => void;
   onOpenTool: (tab: 'characters' | 'scenes' | 'combat' | 'handouts') => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
@@ -174,7 +176,7 @@ export function GmRightPanel({
     return <><EnvironmentSheet environment={environment} navigation={navigation} />{editingEnvironment && <PreparedEnvironmentEditor key={editingEnvironment.id} environment={editingEnvironment} onClose={() => setEditingEnvironmentId(null)} />}</>;
   }
   if (activeView === 'sheet' && character) {
-    return <CharacterSheet character={character} beastforms={beastforms} role="gm" navigation={navigation} onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} onWealthEdit={onWealthEdit} />;
+    return <CharacterSheet character={character} beastforms={beastforms} role="gm" navigation={navigation} onDomainCardPreview={onDomainCardPreview} onFeaturePreview={onFeaturePreview} onWealthEdit={onWealthEdit} onBeastformEdit={onBeastformEdit} />;
   }
 
   const actorGroups = groupSceneRosterActors(actors);

@@ -35,6 +35,7 @@ export function PlayerCharacterPanel({
   onOpenPlayersSettings,
   onEmptyAction,
   onWealthEdit,
+  onBeastformEdit,
   onEditCharacter,
   onOpenTool,
   onOpenActor
@@ -61,6 +62,7 @@ export function PlayerCharacterPanel({
   onOpenPlayersSettings?: () => void;
   onEmptyAction?: () => void;
   onWealthEdit?: (character: PlayerViewCharacterSummary) => void;
+  onBeastformEdit?: (character: PlayerViewCharacterSummary) => void;
   onEditCharacter?: () => void;
   onOpenTool: (tab: 'characters' | 'scenes' | 'combat' | 'handouts') => void;
   onOpenActor: (actor: PlayerViewedActor) => void;
@@ -112,7 +114,7 @@ export function PlayerCharacterPanel({
         onCreateCharacter={onCreateCharacter}
         onCreateHandout={onCreateHandout}
         onOpenPlayersSettings={onOpenPlayersSettings}
-        onWealthEdit={onWealthEdit}
+        onWealthEdit={onWealthEdit} onBeastformEdit={onBeastformEdit}
         onEditCharacter={onEditCharacter}
         onOpenTool={onOpenTool}
         onOpenActor={onOpenActor}
@@ -128,7 +130,7 @@ export function PlayerCharacterPanel({
       onDomainCardPreview={onDomainCardPreview}
       onFeaturePreview={onFeaturePreview}
       onEmptyAction={onEmptyAction}
-      onWealthEdit={onWealthEdit}
+      onWealthEdit={onWealthEdit} onBeastformEdit={onBeastformEdit}
       onEditCharacter={onEditCharacter}
     />
   );

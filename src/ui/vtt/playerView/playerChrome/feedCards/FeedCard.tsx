@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { BeastformFeedCard } from './BeastformFeedCard';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
 import type { PlayerViewDomainCard, PlayerViewDomainCardMacro } from '../../domainCards/types';
 import type { TableViewRole } from '../../types';
@@ -56,6 +57,7 @@ export function FeedCard({
   if (item.kind === 'handout') {
     return <HandoutFeedCard item={item} onPublish={onHandoutPublish} />;
   }
+  if (item.kind === 'beastformEditor') return <BeastformFeedCard item={item} />;
   if (item.kind === 'wealth') {
     return <WealthFeedCard item={item} />;
   }
