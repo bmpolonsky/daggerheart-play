@@ -3467,3 +3467,17 @@ textarea.player-compendium-statblock__weapon {
 .character-editor-combat-fields { align-items: start; }
 
 .character-editor-armor-toggle { justify-self: start; }
+
+/* Both editor entry points use the same compact title/action stack on narrow
+   screens; the Library wrapper previously supplied it only to its own editor. */
+@media (max-width: 600px) {
+  .character-editor-compact .character-editor-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .character-editor-compact .character-editor-heading > div { min-width: 0; }
+  .character-editor-compact .character-editor-heading h2 { overflow-wrap: break-word; }
+  .character-editor-compact .character-editor-heading .dh-section-header__actions,
+  .character-editor-compact .character-editor-heading .dh-toolbar { justify-content: flex-start; }
+}
