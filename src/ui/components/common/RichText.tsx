@@ -1,5 +1,4 @@
-/** @jsxImportSource preact */
-import type { VNode } from 'preact';
+import type { ReactElement } from 'react';
 import styles from './RichText.module.css';
 import { cleanMarkdownText } from '../../../core/utils/markdownText';
 import { cleanLibraryHtmlText } from '../../../domain/content/libraryPresentation';
@@ -12,10 +11,10 @@ export function RichText({ text }: RichTextProps) {
   return <div className={`player-library-richtext ${styles.root}`}>{blocks}</div>;
 }
 
-function richBlocks(text: string): VNode[] {
+function richBlocks(text: string): ReactElement[] {
   const normalized = normalizeDetailText(cleanMarkdownText(cleanLibraryHtmlText(text), { emphasizeLinks: true }))
     .replace(/\s*\{#[^}]+\}\s*$/gm, '');
-  const blocks: VNode[] = [];
+  const blocks: ReactElement[] = [];
   let listItems: string[] = [];
 
   const flushList = () => {
@@ -70,9 +69,9 @@ function richBlocks(text: string): VNode[] {
   return blocks;
 }
 
-function inlineRichText(text: string): Array<string | VNode> {
+function inlineRichText(text: string): Array<string | ReactElement> {
   const cleaned = text;
-  const pieces: Array<string | VNode> = [];
+  const pieces: Array<string | ReactElement> = [];
   const pattern = /(\*\*\*([^*]+)\*\*([^*]+)\*|(\*{1,3})([^*]+)\4)/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
@@ -109,7 +108,7 @@ function isTable(lines: string[]): boolean {
   return lines.length >= 2 && lines.every((line) => line.includes('|')) && lines.some((line) => /^\|?\s*-+/.test(line));
 }
 
-function renderTable(lines: string[], keyIndex: number): VNode {
+function renderTable(lines: string[], keyIndex: number): ReactElement {
   const rows = lines
     .filter((line) => !/^\|?\s*:?-{2,}/.test(line))
     .map((line) => line.split('|').map((cell) => cell.trim()).filter(Boolean));
