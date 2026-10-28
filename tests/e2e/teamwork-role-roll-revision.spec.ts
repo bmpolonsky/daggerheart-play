@@ -40,7 +40,7 @@ test('group reaction becomes a fresh leader action while history, repeat guard a
   await expect(first.getByRole('combobox',{name:`Характеристика броска: ${filledCharacterName}`,exact:true})).toBeVisible();
   await expect(second.getByRole('combobox',{name:'Характеристика броска: Ран',exact:true})).toBeVisible();
   let tray=await prepare(page,second,'реакции');
-  await expect(tray).toContainText('Групповой бросок — результат связан с событием.');
+  await expect(tray).toContainText('Групповой бросок. Результат будет учтён.');
   await nextDice(page,[4,6]);await tray.getByRole('button',{name:'Бросить',exact:true}).click();
   await expect.poll(async()=>{const s=await stored(page);return s?.feed.find((e:any)=>e.id===eventId)?.teamwork.participants[1].result?.total;}).toBe(11);
   const oldRollId=(await stored(page)).rollLog[0].id;
@@ -78,6 +78,6 @@ test('tag-team preparation retains its own label and named trait selectors',asyn
   await expect(card.getByRole('combobox',{name:/^Характеристика броска:/})).toHaveCount(2);
   const first=card.locator('.feed-rest-participant').filter({has:page.getByText(filledCharacterName,{exact:true})});
   const tray=await prepare(page,first,'действия');
-  await expect(tray).toContainText('Командный бросок — результат связан с событием.');
+  await expect(tray).toContainText('Командный бросок. Результат будет учтён.');
   await expect(tray.getByRole('button',{name:'Бросить',exact:true})).toBeEnabled();
 });

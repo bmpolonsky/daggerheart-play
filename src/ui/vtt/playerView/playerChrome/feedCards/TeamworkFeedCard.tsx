@@ -157,12 +157,12 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
               </div>
             );
           }) : (
-            <p className="feed-rest-card__empty">Мастер выбирает участников на карточке.</p>
+            <p className="feed-rest-card__empty">Мастер выбирает участников броска.</p>
           )}
         </div>
         {role === 'gm' && !isClosed && teamwork.participants.some((participant) => participant.result) && (
           <Button className="feed-teamwork-card__complete" fullWidth size="md" variant="secondary" type="button" onClick={() => feedService.completeTeamworkRoll(item.id)}>
-            Завершить карточку
+            Завершить {teamwork.kind === 'groupAction' ? 'групповой' : 'командный'} бросок
           </Button>
         )}
       </div>

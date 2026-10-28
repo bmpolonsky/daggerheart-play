@@ -122,16 +122,16 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       {draft.hint && <IconButton variant="ghost" size="sm" aria-label="Контекст способности" title="Контекст способности" aria-expanded={contextOpen} onClick={() => setContextOpen((open) => !open)}><Info size={14} /></IconButton>}
     </div>}
     {eventContext && <div className="unified-roll-event-context">
-      <small>{eventContext.kind === 'rest' ? 'Ход отдыха' : eventContext.kind === 'death' ? 'Предсмертный ход' : draft.source?.label ?? 'Командный бросок'} — результат связан с событием.</small>
-      <Button variant="ghost" size="xs" onClick={() => update(unlinkUnifiedRollEvent(draft))}>Отвязать от события</Button>
-      {eventCompatibility?.fixedFormula && <small>Набор события: {eventCompatibility.fixedFormula}</small>}
+      <small>{eventContext.kind === 'rest' ? 'Ход отдыха' : eventContext.kind === 'death' ? 'Предсмертный ход' : draft.source?.label ?? 'Совместный бросок'}. Результат будет учтён.</small>
+      <Button variant="ghost" size="xs" onClick={() => update(unlinkUnifiedRollEvent(draft))} title="Сохранить набор и бросить без применения к выбранному действию">Бросить отдельно</Button>
+      {eventCompatibility?.fixedFormula && <small>Нужный набор: {eventCompatibility.fixedFormula}</small>}
       {eventCompatibility?.manualOverrideRequired && role === 'gm' && <Checkbox
         label={eventContext.kind === 'teamwork' ? 'Ручной итог' : 'Применить изменённое восстановление'}
         checked={eventContext.manualOverride === true}
         onChange={(event) => update({ eventContext: { ...eventContext, manualOverride: event.currentTarget.checked } })}
       />}
     </div>}
-    {draft.eventUnlinked && <Notice role="status">Привязка снята. Обычный бросок не применит результат к событию.</Notice>}
+    {draft.eventUnlinked && <Notice role="status">Обычный бросок. Результат не будет применён к выбранному действию.</Notice>}
     {contextOpen && draft.hint && <small>{draft.hint}</small>}
     {(isTypedUnifiedRoll(draft) || draft.damage) && <div className="unified-roll-modes">
       {character && <Button size="xs" variant={draft.mode === 'action' ? 'primary' : 'ghost'} disabled={controlsBlocked || (eventContext?.kind === 'teamwork' && eventContext.rollType !== 'action')} onClick={() => changeMode('action')}>Действие</Button>}
