@@ -27,7 +27,7 @@ async function open(page: Page, kind: RemainingTrayCase, width: number) {
   const layers = page.getByLabel('Слой интерфейса');
   if (await layers.isVisible()) await layers.getByRole('button', { name: kind === 'risk' ? /^Чат(?:\.|$)/ : 'Лист', exact: kind !== 'risk' }).click();
   else if (kind === 'risk') { const chat = page.getByRole('button', { name: /^Открыть чат/ }); if (await chat.isVisible()) await chat.click(); }
-  if (output && width === 1180) writeFileSync(`${output}/${name}`, fixture.buffer);
+  if (output && width === 1180) { mkdirSync(output, { recursive: true }); writeFileSync(`${output}/${name}`, fixture.buffer); }
   return fixture;
 }
 async function acceptTray(page: Page) {

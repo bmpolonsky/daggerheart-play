@@ -160,8 +160,12 @@ test('isolated player has one readable actor and sends full N-dice count through
     await chooseUnifiedAdvantage(tray, 'advantage', 3);
     await snapshot(player, tray, 'one-player-actor-three-dice');
     await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
-    await expect.poll(async () => (await savedState(gm))?.rollLog[0]?.advantageRolls?.length).toBe(3);
-    const state = await savedState(gm);
-    await writeFile(`${output}/player-wire-result.json`, JSON.stringify({ roll: state.rollLog[0], messages: relay.messages.filter((message: any) => JSON.stringify(message).includes('advantageCount')).map((message: any) => message) }, null, 2));
+    try {
+      await expect.poll(async () => (await savedState(gm))?.rollLog[0]?.advantageRolls?.length).toBe(3);
+    } finally {
+      const state = await savedState(gm);
+      await writeFile(`${output}/player-wire-result.json`, JSON.stringify({ state,
+        messages: relay.messages.filter((message: any) => /advantageCount|advantageRolls/.test(JSON.stringify(message))) }, null, 2));
+    }
   } finally { await relay.close(); }
 });

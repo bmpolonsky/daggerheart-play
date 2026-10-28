@@ -33,7 +33,18 @@ const server = createServer(async (request, response) => {
     const body = await readFile(resolve(process.env.OFFLINE_TEST_DIST ?? 'dist', relative));
     const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.woff2': 'font/woff2' };
     response.writeHead(200, { 'Content-Type': types[extname(relative)] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' });
-    response.end(relative === 'index.html' ? body.toString().replace('<title>Daggerheart Play</title>', `<title>${title}</title>`) : body);
+    // Synthetic worker-only fault injection: never changes application files or
+    // actual browser quota. Inactive unless this isolated test sends the marker.
+    const workerQuotaFixture = relative === 'offline-sw.js' ? `
+      (() => { const put = Cache.prototype.put; let fail = false;
+        self.addEventListener('message', event => { if (event.data?.__qaQuotaFailure === true) {
+          fail = true; event.ports[0]?.postMessage('ready');
+        }});
+        Cache.prototype.put = function(...args) { return fail
+          ? Promise.reject(new DOMException('Synthetic quota failure', 'QuotaExceededError'))
+          : put.apply(this, args); };
+      })();` : '';
+    response.end(relative === 'index.html' ? body.toString().replace('<title>Daggerheart Play</title>', `<title>${title}</title>`) : workerQuotaFixture ? body.toString() + workerQuotaFixture : body);
   } catch { response.writeHead(404).end(); }
 });
 
@@ -310,4 +321,32 @@ test('optional compendium artwork is fully cached and the choice survives reopen
       return image.naturalWidth;
     }, url)).toBe(8);
   }
+});
+
+
+test('modeled quota failure is explicit and preserves the previous usable offline copy', async ({ page, context }, testInfo) => {
+  await page.goto(`${origin}/#/library/settings/game`);
+  const offline = page.getByRole('region', { name: 'Офлайн', exact: true });
+  await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
+  await expect(offline.getByRole('status')).toHaveText('Офлайн включён', { timeout: 60_000 });
+  const preparedNames = () => page.evaluate(async () => (await caches.keys()).filter(name => !name.endsWith(':state') && !name.endsWith(':runtime-v1')));
+  const before = await preparedNames();
+  expect(before).toHaveLength(1);
+  await page.evaluate(async () => {
+    const worker = (await navigator.serviceWorker.ready).active!;
+    await new Promise<void>(resolve => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => { channel.port1.close(); resolve(); };
+      worker.postMessage({ __qaQuotaFailure: true }, [channel.port2]);
+    });
+  });
+  await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
+  await expect(offline.getByRole('alert')).toHaveText('Недостаточно места для офлайн-копии.');
+  expect(await preparedNames()).toEqual(before);
+  await page.screenshot({ path: testInfo.outputPath('quota-refusal-previous-copy.png') });
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён');
+  expect(await preparedNames()).toEqual(before);
+  await page.screenshot({ path: testInfo.outputPath('quota-previous-copy-reopened-offline.png') });
 });

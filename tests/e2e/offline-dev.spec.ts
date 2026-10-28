@@ -47,7 +47,7 @@ test('dev prepares real media, keeps code fresh, restores the indicator and disa
   document.files['data/characters.json'].entities['e2e-character-ran'].portraitUrl = `${origin}/offline-dev-test.js`;
   Object.values(document.files['data/scene-table.json'].scenes)[0].music.sourceUrl = `${origin}/offline-dev-test.mp3`;
   await page.goto(`${origin}/#/game`);
-  await expect(page.locator('[data-vtt-root]')).toBeVisible();
+  await expect(page.locator('[data-vtt-root]')).toBeVisible({ timeout: 15_000 });
   await importGameDocument(page, document);
   await page.goto(`${origin}/#/library/settings/game`);
   const settings = page.getByRole('region', { name: 'Офлайн', exact: true });

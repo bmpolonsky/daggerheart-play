@@ -166,8 +166,8 @@ test('supplemental A/B: stored weapon preview supplies and selected custom armor
   await editor.getByRole('button', { name: 'Редактировать', exact: true }).click();
   await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Характеристики', exact: true }).click();
   async function selectArmor(title: RegExp) {
-    await editor.getByRole('button', { name: 'Броня', exact: true }).click();
-    const picker = page.getByRole('dialog', { name: 'Выбор: Броня', exact: true });
+    await editor.getByRole('button', { name: /^Броня(?: \(\d+\/\d+\))?$/, exact: true }).click();
+    const picker = page.getByRole('dialog', { name: /^Выбор: Броня(?: \(\d+\/\d+\))?$/, exact: true });
     await picker.getByRole('option').filter({ hasText: title }).first().click(); await picker.getByRole('button', { name: 'Выбрать', exact: true }).click();
   }
   await selectArmor(/Стеганый Доспех/i); await capture(page, 'catalog-armor-selected', editor);
