@@ -1,3 +1,4 @@
+import { chooseUnifiedAdvantage } from './unified-formula-helpers';
 import { expect, test } from '@playwright/test';
 import { createExperience } from '../../src/domain/rules/factories';
 import { createPopulatedGameDocument, importGameDocument } from './filled-game-helpers';
@@ -28,11 +29,11 @@ for (const viewport of [{ width: 1180, height: 757 }, { width: 390, height: 844 
     expect(metrics.height).toBeGreaterThanOrEqual(viewport.width < 600 ? 40 : 32);
     await expect(tray).toContainText('Цена опыта: 1 Надежды');
     await expect(tray).not.toContainText('Костей:');
-    for (let i = 0; i < 3; i++) await tray.getByRole('button', { name: /^Преим\./ }).click();
-    await expect(tray).toContainText('Из 3d6 прибавляется наибольший результат.');
+    await chooseUnifiedAdvantage(tray, 'advantage', 3);
+    await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText(/3d6kh1$/);
     await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toContainText('3×d6');
     await page.screenshot({ path: `/home/codex/outputs/dh-condition-note-20261027/tray-compact-${viewport.width}.png` });
-    await tray.getByRole('button', { name: 'Сбросить преимущество и помеху', exact: true }).click();
+    await chooseUnifiedAdvantage(tray, 'advantage', 0);
     await expect(tray.locator('.unified-roll-pool-count')).toHaveCount(0);
     await tray.getByLabel('Модификатор', { exact: true }).fill('abc');
     await expect(tray).toContainText('Введите целый модификатор.');

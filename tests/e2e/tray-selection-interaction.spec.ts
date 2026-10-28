@@ -1,0 +1,56 @@
+import { test, expect } from '@playwright/test';
+import { createPopulatedGameDocument, importGameDocument } from './filled-game-helpers';
+import { openGmGame } from './game-route-helpers';
+import { chooseUnifiedAdvantage, openUnifiedFormulaEditor } from './unified-formula-helpers';
+async function saved(page: import('@playwright/test').Page) {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('daggerheart-play-game'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const library: any = await new Promise((resolve, reject) => { const request = db.transaction('documents').objectStore('documents').get('current-game'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); db.close();
+    const world = library.worlds[library.activeWorldId]; return world.games[world.activeGameId].state;
+  });
+}
+for (const width of [1180, 390]) test(`sequential actor modifiers MAX privacy submit reset at ${width}`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: width === 390 ? 844 : 757 }); await openGmGame(page);
+  const document = createPopulatedGameDocument(); const id = 'e2e-character-cadsuane'; const pc = document.files['data/characters.json'].entities[id];
+  pc.traits.instinct = 2; pc.hope.value = 4; pc.experiences = [{ id: 'qa-xp', name: 'Исследователь QA', modifier: 2 }]; document.files['data/game.json'].autoApplyRollConsequences = false;
+  await importGameDocument(page, document, 'selection-interaction.dhgame');
+  const layers = page.getByLabel('Слой интерфейса'); if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
+  await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
+  const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
+  await tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true }).selectOption(`character:${id}`);
+  const adjustments = tray.getByRole('group', { name: 'Прибавки к броску', exact: true });
+  await adjustments.getByRole('combobox', { name: 'Характеристика броска', exact: true }).selectOption('instinct');
+  await tray.getByRole('button', { name: 'Реакция', exact: true }).click();
+  await chooseUnifiedAdvantage(tray, 'advantage', 3);
+  await tray.getByRole('button', { name: 'Помеха', exact: true }).click();
+  await expect(tray.getByRole('button', { name: 'Преимущество 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toContainText('2×d6');
+  await tray.getByRole('button', { name: 'Несколько', exact: true }).click();
+  await adjustments.getByRole('button', { name: 'Опыт', exact: true }).click();
+  await tray.getByRole('checkbox', { name: 'Исследователь QA +2', exact: true }).check();
+  await adjustments.getByLabel('Модификатор', { exact: true }).fill('3');
+  await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('2d12+1d6+7+2d6kh1');
+  const formula = await openUnifiedFormulaEditor(tray); await formula.fill('2d12+1d6+8+2d6kh1'); await formula.blur();
+  await expect(adjustments.getByLabel('Модификатор', { exact: true })).toHaveValue('4');
+  await adjustments.getByLabel('Модификатор', { exact: true }).fill('3');
+  await expect(formula).toHaveValue('2d12+1d6+7+2d6kh1');
+  await tray.getByRole('button', { name: 'Сделать бросок приватным', exact: true }).click();
+  await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toHaveText('Приватный бросок');
+  await page.screenshot({ path: testInfo.outputPath('ready-with-open-controls.png') });
+  await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
+  await expect.poll(async () => (await saved(page)).rollLog.length).toBe(1);
+  const state = await saved(page), roll = state.rollLog[0];
+  expect(roll.type).toBe('reaction'); expect(roll.actorId).toBe(id); expect(roll.advantageRolls).toHaveLength(2); expect(roll.disadvantageRolls).toHaveLength(0);
+  expect(roll.keptExtraDie).toBe(Math.max(...roll.advantageRolls)); expect(roll.extraDiceTerms[0].rolls).toHaveLength(1);
+  expect(roll.total).toBe(roll.hopeDie + roll.fearDie + roll.keptExtraDie + roll.extraDiceTerms[0].rolls[0] + 7);
+  expect(state.characters.entities[id].hope.value).toBe(3); expect(roll.publication).toBe('private'); expect(state.game.fear).toBe(0);
+  await tray.getByRole('button', { name: 'Сбросить набор', exact: true }).click();
+  await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
+  await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('1d6');
+  await chooseUnifiedAdvantage(tray, 'advantage'); await chooseUnifiedAdvantage(tray, 'advantage', 0);
+  await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toHaveCount(0);
+  await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
+  await expect.poll(async () => (await saved(page)).rollLog.length).toBe(2);
+  expect((await saved(page)).characters.entities[id].hope.value).toBe(3);
+});

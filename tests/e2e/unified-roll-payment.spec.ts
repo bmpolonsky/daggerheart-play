@@ -46,11 +46,11 @@ test('ordinary palette dice retain typed reaction, separate advantage, visible i
   await tray.getByRole('button', { name: 'Реакция', exact: true }).click();
   await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
   await tray.getByRole('checkbox', { name: 'QA опыт +2', exact: true }).check();
-  await tray.getByRole('button', { name: 'Преим.', exact: true }).click();
+  await tray.getByRole('button', { name: 'Преимущество', exact: true }).click();
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await tray.getByRole('button', { name: 'Добавить d8', exact: true }).click();
   await tray.getByRole('button', { name: 'Убрать дополнительный d8', exact: true }).click();
-  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d12+1d6+4+1d6');
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('2d12+1d6+4+1d6kh1');
   await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toBeVisible();
   await expect(tray.getByRole('button', { name: 'Убрать кость Страха', exact: true })).toBeVisible();
   await expect(tray.getByRole('button', { name: 'Сделать ручным броском', exact: true })).toHaveCount(0);
@@ -67,7 +67,7 @@ test('explicit manual conversion retains the existing advantage die and never si
   const { sheet, tray } = await prepareAction(page);
   await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
   await tray.getByRole('checkbox', { name: 'QA опыт +2', exact: true }).check();
-  await tray.getByRole('button', { name: 'Преим.', exact: true }).click();
+  await tray.getByRole('button', { name: 'Преимущество', exact: true }).click();
   await tray.getByLabel('Модификатор', { exact: true }).fill('3');
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Сделать ручным броском', exact: true })).toHaveCount(0);
@@ -76,7 +76,7 @@ test('explicit manual conversion retains the existing advantage die and never si
   await expect(tray).toContainText('не списывает стоимость Опытов');
   await tray.getByRole('button', { name: 'Сделать ручным броском', exact: true }).click();
   const formula = await tray.getByLabel('Формула броска', { exact: true }).inputValue();
-  const d6Count = parseDiceFormula(formula).reduce((sum, term) => sum + (term.kind === 'dice' && term.sides === 6 && term.sign === 1 ? term.count : 0), 0);
+  const d6Count = parseDiceFormula(formula.replace(/kh1/g, '')).reduce((sum, term) => sum + (term.kind === 'dice' && term.sides === 6 && term.sign === 1 ? term.count : 0), 0);
   expect(d6Count).toBe(2);
   await expect(tray.getByRole('button', { name: 'Убрать кость Надежды', exact: true })).toHaveCount(0);
   await expect(tray.getByRole('button', { name: 'Убрать кость Страха', exact: true })).toHaveCount(0);

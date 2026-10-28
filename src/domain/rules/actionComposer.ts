@@ -86,3 +86,19 @@ export function actionComposerModifierPreview(character: Character | null, state
     .filter((experience) => ids.has(experience.id))
     .reduce((sum, experience) => sum + experience.modifier, 0);
 }
+
+/** Common single-source choice; rare multiplicity stays an explicit separate intent. */
+export function toggleRollAdvantage(current: Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'>, kind: 'advantage' | 'disadvantage'): Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'> {
+  const net = current.advantageCount - current.disadvantageCount;
+  const active = kind === 'advantage' ? net > 0 : net < 0;
+  if (active) return { advantageCount: 0, disadvantageCount: 0 };
+  // An opposite source still cancels one existing source, as in the original composer.
+  if (net !== 0) return { advantageCount: net > 0 ? net - 1 : 0, disadvantageCount: net < 0 ? -net - 1 : 0 };
+  return { advantageCount: kind === 'advantage' ? 1 : 0, disadvantageCount: kind === 'disadvantage' ? 1 : 0 };
+}
+
+export function setRollAdvantageMultiplicity(current: Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'>, count: number): Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'> {
+  if (!Number.isInteger(count) || count < 0 || count > 20) throw new Error('Укажите от 0 до 20 источников.');
+  const net = current.advantageCount - current.disadvantageCount;
+  return { advantageCount: net > 0 ? count : 0, disadvantageCount: net < 0 ? count : 0 };
+}

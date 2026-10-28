@@ -558,12 +558,10 @@
 }
 
 .unified-roll-formula-summary {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  min-width: 0;
+  color: var(--dh-paper-100);
+  font-size: .75rem;
+  overflow-wrap: anywhere;
 }
 
 .mini-dice-launcher__mobile-head {
@@ -679,4 +677,14 @@
 .unified-roll-experiences > .dh-checkbox { min-height: 32px; font-size: .72rem; }
 @media (max-width: 600px), (pointer: coarse) {
   .unified-roll-experiences > .dh-checkbox { min-height: 40px; }
+}
+
+/* Flat adjustments share one local row; no nested surface around each modifier. */
+.unified-roll-modifiers { row-gap: 6px; }
+.unified-roll-modifiers .unified-roll-trait-control { flex: 1 1 130px; max-width: none; }
+.unified-roll-modifiers .unified-roll-modifier-label { margin-left: auto; }
+.unified-roll-formula-row { flex-wrap: wrap; }
+.unified-roll-formula-row > output { flex: 1 1 120px; }
+@media (max-width: 600px), (pointer: coarse) {
+  .unified-roll-options-row > button { min-height: 36px; }
 }

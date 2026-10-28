@@ -4,7 +4,7 @@ import { createExperience } from '../../src/domain/rules/factories';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { createIsolatedDeterministicP2PRelay, openGmGame, openSharedGmGame, openSharedPlayerGame } from './game-route-helpers';
 import { expectInsideViewport } from './layout-helpers';
-import { openUnifiedFormulaEditor } from './unified-formula-helpers';
+import { chooseUnifiedAdvantage, openUnifiedFormulaEditor } from './unified-formula-helpers';
 
 const actorId = 'e2e-character-cadsuane';
 const output = '/home/codex/outputs/dh-tray-ux-20261027/browser';
@@ -78,15 +78,15 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await trait.selectOption('strength');
     await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('2d12+3');
     const traitBox = (await trait.boundingBox())!;
-    expect(traitBox.width).toBeLessThanOrEqual(165);
+    expect(traitBox.width).toBeLessThanOrEqual(280);
     for (const count of [1, 2, 3]) {
-      await tray.getByRole('button', { name: /^Преим\./ }).click();
+      await chooseUnifiedAdvantage(tray, 'advantage', count);
       await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toContainText(count > 1 ? `${count}×d6` : 'd6');
       await expect(tray).not.toContainText('Костей:');
     }
     await snapshot(page, tray, `${viewport.width}-three-advantage`);
-    await tray.getByRole('button', { name: 'Помеха', exact: true }).click();
-    await expect(tray.getByRole('button', { name: 'Преим. 2', exact: true })).toBeVisible();
+    await chooseUnifiedAdvantage(tray, 'advantage', 2);
+    await expect(tray.getByRole('button', { name: 'Преимущество 2', exact: true })).toBeVisible();
     await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
     await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
     await tray.getByRole('checkbox', { name: 'Опыт QA +2', exact: true }).check();
@@ -96,7 +96,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await formula.fill('2d12+1d6+2d6+9'); await formula.blur();
     await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('4');
     await tray.getByLabel('Модификатор', { exact: true }).fill('2');
-    await expect(formula).toHaveValue('2d12+1d6+7+2d6');
+    await expect(formula).toHaveValue('2d12+1d6+7+2d6kh1');
     const submit = tray.getByRole('button', { name: 'Бросить', exact: true });
     await expectInsideViewport(page, submit);
     await submit.click({ trial: true });
@@ -157,7 +157,7 @@ test('isolated player has one readable actor and sends full N-dice count through
     const tray = await openTray(player);
     await expect(tray.getByRole('combobox', { name: 'Исполнитель броска' })).toHaveCount(0);
     await expect(tray.getByLabel('Исполнитель броска', { exact: true })).toHaveText(filledCharacterName);
-    for (let index = 0; index < 3; index++) await tray.getByRole('button', { name: /^Преим\./ }).click();
+    await chooseUnifiedAdvantage(tray, 'advantage', 3);
     await snapshot(player, tray, 'one-player-actor-three-dice');
     await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
     await expect.poll(async () => (await savedState(gm))?.rollLog[0]?.advantageRolls?.length).toBe(3);
