@@ -782,7 +782,7 @@ test.describe('filled-game player character workflows', () => {
       await agilityCard.click();
 
       const roll = player.getByRole('region', { name: 'Подготовка броска', exact: true });
-      const agilityTerm = roll.getByRole('button', { name: 'Проворность', exact: true });
+      const agilityTerm = roll.getByRole('button', { name: 'О характеристике Проворность', exact: true });
       await expect(agilityTerm).toBeVisible();
       await expect(agilityTerm).toHaveCSS('text-decoration-line', 'none');
       await expectRuleTooltip(
