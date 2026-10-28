@@ -90,6 +90,15 @@
   padding: 0 24px 0 8px;
 }
 
+/* Legacy narrow section sizing expands the list to all rows; then its
+   overscroll containment traps wheel/touch before the outer body can scroll. */
+@media (max-width: 1120px) {
+  .layout:global(.player-tools-characters-section:not(.player-tools-characters-section--editing)) {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
 @media (max-width: 600px) {
   .layout :global(.character-editor-vitals) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .layout :global(.character-editor-vitals > :last-child) { grid-column: 1 / -1; }

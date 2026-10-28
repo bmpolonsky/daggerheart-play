@@ -50,6 +50,7 @@ for (const count of [26, 50]) for (const width of [1188, 390]) test(`large chara
   }
   for (let i = 1; i < metrics.length; i++) expect(metrics[i]!.top).toBeGreaterThanOrEqual(metrics[i - 1]!.bottom - 1);
   await roster.hover(); await page.mouse.wheel(0, 50000);
+  await info.attach('scroll-diagnostics', { body: JSON.stringify(await roster.evaluate(el => { const result = []; for (let node: Element | null = el; node; node = node.parentElement) { const box = node.getBoundingClientRect(); const style = getComputedStyle(node); result.push({ className: node.className, top: box.top, height: box.height, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight, scrollTop: node.scrollTop, overflow: style.overflowY }); } return result; }), null, 2), contentType: 'application/json' });
   await expect(cards.last()).toBeInViewport();
   const lastName = (await cards.last().locator('.dh-list-item__title').innerText()).trim();
   const sceneCountBefore = await roster.getByRole('button', { name: 'Убрать со сцены', exact: true }).count();
