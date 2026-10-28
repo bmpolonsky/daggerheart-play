@@ -115,7 +115,7 @@ test('PC sheet resources armor and manual conditions', async ({ page, baseURL })
     await optionalAction(panel.getByRole('button', { name: 'Надеть броню', exact: true }), 'equip armor');
   }
   await optionalAction(panel.getByRole('button', { name: 'Изменить состояние QA — Горит', exact: true }), 'edit custom condition');
-  const custom = page.getByRole('dialog', { name: 'Изменить состояние', exact: true });
+  const custom = page.getByRole('dialog', { name: /^(Состояние|Изменить состояние)$/, exact: true });
   if (await custom.isVisible()) { await snap(page, 'condition-editor', custom); await custom.getByRole('button', { name: 'Отмена', exact: true }).click(); }
   await snap(page, 'pc-final', panel);
 });

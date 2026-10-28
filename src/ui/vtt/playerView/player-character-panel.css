@@ -2453,3 +2453,10 @@
 .player-beastform-panel__active > button { justify-self: start; }
 
 .player-beastform-panel__evolution { grid-column: 1 / -1; }
+
+.player-status-chip > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+.player-status-chip > button { flex-shrink: 0; }

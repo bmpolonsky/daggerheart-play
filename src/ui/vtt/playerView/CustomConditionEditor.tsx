@@ -14,7 +14,7 @@ export interface CustomConditionEditorProps {
 export function CustomConditionEditor({ conditions, condition, onSave, onClose }: CustomConditionEditorProps) {
   const [draft, setDraft] = useState<CustomConditionDraft>(() => customConditionDraft(condition));
   const [issue, setIssue] = useState<string | null>(null);
-  const title = condition ? 'Изменить состояние' : 'Пользовательское состояние';
+  const title = 'Состояние';
   return (
     <Dialog className={styles.dialog} title={<h2>{title}</h2>} aria-label={title} onClose={onClose}>
       <form className={styles.form} onSubmit={(event) => {
@@ -24,12 +24,12 @@ export function CustomConditionEditor({ conditions, condition, onSave, onClose }
         if (onSave(draft) === false) { setIssue('Не удалось сохранить состояние. Проверьте лист и повторите.'); return; }
         onClose();
       }}>
-        <TextField label="Название состояния" value={draft.name} required autoFocus onInput={(event) => setDraft((current) => ({ ...current, name: event.currentTarget.value }))} />
-        <TextAreaField label="Заметка (необязательно)" aria-label="Заметка (необязательно)" value={draft.notes} rows={3} hint="Состояние снимается вручную." onInput={(event) => setDraft((current) => ({ ...current, notes: event.currentTarget.value }))} />
+        <TextField label="Название" value={draft.name} required autoFocus onInput={(event) => setDraft((current) => ({ ...current, name: event.currentTarget.value }))} />
+        <TextAreaField label="Заметка" aria-label="Заметка" value={draft.notes} rows={3} hint="Необязательно. Снятие вручную." onInput={(event) => setDraft((current) => ({ ...current, notes: event.currentTarget.value }))} />
         {issue && <Notice tone="error" role="alert">{issue}</Notice>}
         <div className={styles.actions}>
           <Button type="button" onClick={onClose}>Отмена</Button>
-          <Button type="submit" variant="primary">Сохранить состояние</Button>
+          <Button type="submit" variant="primary">Сохранить</Button>
         </div>
       </form>
     </Dialog>
