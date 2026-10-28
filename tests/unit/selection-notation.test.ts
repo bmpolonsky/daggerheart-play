@@ -49,9 +49,15 @@ test('ordinary toggles are reversible and rare multiplicity is an explicit bound
   assert.deepEqual(toggleRollAdvantage(single, 'advantage'), neutral);
   const triple = setRollAdvantageMultiplicity(single, 3);
   assert.deepEqual(triple, { advantageCount: 3, disadvantageCount: 0 });
-  assert.deepEqual(toggleRollAdvantage(triple, 'disadvantage'), { advantageCount: 0, disadvantageCount: 1 });
+  assert.deepEqual(toggleRollAdvantage(triple, 'disadvantage'), { advantageCount: 2, disadvantageCount: 0 });
+  assert.deepEqual(toggleRollAdvantage(single, 'disadvantage'), neutral);
   assert.deepEqual(toggleRollAdvantage(triple, 'advantage'), neutral);
   assert.deepEqual(setRollAdvantageMultiplicity({ advantageCount: 3, disadvantageCount: 1 }, 2), { advantageCount: 2, disadvantageCount: 0 });
   assert.throws(() => setRollAdvantageMultiplicity(single, 21));
   assert.throws(() => setRollAdvantageMultiplicity(single, 1.5));
+});
+
+test('selection notation survives flat reordering in an effective formula', () => {
+  const draft = { mode: 'action', formula: '2d12', advantageCount: 3, disadvantageCount: 0 };
+  assert.equal(selectionFormulaPresentation('2d12+1d6+3d6+2', draft), '2d12+1d6+3d6kh1+2');
 });

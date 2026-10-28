@@ -19,11 +19,19 @@ export function rollSelectionPool(draft: SelectionDraft): SelectionPool | null {
 export function selectionFormulaPresentation(legacyFormula: string, draft: SelectionDraft): string {
   const pool = rollSelectionPool(draft);
   if (!pool) return legacyFormula;
-  if (pool.sides === 6) {
-    const suffix = `${pool.sign > 0 ? '+' : '-'}${pool.count}d6`;
-    return legacyFormula.endsWith(suffix) ? `${legacyFormula}kh1` : legacyFormula;
-  }
-  return legacyFormula.replace(/(^|\+)1d20(?=$|[+-])/, `$1${pool.count}d20${pool.keep}`);
+  const terms = parseDiceFormula(legacyFormula);
+  const index = pool.sides === 6
+    ? terms.reduce((found, term, index) => term.kind === 'dice' && term.sign === pool.sign && term.sides === 6 && term.count >= pool.count ? index : found, -1)
+    : terms.findIndex(term => term.kind === 'dice' && term.sign === 1 && term.sides === 20 && term.count === 1);
+  if (index < 0) return legacyFormula;
+  return terms.map((term, position) => {
+    const prefix = term.sign < 0 ? '-' : '+';
+    if (term.kind === 'flat') return `${prefix}${term.value}`;
+    if (position !== index) return `${prefix}${term.count}d${term.sides}`;
+    if (pool.sides === 20) return `${prefix}${pool.count}d20${pool.keep}`;
+    const remaining = term.count - pool.count;
+    return `${remaining ? `${prefix}${remaining}d6` : ''}${prefix}${pool.count}d6kh1`;
+  }).join('').replace(/^\+/, '');
 }
 
 /** Accept only the exact selection already controlled by this draft, never reinterpret additive dice. */
