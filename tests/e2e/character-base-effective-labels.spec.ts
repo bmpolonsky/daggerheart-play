@@ -35,9 +35,9 @@ for (const bonus of [true, false]) for (const width of [1180, 1440, 500]) test(`
   await expect(evasionBase).toHaveValue('9');
   await expect(evasionBase).toHaveAttribute('aria-description', /Без бонусов брони и свойств/);
   await evasionBase.fill('10'); await evasionBase.press('Tab');
-  await expect(evasionTotal).toHaveText(bonus ? '11' : '10');
+  await expect(evasionBase.locator('..')).toContainText(bonus ? 'Итог: 11' : 'Итог: 10');
   await evasionBase.fill('9'); await evasionBase.press('Tab');
-  await page.screenshot({ path: `/home/codex/outputs/dh-base-labels-20261027/evasion-${bonus}-${width}.png` });
+  await page.screenshot({ path: `/home/codex/outputs/dh-editor-density-20261028/evasion-${bonus}-${width}.png` });
   await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы', exact: true }).click();
   const hp = editor.getByRole('group', { name: 'Отмеченные Раны', exact: true }).locator('..').locator('.resource-title strong');
   await expect(hp).toHaveText(bonus ? '0/6' : '0/5');
@@ -53,5 +53,5 @@ for (const bonus of [true, false]) for (const width of [1180, 1440, 500]) test(`
     const metrics = await input.locator('..').evaluate(label => ({ scroll: label.scrollWidth, width: label.clientWidth }));
     expect(metrics.scroll).toBeLessThanOrEqual(metrics.width + 1);
   }
-  await page.screenshot({ path: `/home/codex/outputs/dh-base-labels-20261027/resources-${bonus}-${width}.png` });
+  await page.screenshot({ path: `/home/codex/outputs/dh-editor-density-20261028/resources-${bonus}-${width}.png` });
 });

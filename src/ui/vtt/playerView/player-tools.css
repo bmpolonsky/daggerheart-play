@@ -3439,3 +3439,31 @@ textarea.player-compendium-statblock__weapon {
     white-space: normal;
   }
 }
+
+/* Density follow-up: right editor workspace only, no roster changes. */
+.character-editor-domains { display: block; margin-top: 3px; }
+.character-editor-workspace { container: character-editor-body / inline-size; }
+.character-editor-section--stats { gap: 12px; }
+.character-editor-stats-layout { display: grid; gap: 12px; align-items: start; min-width: 0; }
+.character-editor-stats-layout > * { min-width: 0; }
+.character-editor-compact .character-editor-section--stats .character-editor-stats-layout .trait-grid--compact,
+.character-editor-compact .character-editor-section--stats .character-editor-stats-layout .stat-strip {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
+}
+.character-editor-stats-layout .trait-card { padding: 4px; gap: 4px; background: transparent; }
+.character-editor-stats-layout .trait-card > span { overflow-wrap: normal; }
+.character-editor-stats-layout .character-editor-statline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container character-editor-body (min-width: 650px) {
+  .character-editor-stats-layout { grid-template-columns: minmax(0, 2fr) minmax(160px, 1fr); }
+}
+@container character-editor-body (max-width: 360px) {
+  .character-editor-compact .character-editor-section--stats .character-editor-stats-layout .trait-grid--compact,
+  .character-editor-compact .character-editor-section--stats .character-editor-stats-layout .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.character-editor-stats-layout .trait-grid--compact .trait-card { grid-template-columns: minmax(0, 1fr); }
+.character-editor-stats-layout .trait-grid--compact .trait-card select { width: 72px; padding: 0 24px 0 8px; }
+.character-editor-stats-layout .trait-card > span { white-space: nowrap; }
+.character-editor-combat-fields { align-items: start; }
+
+.character-editor-armor-toggle { justify-self: start; }

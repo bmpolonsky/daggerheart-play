@@ -100,6 +100,8 @@ export function CharacterEditor({
     setEditMode(true);
   };
 
+  const editingStats = editMode && section === 'stats';
+
   return (
     <div className="character-editor-compact">
       <header className="character-editor-hero">
@@ -118,7 +120,7 @@ export function CharacterEditor({
           className="character-editor-heading"
           eyebrow={`${characterClassLabel(character)} — ${character.ancestry || 'Родословная не выбрана'}`}
           title={character.name}
-          subtitle={`${character.subclassName || 'Без подкласса'} — уровень ${character.level}`}
+          subtitle={<>{character.subclassName || 'Без подкласса'} — уровень {character.level}<span className="character-editor-domains">Домены: {domains.map((domain) => DOMAIN_LABELS[domain]).join(' + ')}</span></>}
           actions={(
             <Toolbar aria-label="Действия с персонажем">
               {character.level < 10 && <Button variant="primary" onClick={() => setLevelUpOpen(true)}>Новый уровень</Button>}
@@ -138,11 +140,11 @@ export function CharacterEditor({
             </Toolbar>
           )}
         />
-        <div className="character-editor-vitals" aria-label="Ключевые параметры">
+        {!editingStats && <div className="character-editor-vitals" aria-label="Ключевые параметры">
           <InlineStat label="Уклонение" value={effectiveStats.evasion} />
           <InlineStat label="Броня" value={`${Math.max(0, effectiveStats.armorScore - character.armor.markedSlots)}/${effectiveStats.armorScore}`} />
-          <InlineStat label="Домены" value={domains.map((domain) => DOMAIN_LABELS[domain]).join(' + ')} />
-        </div>
+          <InlineStat label="Мастерство" value={character.proficiency} />
+        </div>}
       </header>
 
       {deleteOpen && (
@@ -188,24 +190,27 @@ export function CharacterEditor({
 
         {section === 'stats' && !editMode && <CharacterStatsSummary character={character} />}
         {section === 'stats' && editMode && (
-          <section className="character-editor-section" aria-label="Характеристики персонажа">
-            <TraitGrid character={character} />
-            <div className="character-editor-statline">
-              <InlineStat label="Ощутимый" value={effectiveStats.thresholds.major} />
-              <InlineStat label="Тяжелый" value={effectiveStats.thresholds.severe} />
-              <InlineStat label="Мастерство" value={character.proficiency} />
+          <section className="character-editor-section character-editor-section--stats" aria-label="Характеристики персонажа">
+            <div className="character-editor-stats-layout">
+              <TraitGrid character={character} />
+              <div className="character-editor-statline" aria-label="Пороги урона">
+                <InlineStat label="Ощутимый" value={effectiveStats.thresholds.major} />
+                <InlineStat label="Тяжелый" value={effectiveStats.thresholds.severe} />
+              </div>
             </div>
             <Checkbox
               label="Броня надета"
+              className="character-editor-armor-toggle"
+              boxPosition="start"
               checked={character.armor.equipped !== false}
               onChange={(event) => characterService.setArmorEquipped(character.id, event.currentTarget.checked)}
             />
-            <div className="grid-3">
-              <NumberField label="Базовое уклонение" title="Без бонусов брони и свойств; итоговое Уклонение показано в шапке." aria-description="Без бонусов брони и свойств; итоговое Уклонение показано в шапке." value={character.evasion} onChange={(event) => characterService.updateEvasion(character.id, Number(event.currentTarget.value))} />
+            <div className="grid-3 character-editor-combat-fields">
+              <NumberField label="Базовое уклонение" aria-label="Базовое уклонение" hint={`Итог: ${effectiveStats.evasion}`} title="Без бонусов брони и свойств." aria-description="Без бонусов брони и свойств; итог показан рядом с полем." value={character.evasion} onChange={(event) => characterService.updateEvasion(character.id, Number(event.currentTarget.value))} />
               <NumberField label="Мастерство" value={character.proficiency} onChange={(event) => characterService.updateProficiency(character.id, Number(event.currentTarget.value))} />
               {armorOptions.length > 0 ? (
                 <RichChoicePicker
-                  label="Броня"
+                  label={`Броня (${Math.max(0, effectiveStats.armorScore - character.armor.markedSlots)}/${effectiveStats.armorScore})`}
                   value={selectedArmorId}
                   placeholder={armorLabel(character.armor.name)}
                   items={armorOptions.map((item) => ({
@@ -222,7 +227,7 @@ export function CharacterEditor({
                     setArmorSelectionError(result.message ?? null);
                   }}
                 />
-              ) : <TextField label="Броня" value={armorLabel(character.armor.name)} onChange={(event) => characterService.updateArmor(character.id, { name: event.currentTarget.value }, false)} />}
+              ) : <TextField label={`Броня (${Math.max(0, effectiveStats.armorScore - character.armor.markedSlots)}/${effectiveStats.armorScore})`} value={armorLabel(character.armor.name)} onChange={(event) => characterService.updateArmor(character.id, { name: event.currentTarget.value }, false)} />}
             </div>
             {armorSelectionError && <Notice tone="error" role="alert">{armorSelectionError}</Notice>}
             <details className="character-editor-advanced">
@@ -332,16 +337,19 @@ function CharacterIdentitySummary({ character }: { character: Character }) {
 function CharacterStatsSummary({ character }: { character: Character }) {
   const effective = buildEffectiveCharacterStats(character);
   return (
-    <section className="character-editor-section" aria-label="Характеристики персонажа">
-      <div className="stat-strip">
-        {(Object.keys(TRAIT_LABELS) as TraitId[]).map((trait) => (
-          <InlineStat key={trait} label={TRAIT_LABELS[trait]} value={effective.traits[trait]} />
-        ))}
+    <section className="character-editor-section character-editor-section--stats" aria-label="Характеристики персонажа">
+      <div className="character-editor-stats-layout">
+        <div className="stat-strip">
+          {(Object.keys(TRAIT_LABELS) as TraitId[]).map((trait) => (
+            <InlineStat key={trait} label={TRAIT_LABELS[trait]} value={effective.traits[trait]} />
+          ))}
+        </div>
+        <div className="character-editor-statline" aria-label="Пороги урона">
+          <InlineStat label="Ощутимый" value={effective.thresholds.major} />
+          <InlineStat label="Тяжелый" value={effective.thresholds.severe} />
+        </div>
       </div>
-      <ListItem title="Уклонение" value={effective.evasion} />
-      <ListItem title="Мастерство" value={character.proficiency} />
-      <ListItem title="Пороги урона" value={`${effective.thresholds.major} / ${effective.thresholds.severe}`} />
-      <ListItem title="Броня" subtitle={cleanRulesText(character.armor.feature || character.armor.featureText || '') || undefined} value={`${effective.armorScore}`} />
+      {cleanRulesText(character.armor.feature || character.armor.featureText || '') && <p className="muted-text">{cleanRulesText(character.armor.feature || character.armor.featureText || '')}</p>}
     </section>
   );
 }
