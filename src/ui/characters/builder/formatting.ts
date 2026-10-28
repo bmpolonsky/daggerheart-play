@@ -16,5 +16,5 @@ export function signed(value: number): string {
 
 /** An effective preview must not make an unassigned starting slot look filled. */
 export function builderTraitValue(base: number | undefined, effective?: number, equipmentModifier = 0): string {
-  return base === undefined ? 'не выбрано' : signed(clamp((effective ?? base) + equipmentModifier, -10, 20));
+  return base === undefined ? 'Нет значения' : signed(clamp((effective ?? base) + equipmentModifier, -10, 20));
 }

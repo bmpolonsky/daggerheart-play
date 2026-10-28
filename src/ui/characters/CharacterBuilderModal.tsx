@@ -23,6 +23,7 @@ import { Notice } from '../components/common/Notice';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
 import { RichChoicePicker } from '../components/common/RichChoicePicker';
 import { WizardStepButton } from '../components/common/WizardStepButton';
+import { BuilderSummary } from './builder/BuilderSummary';
 import { BuilderChoiceDetail } from './builder/BuilderChoiceDetail';
 import { AncestrySelectionStep } from './builder/AncestrySelectionStep';
 import traitStyles from './builder/TraitDistribution.module.css';
@@ -125,9 +126,9 @@ export function CharacterBuilderModal({
                 {[builderResult.draft.ancestry, selectedCommunity?.name, selectedSubclass?.name].filter(Boolean).join(' / ') ||
                   options.classDomains.map(domainLabel).join(' + ')}
               </p>
-              <div className="cinematic-builder-progress" aria-label={`Положение: шаг ${currentStepIndex + 1} из ${steps.length}`}>
+              {step !== 'loadout' && <div className="cinematic-builder-progress" aria-label={`Положение: шаг ${currentStepIndex + 1} из ${steps.length}`}>
                 <span style={{ width: `${progress}%` }} />
-              </div>
+              </div>}
             </div>
             <Button className="cinematic-builder-quickstart" variant="primary" type="button" iconBefore={<Sparkles size={16} aria-hidden="true" />} onClick={handlers.quickStart}>
               Случайный герой
@@ -405,34 +406,22 @@ export function CharacterBuilderModal({
                   <h3 className="cinematic-builder-title">{builder.canCreate ? 'Готово к сцене' : 'Итог'}</h3>
                 </header>
                 <div className="cinematic-builder-choice-area dh-scroll">
-                  <article className="cinematic-builder-loadout-summary">
-                    <strong>{fields.name}</strong>
-                    <span>{selectedClassOption?.name ?? CLASS_LABELS[fields.className]} / {selectedSubclass?.name ?? 'подкласс не выбран'}</span>
-                    <span>{builderResult.draft.ancestry || 'родословная'} / {selectedCommunity?.name ?? 'сообщество'}</span>
-                    <span>Карты: {selectedCards.map((card) => card.name).join(' / ') || 'не выбраны'}</span>
-                    <span>Оружие: {builderResult.draft.weapons?.map((weapon) => weapon.name).join(' / ')}</span>
-                    <span>Броня: {builderResult.draft.armor?.name} — уклонение {effectiveArmorEvasion}</span>
-                    <span>{BUILDER_TRAIT_IDS.map((trait) => `${TRAIT_LABELS[trait]} ${builderTraitValue(fields.traits[trait], builderResult.draft.traits?.[trait], selectedArmor?.traitModifiers?.[trait])}`).join(' / ')}</span>
-                    <span>Деньги: {formatWealthSummary(builderResult.draft.wealth)}</span>
-                    <span>Инвентарь: {builderResult.draft.inventory?.map((item) => item.name).join(' / ')}</span>
-                  </article>
-                  {builderResult.warnings.length > 0 && <p className="cinematic-builder-copy">{builderResult.warnings.join(' ')}</p>}
-                  {builder.issues.length > 0 && (
-                    <div className="cinematic-builder-issues">
-                      {blockingIssues.length > 0 && (
-                        <section>
-                          <strong>Нужно завершить</strong>
-                          {blockingIssues.map((issue) => <span key={issue.id}>{issue.message}</span>)}
-                        </section>
-                      )}
-                      {warningIssues.length > 0 && (
-                        <section>
-                          <strong>Предупреждения</strong>
-                          {warningIssues.map((issue) => <span key={issue.id}>{issue.message}</span>)}
-                        </section>
-                      )}
-                    </div>
-                  )}
+                  <BuilderSummary
+                    name={fields.name}
+                    classLabel={selectedClassOption?.name ?? CLASS_LABELS[fields.className]}
+                    subclassLabel={selectedSubclass?.name}
+                    ancestry={builderResult.draft.ancestry}
+                    community={selectedCommunity?.name}
+                    cards={selectedCards.map(card => card.name)}
+                    traits={BUILDER_TRAIT_IDS.map(trait => ({label: TRAIT_LABELS[trait], value: builderTraitValue(fields.traits[trait], builderResult.draft.traits?.[trait], selectedArmor?.traitModifiers?.[trait])}))}
+                    unassignedTraits={BUILDER_TRAIT_IDS.filter(trait => fields.traits[trait] === undefined).map(trait => TRAIT_LABELS[trait])}
+                    draft={builderResult.draft}
+                    evasion={effectiveArmorEvasion}
+                    wealth={formatWealthSummary(builderResult.draft.wealth)}
+                    blockingIssues={blockingIssues}
+                    warnings={[...builderResult.warnings, ...warningIssues.map(issue => issue.message)]}
+                    onGoToStep={handlers.goToStep}
+                  />
                 </div>
               </section>
             )}
