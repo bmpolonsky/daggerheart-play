@@ -47,7 +47,7 @@ for (const width of [1180, 390]) test(`sequential actor modifiers MAX privacy su
   expect(state.characters.entities[id].hope.value).toBe(3); expect(roll.publication).toBe('private'); expect(state.game.fear).toBe(0);
   await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Чат', exact: true }).click();
-  else if (!await page.getByLabel('Чат игры').isVisible()) await page.getByRole('button', { name: /^Открыть чат/ }).click();
+  else { const openChat = page.getByRole('button', { name: /^Открыть чат/ }); if (await openChat.isVisible()) await openChat.click(); }
   const result = page.locator('.player-activity-event--roll').first();
   await result.getByRole('button', { name: 'Подробности броска', exact: true }).click();
   await expect(result).toContainText('2d6kh1');
