@@ -7,7 +7,7 @@ import { expectInsideViewport } from './layout-helpers';
 import { chooseUnifiedAdvantage, openUnifiedFormulaEditor } from './unified-formula-helpers';
 
 const actorId = 'e2e-character-cadsuane';
-const output = '/home/codex/outputs/dh-tray-ux-20261027/browser';
+const output = process.env.TRAY_UI_OUTPUT ?? '/home/codex/outputs/dh-tray-ux-20261027/browser';
 function fixture() {
   const document = createPopulatedGameDocument();
   const actor = document.files['data/characters.json'].entities[actorId];

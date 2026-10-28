@@ -45,6 +45,17 @@ for (const width of [1180, 390]) test(`sequential actor modifiers MAX privacy su
   expect(roll.keptExtraDie).toBe(Math.max(...roll.advantageRolls)); expect(roll.extraDiceTerms[0].rolls).toHaveLength(1);
   expect(roll.total).toBe(roll.hopeDie + roll.fearDie + roll.keptExtraDie + roll.extraDiceTerms[0].rolls[0] + 7);
   expect(state.characters.entities[id].hope.value).toBe(3); expect(roll.publication).toBe('private'); expect(state.game.fear).toBe(0);
+  await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
+  if (await layers.isVisible()) await layers.getByRole('button', { name: 'Чат', exact: true }).click();
+  else if (!await page.getByLabel('Чат игры').isVisible()) await page.getByRole('button', { name: /^Открыть чат/ }).click();
+  const result = page.locator('.player-activity-event--roll').first();
+  await result.getByRole('button', { name: 'Подробности броска', exact: true }).click();
+  await expect(result).toContainText('2d6kh1');
+  await expect(result).toContainText(`Учтено +${roll.keptExtraDie}`);
+  await expect(result).toContainText('отброшено:');
+  await page.screenshot({ path: testInfo.outputPath('result-details.png') });
+  if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
+  await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
   await tray.getByRole('button', { name: 'Сбросить набор', exact: true }).click();
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('1d6');
