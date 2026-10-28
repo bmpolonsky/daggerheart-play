@@ -681,7 +681,7 @@
 
 /* Flat adjustments share one local row; no nested surface around each modifier. */
 .unified-roll-modifiers { row-gap: 6px; }
-.unified-roll-modifiers .unified-roll-trait-control { flex: 1 1 130px; max-width: none; }
+.unified-roll-modifiers .unified-roll-trait-control { flex: 1 1 105px; max-width: 160px; }
 .unified-roll-modifiers .unified-roll-modifier-label { margin-left: auto; }
 .unified-roll-formula-row { flex-wrap: wrap; }
 .unified-roll-formula-row > output { flex: 1 1 120px; }
