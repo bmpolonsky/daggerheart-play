@@ -25,7 +25,7 @@ for (const width of [1180, 390]) test(`sequential actor modifiers MAX privacy su
   await tray.getByRole('button', { name: 'Помеха', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Преимущество 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toContainText('2×d6');
-  await tray.getByRole('button', { name: 'Несколько', exact: true }).click();
+  await expect(tray.getByRole('button', { name: 'Несколько', exact: true })).toHaveCount(0);
   await adjustments.getByRole('button', { name: 'Опыт', exact: true }).click();
   await tray.getByRole('checkbox', { name: 'Исследователь QA +2', exact: true }).check();
   await adjustments.getByLabel('Модификатор', { exact: true }).fill('3');

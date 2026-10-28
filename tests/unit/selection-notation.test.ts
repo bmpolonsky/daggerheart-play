@@ -41,20 +41,15 @@ test('selection annotations cannot change the current selection, swallow ordinar
   assert.equal(applyUnifiedFormulaEdit(draft, '2d12+3d6').requiresManual, false); // legacy editor syntax
 });
 
-test('ordinary toggles are reversible and rare multiplicity is an explicit bounded intent', async () => {
-  const { toggleRollAdvantage, setRollAdvantageMultiplicity } = await import('../../src/domain/rules/actionComposer');
-  const neutral = { advantageCount: 0, disadvantageCount: 0 };
-  const single = toggleRollAdvantage(neutral, 'advantage');
-  assert.deepEqual(single, { advantageCount: 1, disadvantageCount: 0 });
-  assert.deepEqual(toggleRollAdvantage(single, 'advantage'), neutral);
-  const triple = setRollAdvantageMultiplicity(single, 3);
-  assert.deepEqual(triple, { advantageCount: 3, disadvantageCount: 0 });
-  assert.deepEqual(toggleRollAdvantage(triple, 'disadvantage'), { advantageCount: 2, disadvantageCount: 0 });
-  assert.deepEqual(toggleRollAdvantage(single, 'disadvantage'), neutral);
-  assert.deepEqual(toggleRollAdvantage(triple, 'advantage'), neutral);
-  assert.deepEqual(setRollAdvantageMultiplicity({ advantageCount: 3, disadvantageCount: 1 }, 2), { advantageCount: 2, disadvantageCount: 0 });
-  assert.throws(() => setRollAdvantageMultiplicity(single, 21));
-  assert.throws(() => setRollAdvantageMultiplicity(single, 1.5));
+test('repeated source clicks move the signed balance through zero in both directions', async () => {
+  const { stepRollAdvantage } = await import('../../src/domain/rules/actionComposer');
+  let counts = { advantageCount: 0, disadvantageCount: 0 };
+  const steps = ['advantage','advantage','advantage','disadvantage','disadvantage','disadvantage','disadvantage','disadvantage','advantage','advantage','advantage','advantage','advantage'] as const;
+  const expected = [1,2,3,2,1,0,-1,-2,-1,0,1,2,3];
+  steps.forEach((step,index) => { counts = stepRollAdvantage(counts,step); assert.equal(counts.advantageCount-counts.disadvantageCount,expected[index]); assert.equal(Math.min(counts.advantageCount,counts.disadvantageCount),0); });
+  assert.deepEqual(stepRollAdvantage({ advantageCount: 3, disadvantageCount: 1 }, 'advantage'), { advantageCount: 3, disadvantageCount: 0 });
+  assert.deepEqual(stepRollAdvantage({ advantageCount: 20, disadvantageCount: 0 }, 'advantage'), { advantageCount: 20, disadvantageCount: 0 });
+  assert.deepEqual(stepRollAdvantage({ advantageCount: 0, disadvantageCount: 20 }, 'disadvantage'), { advantageCount: 0, disadvantageCount: 20 });
 });
 
 test('selection notation survives flat reordering in an effective formula', () => {

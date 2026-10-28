@@ -87,14 +87,11 @@ export function actionComposerModifierPreview(character: Character | null, state
     .reduce((sum, experience) => sum + experience.modifier, 0);
 }
 
-/** Common single-source choice; rare multiplicity stays an explicit separate intent. */
-export function toggleRollAdvantage(current: Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'>, kind: 'advantage' | 'disadvantage'): Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'> {
-  const net = current.advantageCount - current.disadvantageCount;
-  const active = kind === 'advantage' ? net > 0 : net < 0;
-  if (active) return { advantageCount: 0, disadvantageCount: 0 };
-  // An opposite source still cancels one existing source, as in the original composer.
-  if (net !== 0) return { advantageCount: net > 0 ? net - 1 : 0, disadvantageCount: net < 0 ? -net - 1 : 0 };
-  return { advantageCount: kind === 'advantage' ? 1 : 0, disadvantageCount: kind === 'disadvantage' ? 1 : 0 };
+/** Repeated source clicks move a signed balance through zero; preserve the existing cap. */
+export function stepRollAdvantage(current: Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'>, kind: 'advantage' | 'disadvantage'): Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'> {
+  const counts = normalizeAdvantageCounts(current.advantageCount, current.disadvantageCount);
+  const net = Math.max(-20, Math.min(20, counts.advantageCount - counts.disadvantageCount + (kind === 'advantage' ? 1 : -1)));
+  return { advantageCount: Math.max(0, net), disadvantageCount: Math.max(0, -net) };
 }
 
 export function setRollAdvantageMultiplicity(current: Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'>, count: number): Pick<ActionComposerRollOptions, 'advantageCount' | 'disadvantageCount'> {

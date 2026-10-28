@@ -9,16 +9,14 @@ export async function openUnifiedFormulaEditor(tray: Locator): Promise<Locator> 
   return input;
 }
 
-/** Rare source counts are explicit; an ordinary repeated click now toggles off. */
+/** Use visible source controls to reach the requested signed balance. */
 export async function chooseUnifiedAdvantage(tray: Locator, kind: 'advantage' | 'disadvantage', count = 1): Promise<void> {
-  const label = kind === 'advantage' ? /^Преимущество/ : /^Помеха/;
-  const button = tray.getByRole('button', { name: label });
-  const active = await button.getAttribute('aria-pressed') === 'true';
-  if (count === 0) { if (active) await button.click(); return; }
-  if (!active) await button.click();
-  if (count > 1) {
-    const disclosure = tray.getByRole('button', { name: 'Несколько', exact: true });
-    if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click();
-    await tray.getByRole('spinbutton', { name: 'Источников преимущества или помехи', exact: true }).fill(String(count));
+  const positive = tray.getByRole('button', { name: /^Преимущество/ });
+  const negative = tray.getByRole('button', { name: /^Помеха/ });
+  let current = 0;
+  for (const [button, sign] of [[positive, 1], [negative, -1]] as const) {
+    if (await button.getAttribute('aria-pressed') === 'true') current = sign * Number((await button.innerText()).match(/\d+$/)?.[0] ?? 1);
   }
+  const target = (kind === 'advantage' ? 1 : -1) * count;
+  for (let step = 0; step < Math.abs(target - current); step++) await (target > current ? positive : negative).click();
 }

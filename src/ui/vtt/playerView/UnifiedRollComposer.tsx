@@ -4,7 +4,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { Eye, EyeOff, Info } from 'lucide-react';
 import { useStream } from '../../../core/hooks/useStream';
 import { charactersStore, encounterStore, gameStore } from '../../../stores/gameStores';
-import { toggleRollAdvantage, setRollAdvantageMultiplicity } from '../../../domain/rules/actionComposer';
+import { stepRollAdvantage } from '../../../domain/rules/actionComposer';
 import { parseManualRollModifier } from '../../../domain/rules/manualRollModifier';
 import { unifiedRollEditableModifier, unifiedRollPoolPresentation, unifiedRollFormulaPresentation, unifiedRollDiceConversionFormula } from '../../../domain/rules/unifiedRollPresentation';
 import { convertUnifiedRollToManual, editUnifiedRollDice, isTypedUnifiedRoll, selectUnifiedRollBranch, setUnifiedRollQuantity, unifiedRollPaysForExperiences, unlinkUnifiedRollEvent, type UnifiedRollActor, type UnifiedRollDraft, type UnifiedRollMode } from '../../../domain/rules/unifiedRollDraft';
@@ -36,7 +36,6 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
   const [experiencesOpen, setExperiencesOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
-  const [multipleSourcesOpen, setMultipleSourcesOpen] = useState(false);
   const [formulaOpen, setFormulaOpen] = useState(false);
   const { formulaInput = null, formulaError = null, proposal = null, modifierInput = null } = state.editor ?? {};
   const setFormulaInput = (value: string | null) => unifiedRollDraftService.setEditor({ formulaInput: value });
@@ -48,7 +47,7 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
   const [privateRoll, setPrivateRoll] = usePrivateRollPreference();
   useEffect(() => {
     setResultMessage(null); setExperiencesOpen(false);
-    setContextOpen(false); setPaymentOpen(false); setMultipleSourcesOpen(false);
+    setContextOpen(false); setPaymentOpen(false);
   }, [draft?.id, draft?.mode]);
   useEffect(() => { setResultMessage(null); }, [liveSession.extraActionDiceSupported]);
   if (!draft) return <p>Выберите кости или действие из листа персонажа.</p>;
@@ -173,14 +172,9 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       {SIDES.map((sides) => <IconButton key={sides} variant="ghost" size="sm" aria-label={`Добавить d${sides}`} disabled={controlsBlocked} onClick={() => editDice(sides, 1)}><DiceIcon kind={`d${sides}`} label={`d${sides}`} mark={`d${sides}`} /></IconButton>)}
     </div>
     {draft.mode !== 'damage' && <div className="unified-roll-options-row" aria-label="Преимущество и помеха">
-      <Button size="xs" aria-pressed={draft.advantageCount > draft.disadvantageCount} variant={draft.advantageCount > draft.disadvantageCount ? 'primary' : 'ghost'} disabled={controlsBlocked} onClick={() => { update(toggleRollAdvantage(draft, 'advantage')); resetFormulaEditor(); }}>Преимущество{draft.advantageCount - draft.disadvantageCount > 1 ? ` ${draft.advantageCount - draft.disadvantageCount}` : ''}</Button>
-      <Button size="xs" aria-pressed={draft.disadvantageCount > draft.advantageCount} variant={draft.disadvantageCount > draft.advantageCount ? 'danger' : 'ghost'} disabled={controlsBlocked} onClick={() => { update(toggleRollAdvantage(draft, 'disadvantage')); resetFormulaEditor(); }}>Помеха{draft.disadvantageCount - draft.advantageCount > 1 ? ` ${draft.disadvantageCount - draft.advantageCount}` : ''}</Button>
-      <Button size="xs" variant="ghost" aria-expanded={multipleSourcesOpen} onClick={() => setMultipleSourcesOpen(open => !open)}>Несколько</Button>
+      <Button size="xs" aria-pressed={draft.advantageCount > draft.disadvantageCount} variant={draft.advantageCount > draft.disadvantageCount ? 'primary' : 'ghost'} disabled={controlsBlocked} onClick={() => { update(stepRollAdvantage(draft, 'advantage')); resetFormulaEditor(); }}>Преимущество{draft.advantageCount - draft.disadvantageCount > 1 ? ` ${draft.advantageCount - draft.disadvantageCount}` : ''}</Button>
+      <Button size="xs" aria-pressed={draft.disadvantageCount > draft.advantageCount} variant={draft.disadvantageCount > draft.advantageCount ? 'danger' : 'ghost'} disabled={controlsBlocked} onClick={() => { update(stepRollAdvantage(draft, 'disadvantage')); resetFormulaEditor(); }}>Помеха{draft.disadvantageCount - draft.advantageCount > 1 ? ` ${draft.disadvantageCount - draft.advantageCount}` : ''}</Button>
     </div>}
-    {multipleSourcesOpen && draft.mode !== 'damage' && <NumberField label="Источников преимущества или помехи" min={0} max={20} value={Math.abs(draft.advantageCount - draft.disadvantageCount)} disabled={controlsBlocked || draft.advantageCount === draft.disadvantageCount} hint={draft.advantageCount === draft.disadvantageCount ? 'Сначала выберите преимущество или помеху.' : undefined} onInput={event => {
-      const value = Number(event.currentTarget.value);
-      if (event.currentTarget.value !== '' && Number.isInteger(value) && value >= 0 && value <= 20) { update(setRollAdvantageMultiplicity(draft, value)); resetFormulaEditor(); }
-    }} />}
     <div className="unified-roll-options-row unified-roll-modifiers" role="group" aria-label="Прибавки к броску">
       {(draft.mode === 'action' || draft.mode === 'reaction') && character && <SelectControl
         className="unified-roll-trait-control" aria-label="Характеристика броска" title="Выбрать характеристику броска"
