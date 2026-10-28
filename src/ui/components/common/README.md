@@ -821,3 +821,11 @@ Before merging UI work:
 Game chrome may scope the optional `--dh-secondary-bg`, `--dh-secondary-hover`, and `--dh-primary-hover` hooks to a workspace. Button/IconButton retain their existing defaults when unset; map themed secondary fills to `--dh-control`/`--dh-control-hover` rather than styling variant class names.
 
 Visual chrome experiments may also scope `--dh-primary-bg` and `--dh-primary-color` together for a high-contrast primary command. Unset hooks preserve the existing Button/IconButton styling. Keep resource colors independent from chrome accent tokens.
+
+### RichText
+
+`RichText` (`RichTextProps: { text: string }`) renders safe descriptive blocks,
+headings, lists, tables and inline emphasis. It does not execute HTML or links.
+Use it for full picker descriptions rather than flattening Markdown to one
+paragraph. Existing library class names remain as compatibility hooks; the
+library export delegates to this shared implementation.

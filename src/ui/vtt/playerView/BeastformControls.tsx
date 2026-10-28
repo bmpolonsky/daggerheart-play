@@ -46,7 +46,7 @@ export function BeastformControls({character, beastforms}: {character: PlayerVie
                     id: beastform.id,
                     title: beastform.name,
                     subtitle: `Ранг ${beastform.tier} — уклонение ${signed(beastform.evasionModifier)}`,
-                    description: [beastform.summary, beastform.advantages, beastform.featureText].filter(Boolean).join('\n\n')
+                    description: [beastform.summary, beastform.advantages ? `Преимущества: ${beastform.advantages}` : '', beastform.featureText].filter(Boolean).join('\n\n')
                   }))}
                   onChange={setSelectedBeastformId}
                 />

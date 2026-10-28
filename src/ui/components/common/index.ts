@@ -32,3 +32,6 @@ export * from './Tabs';
 export * from './Toolbar';
 export * from './ToastViewport';
 export * from './WizardStepButton';
+
+export { RichText } from './RichText';
+export type { RichTextProps } from './RichText';
