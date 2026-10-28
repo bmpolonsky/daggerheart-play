@@ -68,7 +68,7 @@ test('partial Bard preview preserves +2 reassignment and does not mark the missi
   assert.equal(model().result.draft.traits?.agility, 2);
   assert.equal(model().canCreate, false);
   assert.ok(model().issues.some(issue => issue.id === 'traits.distribution'));
-  model().handlers.goToStep('summary');
+  model().handlers.goToStep('loadout');
   model().handlers.goToStep('traits');
   assert.equal(model().fields.traits.agility, 2);
   model().handlers.setTrait('presence', 0);

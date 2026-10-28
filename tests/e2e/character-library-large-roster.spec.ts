@@ -51,9 +51,15 @@ for (const count of [26, 50]) for (const width of [1188, 390]) test(`large chara
   for (let i = 1; i < metrics.length; i++) expect(metrics[i]!.top).toBeGreaterThanOrEqual(metrics[i - 1]!.bottom - 1);
   await roster.hover(); await page.mouse.wheel(0, 50000);
   await expect(cards.last()).toBeInViewport();
-  await cards.last().locator('button').first().click();
-  await expect(library.getByRole('region', { name: 'Редактор персонажа', exact: true })).toBeVisible();
+  const lastName = (await cards.last().locator('.dh-list-item__title').innerText()).trim();
+  const sceneCountBefore = await roster.getByRole('button', { name: 'Убрать со сцены', exact: true }).count();
+  // Real pointer hit on the visible name, not a forced click on its overlay.
+  const titleBox = (await cards.last().locator('.dh-list-item__title').boundingBox())!;
+  await page.mouse.click(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2);
+  const editor = library.getByRole('region', { name: 'Редактор персонажа', exact: true });
+  await expect(editor.getByRole('heading', { name: lastName, exact: true })).toBeVisible();
   if (await back.isVisible()) await back.click();
+  await expect(roster.getByRole('button', { name: 'Убрать со сцены', exact: true })).toHaveCount(sceneCountBefore);
   await cards.last().getByRole('button', { name: 'На сцену', exact: true }).click();
   await expect(cards.last().getByRole('button', { name: 'Убрать со сцены', exact: true })).toBeVisible();
   await cards.last().getByRole('button', { name: 'Убрать со сцены', exact: true }).click();
