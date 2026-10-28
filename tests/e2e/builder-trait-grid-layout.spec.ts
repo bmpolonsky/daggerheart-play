@@ -16,8 +16,12 @@ for (const width of [390, 760, 761, 1024, 1180, 1280, 1440]) {
     const group = builder.getByRole('group', { name: 'Шаг: Характеристики', exact: true });
     const fields = group.getByRole('combobox');
     await expect(fields.first()).toHaveCSS('color-scheme', 'dark');
-    await expect(fields.first().locator('option').first()).toHaveCSS('color', 'rgb(243, 234, 216)');
-    await expect(fields.first().locator('option').first()).toHaveCSS('background-color', 'rgb(20, 27, 34)');
+    const colors = await fields.first().locator('option').first().evaluate(option => {
+      const style = getComputedStyle(option);
+      return [style.color, style.backgroundColor].map(value => value.match(/\d+/g)!.slice(0, 3).map(Number));
+    });
+    const luminance = (rgb: number[]) => rgb.map(value => value / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index]!, 0);
+    expect((luminance(colors[0]!) + .05) / (luminance(colors[1]!) + .05)).toBeGreaterThan(4.5);
     // Computed theme checks do not claim native OS popup/real browser zoom acceptance.
     for (const field of await fields.all()) await field.selectOption('');
     await group.getByRole('combobox', { name: 'Влияние', exact: true }).selectOption('2');

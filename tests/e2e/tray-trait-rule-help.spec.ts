@@ -6,8 +6,9 @@ for (const width of [1180, 390]) test(`selected tray trait keeps contextual rule
   await page.setViewportSize({ width, height: 844 });
   await openGmGame(page);
   await importGameDocument(page, createPopulatedGameDocument(), 'trait-help.dhgame');
-  await page.locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
   const layers = page.getByLabel('Слой интерфейса');
+  if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
+  await page.locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Лист', exact: true }).click();
   const sheet = page.getByLabel('Персонаж игрока', { exact: true });
   await sheet.locator('.player-trait-grid').getByRole('button', { name: /Проворность/ }).click();

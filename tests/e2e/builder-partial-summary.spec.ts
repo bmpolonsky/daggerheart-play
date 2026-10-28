@@ -9,8 +9,11 @@ for (const width of [1180, 390]) test(`partial trait summary preserves the reass
   await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
   await library.getByRole('button', { name: 'Создать героя', exact: true }).click();
   const builder = page.getByRole('dialog', { name: 'Новый герой', exact: true });
+  await page.evaluate(() => { let seed = 241; Math.random = () => ((seed = seed * 16807 % 2147483647) - 1) / 2147483646; });
   await builder.getByRole('button', { name: 'Случайный герой', exact: true }).click();
   await builder.getByRole('button', { name: 'Экипировка', exact: true }).click();
+  const closeDescription = builder.getByRole('button', { name: 'Закрыть описание', exact: true });
+  if (await closeDescription.isVisible()) await closeDescription.click();
   await builder.getByRole('button', { name: /Стеганый Доспех/i }).click();
   await builder.getByRole('button', { name: 'Характеристики', exact: true }).click();
   const names = ['Проворность', 'Сила', 'Искусность', 'Инстинкт', 'Влияние', 'Знание'];
