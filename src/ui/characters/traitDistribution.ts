@@ -44,3 +44,8 @@ export function assignStartingTrait(draft: TraitDraft, trait: TraitId, value: nu
   traits[trait] = value;
   return { traits, clearedTrait };
 }
+
+/** Fill only absent slots for rule preview; readiness still validates the draft. */
+export function startingTraitPreview(draft: TraitDraft, recommended: Record<TraitId, number>): Record<TraitId, number> {
+  return Object.fromEntries(TRAITS.map(({ id }) => [id, draft[id] ?? recommended[id]])) as Record<TraitId, number>;
+}

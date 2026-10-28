@@ -16,7 +16,7 @@ import { CLASS_RECOMMENDED_TRAITS, DEFAULT_TRAITS, TRAIT_LABELS } from '../../do
 import { CLASS_STARTING_ITEMS } from '../../domain/rules/equipment';
 import { startingDomainCardCount } from '../../domain/rules/characterRuleModifiers';
 import type { DaggerheartClass, TraitId } from '../../domain/rules/types';
-import { assignStartingTrait, isCompleteStartingTraitDistribution, type TraitDraft } from './traitDistribution';
+import { assignStartingTrait, startingTraitPreview, type TraitDraft } from './traitDistribution';
 
 interface CharacterBuilderConnectionAnswer {
   answer?: string;
@@ -103,7 +103,7 @@ export class CharacterBuilderService {
     const effectiveConsumableId = consumableId || equipmentCatalog.consumables[0]?.id || '';
     const effectiveClassItem = classItem || effectiveClassItems[0] || '';
     const recommendedTraits = CLASS_RECOMMENDED_TRAITS[className] ?? DEFAULT_TRAITS;
-    const draftTraits = isCompleteStartingTraitDistribution(traits) ? traits : recommendedTraits;
+    const draftTraits = startingTraitPreview(traits, recommendedTraits);
     const requiredDomainCardCount = startingDomainCardCount(catalog.subclassRuleModifiers[subclassId] ?? []);
     const result = buildCharacterDraft({
       content: builderContent,

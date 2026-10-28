@@ -1,0 +1,38 @@
+import { expect, test } from '@playwright/test';
+import { openGmGame } from './game-route-helpers';
+import { openGameLibrary } from './tools-helpers';
+
+for (const width of [1180, 390]) test(`partial trait summary preserves the reassigned value at ${width}`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 844 });
+  await openGmGame(page);
+  const library = await openGameLibrary(page);
+  await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
+  await library.getByRole('button', { name: 'Создать героя', exact: true }).click();
+  const builder = page.getByRole('dialog', { name: 'Новый герой', exact: true });
+  await builder.getByRole('button', { name: 'Случайный герой', exact: true }).click();
+  await builder.getByRole('button', { name: 'Экипировка', exact: true }).click();
+  await builder.getByRole('button', { name: /Стеганый Доспех/i }).click();
+  await builder.getByRole('button', { name: 'Характеристики', exact: true }).click();
+  const names = ['Проворность', 'Сила', 'Искусность', 'Инстинкт', 'Влияние', 'Знание'];
+  const values = await Promise.all(names.map(name => builder.getByRole('combobox', { name, exact: true }).inputValue()));
+  const target = values.findIndex(value => value !== '2');
+  const owner = values.indexOf('2');
+  await builder.getByRole('combobox', { name: names[target], exact: true }).selectOption('2');
+  await expect(builder.getByRole('combobox', { name: names[owner], exact: true })).toHaveValue('');
+  await builder.getByRole('button', { name: 'Итог', exact: true }).click();
+  const summary = builder.getByRole('region', { name: 'Характеристики', exact: true });
+  await page.screenshot({ path: info.outputPath(`TC018-partial-${width}.png`) });
+  await expect(summary.locator('.inline-stat').filter({ hasText: names[target] }).locator('strong')).toHaveText('+2');
+  await expect(summary.locator('.inline-stat').filter({ hasText: names[owner] }).locator('strong')).toHaveText('Нет значения');
+  await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeDisabled();
+  await builder.getByRole('region', { name: 'Нужно завершить', exact: true }).getByRole('button', { name: new RegExp(names[owner]) }).click();
+  await expect(builder.getByRole('combobox', { name: names[target], exact: true })).toHaveValue('2');
+  await builder.getByRole('combobox', { name: names[owner], exact: true }).selectOption(values[target]);
+  await builder.getByRole('button', { name: 'Итог', exact: true }).click();
+  await expect(summary.locator('.inline-stat').filter({ hasText: names[target] }).locator('strong')).toHaveText('+2');
+  await expect(summary).not.toContainText('Нет значения');
+  await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeEnabled();
+  await page.screenshot({ path: info.outputPath(`TC018-complete-${width}.png`) });
+  await builder.getByRole('button', { name: 'Создать', exact: true }).click();
+  await expect(builder).toHaveCount(0);
+});

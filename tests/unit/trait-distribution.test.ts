@@ -43,6 +43,8 @@ test('service emits one atomic change, preserves cleared hints through Back, and
   assert.deepEqual(model().fields.clearedTraits, ['presence']);
   assert.match(model().fields.traitAnnouncement, /Влияние/);
   assert.equal(model().canCreate, false);
+  assert.equal(model().result.draft.traits?.strength, 2);
+  assert.equal(model().fields.traits.presence, undefined);
   model().handlers.goToStep('traits');
   model().handlers.goNext();
   model().handlers.goBack();
@@ -56,4 +58,21 @@ test('service emits one atomic change, preserves cleared hints through Back, and
   assert.equal(model().fields.traitAnnouncement, '');
   service.reset();
   assert.deepEqual(model().fields.clearedTraits, []);
+});
+
+test('partial Bard preview preserves +2 reassignment and does not mark the missing slot ready', () => {
+  const service = new CharacterBuilderService();
+  const model = () => service.buildModel({ content: { ancestries: [], communities: [], subclasses: [], domainCards: [] }, classes: [], equipment: equipmentFixture(), draft: service.draft$.get() });
+  model().handlers.setTrait('agility', 2);
+  assert.equal(model().fields.traits.presence, undefined);
+  assert.equal(model().result.draft.traits?.agility, 2);
+  assert.equal(model().canCreate, false);
+  assert.ok(model().issues.some(issue => issue.id === 'traits.distribution'));
+  model().handlers.goToStep('summary');
+  model().handlers.goToStep('traits');
+  assert.equal(model().fields.traits.agility, 2);
+  model().handlers.setTrait('presence', 0);
+  assert.equal(model().result.draft.traits?.agility, 2);
+  assert.equal(model().result.draft.traits?.presence, 0);
+  assert.ok(!model().issues.some(issue => issue.id === 'traits.distribution'));
 });
