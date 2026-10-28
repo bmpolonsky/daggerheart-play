@@ -3,6 +3,12 @@
   --dh-list-detail-list-max: 300px;
 }
 
+/* A bounded roster must scroll full-content rows rather than compress each
+   implicit track to ListItem's minimum when many heroes are present. */
+.layout :global(.player-tools-character-roster) {
+  grid-auto-rows: max-content;
+}
+
 .layout :global(.player-tools-character-card) {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
