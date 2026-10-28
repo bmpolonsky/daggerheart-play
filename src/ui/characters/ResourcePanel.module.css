@@ -11,3 +11,9 @@
   font-size: .7rem;
   line-height: 1.4;
 }
+
+.panel .tracks:global(.resource-grid) {
+  display: grid;
+  row-gap: 16px;
+  column-gap: 10px;
+}

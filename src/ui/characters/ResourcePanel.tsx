@@ -10,8 +10,8 @@ export function ResourcePanel({ character, allowStructureEdit = false }: { chara
   const game = useStream(gameService.game$);
   const effective = buildEffectiveCharacterStats(character);
   return (
-    <div className="stack gap-lg">
-      <div className="resource-grid">
+    <div className={`stack gap-lg ${styles.panel}`}>
+      <div className={`resource-grid ${styles.tracks}`}>
         <ResourcePips
           label="Надежда"
           current={effective.hope.value}
