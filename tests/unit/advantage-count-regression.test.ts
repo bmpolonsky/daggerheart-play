@@ -107,3 +107,19 @@ test('later manual edits cannot change the advantage die family without explicit
   assert.equal(changedFlat.formula, '1d12+5');
   assert.equal(changedFlat.advantageCount, 3);
 });
+
+test('Daggerheart d6 disadvantage subtracts the maximum; only ordinary d20 disadvantage keeps low', async () => {
+  const { selectionFormulaPresentation } = await import('../../src/domain/rules/selectionNotation');
+  const { actor, draft, dice } = setup();
+  const negative = { ...draft, mode: 'reaction' as const, disadvantageCount: 3 };
+  assert.equal(selectionFormulaPresentation(unifiedRollCompleteFormula(negative), negative), '2d12-3d6kh1');
+  const reaction = withRolls([0, 0.5, 0, 0.5, 0.99], () => dice.rollReaction({ actorId: actor.id, disadvantageCount: 3, applyConsequences: false }));
+  assert.deepEqual(reaction.disadvantageRolls, [1, 4, 6]);
+  assert.equal(reaction.keptExtraDie, -6); // Not -1 and not -(1+4+6).
+  const ordinary = createUnifiedRollDraft({ actor: draft.actor, mode: 'manual', formula: '1d20', title: 'QA', disadvantageCount: 2 });
+  assert.equal(selectionFormulaPresentation(unifiedRollCompleteFormula(ordinary), ordinary), '3d20kl1');
+  const rolled = withRolls([0.5, 0.1, 0.95], () => dice.rollManualDice({ formula: '1d20', disadvantageCount: 2 }));
+  assert.equal(rolled.total, 3);
+  const term = rolled.terms[0];
+  assert.ok('rolls' in term); assert.deepEqual(term.rolls, [11, 3, 20]);
+});
