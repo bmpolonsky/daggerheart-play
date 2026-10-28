@@ -435,7 +435,7 @@ export class FeedService {
       publication,
       authorName: options.actor.actorName || 'Персонаж',
       title: options.title?.trim() || 'Предсмертный ход',
-      body: 'Выберите исход предсмертного хода на карточке.',
+      body: 'Выберите предсмертный ход.',
       deathMove: {
         id: options.id ?? createId('death-move'),
         status: options.status ?? 'pending',

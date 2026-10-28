@@ -66,10 +66,10 @@ export function eventRollCompatibility(context: EventRollContext, draft: EventRo
   }
   if (draft.mode === 'manual') return { ...base, manualOverrideRequired: true };
   if (draft.mode !== context.rollType || draft.trait !== context.trait || (draft.difficulty ?? 0) !== context.difficulty) {
-    return { ...base, error: 'Роль, характеристика и сложность этого командного броска связаны с событием. Восстановите проверку, выберите ручной итог мастера или явно отвяжите бросок.' };
+    return { ...base, error: 'Роль, характеристика и сложность связаны с выбранным броском. Восстановите проверку, выберите ручной итог мастера или явно отвяжите бросок.' };
   }
   try {
-    if (normalizedFormula(draft.formula) !== normalizedFormula('2d12')) return { ...base, error: 'Командная проверка требует 2d12. Для другого набора выберите ручной итог мастера или отвяжите бросок.' };
-  } catch { return { ...base, error: 'Проверьте формулу командного броска.' }; }
+    if (normalizedFormula(draft.formula) !== normalizedFormula('2d12')) return { ...base, error: 'Эта проверка требует 2d12. Для другого набора выберите ручной итог мастера или отвяжите бросок.' };
+  } catch { return { ...base, error: 'Проверьте формулу проверки.' }; }
   return base;
 }

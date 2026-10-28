@@ -73,7 +73,7 @@ export class EventRollService {
         hint: 'Предсмертный ход связан с этим персонажем и использует только указанный набор d12 без модификаторов.' } };
     }
     const entry = feed.find((entry) => entry.type === 'teamwork' && (entry.id === request.entryId || entry.teamwork.id === request.entryId));
-    if (!entry || entry.type !== 'teamwork' || entry.teamwork.status === 'resolved' || entry.teamwork.status === 'cancelled') return { ok: false, error: 'Командный бросок завершён, отменён или больше недоступен.' };
+    if (!entry || entry.type !== 'teamwork' || entry.teamwork.status === 'resolved' || entry.teamwork.status === 'cancelled') return { ok: false, error: 'Совместный бросок завершён, отменён или больше недоступен.' };
     const participant = entry.teamwork.participants.find((participant) => participant.actorId === character.id);
     if (!participant || participant.result) return { ok: false, error: 'Участник недоступен или его результат уже записан.' };
     const trait = teamworkParticipantRollTrait(participant, request.trait);
@@ -87,8 +87,8 @@ export class EventRollService {
         participant.role === 'leader' ? supports.map((support) => [support.actorId, support.result?.rollId ?? null, support.result?.success ?? null]) : []]) };
     return { ok: true, input: { actor, scopeKey, mode: rollType, formula: '2d12', trait, difficulty: entry.teamwork.difficulty,
       manualModifier: supportModifier, spendHopeForExperiences: true, eventContext, title: entry.title,
-      notes: `${entry.title}: ${participant.role}`, source: { label: entry.teamwork.kind === 'groupAction' ? 'Групповой бросок' : 'Командный бросок' },
-      hint: 'Результат запишется этому участнику события. Ручной итог требует отдельного подтверждения мастера.' } };
+      notes: `${entry.title}: ${rollType === 'reaction' ? 'бросок реакции' : 'бросок действия'}`, source: { label: entry.teamwork.kind === 'groupAction' ? 'Групповой бросок' : 'Командный бросок' },
+      hint: 'Результат запишется выбранному участнику. Ручной итог требует отдельного подтверждения мастера.' } };
   }
 
   error(draft: UnifiedRollDraft, role: 'gm' | 'player', allowedActorIds: readonly string[]): string | null {
