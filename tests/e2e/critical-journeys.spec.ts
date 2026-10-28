@@ -500,7 +500,7 @@ test.describe('critical persisted journeys', () => {
     await selectWorkspaceTab(workspace, 'Сцены');
     await workspace.getByLabel('Из хранилища').first().selectOption({ label: imageName });
     await selectSettingsSection(workspace, 'Файлы');
-    await expect(workspace.getByText('1 использование')).toBeVisible();
+    await expect(workspace.getByText(/использований: 1$/)).toBeVisible();
     await expect(workspace.getByRole('button', { name: `Удалить ${imageName}` })).toBeDisabled();
   });
 
