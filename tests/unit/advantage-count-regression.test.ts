@@ -113,7 +113,7 @@ test('Daggerheart d6 disadvantage subtracts the maximum; only ordinary d20 disad
   const { actor, draft, dice } = setup();
   const negative = { ...draft, mode: 'reaction' as const, disadvantageCount: 3 };
   assert.equal(selectionFormulaPresentation(unifiedRollCompleteFormula(negative), negative), '2d12-3d6kh1');
-  const reaction = withRolls([0, 0.5, 0, 0.5, 0.99], () => dice.rollReaction({ actorId: actor.id, disadvantageCount: 3, applyConsequences: false }));
+  const reaction = withRolls([0, 0.5, 0, 0.5, 0.99], () => dice.rollReaction({ actorId: actor.id, disadvantageCount: 3 }));
   assert.deepEqual(reaction.disadvantageRolls, [1, 4, 6]);
   assert.equal(reaction.keptExtraDie, -6); // Not -1 and not -(1+4+6).
   const ordinary = createUnifiedRollDraft({ actor: draft.actor, mode: 'manual', formula: '1d20', title: 'QA', disadvantageCount: 2 });
