@@ -12,6 +12,8 @@ for (const width of [1180, 390]) test(`advantage clicks cross zero and execute n
   await page.setViewportSize({ width, height: 844 }); await openGmGame(page);
   const document = createPopulatedGameDocument(); document.files['data/game.json'].autoApplyRollConsequences = false;
   await importGameDocument(page, document, 'advantage-balance.dhgame');
+  const layers = page.getByLabel('Слой интерфейса');
+  if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
   await page.getByRole('button', { name: 'Открыть панель костей', exact: true }).click();
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
   await tray.getByRole('combobox', { name: 'Исполнитель броска', exact: true }).selectOption('character:e2e-character-cadsuane');
@@ -38,12 +40,12 @@ for (const width of [1180, 390]) test(`advantage clicks cross zero and execute n
   expect(roll.keptExtraDie).toBe(-Math.max(...roll.disadvantageRolls));
   expect(roll.total).toBe(roll.hopeDie + roll.fearDie + roll.keptExtraDie);
   await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
-  const layers = page.getByLabel('Слой интерфейса');
   if (await layers.isVisible()) await layers.getByRole('button', { name: /^Чат/ }).click();
+  else { const openChat = page.getByRole('button', { name: /^Открыть чат/ }); if (await openChat.isVisible()) await openChat.click(); }
   const result = page.locator('.player-activity-event--roll').first();
   await result.getByRole('button', { name: 'Подробности броска', exact: true }).click();
   await expect(result).toContainText('2d6kh1');
-  await expect(result).toContainText(`Учтено ${roll.keptExtraDie}`);
+  await expect(result).toContainText(`Учтено −${Math.abs(roll.keptExtraDie)}`);
   await expect(result).toContainText('отброшено:');
   await page.screenshot({ path: info.outputPath(`ADV-negative-MAX-result-${width}.png`) });
 });

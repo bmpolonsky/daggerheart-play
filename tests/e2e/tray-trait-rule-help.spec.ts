@@ -8,7 +8,7 @@ for (const width of [1180, 390]) test(`selected tray trait keeps contextual rule
   await importGameDocument(page, createPopulatedGameDocument(), 'trait-help.dhgame');
   const layers = page.getByLabel('Слой интерфейса');
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
-  await page.locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
+  await page.getByRole('region', { name: 'Игровая сцена', exact: true }).getByRole('button', { name: filledCharacterName, exact: true }).click();
   if (await layers.isVisible()) await layers.getByRole('button', { name: 'Лист', exact: true }).click();
   const sheet = page.getByLabel('Персонаж игрока', { exact: true });
   await sheet.locator('.player-trait-grid').getByRole('button', { name: /Проворность/ }).click();

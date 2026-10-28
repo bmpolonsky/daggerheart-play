@@ -30,7 +30,7 @@ for (const count of [26, 50]) for (const width of [1188, 390]) test(`large chara
   const library = await openGameLibrary(page);
   await library.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи', exact: true }).click();
   const roster = library.getByRole('navigation', { name: 'Ростер персонажей', exact: true });
-  const back = library.getByRole('button', { name: 'Все персонажи', exact: true });
+  const back = library.getByRole('button', { name: 'Вернуться к ростеру персонажей', exact: true });
   if (await back.isVisible()) await back.click();
   const cards = roster.locator('.player-tools-character-card');
   await expect(cards).toHaveCount(count);
