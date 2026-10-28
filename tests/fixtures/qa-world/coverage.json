@@ -1,0 +1,541 @@
+{
+  "inventory": {
+    "rawClassCount": 15,
+    "supportedClassOptions": [
+      {
+        "id": "class:playtest-assassin",
+        "name": "Ассасин",
+        "className": "Assassin",
+        "subclasses": 2
+      },
+      {
+        "id": "class:bard",
+        "name": "Бард",
+        "className": "Bard",
+        "subclasses": 2
+      },
+      {
+        "id": "class:playtest-fighter",
+        "name": "Боец",
+        "className": "Fighter",
+        "subclasses": 2
+      },
+      {
+        "id": "class:witch",
+        "name": "Ведьма",
+        "className": "Witch",
+        "subclasses": 2
+      },
+      {
+        "id": "class:warrior",
+        "name": "Воин",
+        "className": "Warrior",
+        "subclasses": 2
+      },
+      {
+        "id": "class:wizard",
+        "name": "Волшебник",
+        "className": "Wizard",
+        "subclasses": 2
+      },
+      {
+        "id": "class:druid",
+        "name": "Друид",
+        "className": "Druid",
+        "subclasses": 2
+      },
+      {
+        "id": "class:playtest-warlock",
+        "name": "Колдун",
+        "className": "Warlock",
+        "subclasses": 2
+      },
+      {
+        "id": "class:rogue",
+        "name": "Плут",
+        "className": "Rogue",
+        "subclasses": 2
+      },
+      {
+        "id": "class:seraph",
+        "name": "Серафим",
+        "className": "Seraph",
+        "subclasses": 2
+      },
+      {
+        "id": "class:ranger",
+        "name": "Следопыт",
+        "className": "Ranger",
+        "subclasses": 2
+      },
+      {
+        "id": "class:guardian",
+        "name": "Страж",
+        "className": "Guardian",
+        "subclasses": 2
+      },
+      {
+        "id": "class:sorcerer",
+        "name": "Чародей",
+        "className": "Sorcerer",
+        "subclasses": 2
+      }
+    ],
+    "excludedClasses": [
+      {
+        "id": "class:playtest-blood-hunter",
+        "name": "Кровавый охотник",
+        "domainSlugs": [
+          "blood",
+          "bone"
+        ],
+        "domains": [
+          "Bone"
+        ]
+      },
+      {
+        "id": "class:playtest-summoner",
+        "name": "Призыватель",
+        "domainSlugs": [
+          "blood",
+          "splendor"
+        ],
+        "domains": [
+          "Splendor"
+        ]
+      }
+    ],
+    "rawSubclassCount": 26,
+    "characters": 26,
+    "adversaries": 38,
+    "adversaryRoleTiers": [
+      {
+        "role": "Skulk",
+        "tier": 1,
+        "source": "Тень из «Зазубренного Ножа»"
+      },
+      {
+        "role": "Standard",
+        "tier": 1,
+        "source": "Стражник-Мечник"
+      },
+      {
+        "role": "Minion",
+        "tier": 1,
+        "source": "Шестёрка из «Зазубренного Ножа»"
+      },
+      {
+        "role": "Horde",
+        "tier": 1,
+        "source": "Стая Крыс"
+      },
+      {
+        "role": "Bruiser",
+        "tier": 1,
+        "source": "Скелет Рыцарь"
+      },
+      {
+        "role": "Leader",
+        "tier": 1,
+        "source": "Юная Дриада"
+      },
+      {
+        "role": "Solo",
+        "tier": 1,
+        "source": "Пещерный Огр"
+      },
+      {
+        "role": "Support",
+        "tier": 1,
+        "source": "Лесной Друид"
+      },
+      {
+        "role": "Social",
+        "tier": 1,
+        "source": "Торговец"
+      },
+      {
+        "role": "Ranged",
+        "tier": 1,
+        "source": "Стражник-Лучник"
+      },
+      {
+        "role": "Support",
+        "tier": 2,
+        "source": "Адепт Культа"
+      },
+      {
+        "role": "Bruiser",
+        "tier": 2,
+        "source": "Минотавр Крушитель"
+      },
+      {
+        "role": "Solo",
+        "tier": 2,
+        "source": "Молодая Мерцекрылка"
+      },
+      {
+        "role": "Ranged",
+        "tier": 2,
+        "source": "Череп Хаоса"
+      },
+      {
+        "role": "Leader",
+        "tier": 2,
+        "source": "Убийца Мастер"
+      },
+      {
+        "role": "Skulk",
+        "tier": 2,
+        "source": "Убийца Отравитель"
+      },
+      {
+        "role": "Minion",
+        "tier": 2,
+        "source": "Убийца Ученик"
+      },
+      {
+        "role": "Social",
+        "tier": 2,
+        "source": "Шпион"
+      },
+      {
+        "role": "Horde",
+        "tier": 2,
+        "source": "Стая Электрических Угрей"
+      },
+      {
+        "role": "Standard",
+        "tier": 2,
+        "source": "Элитный Солдат"
+      },
+      {
+        "role": "Minion",
+        "tier": 3,
+        "source": "Трэнт Саженец"
+      },
+      {
+        "role": "Standard",
+        "tier": 3,
+        "source": "Рыцарь-Олень"
+      },
+      {
+        "role": "Support",
+        "tier": 3,
+        "source": "Страж Хранилища — Тюремщик"
+      },
+      {
+        "role": "Bruiser",
+        "tier": 3,
+        "source": "Ужасное Умертвие"
+      },
+      {
+        "role": "Solo",
+        "tier": 3,
+        "source": "Молодой Ледяной Дракон"
+      },
+      {
+        "role": "Leader",
+        "tier": 3,
+        "source": "Дриада"
+      },
+      {
+        "role": "Ranged",
+        "tier": 3,
+        "source": "Страж Хранилища — Турель"
+      },
+      {
+        "role": "Skulk",
+        "tier": 3,
+        "source": "Ужасная летучая мышь"
+      },
+      {
+        "role": "Horde",
+        "tier": 3,
+        "source": "Жадные Призраки Шахтёров"
+      },
+      {
+        "role": "Social",
+        "tier": 3,
+        "source": "Монарх"
+      },
+      {
+        "role": "Leader",
+        "tier": 4,
+        "source": "Высший Серафим"
+      },
+      {
+        "role": "Solo",
+        "tier": 4,
+        "source": "Полководец Падших: Непобеждённый Чемпион"
+      },
+      {
+        "role": "Support",
+        "tier": 4,
+        "source": "Падший Чародей"
+      },
+      {
+        "role": "Horde",
+        "tier": 4,
+        "source": "Легион Зомби"
+      },
+      {
+        "role": "Bruiser",
+        "tier": 4,
+        "source": "Совершенный Зомби"
+      },
+      {
+        "role": "Minion",
+        "tier": 4,
+        "source": "Святой Солдат"
+      },
+      {
+        "role": "Ranged",
+        "tier": 4,
+        "source": "Святой Лучник"
+      },
+      {
+        "role": "Standard",
+        "tier": 4,
+        "source": "Шут Танца Клинка"
+      }
+    ],
+    "scenes": 10
+  },
+  "characters": [
+    {
+      "classId": "class:playtest-assassin",
+      "className": "Ассасин",
+      "subclassId": "subclass:poisoners-guild",
+      "subclassName": "Гильдия Отравителей",
+      "characterId": "qa-subclass:poisoners-guild",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:playtest-assassin",
+      "className": "Ассасин",
+      "subclassId": "subclass:executioners-guild",
+      "subclassName": "Гильдия палачей",
+      "characterId": "qa-subclass:executioners-guild",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:bard",
+      "className": "Бард",
+      "subclassId": "subclass:troubadour",
+      "subclassName": "Трубадур",
+      "characterId": "qa-subclass:troubadour",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:bard",
+      "className": "Бард",
+      "subclassId": "subclass:wordsmith",
+      "subclassName": "Оратор",
+      "characterId": "qa-subclass:wordsmith",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:playtest-fighter",
+      "className": "Боец",
+      "subclassId": "subclass:playtest-juggernaut",
+      "subclassName": "Джаггернаут",
+      "characterId": "qa-subclass:playtest-juggernaut",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:playtest-fighter",
+      "className": "Боец",
+      "subclassId": "subclass:playtest-martial-artist",
+      "subclassName": "Мастер боевых искусств",
+      "characterId": "qa-subclass:playtest-martial-artist",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:witch",
+      "className": "Ведьма",
+      "subclassId": "subclass:moon",
+      "subclassName": "Лунная",
+      "characterId": "qa-subclass:moon",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:witch",
+      "className": "Ведьма",
+      "subclassId": "subclass:hedge",
+      "subclassName": "Ведунья",
+      "characterId": "qa-subclass:hedge",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:warrior",
+      "className": "Воин",
+      "subclassId": "subclass:call-of-the-brave",
+      "subclassName": "Зов храбреца",
+      "characterId": "qa-subclass:call-of-the-brave",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:warrior",
+      "className": "Воин",
+      "subclassId": "subclass:call-of-the-slayer",
+      "subclassName": "Зов истребителя",
+      "characterId": "qa-subclass:call-of-the-slayer",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:wizard",
+      "className": "Волшебник",
+      "subclassId": "subclass:school-of-knowledge",
+      "subclassName": "Школа знаний",
+      "characterId": "qa-subclass:school-of-knowledge",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:wizard",
+      "className": "Волшебник",
+      "subclassId": "subclass:school-of-war",
+      "subclassName": "Школа войны",
+      "characterId": "qa-subclass:school-of-war",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:druid",
+      "className": "Друид",
+      "subclassId": "subclass:warden-of-the-elements",
+      "subclassName": "Хранитель стихий",
+      "characterId": "qa-subclass:warden-of-the-elements",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:druid",
+      "className": "Друид",
+      "subclassId": "subclass:warden-of-renewal",
+      "subclassName": "Хранитель жизни",
+      "characterId": "qa-subclass:warden-of-renewal",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:playtest-warlock",
+      "className": "Колдун",
+      "subclassId": "subclass:playtest-pact-of-the-wraithful",
+      "subclassName": "Пакт мести",
+      "characterId": "qa-subclass:playtest-pact-of-the-wraithful",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:playtest-warlock",
+      "className": "Колдун",
+      "subclassId": "subclass:playtest-pact-of-the-endless",
+      "subclassName": "Пакт вечности",
+      "characterId": "qa-subclass:playtest-pact-of-the-endless",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:rogue",
+      "className": "Плут",
+      "subclassId": "subclass:nightwalker",
+      "subclassName": "Тень",
+      "characterId": "qa-subclass:nightwalker",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:rogue",
+      "className": "Плут",
+      "subclassId": "subclass:syndicate",
+      "subclassName": "Синдикат",
+      "characterId": "qa-subclass:syndicate",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:seraph",
+      "className": "Серафим",
+      "subclassId": "subclass:divine-wielder",
+      "subclassName": "Божественный воитель",
+      "characterId": "qa-subclass:divine-wielder",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:seraph",
+      "className": "Серафим",
+      "subclassId": "subclass:winged-sentinel",
+      "subclassName": "Крылатый страж",
+      "characterId": "qa-subclass:winged-sentinel",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:ranger",
+      "className": "Следопыт",
+      "subclassId": "subclass:wayfinder",
+      "subclassName": "Странник",
+      "characterId": "qa-subclass:wayfinder",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:ranger",
+      "className": "Следопыт",
+      "subclassId": "subclass:beastbound",
+      "subclassName": "Звериные узы",
+      "characterId": "qa-subclass:beastbound",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:guardian",
+      "className": "Страж",
+      "subclassId": "subclass:stalwart",
+      "subclassName": "Заступник",
+      "characterId": "qa-subclass:stalwart",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:guardian",
+      "className": "Страж",
+      "subclassId": "subclass:vengeance",
+      "subclassName": "Мститель",
+      "characterId": "qa-subclass:vengeance",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:sorcerer",
+      "className": "Чародей",
+      "subclassId": "subclass:primal-origin",
+      "subclassName": "Первозданное начало",
+      "characterId": "qa-subclass:primal-origin",
+      "readiness": "PASS",
+      "warnings": []
+    },
+    {
+      "classId": "class:sorcerer",
+      "className": "Чародей",
+      "subclassId": "subclass:elemental-origin",
+      "subclassName": "Стихийное начало",
+      "characterId": "qa-subclass:elemental-origin",
+      "readiness": "PASS",
+      "warnings": []
+    }
+  ]
+}
