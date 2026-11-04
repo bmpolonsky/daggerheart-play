@@ -311,6 +311,7 @@
 .player-character-panel__hero {
   position: relative;
   min-height: 150px;
+  height: max-content;
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr);
   gap: 12px;
