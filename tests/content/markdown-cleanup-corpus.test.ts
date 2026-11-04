@@ -32,6 +32,11 @@ function enumerate(value: unknown, key: string): CorpusText[] {
 
 function visibleText(value: string): string {
   return value
+    // Quote prefixes are Markdown structure, like emphasis and link targets.
+    // Numeric comparisons are rule content and must remain visible.
+    .split('\n')
+    .map((line) => line.replace(/^[ \t]*(?:>[ \t]*)+(?=[^\s\d=<>+\-])/, ''))
+    .join('\n')
     .replace(IMAGE, (_match, alt: string) => alt.trim())
     .replace(LINK, (_match, label: string) => label.trim())
     .replace(/#\{([^}]*)\}#/g, '$1')
@@ -59,6 +64,17 @@ test('cleans every Markdown link in the current content corpus without losing vi
   }
 
   const hash = createHash('sha256').update(JSON.stringify(cleaned)).digest('hex');
-  // API review 2026-10-19: the only linked-text delta is call-of-the-brave/201 «проверку» → «бросок».
-  assert.equal(hash, '32d09f8509f8b9a5a8e07f2ab1d6925a07221501512b6562468fda8634f3ea02', 'cleaned Markdown corpus changed; review the diff before updating the hash');
+  // Review 2026-11-04: quote prefixes are removed in 26 rules.json texts,
+  // including indented advice on the first pass. Source data is unchanged;
+  // the visible-text and idempotence assertions above cover every entry.
+  assert.equal(hash, '219829b392c445f7195ba5315dbe21bf3d096bb1f5e460a80c74c8ea05d3e48f', 'cleaned Markdown corpus changed; review the diff before updating the hash');
+});
+
+test('visible corpus text excludes quote structure while retaining comparisons and rule changes', () => {
+  const source = '> **Совет:** Нанесите [урон](/rule/damage), если результат > 5.\n    >> *Повторите* при результате >= 6.\n> 5\n>= 6\nA -> B';
+  const expected = 'Совет: Нанесите урон, если результат > 5. Повторите при результате >= 6. > 5 >= 6 A -> B';
+  assert.equal(visibleText(source), expected);
+  assert.equal(visibleText(cleanMarkdownText(source, { emphasizeLinks: true })), expected);
+  assert.notEqual(visibleText(source.replace('> 5.', '> 7.')), expected);
+  assert.notEqual(visibleText(source.replace('Нанесите', 'Уменьшите')), expected);
 });

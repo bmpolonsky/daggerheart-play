@@ -75,3 +75,13 @@ test('plain rule advice loses Markdown quote markers while numeric comparisons r
   assert.equal(cleanMarkdownText('> ***Совет:** Добавьте кости.\n>**Совет:** Не умножайте бонус.', { stripEmphasis: true }), 'Совет: Добавьте кости.\nСовет: Не умножайте бонус.');
   assert.equal(cleanMarkdownText('>> **Вложенная цитата**\nЗначение > 5.\n> 5\n>= 6\nA -> B', { stripEmphasis: true }), 'Вложенная цитата\nЗначение > 5.\n> 5\n>= 6\nA -> B');
 });
+
+test('indented advice is fully cleaned on the first pass, including nested mapped values', () => {
+  const source = '* Стоимость Призыва\n\n    >*Примечание: Игрок может менять карты доменов во время [отдыха](/rule/rest).*\n\n    > 5\n    >= 6';
+  const expected = 'Стоимость Призыва\n\nПримечание: Игрок может менять карты доменов во время отдыха.\n\n > 5\n >= 6';
+  const cleaned = cleanMarkdownText(source, { stripEmphasis: true });
+  assert.equal(cleaned, expected);
+  assert.equal(cleanMarkdownText(cleaned, { stripEmphasis: true }), cleaned);
+  const once = cleanMarkdownValue({ features: [{ main_body: source }] });
+  assert.deepEqual(cleanMarkdownValue(once), once);
+});

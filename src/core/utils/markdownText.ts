@@ -67,7 +67,9 @@ export function cleanMarkdownText(value: string, options: {
   normalizeLineBreaks?: boolean;
   trim?: boolean;
 } = {}): string {
-  let text = stripMarkdownLinks(stripMarkdownImages(stripInlineMarkers(stripMarkdownBlockquotes(value))), { emphasizeLabels: options.emphasizeLinks });
+  // Image cleanup also collapses horizontal spacing. Strip quote prefixes
+  // afterwards so an indented quote is not left for a second cleanup pass.
+  let text = stripMarkdownLinks(stripMarkdownBlockquotes(stripMarkdownImages(stripInlineMarkers(value))), { emphasizeLabels: options.emphasizeLinks });
   if (options.stripCodeTicks) text = text.replace(/`([^`]+)`/g, '$1');
   if (options.stripEmphasis) text = stripMarkdownEmphasis(text);
   if (options.normalizeLineBreaks) text = normalizeMarkdownLineBreaks(text);
