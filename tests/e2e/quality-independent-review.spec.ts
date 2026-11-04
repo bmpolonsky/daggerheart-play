@@ -7,7 +7,7 @@ import { createPopulatedGameDocument, filledCharacterName, importGameDocument } 
 import { openGmGame } from './game-route-helpers';
 import { openGameLibrary } from './tools-helpers';
 
-const output = process.env.QUALITY_REVIEW_OUTPUT ?? '/home/codex/outputs/dh-quality-reaudit-20261027/independent';
+const output = () => test.info().outputPath();
 const actorId = 'e2e-character-cadsuane';
 const trayFor = (page: Page) => page.getByRole('region', { name: 'Подготовка броска', exact: true });
 async function actorName(tray: Locator): Promise<string> {
@@ -47,9 +47,9 @@ async function formula(tray: Locator, text?: string) {
   return field;
 }
 async function shot(page: Page, name: string, target?: Locator) {
-  await mkdir(output, { recursive: true });
-  await page.screenshot({ path: `${output}/${name}.png` });
-  await writeFile(`${output}/${name}.json`, JSON.stringify({ url: page.url(), text: target ? await target.innerText() : undefined,
+  await mkdir(output(), { recursive: true });
+  await page.screenshot({ path: `${output()}/${name}.png` });
+  await writeFile(`${output()}/${name}.json`, JSON.stringify({ url: page.url(), text: target ? await target.innerText() : undefined,
     bounds: target ? await target.boundingBox() : undefined, viewport: page.viewportSize(),
     fields: target ? await target.locator('input').evaluateAll(elements => elements.map((element: any) => ({ name: element.getAttribute('aria-label'), value: element.value }))) : undefined }, null, 2));
 }
@@ -317,7 +317,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     expect(state.hope).toBe(2); expect(roll.publication).toBe('private');
     await expect(page.locator('.player-activity-event--roll')).toHaveCount(1);
     await shot(page, `literal-submitted-${viewport.width}`, tray);
-    await writeFile(`${output}/literal-result-${viewport.width}.json`, JSON.stringify(state, null, 2));
+    await writeFile(`${output()}/literal-result-${viewport.width}.json`, JSON.stringify(state, null, 2));
     await tray.getByRole('button', { name: 'Сбросить набор', exact: true }).click();
     await tray.getByRole('button', { name: 'Дуальность', exact: true }).click();
     await trait.selectOption('instinct'); await tray.getByRole('button', { name: 'Реакция', exact: true }).click();

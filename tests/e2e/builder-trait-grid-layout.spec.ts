@@ -42,6 +42,6 @@ for (const width of [390, 760, 761, 1024, 1180, 1280, 1440]) {
       if (width > 600) expect(m.labelRight).toBeLessThanOrEqual(m.inputLeft);
     }
     expect(await page.locator('body').evaluate(e => e.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.screenshot({ path: `/home/codex/outputs/dh-condition-note-20261027/traits-grid-${width}.png` });
+    await page.screenshot({ path: `${test.info().outputPath()}/traits-grid-${width}.png` });
   });
 }

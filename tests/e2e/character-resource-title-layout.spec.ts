@@ -18,7 +18,7 @@ for (const width of [1180, 1440, 500]) test(`resource header keeps full HP Stres
   await roster.getByRole('button', { name: filledCharacterName, exact: true }).click();
   const editor = library.getByRole('region', { name: 'Редактор персонажа', exact: true });
   await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы', exact: true }).click();
-  await page.screenshot({ path: `/home/codex/outputs/dh-resource-title-20261027/${before ? 'before' : 'after'}-${width}.png` });
+  await page.screenshot({ path: `${test.info().outputPath()}/${before ? 'before' : 'after'}-${width}.png` });
   if (before) return;
   for (const [label, value] of [['Отмеченные Раны', '10/12'], ['Отмеченный Стресс', '0/12'], ['Ячейки Брони', '10/12']]) {
     const resource = editor.getByRole('group', { name: label, exact: true }).locator('..');

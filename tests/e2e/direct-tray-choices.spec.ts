@@ -7,7 +7,7 @@ import { expectInsideViewport } from './layout-helpers';
 import { chooseUnifiedAdvantage, openUnifiedFormulaEditor } from './unified-formula-helpers';
 
 const actorId = 'e2e-character-cadsuane';
-const output = process.env.TRAY_UI_OUTPUT ?? '/home/codex/outputs/dh-tray-ux-20261027/browser';
+const output = () => test.info().outputPath();
 function fixture() {
   const document = createPopulatedGameDocument();
   const actor = document.files['data/characters.json'].entities[actorId];
@@ -28,9 +28,9 @@ async function openTray(page: Page) {
   return tray;
 }
 async function snapshot(page: Page, tray: Locator, name: string) {
-  await mkdir(output, { recursive: true });
-  await page.screenshot({ path: `${output}/${name}.png` });
-  await writeFile(`${output}/${name}.json`, JSON.stringify({ viewport: page.viewportSize(),
+  await mkdir(output(), { recursive: true });
+  await page.screenshot({ path: `${output()}/${name}.png` });
+  await writeFile(`${output()}/${name}.json`, JSON.stringify({ viewport: page.viewportSize(),
     bounds: await tray.boundingBox(), text: await tray.innerText(), accessibility: await tray.ariaSnapshot(),
     activeControl: await page.evaluate(() => ({ tag: document.activeElement?.tagName, label: document.activeElement?.getAttribute('aria-label') })),
     nativeSelectPopup: 'Screenshot captures actual browser output; OS popup pixels may be outside browser capture.'
@@ -111,7 +111,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     expect(roll.total).toBe(roll.hopeDie + roll.fearDie + Math.max(...roll.advantageRolls) + roll.extraDiceTerms[0].rolls[0] + 7);
     expect(state.characters.entities[actorId].hope.value).toBe(2); expect(state.game.fear).toBe(0);
     expect(roll.publication).toBe('private');
-    await writeFile(`${output}/${viewport.width}-result.json`, JSON.stringify({ roll, hope: 2, fear: state.game.fear,
+    await writeFile(`${output()}/${viewport.width}-result.json`, JSON.stringify({ roll, hope: 2, fear: state.game.fear,
       prepared: { actorId, trait: 'strength', advantageCount: 2, disadvantageCount: 0, extraDice: [{ count: 1, sides: 6 }], experienceIds: ['qa-xp'], manualModifier: 2, publication: 'private' } }, null, 2));
     await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
     await openTray(page);
@@ -135,7 +135,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
         actorIds: restored.characters.order, selectedCharacterId: restored.ui.selectedCharacterId,
         hope: restored.characters.entities[actorId].hope.value, fear: restored.game.fear } : null;
     }).toEqual(retained);
-    await writeFile(`${output}/${viewport.width}-reload-retained.json`, JSON.stringify(retained, null, 2));
+    await writeFile(`${output()}/${viewport.width}-reload-retained.json`, JSON.stringify(retained, null, 2));
   });
 }
 
@@ -165,7 +165,7 @@ test('isolated player has one readable actor and sends full N-dice count through
       await expect.poll(async () => (await savedState(gm))?.rollLog[0]?.advantageRolls?.length).toBe(3);
     } finally {
       const state = await savedState(gm);
-      await writeFile(`${output}/player-wire-result.json`, JSON.stringify({ state,
+      await writeFile(`${output()}/player-wire-result.json`, JSON.stringify({ state,
         messages: relay.messages.filter((message: any) => /advantageCount|advantageRolls/.test(JSON.stringify(message))) }, null, 2));
     }
   } finally { await relay.close(); }

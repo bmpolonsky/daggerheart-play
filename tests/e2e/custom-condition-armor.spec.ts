@@ -83,10 +83,10 @@ test.describe('manual custom conditions and armor equipment', () => {
     const edit = page.getByRole('dialog', { name: 'Состояние', exact: true });
     const note = edit.getByLabel('Заметка', { exact: true });
     await expect(note).toHaveValue('Болит рука\n\nУсловие снятия: Согреться');
-    await page.screenshot({ path: '/home/codex/outputs/dh-condition-copy-20261028/legacy-editor.png' });
+    await page.screenshot({ path: test.info().outputPath('legacy-editor.png') });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(edit).toBeInViewport();
-    await page.screenshot({ path: '/home/codex/outputs/dh-condition-copy-20261028/legacy-editor-mobile.png' });
+    await page.screenshot({ path: test.info().outputPath('legacy-editor-mobile.png') });
     await page.setViewportSize({ width: 1440, height: 900 });
     await note.fill('Не сохранять');
     await edit.getByRole('button', { name: 'Отмена', exact: true }).click();

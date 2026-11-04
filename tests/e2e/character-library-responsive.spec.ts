@@ -5,7 +5,7 @@ import { openGameLibrary } from './tools-helpers';
 const before = process.env.CHARACTER_LAYOUT_BEFORE === '1';
 const firstName = 'QA — Серафим';
 const longName = 'QA — Смешанный с очень длинным именем персонажа';
-const out = '/home/codex/outputs/dh-character-library-layout-20261027';
+const out = () => test.info().outputPath();
 for (const width of [1180, 1440, 390]) test(`character list and editor remain usable at ${width}`, async ({ page }) => {
   await page.setViewportSize({ width, height: width === 1180 ? 757 : 900 });
   await openGmGame(page);
@@ -23,12 +23,12 @@ for (const width of [1180, 1440, 390]) test(`character list and editor remain us
   const roster = library.getByRole('navigation', { name: 'Ростер персонажей', exact: true });
   const first = roster.locator('.player-tools-character-card').filter({ has: page.getByRole('button', { name: firstName, exact: true }) });
   const second = roster.locator('.player-tools-character-card').filter({ has: page.getByRole('button', { name: longName, exact: true }) });
-  await page.screenshot({ path: `${out}/${before ? 'before' : 'after'}-${width}-roster.png` });
+  await page.screenshot({ path: `${out()}/${before ? 'before' : 'after'}-${width}-roster.png` });
   await first.getByRole('button', { name: firstName, exact: true }).click();
   const editor = library.getByRole('region', { name: 'Редактор персонажа', exact: true });
   await editor.getByRole('button', { name: 'Редактировать', exact: true }).click();
   await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Характеристики', exact: true }).click();
-  await page.screenshot({ path: `${out}/${before ? 'before' : 'after'}-${width}-editor.png` });
+  await page.screenshot({ path: `${out()}/${before ? 'before' : 'after'}-${width}-editor.png` });
   if (before) return;
   const traits = editor.locator('.trait-card');
   await expect(traits).toHaveCount(6);
@@ -66,6 +66,6 @@ for (const width of [1180, 1440, 390]) test(`character list and editor remain us
   const doneBox = (await done.boundingBox())!;
   expect(doneBox.x + doneBox.width).toBeLessThanOrEqual(width);
   await done.click();
-  await page.screenshot({ path: `${out}/after-${width}-long-name.png` });
+  await page.screenshot({ path: `${out()}/after-${width}-long-name.png` });
   expect(await page.locator('body').evaluate(el => el.scrollWidth)).toBeLessThanOrEqual(width);
 });

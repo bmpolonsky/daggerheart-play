@@ -32,7 +32,7 @@ for (const viewport of [{ width: 1180, height: 757 }, { width: 390, height: 844 
     await chooseUnifiedAdvantage(tray, 'advantage', 3);
     await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText(/3d6kh1$/);
     await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toContainText('3×d6');
-    await page.screenshot({ path: `${process.env.TRAY_UI_OUTPUT ?? '/home/codex/outputs/dh-condition-note-20261027'}/tray-compact-${viewport.width}.png` });
+    await page.screenshot({ path: `${test.info().outputPath()}/tray-compact-${viewport.width}.png` });
     await chooseUnifiedAdvantage(tray, 'advantage', 0);
     await expect(tray.locator('.unified-roll-pool-count')).toHaveCount(0);
     await tray.getByLabel('Модификатор', { exact: true }).fill('abc');

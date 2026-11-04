@@ -17,7 +17,7 @@ test('summary distinguishes final step, valid readiness and unassigned base trai
   await expect(builder.getByText('Итог — Шаг 11 из 11', { exact: true })).toBeVisible();
   await expect(builder).not.toContainText('100%');
   const validSummary = await step.locator('.cinematic-builder-loadout-summary').innerText();
-  await page.screenshot({ path: '/home/codex/outputs/dh-builder-summary-20261028/builder-summary-valid.png' });
+  await page.screenshot({ path: test.info().outputPath('builder-summary-valid.png') });
   await builder.getByRole('button', { name: 'Характеристики', exact: true }).click();
   const agility = builder.getByRole('combobox', { name: 'Проворность', exact: true });
   const original = await agility.inputValue();
@@ -27,7 +27,7 @@ test('summary distinguishes final step, valid readiness and unassigned base trai
   await expect(step).not.toContainText('Готово к сцене');
   await expect(step.locator('.cinematic-builder-loadout-summary')).toContainText('Нет значения');
   await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeDisabled();
-  await page.screenshot({ path: '/home/codex/outputs/dh-builder-summary-20261028/builder-summary-empty.png' });
+  await page.screenshot({ path: test.info().outputPath('builder-summary-empty.png') });
   await builder.getByRole('button', { name: 'Характеристики', exact: true }).click();
   await agility.selectOption(original);
   await builder.getByRole('button', { name: 'Итог', exact: true }).click();

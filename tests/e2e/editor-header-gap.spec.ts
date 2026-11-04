@@ -28,8 +28,8 @@ for(const mode of ['sheet','library'] as const)for(const width of [1180,500])tes
     return{label:label.textContent,value:value.textContent,horizontalGap:v.left-l.right,verticalGap:v.top-l.bottom,sameLine:Math.abs(v.top-l.top)<4,valueRight:v.right,cellRight:s.right,labelFont:getComputedStyle(label).fontSize,valueFont:getComputedStyle(value).fontSize};
   }));
   const prefix=`${before?'before':'after'}-${mode}-${width}`;
-  await page.screenshot({path:`/home/codex/outputs/dh-editor-density-20261028/${prefix}.png`});
-  await writeFile(`/home/codex/outputs/dh-editor-density-20261028/${prefix}.json`,JSON.stringify(metrics,null,2));
+  await page.screenshot({path:`${test.info().outputPath()}/${prefix}.png`});
+  await writeFile(`${test.info().outputPath()}/${prefix}.json`,JSON.stringify(metrics,null,2));
   if(before)return;
   expect(metrics.map(x=>x.value)).toEqual(['10','5/5','1']);
   await expect(editor.locator('.character-editor-domains')).toHaveText('Домены: Мудрость + Аркана');

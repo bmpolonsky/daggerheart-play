@@ -4,10 +4,10 @@ import { createPopulatedGameDocument, importGameDocument } from './filled-game-h
 import { openGmGame } from './game-route-helpers';
 import { openGameLibrary } from './tools-helpers';
 const before = process.env.EDITOR_DENSITY_BEFORE === '1';
-const out = '/home/codex/outputs/dh-editor-density-20261028';
+const out = () => test.info().outputPath();
 const catalog = (name: string) => JSON.parse(readFileSync(new URL(`../../public/data/${name}.json`, import.meta.url), 'utf8')).data;
 for (const [width, bonus] of [[1440,true],[1180,true],[500,true],[390,true],[1180,false]] as const) test(`compact editor at ${width} bonus=${bonus}`, async ({page}) => {
-  mkdirSync(out,{recursive:true});
+  mkdirSync(out(),{recursive:true});
   await page.setViewportSize({width,height:757});await openGmGame(page);
   const doc=createPopulatedGameDocument(),hero=doc.files['data/characters.json'].entities['e2e-character-cadsuane'];
   doc.files['data/characters.json'].entities['e2e-character-ran'].name='Кадсуанэ';
@@ -22,16 +22,16 @@ for (const [width, bonus] of [[1440,true],[1180,true],[500,true],[390,true],[118
   const editor=library.getByRole('region',{name:'Редактор персонажа',exact:true});
   await editor.getByLabel('Разделы листа персонажа').getByRole('button',{name:'Характеристики',exact:true}).click();
   const prefix=`${before?'before':'after'}-${width}-${bonus}`;
-  await page.screenshot({path:`${out}/${prefix}-view.png`});
+  await page.screenshot({path:`${out()}/${prefix}-view.png`});
   await editor.getByRole('button',{name:'Редактировать',exact:true}).click();
-  await page.screenshot({path:`${out}/${prefix}-edit.png`});
+  await page.screenshot({path:`${out()}/${prefix}-edit.png`});
   const metrics=await editor.evaluate(el=>{
     const traits=Array.from(el.querySelectorAll('.trait-card')).map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height,overflow:e.scrollWidth-e.clientWidth};});
     const workspace=el.querySelector('.character-editor-workspace')!.getBoundingClientRect();
     const advanced=el.querySelector('.character-editor-advanced')!.getBoundingClientRect();
     const t=el.querySelector('.character-editor-statline')!.getBoundingClientRect();
     return{traits,workspaceWidth:workspace.width,advancedTop:advanced.top,threshold:{x:t.x,y:t.y},overflow:el.scrollWidth-el.clientWidth};
-  });writeFileSync(`${out}/${prefix}-metrics.json`,JSON.stringify(metrics,null,2));
+  });writeFileSync(`${out()}/${prefix}-metrics.json`,JSON.stringify(metrics,null,2));
   if(before)return;
   expect(metrics.overflow).toBeLessThanOrEqual(1);expect(metrics.traits.every(t=>t.overflow<=1)).toBe(true);
   expect(new Set(metrics.traits.map(t=>Math.round(t.x))).size).toBe(metrics.workspaceWidth>360?3:2);

@@ -7,7 +7,7 @@ import { sharedQualityDocument } from './quality-ab-fixtures';
 import { chooseAncestryFeature, chooseMixedAncestryMode } from './ancestry-selection-helpers';
 
 const baseline = process.env.ANCESTRY_BASELINE === '1';
-const directory = `/home/codex/outputs/dh-mixed-ancestry-20261027/${process.env.ANCESTRY_LABEL ?? 'after'}`;
+const directory = () => test.info().outputPath(process.env.ANCESTRY_LABEL ?? 'after');
 async function ancestryWizard(page: Page, baseURL?: string) {
   await installDeterministicP2PTransport(page);
   await page.goto(`${baseURL ?? 'http://127.0.0.1:4208/'}#/game`);
@@ -111,12 +111,12 @@ test('mixed ancestry retains invalid pair until corrected and saves either expli
     const features = editor.locator('.character-rule-feature').filter({ has: page.getByText('Родословная', { exact: true }) });
     await expect(features).toHaveCount(2);
     await expect(features.locator('.character-rule-feature__identity > strong')).toHaveText([...wanted]);
-    await page.screenshot({ path: `${directory}/saved-${firstName}.png` });
+    await page.screenshot({ path: `${directory()}/saved-${firstName}.png` });
   }
 });
 async function capture(page: Page, wizard: Locator, step: string) {
-  await mkdir(directory, { recursive: true });
-  await page.screenshot({ path: `${directory}/${step}.png` });
+  await mkdir(directory(), { recursive: true });
+  await page.screenshot({ path: `${directory()}/${step}.png` });
   const evidence = await wizard.evaluate(element => ({
     text: element.textContent, width: element.clientWidth, scrollWidth: element.scrollWidth,
     layout: Array.from(element.querySelectorAll('.cinematic-builder,.cinematic-builder-nav,.cinematic-builder-panel,.cinematic-builder-stage,.cinematic-builder-workspace,.cinematic-builder-actions')).map(node => ({
@@ -130,7 +130,7 @@ async function capture(page: Page, wizard: Locator, step: string) {
     groups: Array.from(element.querySelectorAll('[role="group"]')).map(group => ({ label: group.getAttribute('aria-label'), bounds: group.getBoundingClientRect().toJSON() })),
     scrollRegions: Array.from(element.querySelectorAll('[role="region"][tabindex]')).map(region => ({ label: region.getAttribute('aria-label'), top: region.scrollTop, height: region.clientHeight, scrollHeight: region.scrollHeight }))
   }));
-  await writeFile(`${directory}/${step}.json`, JSON.stringify({ baseline, viewport: page.viewportSize(), url: page.url(), ...evidence }, null, 2));
+  await writeFile(`${directory()}/${step}.json`, JSON.stringify({ baseline, viewport: page.viewportSize(), url: page.url(), ...evidence }, null, 2));
 }
 
 for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
@@ -143,7 +143,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
       try { await giant.click({ timeout: 2500 }); }
       catch (error) {
         await capture(page, wizard, `selection-blocked-${viewport.width}x${viewport.height}`);
-        await writeFile(`${directory}/selection-blocked-${viewport.width}x${viewport.height}.txt`, String(error)); return;
+        await writeFile(`${directory()}/selection-blocked-${viewport.width}x${viewport.height}.txt`, String(error)); return;
       }
     } else await giant.click();
     await capture(page, wizard, `single-${viewport.width}x${viewport.height}`);
@@ -156,7 +156,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
       await step.getByRole('button', { name: 'Второе свойство — родословная', exact: true }).click();
       const picker = page.getByRole('dialog', { name: 'Выбор: Второе свойство — родословная', exact: true });
       await picker.getByRole('option').filter({ has: page.getByText('Эльф', { exact: true }) }).click();
-      await page.screenshot({ path: `${directory}/legacy-picker-${viewport.width}x${viewport.height}.png` });
+      await page.screenshot({ path: `${directory()}/legacy-picker-${viewport.width}x${viewport.height}.png` });
       await picker.getByRole('button', { name: 'Выбрать', exact: true }).click();
       await capture(page, wizard, `mixed-pair-${viewport.width}x${viewport.height}`); return;
     }
@@ -255,7 +255,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
       await page.mouse.move(lastBox.x + 8, Math.min(lastBox.y + 8, outer.y + outer.height - 5)); await page.mouse.wheel(0, 350);
       await expect(lastDescription).toContainText('дополнительный Ход Отдыха');
       const sceneAfter = await sceneSnapshot(); expect(sceneAfter).toEqual(sceneBefore);
-      await writeFile(`${directory}/pointer-wheel-measurements-390.json`, JSON.stringify({ firstScroll, secondScroll,
+      await writeFile(`${directory()}/pointer-wheel-measurements-390.json`, JSON.stringify({ firstScroll, secondScroll,
         bodyScroll: await body.evaluate(element => element.scrollTop), targetRegion, sceneBefore, sceneAfter }, null, 2));
       await capture(page, wizard, 'pointer-wheel-390');
     }

@@ -67,13 +67,13 @@ test('group reaction becomes a fresh leader action while history, repeat guard a
   await expect(tray.getByLabel('Итоговая формула',{exact:true})).toHaveText('2d12');
   await expect(tray).not.toContainText('Этот результат уже применён');
   await expect(tray.getByRole('button',{name:'Бросить',exact:true})).toBeEnabled();
-  await page.screenshot({path:`${process.env.TRAY_UI_OUTPUT ?? '/home/codex/outputs/dh-group-role-roll-20261027'}/new-leader-prepared.png`});
+  await page.screenshot({path:`${test.info().outputPath()}/new-leader-prepared.png`});
   await nextDice(page,[5,6]);await tray.getByRole('button',{name:'Бросить',exact:true}).click();
   await expect.poll(async()=>(await stored(page))?.rollLog.length).toBe(3);
   await expect(tray.getByRole('button',{name:'Бросить',exact:true})).toBeDisabled();
   const snapshot=await stored(page);expect(snapshot.rollLog.some((r:any)=>r.id===oldRollId&&r.total===11)).toBe(true);
   expect(snapshot.feed.find((e:any)=>e.id===eventId).teamwork.participants[1].result.rollType).toBe('action');
-  await page.screenshot({path:`${process.env.TRAY_UI_OUTPUT ?? '/home/codex/outputs/dh-group-role-roll-20261027'}/new-leader-applied.png`});
+  await page.screenshot({path:`${test.info().outputPath()}/new-leader-applied.png`});
   await test.info().attach('controlled-rng-callers', {body:JSON.stringify(await page.evaluate(()=>(window as any).__qaRoleDiceBatches ?? []), null, 2), contentType:'application/json'});
   await page.reload();await expect(page.locator('[data-vtt-root]')).toBeVisible();
   if (!await page.getByLabel('Чат игры').isVisible()) await page.getByRole('button',{name:/^Открыть чат/}).click();

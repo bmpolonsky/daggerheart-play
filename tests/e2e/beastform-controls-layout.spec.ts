@@ -29,7 +29,7 @@ for (const width of [1181, 500, 390]) test(`beastform controls preserve selectio
   if(!before){
     await expect(sheet.getByRole('group',{name:'Стресс',exact:true}).getByRole('button',{pressed:true})).toHaveCount(0);
     await entry.scrollIntoViewIfNeeded();
-    await page.screenshot({path:`/home/codex/outputs/dh-beastform-preview-20261028/collapsed-${width}.png`});
+    await page.screenshot({path:`${test.info().outputPath()}/collapsed-${width}.png`});
     await entry.click();
     await panel.getByRole('button',{name:'Звериная форма',exact:true}).click();
     const reopenPicker=page.getByRole('dialog',{name:'Выбор: Звериная форма',exact:true});
@@ -37,7 +37,7 @@ for (const width of [1181, 500, 390]) test(`beastform controls preserve selectio
     await reopenPicker.getByRole('button',{name:/^(Выбрать|Выбрано)$/}).click();
   }
   await panel.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `/home/codex/outputs/dh-beastform-preview-20261028/${before ? 'before' : 'after'}-${width}.png` });
+  await page.screenshot({ path: `${test.info().outputPath()}/${before ? 'before' : 'after'}-${width}.png` });
   if (before) return;
   await expect(form).toContainText('Водный разведчик');
   const name = form.locator('span').first();
@@ -57,7 +57,7 @@ for (const width of [1181, 500, 390]) test(`beastform controls preserve selectio
   await expect(panel).toContainText('Сила +1');
   await preview.getByRole('button',{name:'Закрыть предпросмотр',exact:true}).click();
   await expect(entry).toContainText('Активна: Водный разведчик');
-  await page.screenshot({path:`/home/codex/outputs/dh-beastform-preview-20261028/active-${width}.png`});
+  await page.screenshot({path:`${test.info().outputPath()}/active-${width}.png`});
   // This is the committed round-trip case. Immediate reload cancellation under
   // pending/debounced/locked saves is asserted in persistence-navigation-guard.
   await expect.poll(async () => {
@@ -101,7 +101,7 @@ test('player opens the same ephemeral controller and cancels without spending', 
     await expect(preview.getByRole('button',{name:'Выйти',exact:true})).toBeVisible();
     await expect(sheet.getByRole('group',{name:'Стресс',exact:true}).getByRole('button',{pressed:true})).toHaveCount(1);
     await preview.getByRole('button',{name:'Выйти',exact:true}).click();await expect(entry).toContainText('Не активна');
-    await player.screenshot({path:'/home/codex/outputs/dh-beastform-preview-20261028/player-390.png'});
+    await player.screenshot({path:test.info().outputPath('player-390.png')});
   } finally {await relay.close();}
 });
 

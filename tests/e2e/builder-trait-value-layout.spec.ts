@@ -24,7 +24,7 @@ for(const width of [1440,1024,390]) for(const zoom of [1,.9]) {
   if(width===390) for(const label of await traits.locator('.dh-stat-label').all()) expect((await label.boundingBox())!.height).toBeLessThan(20);
   expect(metrics.map(m=>m.value)).toEqual(['0','-1','1','1','2','0']);
   expect(await page.locator('body').evaluate(e=>e.scrollWidth)).toBeLessThanOrEqual(Math.ceil(width/zoom));
-  const output='/home/codex/outputs/dh-builder-clipping-20261027';await mkdir(output,{recursive:true});
+  const output = test.info().outputPath();await mkdir(output,{recursive:true});
   await page.screenshot({path:`${output}/after-${width}-css${zoom}.png`});
   await traits.screenshot({path:`${output}/values-${width}-css${zoom}.png`});
   await writeFile(`${output}/metrics-${width}-css${zoom}.json`,JSON.stringify({viewport:page.viewportSize(),zoom,zoomKind:zoom===1?'normal browser 100%':'CSS document zoom stress only; native browser90% unverified',metrics},null,2));
