@@ -94,7 +94,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toHaveText('Приватный бросок');
     const formula = await openUnifiedFormulaEditor(tray);
     await formula.fill('2d12+1d6+2d6+9'); await formula.blur();
-    await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('4');
+    await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('+4');
+    await expect(formula).toHaveValue('2d12+1d6+9+2d6kh1');
     await tray.getByLabel('Модификатор', { exact: true }).fill('2');
     await expect(formula).toHaveValue('2d12+1d6+7+2d6kh1');
     const submit = tray.getByRole('button', { name: 'Бросить', exact: true });

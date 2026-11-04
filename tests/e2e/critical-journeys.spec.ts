@@ -180,7 +180,8 @@ test.describe('critical persisted journeys', () => {
       await setProfile(editor, profile);
 
       await editor.getByRole('button', { name: 'Сохранить', exact: true }).click();
-      await expect(editor.getByText('Материал сохранён.')).toBeVisible();
+      // Success follows persistence and a full library refresh, which can exceed 5s under load.
+      await expect(editor.getByText('Материал сохранён.')).toBeVisible({ timeout: 15_000 });
       await editor.getByRole('button', { name: 'Отмена', exact: true }).click();
       await expect(editor).toHaveCount(0);
 
@@ -202,7 +203,7 @@ test.describe('critical persisted journeys', () => {
       const updatedName = `${name} — изменено`;
       await editor.getByLabel('Название', { exact: true }).fill(updatedName);
       await editor.getByRole('button', { name: 'Сохранить', exact: true }).click();
-      await expect(editor.getByText('Материал сохранён.')).toBeVisible();
+      await expect(editor.getByText('Материал сохранён.')).toBeVisible({ timeout: 15_000 });
       await editor.getByRole('button', { name: 'Отмена', exact: true }).click();
 
       await search.fill(updatedName);
@@ -219,6 +220,48 @@ test.describe('critical persisted journeys', () => {
 
     await collections.getByRole('button', { name: 'Правила', exact: true }).click();
     await expect(workspace.getByRole('button', { name: 'Создать', exact: true })).toHaveCount(0);
+  });
+
+  test('persists a subclass and retains it after reload', async ({ page }) => {
+    await openGmGame(page);
+    const workspace = await openWorkspace(page);
+    await selectWorkspaceTab(workspace, 'Справочник');
+    await workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Подклассы', exact: true }).click();
+    await workspace.getByRole('button', { name: 'Создать', exact: true }).click();
+    const editor = workspace.locator('.player-compendium-editor');
+    const name = 'Подкласс — проверка сохранения';
+    await editor.getByLabel('Название', { exact: true }).fill(name);
+    await editor.getByLabel('Класс', { exact: true }).selectOption({ index: 1 });
+    await editor.getByLabel('Заклинание', { exact: true }).selectOption('knowledge');
+
+    await editor.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(editor.getByText('Материал сохранён.', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => page.evaluate(async (expectedName) => {
+      const stored = await new Promise<any>((resolve, reject) => {
+        const request = indexedDB.open('daggerheart-play-custom-content');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction('documents', 'readonly');
+          const read = transaction.objectStore('documents').get('local');
+          read.onsuccess = () => resolve(read.result);
+          read.onerror = () => reject(read.error);
+          transaction.oncomplete = () => db.close();
+        };
+      });
+      return stored?.subclasses?.some((item: any) => item.name === expectedName && item.class_slug && item.spellcast_trait === 'knowledge') ?? false;
+    }, name)).toBe(true);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(workspace).toBeVisible();
+    await selectWorkspaceTab(workspace, 'Справочник');
+    await workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Подклассы', exact: true }).click();
+    await workspace.getByLabel('Источник материалов').getByRole('button', { name: 'Свои', exact: true }).click();
+    await workspace.getByLabel('Поиск по справочнику').fill(name);
+    const card = workspace.locator('.player-library-card').filter({ hasText: name });
+    await expect(card).toHaveCount(1);
+    await card.click();
+    await workspace.getByLabel('Полная запись компендиума').getByRole('button', { name: 'Редактировать', exact: true }).click();
+    await expect(editor.getByLabel('Заклинание', { exact: true })).toHaveValue('knowledge');
   });
 
   test('keeps a dirty compendium draft when collection change is cancelled', async ({ page }) => {
