@@ -47,8 +47,30 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Restore reviewed Daggerheart content cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            public/data
+            public/font
+            public/image
+          key: daggerheart-content-${{ runner.os }}-${{ hashFiles('scripts/cache-daggerheart-data.mjs') }}-${{ github.run_id }}
+          restore-keys: |
+            daggerheart-content-${{ runner.os }}-${{ hashFiles('scripts/cache-daggerheart-data.mjs') }}-
+            daggerheart-content-${{ runner.os }}-
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Prepare cached Daggerheart content for unit tests
+        run: node scripts/cache-daggerheart-data.mjs
+        env:
+          CONTENT_SOURCE: https://daggerheart.su
+          CONTENT_LANG: ru
+          CONTENT_CACHE_TTL_HOURS: "0"
+          CONTENT_REFRESH: "0"
+          CONTENT_REFRESH_ASSETS: "0"
+          CONTENT_ASSET_CONCURRENCY: "8"
 
       - name: Typecheck
         run: npm run typecheck
