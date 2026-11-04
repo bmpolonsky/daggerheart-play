@@ -35,6 +35,7 @@ import { TabletopService } from './TabletopService';
 import { UiService } from './UiService';
 import { WorldBackupService } from './WorldBackupService';
 import { NameGeneratorService } from './NameGeneratorService';
+import { TagTeamService } from './TagTeamService';
 import { NpcGeneratorService } from './NpcGeneratorService';
 
 export const nameGeneratorService = new NameGeneratorService();
@@ -115,6 +116,9 @@ export const eventRollService = new EventRollService({
   currentScopeKey: () => unifiedRollDraftService.currentScopeKey(),
   autoApplyRollConsequences: () => gameService.game$.get().autoApplyRollConsequences
 });
+export const tagTeamService = new TagTeamService({ dice: diceService,
+  currentScopeKey: () => unifiedRollDraftService.currentScopeKey(),
+  isConnectedPlayer: () => p2pSessionService.isConnectedPlayerSession() });
 export const uiService = new UiService();
 
 export async function bootServices(): Promise<void> {

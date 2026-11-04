@@ -22,7 +22,7 @@ export function FeatureFeedCard({
       <>
         <FeedCardHeader item={item} label={item.kicker} />
         <strong>{item.title}</strong>
-        <p>{renderRulesText(item.body)}</p>
+        <p>{renderRulesText(item.body, { cleanHtml: true })}</p>
       </>
     );
   }

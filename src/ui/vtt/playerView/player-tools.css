@@ -1267,7 +1267,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.player-tools-character-editor .inline-stat,
+.character-editor-compact .inline-stat,
 .player-tools-character-editor .resource-pips,
 .player-tools-character-editor .trait-card {
   min-width: 0;
@@ -1292,19 +1292,19 @@
   padding: 0 8px;
 }
 
-.player-tools-character-editor .inline-stat {
+.character-editor-compact .inline-stat {
   display: grid;
   gap: 3px;
 }
 
-.player-tools-character-editor .inline-stat span {
+.character-editor-compact .inline-stat span {
   color: rgba(243, 234, 216, 0.62);
   font-size: 0.66rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.player-tools-character-editor .inline-stat strong,
+.character-editor-compact .inline-stat strong,
 .player-tools-character-editor .resource-title strong {
   overflow: hidden;
   color: #fff4d6;

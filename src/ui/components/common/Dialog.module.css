@@ -30,3 +30,18 @@
   justify-content: space-between;
   gap: 12px;
 }
+
+/* An occupied notification rail participates in layout. It never covers the
+   dialog header/actions, and long errors remain scrollable rather than clipped. */
+.notifications:empty { display: none; }
+.notifications {
+  min-width: 0;
+  min-height: 0;
+  flex: 0 0 auto;
+  max-height: min(160px, 25dvh);
+  overflow: auto;
+  padding: 4px;
+}
+
+/* A recovery prompt must precede route-restored dialogs regardless of mount order. */
+.backdrop.priority { z-index: calc(var(--dh-z-dialog, 900) + 1); }

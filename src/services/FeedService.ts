@@ -1,6 +1,6 @@
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
-import { teamworkParticipantRoleRevision } from '../domain/rules/teamwork';
+import { isSharedTagTeam, retainAcceptedTagTeam, teamworkParticipantRoleRevision } from '../domain/rules/teamwork';
 import { REST_RULES } from '../domain/rules/rest';
 import type { GameHandout, DeathMoveChoice, DeathMoveFeedEntry, DeathMoveFeedRequest, DeathMoveFeedStatus, DeathMoveRollResult, DomainCardRecord, FeedActorReference, FeedEntry, RestChoiceResult, RestChoiceStatus, RestFeedChoice, RestFeedEntry, RestFeedParticipant, RestFeedRequest, RestFeedStatus, RollLogEntry, RollPublication, TeamworkRollActorOption, TeamworkRollFeedEntry, TeamworkRollKind, TeamworkRollParticipant, TeamworkRollParticipantRequest, TeamworkRollParticipantRole, TeamworkRollRequest, TeamworkRollResult, TeamworkRollStatus, TraitId } from '../domain/rules/types';
 import type { RestFearPlan } from '../domain/rules/rest';
@@ -80,14 +80,19 @@ export class FeedService {
   }
 
   receiveRemote(entry: FeedEntry): FeedEntry {
+    let accepted = entry;
     feedStore.update((feed) => {
       const existing = feed.findIndex((item) => item.id === entry.id);
       if (existing >= 0) {
-        return feed.map((item) => (item.id === entry.id ? entry : item));
+        const previous = feed[existing];
+        if (previous.type === 'teamwork' && isSharedTagTeam(previous.teamwork)) {
+          accepted = entry.type === 'teamwork' ? { ...entry, teamwork: retainAcceptedTagTeam(previous.teamwork, entry.teamwork) } : previous;
+        }
+        return feed.map((item) => (item.id === entry.id ? accepted : item));
       }
       return [entry, ...feed].slice(0, MAX_FEED_ENTRIES);
     });
-    return entry;
+    return accepted;
   }
 
   addMessage(authorName: string, body: string, options: FeedEntryOptions = {}): FeedEntry {
@@ -304,12 +309,13 @@ export class FeedService {
       teamwork: {
         id: options.id ?? createId('teamwork'),
         kind: options.kind,
+        ...(options.kind === 'tagTeam' ? { tagTeamMode: 'shared' as const } : {}),
         status: options.status ?? 'draft',
         requestedAt: createdAt,
         requestedBy: options.requestedBy ?? options.actor,
         difficulty: clampDifficulty(options.difficulty ?? 12),
         prompt: options.prompt?.trim() || undefined,
-        participants: normalizeTeamworkParticipants(options.kind, options.participants ?? []),
+        participants: normalizeTeamworkParticipants(options.kind, options.kind === 'tagTeam' ? (options.participants ?? []).slice(0, 2) : options.participants ?? []),
         availableActors: normalizeTeamworkActorOptions(options.availableActors ?? options.participants ?? [])
       }
     };
@@ -321,10 +327,11 @@ export class FeedService {
     let updatedEntry: TeamworkRollFeedEntry | null = null;
     feedStore.update((feed) => feed.map((entry) => {
       if (entry.type !== 'teamwork' || !matchesTeamworkEntry(entry, teamworkEntryId) || isTeamworkClosed(entry.teamwork)) return entry;
+      if (isSharedTagTeam(entry.teamwork) && entry.teamwork.participants.some(participant => participant.result)) return entry;
       const teamwork: TeamworkRollRequest = {
         ...entry.teamwork,
         status: participants.length > 0 ? 'collecting' : 'draft',
-        participants: normalizeTeamworkParticipants(entry.teamwork.kind, participants, entry.teamwork.participants)
+        participants: normalizeTeamworkParticipants(entry.teamwork.kind, isSharedTagTeam(entry.teamwork) ? participants.slice(0, 2) : participants, entry.teamwork.participants)
       };
       updatedEntry = { ...entry, teamwork };
       return updatedEntry;
@@ -352,6 +359,8 @@ export class FeedService {
       if (entry.type !== 'teamwork' || !matchesTeamworkEntry(entry, teamworkEntryId) || isTeamworkClosed(entry.teamwork)) return entry;
       const participant = entry.teamwork.participants.find((participant) => participant.actorId === actorId);
       if (!participant || participant.result) return entry;
+      if (isSharedTagTeam(entry.teamwork) && (entry.teamwork.participants.length !== 2 || result.consequencesApplied === true)) return entry;
+      if (isSharedTagTeam(entry.teamwork) && entry.teamwork.participants.some(actor => actor.result?.rollId === result.rollId)) return entry;
       if (result.rollType !== (participant.role === 'support' ? 'reaction' : 'action')) return entry;
       const teamwork: TeamworkRollRequest = {
         ...entry.teamwork,
@@ -413,6 +422,7 @@ export class FeedService {
     const resolvedAt = nowIso();
     feedStore.update((feed) => feed.map((entry) => {
       if (entry.type !== 'teamwork' || !matchesTeamworkEntry(entry, teamworkEntryId) || isTeamworkClosed(entry.teamwork)) return entry;
+      if (isSharedTagTeam(entry.teamwork)) return entry;
       const teamwork: TeamworkRollRequest = { ...entry.teamwork, status: 'resolved', resolvedAt };
       updatedEntry = { ...entry, teamwork };
       return updatedEntry;

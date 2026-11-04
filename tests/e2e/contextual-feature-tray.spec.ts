@@ -25,7 +25,6 @@ test('PC feature preview binds Prayer pool to Spellcast plus the selected upgrad
   actor.sheetCards = [{ ...prayer, kind: 'classFeature' }, { ...upgrade, kind: 'subclassFeature' }];
   await importGameDocument(page, document, 'contextual-prayer.dhgame');
   await page.locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
-  await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Свойства', exact: true }).click();
   await page.getByLabel('Персонаж игрока').getByRole('button', { name: prayer.name, exact: true }).click();
   const preview = page.getByRole('complementary', { name: 'Предпросмотр', exact: true });
   await preview.getByRole('button', { name: 'd4', exact: true }).first().click();
@@ -47,7 +46,6 @@ test('a named Patron pool with no dN text prepares tier dice in the same tray', 
   actor.sheetCards = [{ ...patron, kind: 'classFeature' }, { ...wrath, kind: 'subclassFeature' }];
   await importGameDocument(page, document, 'contextual-patron.dhgame');
   await page.locator('.player-roster__item').filter({ hasText: filledCharacterName }).first().click();
-  await page.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Свойства', exact: true }).click();
   await page.getByLabel('Персонаж игрока').getByRole('button', { name: wrath.name, exact: true }).click();
   const preview = page.getByRole('complementary', { name: 'Предпросмотр', exact: true });
   const named = parseContextualDiceMacros(wrath).find(macro => macro.kind === 'diceRoll' && macro.contextualBinding)!;

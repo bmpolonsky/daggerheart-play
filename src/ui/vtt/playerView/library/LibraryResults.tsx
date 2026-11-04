@@ -51,6 +51,8 @@ export function LibraryResults({
   const [selectedId, setSelectedId] = useState('');
   const [actionMessage, setActionMessage] = useState('');
   const previousSearchTerm = useRef('');
+  const closedSearchContext = useRef<string | null>(null);
+  const searchContext = JSON.stringify([libraryView.selectedCollection, libraryView.searchTerm.trim(), libraryView.sourceFilter, libraryView.tierFilter, libraryView.levelFilter]);
   const copiedRouteRef = useRef('');
   const [savedEntrySlug, setSavedEntrySlug] = useState<string | null>(null);
   useEffect(() => setSavedEntrySlug(null), [libraryView.selectedCollection]);
@@ -93,18 +95,22 @@ export function LibraryResults({
     const searchTerm = libraryView.searchTerm.trim();
     const searchChanged = searchTerm !== previousSearchTerm.current;
     previousSearchTerm.current = searchTerm;
+    if (searchChanged || closedSearchContext.current !== searchContext) closedSearchContext.current = null;
     setSelectedId((current) => {
       if (selectedEntrySlug) {
         return entries.find((entry) => entry.routeSlug === selectedEntrySlug)?.id
           ?? (selectedEntrySlug === savedEntrySlug ? savedEntry?.id : '') ?? '';
       }
+      // An explicit close is not a missing result: keep this filtered list open
+      // until another selection, search/filter change or routed entry opens it.
+      if (closedSearchContext.current === searchContext) return '';
       if (searchTerm && (searchChanged || !entries.some((entry) => entry.id === current))) {
         return entries[0]?.id ?? '';
       }
       return entries.some((entry) => entry.id === current) ? current : '';
     });
     setActionMessage('');
-  }, [entries, libraryView.searchTerm, savedEntry, savedEntrySlug, selectedEntrySlug]);
+  }, [entries, libraryView.searchTerm, savedEntry, savedEntrySlug, searchContext, selectedEntrySlug]);
 
   useEffect(() => {
     onDetailOpenChange?.(Boolean(selectedEntry || editorTarget));
@@ -136,6 +142,7 @@ export function LibraryResults({
               title={entry.title}
               onSelect={() => {
                 if (editorTarget && !leaveEditor()) return;
+                closedSearchContext.current = null;
                 setSelectedId(entry.id);
                 if (entry.routeSlug) onEntrySelectionChange?.(entry.routeSlug);
               }}
@@ -166,6 +173,7 @@ export function LibraryResults({
           onEdit={editable ? (target) => onEditorTargetChange?.({ collection: target.collection, raw: target.raw, persisted: true }) : undefined}
           onCopy={editable ? (target) => onEditorTargetChange?.({ collection: target.collection, raw: contentService.createCustomCopy(target.collection, target.raw), persisted: false }) : undefined}
           onClose={() => {
+            closedSearchContext.current = searchContext;
             setSelectedId('');
             setActionMessage('');
             if (selectedEntry.routeSlug) onEntrySelectionChange?.(null);

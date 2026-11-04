@@ -1,8 +1,10 @@
 /** @jsxImportSource preact */
+import { cleanLibraryHtmlText } from "../../../domain/content/libraryPresentation";
 import { cleanMarkdownText } from "../../../core/utils/markdownText";
 
-export function renderRulesText(value: string) {
-  const cleanValue = cleanMarkdownText(value, { emphasizeLinks: true, trim: false });
+export function renderRulesText(value: string, options: { cleanHtml?: boolean } = {}) {
+  const displayValue = options.cleanHtml ? cleanLibraryHtmlText(value, { trim: false }) : value;
+  const cleanValue = cleanMarkdownText(displayValue, { emphasizeLinks: true, trim: false });
   const parts = cleanValue.split(/(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((part, index) => {
     if (!part) return null;

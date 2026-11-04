@@ -20,42 +20,56 @@ test('new roll requests prefill without execution and capture actor independentl
   service.request({ ...input, actor: sourceActor });
   sourceActor.name = 'Other sheet now visible';
   assert.equal(service.state$.get().draft?.actor.name, 'Ари');
-  assert.equal(service.state$.get().dirty, false);
   assert.equal(service.state$.get().openRequest, 1);
   assert.equal(service.state$.get().draft?.formula, '2d12');
 });
 
-test('dirty draft survives a new prefill until an explicit replace or keep decision', () => {
+test('new and rapid repeated requests replace edited preparation without confirmation', () => {
   const service = new UnifiedRollDraftService();
   service.request(input);
   service.update({ manualModifier: 6, experienceIds: ['scout'] });
-  service.request({ ...input, id: 'draft-b', title: 'New card', formula: '1d8', mode: 'manual' });
-  assert.equal(service.state$.get().draft?.id, 'draft-a');
-  assert.equal(service.state$.get().draft?.manualModifier, 6);
-  assert.equal(service.state$.get().pending?.id, 'draft-b');
-  assert.equal(service.state$.get().openRequest, 2);
-  service.choosePending(false);
-  assert.equal(service.state$.get().pending, null);
-  assert.equal(service.state$.get().dirty, true);
-  assert.deepEqual(service.state$.get().draft?.experienceIds, ['scout']);
-  service.request({ ...input, id: 'draft-c', title: 'Next card', mode: 'damage', formula: '2d6+3' });
-  service.choosePending(true);
-  assert.equal(service.state$.get().draft?.id, 'draft-c');
-  assert.equal(service.state$.get().dirty, false);
+  for (const id of ['draft-b', 'draft-c', 'draft-d']) {
+    service.request({ ...input, id, title: 'New action' });
+    assert.equal(service.state$.get().draft?.id, id);
+    assert.equal(service.state$.get().draft?.manualModifier, 0);
+    assert.deepEqual(service.state$.get().draft?.experienceIds, []);
+  }
+  assert.equal(service.state$.get().openRequest, 4);
 });
 
-test('explicit roll completion releases dirty protection but keeps the last draft for another deliberate roll', () => {
+test('reset followed by a trait request immediately prepares the new roll', () => {
+  const service = new UnifiedRollDraftService();
+  service.request(input);
+  service.resetDraft();
+  assert.equal(service.state$.get().draft?.formula, '');
+  service.request({ ...input, id: 'after-reset', title: 'Проворность' });
+  assert.equal(service.state$.get().draft?.id, 'after-reset');
+  assert.equal(service.state$.get().draft?.formula, '2d12');
+});
+
+test('actor change and clear never prevent the next action from replacing preparation', () => {
+  const service = new UnifiedRollDraftService();
+  service.request(input);
+  service.changeActor({ key: 'character:other', id: 'other', name: 'Other', kind: 'character' });
+  service.editModifier('-');
+  service.request(input);
+  assert.equal(service.state$.get().draft?.actor.id, 'ari');
+  assert.equal(service.state$.get().editor?.modifierInput, null);
+  service.clear();
+  assert.equal(service.state$.get().draft, null);
+  service.request(input);
+  assert.equal(service.state$.get().draft?.id, input.id);
+});
+
+test('last preparation stays available until a new intent or explicit clear', () => {
   const service = new UnifiedRollDraftService();
   service.request(input);
   service.update({ manualModifier: -2 });
-  service.markRolled();
   assert.equal(service.state$.get().draft?.manualModifier, -2);
-  assert.equal(service.state$.get().dirty, false);
   service.request({ ...input, id: 'draft-b' });
   assert.equal(service.state$.get().draft?.id, 'draft-b');
   service.clear();
   assert.equal(service.state$.get().draft, null);
-  assert.equal(service.state$.get().pending, null);
 });
 
 test('draft scope is captured at request and does not silently follow a changed game or session', () => {
@@ -140,29 +154,16 @@ test('manual and damage drafts with no positive dice refuse rather than inventin
   assert.equal(unifiedRollDraftError(zeroCount), 'Нет костей для броска. Измените количество или добавьте кости.');
 });
 
-test('editor input survives updates, pending prefill, keep and completion until explicit accepted replacement or clear', () => {
+test('editor input survives edits but every new intent clears stale or invalid input', () => {
   const service = new UnifiedRollDraftService();
   service.request(input);
-  service.setEditor({ formulaInput: '2d12+', formulaError: 'Incomplete formula' });
-  service.setEditor({ proposal: '2d12+1d6', modifierInput: '-' });
+  service.setEditor({ formulaInput: '2d12+', formulaError: 'Incomplete formula', proposal: '2d12+1d6', modifierInput: '-' });
   const editor = service.state$.get().editor;
-  assert.equal(service.state$.get().dirty, true);
   service.update({ notes: 'Other editable field' });
   assert.deepEqual(service.state$.get().editor, editor);
-  service.request({ ...input, id: 'pending-draft' });
-  assert.equal(service.state$.get().draft?.id, input.id);
-  assert.deepEqual(service.state$.get().editor, editor);
-  service.choosePending(false);
-  assert.deepEqual(service.state$.get().editor, editor);
-  service.markRolled();
-  assert.deepEqual(service.state$.get().editor, editor);
-  service.request({ ...input, id: 'accepted-draft' });
+  service.request({ ...input, id: 'replacement' });
+  assert.equal(service.state$.get().draft?.id, 'replacement');
   assert.deepEqual(service.state$.get().editor, { formulaInput: null, formulaError: null, proposal: null, modifierInput: null });
-  service.setEditor({ modifierInput: '+6' });
-  service.request({ ...input, id: 'replace-confirmed' });
-  service.choosePending(true);
-  assert.equal(service.state$.get().draft?.id, 'replace-confirmed');
-  assert.equal(service.state$.get().editor?.modifierInput, null);
   service.setEditor({ formulaInput: 'edited' });
   service.clear();
   assert.equal(service.state$.get().editor?.formulaInput, null);

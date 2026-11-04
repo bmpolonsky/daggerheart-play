@@ -1,5 +1,6 @@
 .baseFields {
   display: grid;
+  margin-top: 8px;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
   align-items: start;
   gap: 10px;
@@ -10,6 +11,10 @@
   color: var(--dh-paper-muted);
   font-size: .7rem;
   line-height: 1.4;
+}
+
+.baseHeading {
+  grid-column: 1 / -1;
 }
 
 .panel .tracks:global(.resource-grid) {

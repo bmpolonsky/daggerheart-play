@@ -2,7 +2,7 @@ import { unifiedRollExecutionFormula } from '../domain/rules/unifiedRollPresenta
 import { characterLevelRank } from '../domain/rules/levelUp';
 import { restMoveOperation, restMoveRequiresRoll } from '../domain/rules/rest';
 import { riskItAllOutcome } from '../domain/rules/deathMoves';
-import { teamworkParticipantRoleRevision, teamworkParticipantRollTrait } from '../domain/rules/teamwork';
+import { isSharedTagTeam, teamworkParticipantRoleRevision, teamworkParticipantRollTrait } from '../domain/rules/teamwork';
 import { eventRollCompatibility, type EventRollContext, type EventRollRequest } from '../domain/rules/eventRoll';
 import { unifiedRollDraftError, unifiedRollPaysForExperiences, type UnifiedRollDraft, type UnifiedRollDraftInput } from '../domain/rules/unifiedRollDraft';
 import type { ActionRollEntry, ManualDiceRollEntry, ReactionRollEntry, RollPublication } from '../domain/rules/types';
@@ -76,6 +76,7 @@ export class EventRollService {
     if (!entry || entry.type !== 'teamwork' || entry.teamwork.status === 'resolved' || entry.teamwork.status === 'cancelled') return { ok: false, error: 'Совместный бросок завершён, отменён или больше недоступен.' };
     const participant = entry.teamwork.participants.find((participant) => participant.actorId === character.id);
     if (!participant || participant.result) return { ok: false, error: 'Участник недоступен или его результат уже записан.' };
+    if (isSharedTagTeam(entry.teamwork) && entry.teamwork.participants.length !== 2) return { ok: false, error: 'Выберите двух участников командного броска.' };
     const trait = teamworkParticipantRollTrait(participant, request.trait);
     const supports = entry.teamwork.participants.filter((participant) => participant.role === 'support');
     const supportModifier = entry.teamwork.kind === 'groupAction' && participant.role === 'leader'
@@ -88,7 +89,7 @@ export class EventRollService {
     return { ok: true, input: { actor, scopeKey, mode: rollType, formula: '2d12', trait, difficulty: entry.teamwork.difficulty,
       manualModifier: supportModifier, spendHopeForExperiences: true, eventContext, title: entry.title,
       notes: `${entry.title}: ${rollType === 'reaction' ? 'бросок реакции' : 'бросок действия'}`, source: { label: entry.teamwork.kind === 'groupAction' ? 'Групповой бросок' : 'Командный бросок' },
-      hint: 'Результат запишется выбранному участнику. Ручной итог требует отдельного подтверждения мастера.' } };
+      hint: isSharedTagTeam(entry.teamwork) ? 'Это кандидат: общий результат выбирается после обоих бросков.' : 'Результат запишется выбранному участнику. Ручной итог требует отдельного подтверждения мастера.' } };
   }
 
   error(draft: UnifiedRollDraft, role: 'gm' | 'player', allowedActorIds: readonly string[]): string | null {
@@ -135,7 +136,7 @@ export class EventRollService {
           advantageCount: draft.advantageCount, disadvantageCount: draft.disadvantageCount,
           experienceIds: draft.experienceIds, spendHopeForExperiences: unifiedRollPaysForExperiences(draft), notes: draft.notes };
         const roll = context.rollType === 'reaction' ? this.dependencies.diceService.rollReaction(request)
-          : this.dependencies.diceService.rollAction({ ...request, applyConsequences: this.dependencies.autoApplyRollConsequences?.() ?? false });
+          : this.dependencies.diceService.rollAction({ ...request, applyConsequences: this.isSharedCandidate(context.entryId) ? false : this.dependencies.autoApplyRollConsequences?.() ?? false });
         this.rolled.set(key, { rollId: roll.id, committed: false });
         if (!this.canCommit(context, role)) return { ok: false, error: 'Событие изменилось после броска. Результат записан, повторного броска нет.', rollId: roll.id };
         return this.commitTeamwork(context, roll);
@@ -163,6 +164,9 @@ export class EventRollService {
     const current = this.prepare(requestFor(context), role);
     return current.ok && Boolean(current.input.eventContext) && contextSignature(current.input.eventContext!) === contextSignature(context);
   }
+  private isSharedCandidate(entryId: string): boolean {
+    return this.dependencies.feedService.feed$.get().some(entry => entry.type === 'teamwork' && entry.id === entryId && isSharedTagTeam(entry.teamwork));
+  }
   private key(context: EventRollContext): string {
     return `${context.scopeKey}:${context.kind}:${context.entryId}:${context.actorId}:${context.kind === 'rest' ? context.choiceId : context.kind === 'death' ? context.deathChoice : `participant:${context.teamworkRole}:${context.teamworkRevision ?? 0}`}`;
   }
@@ -173,7 +177,7 @@ export class EventRollService {
       success: roll.total >= context.difficulty, note: `Ручной итог: ${roll.actorName}: ${roll.total}`
     } : {
       rollId: roll.id, rollType: context.rollType, trait: roll.trait, total: roll.total, difficulty: roll.difficulty,
-      success: roll.success, outcome: roll.outcome, note: `${roll.actorName}: ${roll.total} ${roll.success ? 'успех' : 'провал'}`
+      success: roll.success, outcome: roll.outcome, consequencesApplied: roll.consequenceApplied, note: `${roll.actorName}: ${roll.total} ${roll.success ? 'успех' : 'провал'}`
     };
     const committed = this.dependencies.feedService.recordTeamworkParticipantResult(context.entryId, context.actorId, result);
     if (!committed) return { ok: false, error: 'Бросок записан, но результат участника уже недоступен.', rollId: roll.id };

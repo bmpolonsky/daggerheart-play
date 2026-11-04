@@ -2,6 +2,7 @@
 import { useLayoutEffect } from 'preact/hooks';
 import { AppRouteRenderer } from './app/AppRouteRenderer';
 import { useAppRouting } from './app/useAppRouting';
+import { RecoveryDialog } from './ui/RecoveryDialog';
 import { ToastViewport } from './ui/components/common';
 
 export function App() {
@@ -39,6 +40,7 @@ export function App() {
           onNavigateRoute={navigateToRoute}
         />
       </main>
+      <RecoveryDialog />
       <ToastViewport />
     </div>
   );

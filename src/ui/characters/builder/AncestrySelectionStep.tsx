@@ -1,5 +1,6 @@
 import type { GenericLibraryItem } from '../../../domain/content/types';
-import { useState } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { ChevronRight } from 'lucide-react';
 import { AssetImage, Avatar, ChoiceCard, Notice, SearchField, SegmentedControl } from '../../components/common';
 import { ancestrySelectionPresentation, filterAncestryOptions, type AncestryFeatureOption } from './ancestrySelectionPresentation';
 import { initials } from './formatting';
@@ -17,6 +18,10 @@ export interface AncestrySelectionStepProps {
 export function AncestrySelectionStep({ ancestries, firstId, secondId, onModeChange, onFirstChange, onSecondChange }: AncestrySelectionStepProps) {
   const view = ancestrySelectionPresentation(ancestries, firstId, secondId);
   const [singleQuery, setSingleQuery] = useState('');
+  const detailRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (detailRef.current) detailRef.current.scrollTop = 0;
+  }, [firstId]);
   const singleOptions = filterAncestryOptions(view.singleOptions, singleQuery);
   return (
     <section className={styles.step} role="group" aria-label="Шаг: Родословная">
@@ -35,8 +40,8 @@ export function AncestrySelectionStep({ ancestries, firstId, secondId, onModeCha
       {view.mixed ? <div className={`${styles.body} dh-scroll`} role="region" aria-label="Выбор свойств смешанной родословной" tabIndex={0}>
         <FeatureSelection title="Первое свойство" label="Первое свойство родословной" options={view.firstOptions} selected={view.first} onChange={onFirstChange} />
         <FeatureSelection title="Второе свойство" label="Второе свойство родословной" options={view.secondOptions} selected={view.second} onChange={onSecondChange} />
-      </div> : <div className={`${styles.body} dh-scroll`} role="region" aria-label="Выбор родословной" tabIndex={0}>
-        <div className={styles.featureBlock}>
+      </div> : <div className={`${styles.body} ${styles.singleBody} dh-scroll`} role="region" aria-label="Выбор родословной">
+        <div className={`${styles.featureBlock} ${styles.singleList}`}>
           <SearchField size="sm" aria-label="Поиск родословной" placeholder="Найти родословную…" value={singleQuery} onInput={event => setSingleQuery(event.currentTarget.value)} />
           <div className={`${styles.options} dh-scroll`} role="region" aria-label="Родословные" tabIndex={0}>
             {singleOptions.map(item => <ChoiceCard className={styles.option} selected={item.id === firstId} aria-pressed={item.id === firstId}
@@ -47,11 +52,11 @@ export function AncestrySelectionStep({ ancestries, firstId, secondId, onModeCha
             {!singleOptions.length && <p className={styles.empty}>Родословные не найдены.</p>}
           </div>
         </div>
-        <section className={styles.singleDetail} aria-label="Свойства выбранной родословной">
+        <section ref={detailRef} className={`${styles.singleDetail} dh-scroll`} aria-label="Свойства выбранной родословной" tabIndex={0}>
           {view.firstAncestry ? <>
             <h4>{view.firstAncestry.name}</h4>
             {view.singleFeatures.map(feature => <div className={styles.feature} key={feature.id}><strong>{feature.name}</strong><p>{feature.description}</p></div>)}
-            {(view.singleDescription || view.firstAncestry.imageUrl) && <details className={styles.description}><summary>О родословной</summary>
+            {(view.singleDescription || view.firstAncestry.imageUrl) && <details className={styles.description}><summary><ChevronRight className={styles.descriptionChevron} size={16} aria-hidden="true" /><span>Описание родословной</span></summary>
               {view.firstAncestry.imageUrl && <AssetImage src={view.firstAncestry.imageUrl} className={styles.ancestryArt} alt={view.firstAncestry.name} />}
               {view.singleDescription && <p>{view.singleDescription}</p>}
             </details>}

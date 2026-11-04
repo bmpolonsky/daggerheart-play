@@ -1,11 +1,15 @@
 .viewport {
   position: fixed;
-  top: max(16px, env(safe-area-inset-top));
-  right: max(16px, env(safe-area-inset-right));
+  top: max(72px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
   z-index: var(--dh-z-toast, 1000);
   display: grid;
   width: min(360px, calc(100vw - 32px));
   gap: 8px;
+  max-height: min(240px, 35dvh);
+  overflow: auto;
+  overscroll-behavior: contain;
   pointer-events: none;
 }
 
@@ -28,6 +32,7 @@
 .body {
   min-width: 0;
   padding-top: 3px;
+  overflow-wrap: anywhere;
   color: var(--dh-paper-100);
   font-size: 0.82rem;
   line-height: 1.35;
@@ -45,10 +50,20 @@
   box-shadow: var(--dh-shadow), inset 3px 0 0 rgba(239, 68, 68, 0.82);
 }
 
+.docked {
+  position: static;
+  transform: none;
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+}
+
+.toast > button { position: sticky; top: 0; }
+
 @media (max-width: 640px) {
   .viewport {
-    top: max(10px, env(safe-area-inset-top));
-    right: max(10px, env(safe-area-inset-right));
+    top: max(64px, env(safe-area-inset-top));
     width: min(340px, calc(100vw - 20px));
   }
+  .docked { width: 100%; }
 }

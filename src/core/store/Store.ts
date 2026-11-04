@@ -3,6 +3,23 @@ import { Stream } from './Stream';
 export type StoreListener<T> = (state: T) => void;
 export type StoreUpdater<T> = T | ((current: T) => T);
 
+let batchDepth = 0;
+const pendingNotifications = new Set<() => void>();
+
+/** Publish related synchronous values together, before notifying any observer. */
+export function batchStoreUpdates<T>(update: () => T): T {
+  batchDepth++;
+  try { return update(); }
+  finally {
+    batchDepth--;
+    if (batchDepth === 0) {
+      const notifications = [...pendingNotifications];
+      pendingNotifications.clear();
+      for (const notify of notifications) notify();
+    }
+  }
+}
+
 export class Store<T> {
   private value: T;
   private listeners = new Set<StoreListener<T>>();
@@ -43,8 +60,13 @@ export class Store<T> {
   }
 
   private emit(): void {
+    if (batchDepth > 0) { pendingNotifications.add(this.notify); return; }
+    this.notify();
+  }
+
+  private notify = (): void => {
     for (const listener of [...this.listeners]) {
       listener(this.value);
     }
-  }
+  };
 }

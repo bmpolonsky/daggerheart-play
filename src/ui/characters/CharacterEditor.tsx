@@ -1,3 +1,4 @@
+import { cleanLibraryHtmlText } from '../../domain/content/libraryPresentation';
 import { normalizeContentAccess, contentAccessForGame, type ContentAccessInput } from '../../domain/content/access';
 import { AssetImage } from '../components/common/AssetImage';
 import { p2pSessionService } from '../../services/serviceRegistry';
@@ -12,6 +13,8 @@ import { Dialog } from '../components/common/Dialog';
 import { NumberField, SelectField, TextAreaField, TextField } from '../components/common/Field';
 import { IconButton } from '../components/common/IconButton';
 import { InlineStat } from '../components/common/InlineStat';
+import levelUpReviewStyles from './LevelUpReview.module.css';
+import { storedWeaponInventoryText } from '../../domain/rules/storedWeaponPresentation';
 import { ImageFilePicker } from '../components/common/ImageFilePicker';
 import { ListItem } from '../components/common/ListItem';
 import { Notice } from '../components/common/Notice';
@@ -503,15 +506,15 @@ function renderRuleEffectProse(text: string, effects: readonly FeatureRuleEffect
   let cursor = 0;
   for (const range of ranges) {
     if (range.start < cursor) continue;
-    if (range.start > cursor) nodes.push(text.slice(cursor, range.start));
+    if (range.start > cursor) nodes.push(cleanLibraryHtmlText(text.slice(cursor, range.start), { trim: false }));
     nodes.push(
       <CharacterRuleEffectText key={`${range.start}:${range.end}`} effects={range.effects}>
-        {text.slice(range.start, range.end)}
+        {cleanLibraryHtmlText(text.slice(range.start, range.end), { trim: false })}
       </CharacterRuleEffectText>
     );
     cursor = range.end;
   }
-  if (cursor < text.length) nodes.push(text.slice(cursor));
+  if (cursor < text.length) nodes.push(cleanLibraryHtmlText(text.slice(cursor), { trim: false }));
   return nodes;
 }
 
@@ -537,7 +540,7 @@ function CharacterLoadoutSummary({ character }: { character: Character }) {
       ))}
       <SectionHeader title="Инвентарь" />
       {character.inventory.map((item) => (
-        <ListItem key={item.id} title={item.name} subtitle={cleanRulesText(item.text ?? '') || undefined} value={item.quantity} />
+        <ListItem key={item.id} title={item.name} subtitle={cleanRulesText(storedWeaponInventoryText(item)) || undefined} value={item.quantity} />
       ))}
     </section>
   );
@@ -1058,7 +1061,7 @@ function LevelUpPanel({
                 <header className="cinematic-builder-step-head">
                   <h3 className="cinematic-builder-title">Проверка</h3>
                 </header>
-                <div className="stat-strip">
+                <div className={`stat-strip ${levelUpReviewStyles.summary}`}>
                   <InlineStat label="Уровень" value={`${character.level} -> ${targetLevel}`} />
                   <InlineStat label="Мастерство" value={applicationInput.proficiency ?? character.proficiency} />
                   <InlineStat label="Пороги" value={`${character.thresholds.major} / ${character.thresholds.severe} → ${applicationInput.thresholdBonus?.major} / ${applicationInput.thresholdBonus?.severe}`} />

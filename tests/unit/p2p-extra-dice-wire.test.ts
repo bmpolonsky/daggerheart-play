@@ -2,6 +2,7 @@ import { withSessionFeatures } from '../../src/domain/p2p/sessionFeatures';
 import assert from 'node:assert/strict';
 import { test, vi } from 'vitest';
 import { createCharacter } from '../../src/domain/rules/factories';
+import { FeedService } from '../../src/services/FeedService';
 import type { PersistedState } from '../../src/domain/rules/types';
 import { createLocalParticipant } from '../../src/domain/tabletop/factories';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer } from '../../src/domain/tabletop/types';
@@ -325,3 +326,16 @@ for (const transport of ['hybrid', 'supabase', 'direct'] as const) {
     } finally { await session.stop(); restoreWindow(); }
   });
 }
+
+test('a linked shared Tag Team intent must use GM approval before payment or RNG', async () => {
+  const { actor, session, internals, requests, playerContext, restoreWindow } = setup('gm');
+  try {
+    const entry = new FeedService().requestTeamworkRoll({ kind: 'tagTeam', participants: [{ actorId: actor.id, actorName: actor.name }] });
+    const message = { ...intent('shared-tag-direct'), teamworkEntryId: entry.id };
+    const result = internals.processPlayerRollIntent(message, playerContext);
+    assert.equal(result.accepted, false);
+    assert.match(result.reason ?? '', /запрос участника мастеру/);
+    assert.equal(requests.length, 0);
+    assert.equal(charactersStore.get().entities[actor.id].hope.value, 2);
+  } finally { await session.stop(); restoreWindow(); }
+});

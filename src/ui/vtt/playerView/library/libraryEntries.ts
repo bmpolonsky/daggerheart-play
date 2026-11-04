@@ -14,7 +14,7 @@ import type { TraitId } from '../../../../domain/rules/types';
 import type { ContentLibraryView } from '../../../../services/ContentService';
 import { characterService, contentService, feedService, sceneTableService } from '../../../../services/serviceRegistry';
 import type { LibraryDetailAction, LibraryDetailSection, LibraryEntry } from './libraryDetailTypes';
-import { equipmentLibraryDisplay, libraryPreviewText } from '../../../../domain/content/libraryPresentation';
+import { cleanLibraryHtmlText, equipmentLibraryDisplay, libraryPreviewText } from '../../../../domain/content/libraryPresentation';
 
 export function buildLibraryEntries(
   libraryView: ContentLibraryView,
@@ -81,6 +81,7 @@ function adversaryEntry(item: LibraryAdversary): LibraryEntry {
     actions: [
       {
         label: prepared ? 'Подготовлено' : 'Подготовить',
+        primary: true,
         disabled: prepared,
         onClick: () => contentService.addAdversaryToEncounter(item.id) ? `${item.name} подготовлен` : null
       }
@@ -151,6 +152,7 @@ function environmentEntry(item: LibraryEnvironment): LibraryEntry {
     actions: [
       {
         label: prepared ? 'Подготовлено' : 'Подготовить',
+        primary: true,
         disabled: prepared,
         onClick: () => contentService.addEnvironmentToEncounter(item.id) ? `${item.name} подготовлено` : null
       },
@@ -291,6 +293,7 @@ function shareAction(title: string, sections: LibraryDetailSection[], stats: str
 function equipmentAction(item: LibraryEquipmentItem, targetCharacterId?: string | null): LibraryDetailAction {
   return {
     label: equipmentActionLabel(item),
+    primary: true,
     onClick: () => {
       const characters = characterService.characters$.get();
       const characterId = targetCharacterId && characters.entities[targetCharacterId] ? targetCharacterId : null;
@@ -357,7 +360,7 @@ function titledFeatureSections(title: string, features: RawAdversaryFeature[] | 
 function detailText(sections: LibraryDetailSection[], stats: string[]): string {
   const statText = stats.length > 0 ? `Параметры\n${stats.join('\n')}` : '';
   const text = [statText, ...sections.map((section) => `${section.title}\n${section.body}`)].filter(Boolean).join('\n\n');
-  return text || 'Без описания.';
+  return cleanLibraryHtmlText(text) || 'Без описания.';
 }
 
 function normalizeDetailText(value: unknown): string {

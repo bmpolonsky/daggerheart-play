@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { createPopulatedGameDocument, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { openGmGame } from './game-route-helpers';
+import { readStoredGameState } from './persistence-helpers';
 const before = process.env.BEASTFORM_LAYOUT_BEFORE === '1';
 for (const width of [1181, 500, 390]) test(`beastform controls preserve selection and costs at ${width}`, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -57,6 +58,12 @@ for (const width of [1181, 500, 390]) test(`beastform controls preserve selectio
   await preview.getByRole('button',{name:'Закрыть предпросмотр',exact:true}).click();
   await expect(entry).toContainText('Активна: Водный разведчик');
   await page.screenshot({path:`/home/codex/outputs/dh-beastform-preview-20261028/active-${width}.png`});
+  // This is the committed round-trip case. Immediate reload cancellation under
+  // pending/debounced/locked saves is asserted in persistence-navigation-guard.
+  await expect.poll(async () => {
+    const saved = (await readStoredGameState(page)).characters.entities[hero.id];
+    return { name: saved.activeBeastform?.name, hope: saved.hope.value, stress: saved.stress.marked };
+  }).toEqual({ name: 'Водный разведчик', hope: 0, stress: 1 });
   await page.reload();
   const roster=page.getByLabel('Участники сцены').locator('.player-roster__item').filter({hasText:filledCharacterName}).first();
   await expect(page.locator('[data-vtt-root]')).toBeVisible();

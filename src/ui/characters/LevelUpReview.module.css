@@ -1,0 +1,17 @@
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.summary :global(.inline-stat) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.summary :global(.inline-stat) > strong {
+  overflow-wrap: anywhere;
+}

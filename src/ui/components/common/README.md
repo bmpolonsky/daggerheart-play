@@ -59,7 +59,7 @@ Do not introduce new global color systems for screens. If a tool needs local ali
 - Use `SegmentedControl` for one-of-many value selection. Do not use tabs for this.
 - Use `Toolbar` for compact command groups.
 - Use `SectionHeader` for title/subtitle/action headers.
-- Use `Checkbox` for boolean options. Do not fake checkboxes with buttons.
+- Use `Checkbox` for boolean options. Do not fake checkboxes with buttons. Set `wrapLabel` for long choices that must wrap while keeping the checkbox and optional `meta` visible in a narrow panel.
 - Use `Badge` for small counters, tags, and status pills.
 - Use `SearchField` for search inputs with an icon.
 - Use `EmptyState` for empty/loading/no-results placeholders.
@@ -477,6 +477,8 @@ Use for a selection where a label alone is not enough to make a safe choice: car
 
 Keep `SelectField` for compact, already-understood parameters such as a numeric mode or short status.
 
+Items may opt into `imageBackdrop: 'paper'` for known transparent dark-ink illustrations. Both the thumbnail and detail art then use the paper token and `object-fit: contain`; no filter or inversion changes source colors. Leave it unset for photographs, colored card art and user images. The equipment picker opts in only for the shipped public equipment illustration paths.
+
 ### Tabs
 
 Use for tab navigation between content sections.
@@ -583,6 +585,7 @@ Guidance:
 - Put modal content inside; do not create another full framed shell inside it.
 - Use `actions` for close buttons or compact modal commands.
 - If the modal needs tabs, place `Tabs` in content or header, not a custom row of buttons.
+- Use `priority` only for a critical recovery/startup decision that must precede asynchronously restored dialogs. It places the dialog above ordinary dialogs and temporarily makes those dialogs inert, restoring their previous state when closed.
 - The first enabled control receives focus by default. Add `autoFocus` or `data-dialog-autofocus` when another initial target is more appropriate.
 
 ### ConfirmDialog
@@ -829,3 +832,5 @@ headings, lists, tables and inline emphasis. It does not execute HTML or links.
 Use it for full picker descriptions rather than flattening Markdown to one
 paragraph. Existing library class names remain as compatibility hooks; the
 library export delegates to this shared implementation.
+
+`ToastViewport` keeps active notifications in a bounded, scrollable rail in the topmost `Dialog`. Dialog controls remain accessible while the message is visible. Outside dialogs, notifications appear below the main header; the text and dismiss command remain available.

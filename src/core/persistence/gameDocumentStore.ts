@@ -19,6 +19,7 @@ import {
   readPreviousProjectDocument
 } from './migrations/gameDocumentStore';
 import { loadBrowserCustomContent } from './browserProjectContent';
+import { unsavedGameContentSignature } from '../../domain/game/unsavedGameContent';
 
 const PROJECT_DOCUMENT_VERSION = 2;
 const WORLD_LIBRARY_VERSION = 1;
@@ -43,7 +44,9 @@ export interface StoredWorldSummary {
 
 export interface GameDocumentStore {
   load(): Promise<GameDocument | PersistedState | null>;
-  save(document: GameDocument): Promise<void>;
+  /** Expected is the original load() result; guarded autosaves must recheck it
+   * under the same library lock as the write. Imports omit it intentionally. */
+  save(document: GameDocument, expected?: GameDocument | null): Promise<void>;
   delete(): Promise<void>;
   list(): Promise<StoredGameSummary[]>;
   create(document: GameDocument): Promise<string>;
@@ -57,6 +60,13 @@ export interface GameDocumentStore {
   exportWorld(id?: string): Promise<WorldArchiveDocument | null>;
   importWorld(document: WorldArchiveDocument): Promise<string>;
   subscribe(listener: (document: GameDocument | PersistedState | null) => void): () => void;
+}
+
+export class GameDocumentConflictError extends Error {
+  constructor() {
+    super('Мир изменён в другой вкладке. Ваши изменения ещё не сохранены; оставьте эту вкладку открытой.');
+    this.name = 'GameDocumentConflictError';
+  }
 }
 
 export interface WorldLibraryDocument {
@@ -160,15 +170,29 @@ export function createGameDocumentStore(indexedDb: IDBFactory | undefined = glob
 
 export class BrowserGameDocumentStore implements GameDocumentStore {
   private migrationPromise: Promise<WorldLibraryDocument | null> | null = null;
+  private loadedContexts = new WeakMap<GameDocument, string>();
 
   constructor(private readonly store: KeyValueDocumentStore, private readonly indexedDb: IDBFactory | undefined) {}
 
   async load(): Promise<GameDocument | null> {
-    return activeDocument(await this.loadLibrary());
+    const library = await this.loadLibrary();
+    const document = activeDocument(library);
+    if (document) this.loadedContexts.set(document, activeGameContextKey(library));
+    return document;
   }
 
-  async save(document: GameDocument): Promise<void> {
-    await this.mutateLibrary((library) => ({ library: upsertActiveGame(library, document), result: undefined }));
+  async save(document: GameDocument, expected?: GameDocument | null): Promise<void> {
+    await this.mutateLibrary((library) => {
+      if (expected !== undefined) {
+        const current = activeDocument(library);
+        const context = expected ? this.loadedContexts.get(expected) : undefined;
+        if ((context !== undefined && context !== activeGameContextKey(library))
+          || (current ? unsavedGameContentSignature(current) : null) !== (expected ? unsavedGameContentSignature(expected) : null)) {
+          throw new GameDocumentConflictError();
+        }
+      }
+      return { library: upsertActiveGame(library, document), result: undefined };
+    });
   }
 
   async delete(): Promise<void> {
@@ -370,6 +394,10 @@ export class BrowserGameDocumentStore implements GameDocumentStore {
       return mutation.result;
     });
   }
+}
+
+function activeGameContextKey(library: WorldLibraryDocument): string {
+  return JSON.stringify([library.activeWorldId, activeWorld(library)?.activeGameId ?? null]);
 }
 
 function emptyLibrary(): WorldLibraryDocument {

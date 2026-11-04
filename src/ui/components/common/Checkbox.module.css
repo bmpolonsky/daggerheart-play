@@ -106,3 +106,14 @@
 .disabled .input {
   cursor: not-allowed;
 }
+
+/* Long choices can wrap without pushing the fixed bonus or checkbox outside
+   a narrow panel. Default compact single-line callers retain their layout. */
+.wrapLabel { width: 100%; max-width: 100%; box-sizing: border-box; }
+.wrapLabel .label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.wrapLabel .meta { min-width: 2ch; white-space: nowrap; text-align: end; }

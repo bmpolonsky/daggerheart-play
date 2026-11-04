@@ -652,10 +652,9 @@ test.describe('filled-game player character workflows', () => {
       await expect(roll.getByRole('button', { name: 'Бросить', exact: true })).toHaveCount(1);
       await expect(roll.getByRole('button', { name: 'Бросить', exact: true })).toBeEnabled();
       await companion.getByRole('button', { name: 'Урон', exact: true }).click();
-      await roll.getByRole('button', { name: 'Заменить подготовленный бросок', exact: true }).click();
       await expect(roll).toHaveCount(1);
       await expect(roll.getByLabel('Итоговая формула', { exact: true })).toHaveText('2d6');
-      await expect(roll.getByLabel('Модификатор', { exact: true })).toHaveValue('0');
+      await expect(roll.getByRole('textbox', { name: 'Модификатор', exact: true })).toHaveValue('+0');
       await expect(roll.getByRole('checkbox', { name: 'Разведчица +2', exact: true })).toHaveCount(0);
       await expect(roll.getByRole('checkbox', { name: 'Защитница +2', exact: true })).toHaveCount(0);
       await expect(roll.getByText(/^Цена опыта:/)).toHaveCount(0);
@@ -874,8 +873,8 @@ test.describe('filled-game player character workflows', () => {
       await expect(playerEditor.getByText(/уровень 1/i)).toBeVisible({ timeout: 15_000 });
       await playerEditor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы' }).click();
       await playerEditor.getByRole('button', { name: 'Свободное редактирование' }).click();
-      await expect(playerEditor.getByLabel('Базовый максимум Ран')).toHaveValue(String(filledCharacterResources.hp.max));
-      await expect(playerEditor.getByLabel('Базовый максимум Стресса')).toHaveValue(String(filledCharacterResources.stress.max));
+      await expect(playerEditor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Раны', exact: true })).toHaveValue(String(filledCharacterResources.hp.max));
+      await expect(playerEditor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Стресс', exact: true })).toHaveValue(String(filledCharacterResources.stress.max));
     } finally {
       await relay.close();
     }

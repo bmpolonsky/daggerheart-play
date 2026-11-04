@@ -1,3 +1,4 @@
+import { cleanLibraryHtmlText } from '../../domain/content/libraryPresentation';
 import { type ContentAccessInput } from '../../domain/content/access';
 import { p2pSessionService } from '../../services/serviceRegistry';
 import { Sparkles, X } from 'lucide-react';
@@ -215,7 +216,7 @@ export function CharacterBuilderModal({
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <strong className="cinematic-card-title">{item.name}</strong>
                       <span className="cinematic-card-meta">{item.subtitle}</span>
-                      <span className="cinematic-card-body">{firstFeatureText(item) || cleanRulesText(item.body)}</span>
+                      <span className="cinematic-card-body">{cleanLibraryHtmlText(firstFeatureText(item) || cleanRulesText(item.body))}</span>
                     </ChoiceCard>
                   ))}
                 </div>
@@ -393,7 +394,7 @@ export function CharacterBuilderModal({
                       {item.imageUrl && <AssetImage src={item.imageUrl} alt="" />}
                       <span className="cinematic-card-meta">{item.subtitle}</span>
                       <strong className="cinematic-card-title">{item.name}</strong>
-                      <span className="cinematic-card-body">{firstFeatureText(item) || cleanRulesText(item.body)}</span>
+                      <span className="cinematic-card-body">{cleanLibraryHtmlText(firstFeatureText(item) || cleanRulesText(item.body))}</span>
                     </ChoiceCard>
                   ))}
                 </div>

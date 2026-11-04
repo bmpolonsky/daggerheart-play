@@ -42,10 +42,9 @@ test('PC card and weapon commands prepare the same editable bottom tray without 
   await expect(preview).toBeVisible();
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollCount);
   await preview.getByRole('button', { name: '1d4', exact: true }).click();
-  await expect(tray.getByRole('button', { name: 'Оставить текущий', exact: true })).toBeVisible();
-  await tray.getByRole('button', { name: 'Оставить текущий', exact: true }).click();
-  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue(/1d4.*1d6/);
-  await tray.getByLabel('Формула броска', { exact: true }).fill('1d4');
+  await expect(tray.getByRole('button', { name: 'Оставить текущий', exact: true })).toHaveCount(0);
+  await openUnifiedFormulaEditor(tray);
+  await expect(tray.getByLabel('Формула броска', { exact: true })).toHaveValue('1d4');
   await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
   await expect(preview.locator('.feed-domain-card')).toContainText('Заклинание 1');
   await expect(page.locator('.player-activity-event--roll')).toHaveCount(rollCount + 1);

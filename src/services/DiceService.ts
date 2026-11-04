@@ -86,6 +86,13 @@ export class DiceService {
   readonly rollLog$ = rollLogStore.toStream();
   private feedService = new FeedService();
 
+  /** Apply a chosen shared outcome without rolling or appending more actions. */
+  applySharedActionConsequences(actorIds: readonly string[], result: Pick<ActionRollEntry, 'outcome' | 'success'>): void {
+    const critical = result.outcome === 'criticalSuccess';
+    const tone = critical ? 'critical' : result.outcome.endsWith('Hope') ? 'hope' : 'fear';
+    for (const actorId of new Set(actorIds)) this.applyActionConsequences(actorId, tone, critical, result.success);
+  }
+
   rollAction(request: ActionRollRequest): ActionRollEntry {
     const extraDice = normalizeExtraDice(request.extraDice);
     const charactersState = charactersStore.get();

@@ -21,6 +21,58 @@ async function ancestryWizard(page: Page, baseURL?: string) {
   return wizard;
 }
 
+for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+  test(`long ancestry description keeps navigation usable ${viewport.width}x${viewport.height}`, async ({ page, baseURL }) => {
+    test.skip(baseline, 'Regression for the current ancestry layout.');
+    await page.route(/\/data\/ancestries\.json(?:\?|$)/, async route => {
+      const response = await route.fetch();
+      const payload = await response.json();
+      const giant = payload.data.find((item: { slug: string }) => item.slug === 'giant');
+      giant.main_body += '\n\n' + 'Длинное описание родословной для проверки прокрутки.\n'.repeat(120);
+      await route.fulfill({ response, json: payload });
+    });
+    await page.setViewportSize(viewport);
+    const wizard = await ancestryWizard(page, baseURL);
+    const step = wizard.getByRole('group', { name: 'Шаг: Родословная', exact: true });
+    const list = step.getByRole('region', { name: 'Родословные', exact: true });
+    await list.getByRole('button').filter({ has: page.getByText('Великан', { exact: true }) }).click();
+    const search = step.getByRole('searchbox', { name: 'Поиск родословной', exact: true });
+    const searchBefore = (await search.boundingBox())!;
+    const listTopBefore = await list.evaluate(element => element.scrollTop);
+    const body = step.getByRole('region', { name: 'Выбор родословной', exact: true });
+    const detail = step.getByRole('region', { name: 'Свойства выбранной родословной', exact: true });
+    const description = detail.locator('details');
+    await description.locator('summary').focus();
+    await description.locator('summary').press('Enter');
+    await expect(description).toHaveAttribute('open', '');
+    await detail.focus();
+    await detail.press('End');
+    if (viewport.width > 640) {
+      await expect.poll(() => detail.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+      const searchAfter = (await search.boundingBox())!;
+      expect(Math.abs(searchAfter.y - searchBefore.y)).toBeLessThanOrEqual(1);
+      expect(await list.evaluate(element => element.scrollTop)).toBe(listTopBefore);
+      expect(await body.evaluate(element => element.scrollTop)).toBe(0);
+      expect(await body.evaluate(element => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
+      await search.fill('Эльф');
+      await list.getByRole('button').filter({ has: page.getByText('Эльф', { exact: true }) }).click();
+      await expect(detail.getByRole('heading', { name: 'Эльф', exact: true })).toBeVisible();
+      await expect.poll(() => detail.evaluate(element => element.scrollTop)).toBe(0);
+      const heading = (await detail.getByRole('heading', { name: 'Эльф', exact: true }).boundingBox())!;
+      const detailBounds = (await detail.boundingBox())!;
+      expect(heading.y).toBeGreaterThanOrEqual(detailBounds.y);
+      expect(heading.y + heading.height).toBeLessThanOrEqual(detailBounds.y + detailBounds.height);
+    } else {
+      await expect.poll(() => body.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+      expect(await detail.evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
+    }
+    await expect(wizard.getByRole('toolbar', { name: 'Действия создания героя', exact: true })).toBeVisible();
+    const shell = wizard.locator('.dh-dialog.cinematic-builder');
+    expect(await shell.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    expect(await step.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+  });
+}
+
 test('mixed ancestry retains invalid pair until corrected and saves either explicit feature orientation', async ({ page, baseURL }) => {
   test.skip(baseline, 'Published/current-before visual baselines have separate observed legacy controls.');
   for (const [firstName, secondName, wanted] of [
@@ -108,7 +160,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
       await picker.getByRole('button', { name: 'Выбрать', exact: true }).click();
       await capture(page, wizard, `mixed-pair-${viewport.width}x${viewport.height}`); return;
     }
-    const ancestryInfo = step.locator('details').filter({ hasText: 'О родословной' });
+    const ancestryInfo = step.locator('details').filter({ hasText: 'Описание родословной' });
     await ancestryInfo.locator('summary').click();
     const ancestryArt = ancestryInfo.getByRole('img', { name: 'Великан', exact: true });
     await expect(ancestryArt).toBeVisible();

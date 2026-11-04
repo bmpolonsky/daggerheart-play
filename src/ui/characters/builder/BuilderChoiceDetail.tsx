@@ -1,3 +1,4 @@
+import { cleanLibraryHtmlText } from '../../../domain/content/libraryPresentation';
 import { X } from 'lucide-react';
 import type { CharacterBuilderChoicePreview } from "../../../domain/characterBuilder";
 import { AssetImage } from '../../components/common/AssetImage';
@@ -32,7 +33,7 @@ export function BuilderChoiceDetail({ preview, onClose }: { preview: CharacterBu
             {preview.facts.map((fact) => <span key={fact}>{fact}</span>)}
           </div>
         ) : null}
-        <p>{preview.body}</p>
+        <p>{cleanLibraryHtmlText(preview.body)}</p>
       </div>
     </aside>
   );

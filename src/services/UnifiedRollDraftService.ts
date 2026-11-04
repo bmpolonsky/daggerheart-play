@@ -6,8 +6,6 @@ import { gameStore } from '../stores/gameStores';
 
 export interface UnifiedRollDraftState {
   draft: UnifiedRollDraft | null;
-  pending: UnifiedRollDraft | null;
-  dirty: boolean;
   openRequest: number;
   editor?: UnifiedRollEditorState;
 }
@@ -21,7 +19,7 @@ export interface UnifiedRollEditorState {
 
 export class UnifiedRollDraftService {
   private scopeProvider: () => string = defaultScopeKey;
-  private store = new Store<UnifiedRollDraftState>({ draft: null, pending: null, dirty: false, openRequest: 0, editor: emptyEditor() });
+  private store = new Store<UnifiedRollDraftState>({ draft: null, openRequest: 0, editor: emptyEditor() });
   readonly state$ = this.store.toStream();
 
   setScopeProvider(provider: () => string): () => void {
@@ -35,16 +33,14 @@ export class UnifiedRollDraftService {
 
   request(input: UnifiedRollDraftInput): void {
     const draft = createUnifiedRollDraft({ ...input, scopeKey: input.scopeKey ?? this.currentScopeKey() });
-    this.store.update((state) => state.draft && state.dirty
-      ? { ...state, pending: draft, openRequest: state.openRequest + 1 }
-      : { draft, pending: null, dirty: false, openRequest: state.openRequest + 1, editor: emptyEditor() });
+    // Choosing another action replaces preparation only; execution remains explicit.
+    this.store.update((state) => ({ draft, openRequest: state.openRequest + 1, editor: emptyEditor() }));
   }
 
   update(patch: Partial<UnifiedRollDraft> | ((draft: UnifiedRollDraft) => UnifiedRollDraft)): void {
     this.store.update((state) => !state.draft ? state : {
       ...state,
-      draft: typeof patch === 'function' ? patch(state.draft) : { ...state.draft, ...patch },
-      dirty: true
+      draft: typeof patch === 'function' ? patch(state.draft) : { ...state.draft, ...patch }
     });
   }
 
@@ -55,11 +51,11 @@ export class UnifiedRollDraftService {
       const editor = { ...emptyEditor(), ...state.editor, formulaInput: text, formulaError: null, proposal: null };
       try {
         const next = applyUnifiedFormulaEdit(state.draft, text, staticModifier);
-        return { ...state, draft: next.draft, dirty: true,
+        return { ...state, draft: next.draft,
           editor: { ...editor, proposal: next.requiresManual ? text : null,
             modifierInput: next.requiresManual ? editor.modifierInput : null } };
       } catch (error) {
-        return { ...state, dirty: true, editor: { ...editor, formulaError: error instanceof Error ? error.message : 'Некорректная формула.' } };
+        return { ...state, editor: { ...editor, formulaError: error instanceof Error ? error.message : 'Некорректная формула.' } };
       }
     });
   }
@@ -76,13 +72,13 @@ export class UnifiedRollDraftService {
       if (!state.draft) return state;
       const parsed = parseManualRollModifier(text);
       const editor = { ...emptyEditor(), ...state.editor, modifierInput: text };
-      if (!parsed.valid) return { ...state, dirty: true, editor };
+      if (!parsed.valid) return { ...state, editor };
       try {
-        return { ...state, draft: setUnifiedRollEditableModifier(state.draft, parsed.value), dirty: true,
+        return { ...state, draft: setUnifiedRollEditableModifier(state.draft, parsed.value),
           editor: { ...editor, formulaInput: null, formulaError: null, proposal: null } };
       } catch (error) {
         // A source formula must be corrected before its effective flat can be edited.
-        return { ...state, dirty: true, editor: { ...editor, formulaError: error instanceof Error ? error.message : 'Некорректный модификатор.' } };
+        return { ...state, editor: { ...editor, formulaError: error instanceof Error ? error.message : 'Некорректный модификатор.' } };
       }
     });
   }
@@ -94,36 +90,25 @@ export class UnifiedRollDraftService {
 
   resetDraft(): void {
     this.store.update((state) => !state.draft ? state : {
-      ...state, draft: resetUnifiedRollDraft(state.draft), dirty: true, editor: emptyEditor()
+      ...state, draft: resetUnifiedRollDraft(state.draft), editor: emptyEditor()
     });
   }
 
   changeActor(actor: UnifiedRollActor, options: UnifiedRollActorChangeOptions = {}): void {
     this.store.update((state) => !state.draft ? state : {
-      ...state, draft: changeUnifiedRollActor(state.draft, actor, options), dirty: true, editor: emptyEditor()
+      ...state, draft: changeUnifiedRollActor(state.draft, actor, options), editor: emptyEditor()
     });
-  }
-
-  choosePending(replace: boolean): void {
-    this.store.update((state) => !state.pending ? state : replace
-      ? { ...state, draft: state.pending, pending: null, dirty: false, editor: emptyEditor() }
-      : { ...state, pending: null });
-  }
-
-  markRolled(): void {
-    this.store.update((state) => ({ ...state, dirty: false }));
   }
 
   setEditor(patch: Partial<UnifiedRollEditorState>): void {
     this.store.update((state) => Object.entries(patch).every(([key, value]) => state.editor?.[key as keyof UnifiedRollEditorState] === value) ? state : ({
       ...state,
-      editor: { ...emptyEditor(), ...state.editor, ...patch },
-      dirty: state.dirty || Boolean(state.draft)
+      editor: { ...emptyEditor(), ...state.editor, ...patch }
     }));
   }
 
   clear(): void {
-    this.store.update((state) => ({ draft: null, pending: null, dirty: false, openRequest: state.openRequest, editor: emptyEditor() }));
+    this.store.update((state) => ({ draft: null, openRequest: state.openRequest, editor: emptyEditor() }));
   }
 }
 

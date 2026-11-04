@@ -41,15 +41,15 @@ for (const bonus of [true, false]) for (const width of [1180, 1440, 500]) test(`
   await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы', exact: true }).click();
   const hp = editor.getByRole('group', { name: 'Отмеченные Раны', exact: true }).locator('..').locator('.resource-title strong');
   await expect(hp).toHaveText(bonus ? '0/6' : '0/5');
-  const baseHp = editor.getByLabel('Базовый максимум Ран', { exact: true });
+  const baseHp = editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Раны', exact: true });
   await expect(baseHp).toHaveValue('5');
-  await expect(editor.getByLabel('Базовый максимум Стресса', { exact: true })).toHaveValue('6');
+  await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Стресс', exact: true })).toHaveValue('6');
   await baseHp.fill('6'); await baseHp.press('Tab');
   await expect(hp).toHaveText(bonus ? '0/7' : '0/6');
   await baseHp.fill('5'); await baseHp.press('Tab');
   await baseHp.scrollIntoViewIfNeeded();
-  await expect(editor).toContainText('Максимумы без бонусов свойств. Итоги показаны в шкалах выше.');
-  for (const input of await editor.getByRole('spinbutton', { name: /^Базовый максимум/ }).all()) {
+  await expect(editor).toContainText('Бонусы свойств и шрамы учитываются отдельно.');
+  for (const input of await editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton').all()) {
     const metrics = await input.locator('..').evaluate(label => ({ scroll: label.scrollWidth, width: label.clientWidth }));
     expect(metrics.scroll).toBeLessThanOrEqual(metrics.width + 1);
   }

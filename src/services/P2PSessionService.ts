@@ -1,4 +1,5 @@
 import { readSessionFeatures, withSessionFeatures } from '../domain/p2p/sessionFeatures';
+import { isSharedTagTeam } from '../domain/rules/teamwork';
 import { isValidExtraDice, normalizeExtraDice } from '../domain/rules/extraDice';
 import { PortraitUploadService } from './PortraitUploadService';
 import { assetIdFromReference } from '../domain/game/assetReferences';
@@ -1971,6 +1972,9 @@ export class P2PSessionService {
   private processPlayerRollIntent(message: PlayerRollIntentMessage, peerContext?: RemotePeerContext): { accepted: boolean; operationHash?: string; reason?: string } {
     if (!this.diceService || !this.authorizePlayerActor(message.participantId, message.actorId, peerContext)) {
       return { accepted: false, reason: 'Бросок отклонён: подключение или выбранный персонаж недоступны в этой комнате.' };
+    }
+    if (message.teamworkEntryId && this.feedService.feed$.get().some(entry => entry.type === 'teamwork' && (entry.id === message.teamworkEntryId || entry.teamwork.id === message.teamworkEntryId) && isSharedTagTeam(entry.teamwork))) {
+      return { accepted: false, reason: 'Для командного броска отправьте запрос участника мастеру: общий результат выбирается после обоих бросков.' };
     }
     const extraDice = (message.intent as unknown as { extraDice?: unknown }).extraDice;
     if (!isValidExtraDice(extraDice) || (message.intent.type !== 'duality' && extraDice !== undefined)) {

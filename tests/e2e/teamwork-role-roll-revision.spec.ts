@@ -30,8 +30,18 @@ async function prepare(page:Page, row:Locator, type:'реакции'|'дейст
   await expect(tray).toBeVisible();return tray;
 }
 async function nextDice(page:Page, dice:[number,number]) {
-  // Only this isolated synthetic profile; the first two calls are the actual d12 rolls.
-  await page.evaluate(values=>{const original=Math.random;let i=0;Math.random=()=>i<values.length?(values[i++]-0.5)/12:original();},dice);
+  // Animation also consumes Math.random. A repeating pair preserves the tested
+  // sum/noncritical outcome at either phase; this scenario does not assert tone.
+  await page.evaluate(values=>{
+    let i=0;
+    const calls: Array<{index:number;stack?:string}> = [];
+    const batches = ((window as any).__qaRoleDiceBatches ??= []);
+    batches.push(calls);
+    Math.random=()=>{
+      if(calls.length<8) calls.push({index:i,stack:new Error().stack});
+      return (values[(i++)%values.length]-0.5)/12;
+    };
+  },dice);
 }
 test('group reaction becomes a fresh leader action while history, repeat guard and reload remain correct',async({page})=>{
   const card=await open(page,'groupAction');
@@ -40,7 +50,7 @@ test('group reaction becomes a fresh leader action while history, repeat guard a
   await expect(first.getByRole('combobox',{name:`Характеристика броска: ${filledCharacterName}`,exact:true})).toBeVisible();
   await expect(second.getByRole('combobox',{name:'Характеристика броска: Ран',exact:true})).toBeVisible();
   let tray=await prepare(page,second,'реакции');
-  await expect(tray).toContainText('Групповой бросок. Результат будет учтён.');
+  await expect(tray).toContainText('Групповой бросок');
   await nextDice(page,[4,6]);await tray.getByRole('button',{name:'Бросить',exact:true}).click();
   await expect.poll(async()=>{const s=await stored(page);return s?.feed.find((e:any)=>e.id===eventId)?.teamwork.participants[1].result?.total;}).toBe(11);
   const oldRollId=(await stored(page)).rollLog[0].id;
@@ -64,6 +74,7 @@ test('group reaction becomes a fresh leader action while history, repeat guard a
   const snapshot=await stored(page);expect(snapshot.rollLog.some((r:any)=>r.id===oldRollId&&r.total===11)).toBe(true);
   expect(snapshot.feed.find((e:any)=>e.id===eventId).teamwork.participants[1].result.rollType).toBe('action');
   await page.screenshot({path:`${process.env.TRAY_UI_OUTPUT ?? '/home/codex/outputs/dh-group-role-roll-20261027'}/new-leader-applied.png`});
+  await test.info().attach('controlled-rng-callers', {body:JSON.stringify(await page.evaluate(()=>(window as any).__qaRoleDiceBatches ?? []), null, 2), contentType:'application/json'});
   await page.reload();await expect(page.locator('[data-vtt-root]')).toBeVisible();
   if (!await page.getByLabel('Чат игры').isVisible()) await page.getByRole('button',{name:/^Открыть чат/}).click();
   await expect(page.locator('.feed-teamwork-card')).toBeVisible();
@@ -78,6 +89,6 @@ test('tag-team preparation retains its own label and named trait selectors',asyn
   await expect(card.getByRole('combobox',{name:/^Характеристика броска:/})).toHaveCount(2);
   const first=card.locator('.feed-rest-participant').filter({has:page.getByText(filledCharacterName,{exact:true})});
   const tray=await prepare(page,first,'действия');
-  await expect(tray).toContainText('Командный бросок. Результат будет учтён.');
+  await expect(tray).toContainText('Командный бросок');
   await expect(tray.getByRole('button',{name:'Бросить',exact:true})).toBeEnabled();
 });

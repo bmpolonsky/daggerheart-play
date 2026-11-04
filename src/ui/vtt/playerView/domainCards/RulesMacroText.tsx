@@ -25,17 +25,18 @@ export function RulesMacroText({
   onMacro?: (macro: DomainCardTextMacro) => void;
   isInteractive?: (macro: DomainCardTextMacro) => boolean;
 }) {
-  if (macros.length === 0 && effects.length === 0) return <>{renderRulesText(text)}</>;
+  if (macros.length === 0 && effects.length === 0) return <>{renderRulesText(text, { cleanHtml: true })}</>;
   const parts: JSX.Element[] = buildRulesTextRanges(text, macros, effects).map((range) => {
+    // Clean markup only while rendering, after slicing the original evidence offsets.
     const rangeText = text.slice(range.start, range.end);
-    let content: JSX.Element = <span>{renderRulesText(rangeText)}</span>;
+    let content: JSX.Element = <span>{renderRulesText(rangeText, { cleanHtml: true })}</span>;
     const macro = range.macro;
     if (macro) {
       const key = `${macro.id}:${range.start}`;
       if (!onMacro || !isInteractive(macro)) {
         content = (
           <strong className="player-domain-card-reference" key={key}>
-            {renderRulesText(rangeText)}
+            {renderRulesText(rangeText, { cleanHtml: true })}
           </strong>
         );
       } else {
@@ -56,7 +57,7 @@ export function RulesMacroText({
               onMacro(macro);
             }}
           >
-            {renderRulesText(rangeText)}
+            {renderRulesText(rangeText, { cleanHtml: true })}
           </span>
         );
       }

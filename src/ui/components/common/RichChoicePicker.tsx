@@ -18,6 +18,8 @@ export interface RichChoicePickerItem {
   subtitle?: string;
   description?: string;
   imageUrl?: string | null;
+  /** Paper supports transparent dark-ink artwork; photographs keep the default. */
+  imageBackdrop?: 'paper';
   disabled?: boolean;
 }
 
@@ -141,7 +143,7 @@ export function RichChoicePicker({
                     lines={2}
                     title={item.title}
                     subtitle={item.subtitle}
-                    leftAccessory={item.imageUrl ? <AssetImage className={styles.thumbnail} src={item.imageUrl} alt="" /> : undefined}
+                    leftAccessory={item.imageUrl ? <AssetImage className={`${styles.thumbnail} ${item.imageBackdrop === 'paper' ? styles.paperArt : ''}`} src={item.imageUrl} alt="" /> : undefined}
                     disabled={item.disabled}
                     onClick={() => showItem(item.id)}
                   />
@@ -154,7 +156,7 @@ export function RichChoicePicker({
                 <Button className={styles.back} variant="ghost" size="sm" iconBefore={<ArrowLeft size={15} aria-hidden="true" />} onClick={() => setNarrowDetailOpen(false)}>
                   К списку
                 </Button>
-                {preview?.imageUrl && <AssetImage className={styles.art} src={preview.imageUrl} alt="" />}
+                {preview?.imageUrl && <AssetImage className={`${styles.art} ${preview.imageBackdrop === 'paper' ? styles.paperArt : ''}`} src={preview.imageUrl} alt="" />}
                 <div className={styles.previewCopy}>
                   <strong className={styles.previewTitle}>{preview?.title ?? emptyOptionLabel}</strong>
                   {preview?.subtitle && <span className={styles.meta}>{preview.subtitle}</span>}

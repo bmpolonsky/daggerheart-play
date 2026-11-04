@@ -32,7 +32,7 @@ export function DomainCardFeedCard({
           <p>
             {previewCard.text
               ? <DomainCardMacroText card={previewCard} role={role} onMacro={onMacro} />
-              : renderRulesText(item.body)}
+              : renderRulesText(item.body, { cleanHtml: true })}
           </p>
         </div>
       </div>
@@ -64,7 +64,7 @@ function MessageFeedFallback({ item }: { item: TableFeedItem }) {
     <>
       <FeedCardHeader item={item} label={item.kicker} />
       <strong>{item.title}</strong>
-      <p>{renderRulesText(item.body)}</p>
+      <p>{renderRulesText(item.body, { cleanHtml: true })}</p>
     </>
   );
 }

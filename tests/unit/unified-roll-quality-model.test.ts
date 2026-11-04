@@ -86,7 +86,6 @@ test('formula and modifier editor buffers synchronize in both directions without
   service.setModifier(-1);
   assert.equal(unifiedRollCompleteFormula(service.state$.get().draft!, 2), '2d12+1');
   service.request({ actor: pc, mode: 'manual', title: 'Макрос', formula: '2d10+3' });
-  service.choosePending(true);
   service.editFormula('2d10-2');
   assert.equal(unifiedRollEditableModifier(service.state$.get().draft!), -2);
   service.setModifier(6);

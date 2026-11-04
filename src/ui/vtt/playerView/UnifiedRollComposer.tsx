@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { selectionFormulaPresentation } from '../../../domain/rules/selectionNotation';
 import { useEffect, useState } from 'preact/hooks';
-import { Eye, EyeOff, Info } from 'lucide-react';
+import { ChevronDown, ChevronRight, Eye, EyeOff, Info } from 'lucide-react';
 import { useStream } from '../../../core/hooks/useStream';
 import { charactersStore, encounterStore, gameStore } from '../../../stores/gameStores';
 import { stepRollAdvantage } from '../../../domain/rules/actionComposer';
@@ -58,7 +58,8 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
     : draft.mode === 'action' || draft.mode === 'reaction' ? (companion ? character?.companion?.experiences : character?.experiences) ?? [] : [];
   const selectedExperiences = experiences.filter((item) => draft.experienceIds.includes(item.id));
   const experienceModifier = selectedExperiences.reduce((sum, item) => sum + item.modifier, 0);
-  const traitModifier = character?.traits.find((item) => item.id === draft.trait)?.value ?? 0;
+  const selectedTrait = character?.traits.find((item) => item.id === draft.trait);
+  const traitModifier = selectedTrait?.value ?? 0;
   const staticModifier = draft.mode === 'gmAttack' ? (adversary?.attackModifier ?? 0) + experienceModifier : traitModifier + experienceModifier;
   const formulaPresentation = unifiedRollFormulaPresentation(draft, staticModifier);
   const completeFormula = formulaPresentation.baseFormula;
@@ -104,11 +105,6 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
   const visibleError = emptyPool && /^(Формула пуста|Нет костей для броска|Добавьте кости в набор)/.test(error ?? '') ? null : error;
   return <section className="unified-roll-composer">
     <div className="unified-roll-composer__body">
-    {state.pending && <Notice tone="warning">
-      Подготовлен новый бросок «{state.pending.title}». Текущий набор изменён.
-      <Button size="sm" variant="primary" onClick={() => unifiedRollDraftService.choosePending(true)}>Заменить подготовленный бросок</Button>
-      <Button size="sm" variant="ghost" onClick={() => unifiedRollDraftService.choosePending(false)}>Оставить текущий</Button>
-    </Notice>}
     <div className="unified-roll-heading">
       {options.length > 1 && !eventContext ? <SelectControl className="unified-roll-actor-control" aria-label="Исполнитель броска" title={`Исполнитель броска: ${draft.actor.name}`} value={draft.actor.key} disabled={controlsBlocked} onChange={(event) => {
         const actor = options.find((item) => item.key === event.currentTarget.value);
@@ -176,22 +172,23 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       <Button size="xs" aria-pressed={draft.disadvantageCount > draft.advantageCount} variant={draft.disadvantageCount > draft.advantageCount ? 'danger' : 'ghost'} disabled={controlsBlocked} onClick={() => { update(stepRollAdvantage(draft, 'disadvantage')); resetFormulaEditor(); }}>Помеха{draft.disadvantageCount - draft.advantageCount > 1 ? ` ${draft.disadvantageCount - draft.advantageCount}` : ''}</Button>
     </div>}
     <div className="unified-roll-options-row unified-roll-modifiers" role="group" aria-label="Прибавки к броску">
-      {(draft.mode === 'action' || draft.mode === 'reaction') && character && <SelectControl
-        className="unified-roll-trait-control" aria-label="Характеристика броска" title="Выбрать характеристику броска"
-        value={draft.trait ?? ''} disabled={controlsBlocked || eventContext?.kind === 'teamwork'}
-        onChange={(event) => { update({ trait: event.currentTarget.value as UnifiedRollDraft['trait'] }); resetFormulaEditor(); }}>
-        {character.traits.map((trait) => <option key={trait.id} value={trait.id}>{trait.label} {signed(trait.value)}</option>)}
-      </SelectControl>}
-
-      {(draft.mode === 'action' || draft.mode === 'reaction') && character && draft.trait && <CompendiumRuleTerm ruleSlug={draft.trait}><span aria-label={`О характеристике ${character.traits.find(trait => trait.id === draft.trait)?.label ?? draft.trait}`}><Info size={12} aria-hidden="true" /></span></CompendiumRuleTerm>}
-
-      {experiences.length > 0 && <Button size="xs" variant={selectedExperiences.length ? 'primary' : 'ghost'} aria-expanded={experiencesOpen} onClick={() => setExperiencesOpen((open) => !open)}>Опыт</Button>}
-      {experiences.length > 0 && <CompendiumRuleTerm ruleSlug="experience" sectionAnchor="using-experiences"><span aria-label="Об опытах"><Info size={12} aria-hidden="true" /></span></CompendiumRuleTerm>}
-      <span className="unified-roll-modifier-label"><span>{isTypedUnifiedRoll(draft) ? 'Вручную' : 'Модификатор'}</span><IconButton size="sm" variant="ghost" aria-label="Уменьшить модификатор" disabled={controlsBlocked} onClick={() => unifiedRollDraftService.setModifier(unifiedRollEditableModifier(draft) - 1)}>−</IconButton><TextControl className="unified-roll-modifier" aria-label="Модификатор" inputMode="numeric" value={modifierInput ?? String(unifiedRollEditableModifier(draft))} disabled={controlsBlocked} onInput={(event) => unifiedRollDraftService.editModifier(event.currentTarget.value)} /><IconButton size="sm" variant="ghost" aria-label="Увеличить модификатор" disabled={controlsBlocked} onClick={() => unifiedRollDraftService.setModifier(unifiedRollEditableModifier(draft) + 1)}>+</IconButton></span>
+      {(draft.mode === 'action' || draft.mode === 'reaction') && character && <span className="unified-roll-control-group unified-roll-control-group--trait" role="group" aria-label="Характеристика и справка">
+        <SelectControl
+          className="unified-roll-trait-control" aria-label="Характеристика броска" title={selectedTrait ? `${selectedTrait.label} ${signed(selectedTrait.value)}` : 'Выбрать характеристику броска'}
+          value={draft.trait ?? ''} disabled={controlsBlocked || eventContext?.kind === 'teamwork'}
+          onChange={(event) => { update({ trait: event.currentTarget.value as UnifiedRollDraft['trait'] }); resetFormulaEditor(); }}>
+          {character.traits.map((trait) => <option key={trait.id} value={trait.id}>{trait.label} {signed(trait.value)}</option>)}
+        </SelectControl>
+        {draft.trait && <CompendiumRuleTerm ruleSlug={draft.trait}><span aria-label={`О характеристике ${selectedTrait?.label ?? draft.trait}`}><Info size={12} aria-hidden="true" /></span></CompendiumRuleTerm>}
+      </span>}
+      <span className="unified-roll-modifier-label" title={isTypedUnifiedRoll(draft) ? 'Дополнительный модификатор броска' : 'Модификатор'} role="group" aria-label={isTypedUnifiedRoll(draft) ? 'Доп. модификатор' : 'Модификатор'}><IconButton size="sm" variant="ghost" aria-label="Уменьшить модификатор" disabled={controlsBlocked} onClick={() => unifiedRollDraftService.setModifier(unifiedRollEditableModifier(draft) - 1)}>−</IconButton><TextControl className="unified-roll-modifier" aria-label="Модификатор" aria-description={isTypedUnifiedRoll(draft) ? 'Дополнительный ручной модификатор сверх характеристики и опытов' : 'Плоский модификатор формулы'} inputMode="numeric" value={modifierInput ?? signed(unifiedRollEditableModifier(draft))} disabled={controlsBlocked} onInput={(event) => unifiedRollDraftService.editModifier(event.currentTarget.value)} /><IconButton size="sm" variant="ghost" aria-label="Увеличить модификатор" disabled={controlsBlocked} onClick={() => unifiedRollDraftService.setModifier(unifiedRollEditableModifier(draft) + 1)}>+</IconButton></span>
     </div>
-    {!experiencesOpen && selectedExperiences.length > 0 && <div className="unified-roll-selected-experiences">{selectedExperiences.map((experience) => <small key={experience.id}>{experience.name} {signed(experience.modifier)}</small>)}</div>}
+      {experiences.length > 0 && <div className="unified-roll-control-group unified-roll-experience-toggle" role="group" aria-label="Опыт и справка">
+        <Button size="xs" variant={selectedExperiences.length ? 'primary' : 'ghost'} aria-expanded={experiencesOpen} onClick={() => setExperiencesOpen((open) => !open)}>Опыт{selectedExperiences.length > 0 ? ` ${signed(experienceModifier)}` : ''}{experiencesOpen ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />}</Button>
+        <CompendiumRuleTerm ruleSlug="experience" sectionAnchor="using-experiences"><span aria-label="Об опытах"><Info size={12} aria-hidden="true" /></span></CompendiumRuleTerm>
+      </div>}
     {experiencesOpen && experiences.length > 0 && <div className="player-roll-confirm__checks unified-roll-experiences">
-      {experiences.map((experience) => <Checkbox key={experience.id} size="sm" boxPosition="start" label={experience.name} meta={signed(experience.modifier)} aria-label={`${experience.name} ${signed(experience.modifier)}`} title={experience.name} checked={draft.experienceIds.includes(experience.id)} disabled={controlsBlocked} onChange={() => { update({ experienceIds: draft.experienceIds.includes(experience.id) ? draft.experienceIds.filter((id) => id !== experience.id) : [...draft.experienceIds, experience.id] }); resetFormulaEditor(); }} />)}
+      {experiences.map((experience) => <Checkbox key={experience.id} size="sm" boxPosition="start" wrapLabel label={experience.name} meta={signed(experience.modifier)} aria-label={`${experience.name} ${signed(experience.modifier)}`} title={experience.name} checked={draft.experienceIds.includes(experience.id)} disabled={controlsBlocked} onChange={() => { update({ experienceIds: draft.experienceIds.includes(experience.id) ? draft.experienceIds.filter((id) => id !== experience.id) : [...draft.experienceIds, experience.id] }); resetFormulaEditor(); }} />)}
       {draft.experienceIds.length > 0 && !companion && <Button size="xs" variant="ghost" onClick={() => setPaymentOpen((open) => !open)}>Настроить стоимость</Button>}
       {draft.experienceIds.length > 0 && paymentOpen && !companion && <Checkbox label={draft.mode === 'gmAttack' ? 'Потратить Страх за опыт' : 'Потратить Надежду за опыт'} checked={unifiedRollPaysForExperiences(draft)} disabled={controlsBlocked || companion} onChange={(event) => update({ spendHopeForExperiences: event.currentTarget.checked })} />}
     </div>}
@@ -209,7 +206,6 @@ export function UnifiedRollComposer({ role, actorOptions, rollCharacters, rollDi
       setSubmitting(true);
       const result = await execution.execute(draft, role, privateRoll ? 'private' : 'public', allowedActorIds);
       setSubmitting(false); setResultMessage(result.ok ? role === 'player' && p2pSessionService.isConnectedPlayerSession() ? 'Бросок отправлен мастеру.' : null : result.error ?? 'Бросок не выполнен.');
-      if (result.ok) unifiedRollDraftService.markRolled();
     }}>Бросить</Button>
     </footer>
   </section>;

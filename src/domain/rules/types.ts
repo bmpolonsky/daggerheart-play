@@ -681,6 +681,7 @@ export interface TeamworkRollResult {
   success: boolean;
   outcome?: ActionRollOutcome;
   note: string;
+  consequencesApplied?: boolean;
 }
 
 export interface TeamworkRollParticipantRequest {
@@ -708,6 +709,15 @@ export interface TeamworkRollRequest {
   participants: TeamworkRollParticipant[];
   availableActors: TeamworkRollActorOption[];
   resolvedAt?: string;
+  /** Absent on legacy events, which must never be automatically re-resolved. */
+  tagTeamMode?: 'shared';
+  sharedResult?: {
+    actorId: string;
+    actorName: string;
+    result: TeamworkRollResult;
+    consequences: 'automatic' | 'manual';
+    resolvedAt: string;
+  };
 }
 
 export type DeathMoveChoice = 'blazeOfGlory' | 'avoidDeath' | 'riskItAll';

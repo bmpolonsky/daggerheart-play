@@ -5,7 +5,7 @@ import { DAMAGE_TYPE_LABELS, rangeLabel } from '../../../../domain/rules/constan
 import { AssetImage } from '../../../components/common/AssetImage';
 import { Button } from '../../../components/common/Button';
 import { IconButton } from '../../../components/common/IconButton';
-import type { LibraryEntry } from './libraryDetailTypes';
+import type { LibraryDetailAction, LibraryEntry } from './libraryDetailTypes';
 import { RichText } from './RichText';
 
 export function LibraryDetailPanel({
@@ -26,6 +26,12 @@ export function LibraryDetailPanel({
   if (!entry) return null;
 
   const hasFooter = entry.actions.length > 0 || Boolean(entry.editable && (onEdit || onCopy)) || Boolean(actionMessage);
+  const renderAction = (action: LibraryDetailAction) => (
+    <Button size="sm" variant={action.primary ? 'primary' : 'secondary'} type="button" key={action.label} disabled={action.disabled} onClick={() => {
+      const message = action.onClick();
+      if (message) onAction(message);
+    }}>{action.label}</Button>
+  );
 
   return (
     <aside className={`player-library-detail ${entry.adversary ? 'player-library-detail--adversary' : ''}`.trim()} aria-label="Полная запись компендиума">
@@ -74,26 +80,22 @@ export function LibraryDetailPanel({
         <footer className="player-library-detail__footer">
           {(entry.actions.length > 0 || entry.editable) && (
             <div className="player-library-detail__actions">
+              {entry.actions.filter((action) => action.primary).map(renderAction)}
               {entry.editable?.isCustom && onEdit && (
-                <Button size="sm" variant="primary" type="button" onClick={() => {
+                <Button size="sm" variant={entry.actions.some((action) => action.primary) ? 'secondary' : 'primary'} type="button" onClick={() => {
                   if (entry.editable) onEdit(entry.editable);
                 }}>
                   Редактировать
                 </Button>
               )}
+              {entry.actions.filter((action) => !action.primary).map(renderAction)}
               {entry.editable && !entry.editable.isCustom && onCopy && (
-                <Button size="sm" variant="primary" type="button" onClick={() => {
+                <Button size="sm" variant="secondary" type="button" onClick={() => {
                   if (entry.editable) onCopy(entry.editable);
                 }}>
                   Создать копию
                 </Button>
               )}
-              {entry.actions.map((action) => (
-                <Button size="sm" variant="secondary" type="button" key={action.label} disabled={action.disabled} onClick={() => {
-                  const message = action.onClick();
-                  if (message) onAction(message);
-                }}>{action.label}</Button>
-              ))}
             </div>
           )}
           {actionMessage && <p className="player-library-detail__status" role="status">{actionMessage}</p>}

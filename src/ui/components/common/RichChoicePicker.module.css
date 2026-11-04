@@ -100,6 +100,12 @@
   padding-right: 4px;
 }
 
+/* Preserve the source pixels; only transparent catalog ink needs a light plate. */
+.paperArt {
+  object-fit: contain;
+  background: var(--dh-paper-200);
+}
+
 .previewTitle {
   color: var(--dh-paper-100);
   font-size: 1.04rem;

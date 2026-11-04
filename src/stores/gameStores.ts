@@ -35,8 +35,8 @@ export const syncedGameStores = {
   sceneTable: sceneTableStore
 } as const;
 
-export function subscribeToSyncedGameStores(listener: () => void): Array<() => void> {
-  return Object.values(syncedGameStores).map((store) => store.subscribe(listener));
+export function subscribeToSyncedGameStores(listener: (key: keyof typeof syncedGameStores) => void): Array<() => void> {
+  return Object.entries(syncedGameStores).map(([key, store]) => store.subscribe(() => listener(key as keyof typeof syncedGameStores)));
 }
 
 export function resetAllStores(): void {

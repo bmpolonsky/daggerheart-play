@@ -72,10 +72,10 @@ test.describe('strict character level-up', () => {
     await expect(levelUp).toHaveCount(0);
     await expect(editor.getByText(/уровень 2/i)).toBeVisible();
     await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы' }).click();
-    await expect(editor.getByLabel('Базовый максимум Ран')).toHaveCount(0);
+    await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Раны', exact: true })).toHaveCount(0);
     await editor.getByRole('button', { name: 'Редактировать' }).click();
-    await expect(editor.getByLabel('Базовый максимум Ран')).toHaveValue(String(filledCharacterResources.hp.max + 1));
-    await expect(editor.getByLabel('Базовый максимум Стресса')).toHaveValue(String(filledCharacterResources.stress.max + 1));
+    await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Раны', exact: true })).toHaveValue(String(filledCharacterResources.hp.max + 1));
+    await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Стресс', exact: true })).toHaveValue(String(filledCharacterResources.stress.max + 1));
   });
 
   test('keeps every advancement reachable in one mobile scroll owner without premature errors', async ({ page }) => {

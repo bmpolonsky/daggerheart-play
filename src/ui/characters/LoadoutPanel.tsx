@@ -1,4 +1,6 @@
 import { isStoredWeapon } from '../../domain/rules/weaponInventory';
+import { storedWeaponInventoryText } from '../../domain/rules/storedWeaponPresentation';
+import { equipmentPickerDescription, equipmentPickerImageBackdrop } from '../../domain/content/equipmentPresentation';
 import { ListItem } from '../components/common/ListItem';
 import { toastService } from '../../services/ToastService';
 import { Trash2 } from 'lucide-react';
@@ -216,7 +218,7 @@ export function LoadoutPanel({ character, content }: { character: Character; con
             key={item.id}
             title={item.name}
             subtitle={isStoredWeapon(item.weapon) ? `Оружие в инвентаре — ${item.weapon.damageFormula}` : 'Данные оружия неполны. Предмет сохранён, но надеть его нельзя.'}
-            detail={item.text || undefined}
+            detail={cleanRulesText(storedWeaponInventoryText(item)) || undefined}
             lines={2}
             rightAccessory={<span className="row-end">
               <Button size="sm" variant="secondary" disabled={!isStoredWeapon(item.weapon)} aria-label={`Надеть оружие ${item.name}`} onClick={() => {
@@ -333,7 +335,8 @@ function equipmentPickerItem(item: LibraryEquipmentItem) {
     id: item.id,
     title: item.name,
     subtitle: item.typeName,
-    description: cleanRulesText([item.featureText, typeof item.raw.main_body === 'string' ? item.raw.main_body : ''].filter(Boolean).join('\n\n')),
+    description: cleanRulesText(equipmentPickerDescription(item)),
+    imageBackdrop: equipmentPickerImageBackdrop(item.imageUrl),
     imageUrl: item.imageUrl
   };
 }

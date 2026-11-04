@@ -5,9 +5,10 @@ import { Swords, Users } from 'lucide-react';
 import { useState } from 'preact/hooks';
 import { TRAIT_LABELS, TRAITS } from '../../../../../domain/rules/constants';
 import type { TeamworkRollActorOption, TeamworkRollParticipant, TraitId } from '../../../../../domain/rules/types';
-import { teamworkParticipantRollTrait } from '../../../../../domain/rules/teamwork';
+import { isSharedTagTeam, tagTeamReadyForSelection, tagTeamResultSummary, teamworkParticipantRollTrait } from '../../../../../domain/rules/teamwork';
+import { actionOutcomeLabel } from '../../../../../domain/rules/rollPresentation';
 import type { TableFeedItem } from '../../../../../domain/tabletop/feed';
-import { eventRollService, feedService, p2pSessionService } from '../../../../../services/serviceRegistry';
+import { eventRollService, feedService, p2pSessionService, tagTeamService } from '../../../../../services/serviceRegistry';
 import { Button } from '../../../../components/common/Button';
 import { SelectControl } from '../../../../components/common/Field';
 import { renderRulesText } from '../../sheetText';
@@ -34,6 +35,10 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
     );
   }
   const isClosed = teamwork.status === 'resolved' || teamwork.status === 'cancelled';
+  const sharedTagTeam = isSharedTagTeam(teamwork);
+  const readyToChoose = tagTeamReadyForSelection(teamwork);
+  const rosterFrozen = sharedTagTeam && teamwork.participants.some(participant => participant.result);
+  const scopeKey = unifiedRollDraftService.currentScopeKey();
   const selectedIds = new Set(teamwork.participants.map((participant) => participant.actorId));
   const Icon = teamwork.kind === 'groupAction' ? Users : Swords;
   const supportModifier = teamwork.kind === 'groupAction' ? groupActionSupportModifier(teamwork.participants) : 0;
@@ -80,7 +85,10 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
           </div>
         </div>
         {teamwork.prompt && <p className="feed-teamwork-card__prompt">{teamwork.prompt}</p>}
-        {role === 'gm' && !isClosed && teamwork.availableActors.length > 0 && (
+        {sharedTagTeam && <p className="feed-teamwork-card__prompt">Вручную: инициатор, 3 Надежды и лимит раз за сессию. Урон — суммой, одним источником.</p>}
+        {sharedTagTeam && !isClosed && teamwork.participants.length !== 2 && <p className="feed-teamwork-card__summary">Выберите двух участников.</p>}
+        {teamwork.kind === 'tagTeam' && !sharedTagTeam && !isClosed && <p className="feed-teamwork-card__prompt">Прежний формат. Для общего результата создайте новый командный бросок.</p>}
+        {role === 'gm' && !isClosed && teamwork.availableActors.length > 0 && (!sharedTagTeam || !rosterFrozen) && (
           <div className="feed-teamwork-card__picker" aria-label="Выбор участников">
             {teamwork.availableActors.map((actor) => (
               <Button
@@ -88,6 +96,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                 size="sm"
                 key={actor.actorId}
                 type="button"
+                disabled={sharedTagTeam && (rosterFrozen || (!selectedIds.has(actor.actorId) && selectedIds.size >= 2))}
                 onClick={() => toggleParticipant(actor)}
               >
                 {actor.actorName}
@@ -105,7 +114,7 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
           {teamwork.participants.length > 0 ? teamwork.participants.map((participant) => {
             const isOwner = role === 'player' && actorId === participant.actorId;
             const hasPendingRoll = participant.pendingRoll?.status === 'pending';
-            const canRoll = !isClosed && !participant.result && !hasPendingRoll && (role === 'gm' || isOwner);
+            const canRoll = !isClosed && !participant.result && !hasPendingRoll && (!sharedTagTeam || teamwork.participants.length === 2) && (role === 'gm' || isOwner);
             const selectedTrait = teamworkParticipantRollTrait(participant, traitsByActor[participant.actorId]);
             return (
               <div className={`feed-rest-participant ${canRoll ? 'feed-rest-participant--interactive' : ''}`} key={participant.actorId}>
@@ -120,7 +129,17 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
                   </Button>
                 )}
                 {participant.result ? (
-                  <p className="feed-teamwork-card__result">{participant.result.note}</p>
+                  <>
+                    <p className="feed-teamwork-card__result">{sharedTagTeam
+                      ? `${participant.result.total} — ${participant.result.outcome ? actionOutcomeLabel(participant.result.outcome) : 'Ручной итог'}`
+                      : participant.result.note}</p>
+                    {sharedTagTeam && readyToChoose && role === 'gm' && <Button size="sm" variant="secondary"
+                      aria-label={`Выбрать результат ${participant.actorName} для команды`}
+                      onClick={() => {
+                        const result = tagTeamService.resolve({ entryId: item.id, actorId: participant.actorId, rollId: participant.result!.rollId, scopeKey }, role);
+                        if (!result.ok) toastService.show(result.error, 'error');
+                      }}>Выбрать для команды</Button>}
+                  </>
                 ) : role === 'gm' && !isClosed && hasPendingRoll ? (
                   <div className="feed-teamwork-card__roll feed-teamwork-card__roll--pending">
                     <span>Игрок просит бросок: {TRAIT_LABELS[selectedTrait]}</span>
@@ -160,7 +179,11 @@ export function TeamworkFeedCard({ actorId, item, role }: { actorId: string | nu
             <p className="feed-rest-card__empty">Мастер выбирает участников броска.</p>
           )}
         </div>
-        {role === 'gm' && !isClosed && teamwork.participants.some((participant) => participant.result) && (
+        {sharedTagTeam && teamwork.sharedResult && <p className="feed-teamwork-card__summary" aria-label="Общий результат команды">{tagTeamResultSummary(teamwork)}</p>}
+        {sharedTagTeam && !isClosed && rosterFrozen && !readyToChoose && <p className="feed-teamwork-card__summary">Ожидается бросок второго участника.</p>}
+        {sharedTagTeam && !isClosed && role === 'gm' && <Button size="sm" variant="ghost" aria-label="Отменить командный бросок"
+          onClick={() => { const result = tagTeamService.cancel(item.id, scopeKey, role); if (!result.ok) toastService.show(result.error, 'error'); }}>Отменить</Button>}
+        {!sharedTagTeam && role === 'gm' && !isClosed && teamwork.participants.some((participant) => participant.result) && (
           <Button className="feed-teamwork-card__complete" fullWidth size="md" variant="secondary" type="button" onClick={() => feedService.completeTeamworkRoll(item.id)}>
             Завершить {teamwork.kind === 'groupAction' ? 'групповой' : 'командный'} бросок
           </Button>

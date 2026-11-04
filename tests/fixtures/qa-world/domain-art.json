@@ -1,0 +1,91 @@
+{
+  "heroes": 26,
+  "uniqueDomainImages": 14,
+  "bytes": 1518388,
+  "files": [
+    {
+      "path": "image/domain/card/book-of-ava.webp",
+      "name": "Книга Авы",
+      "exists": true,
+      "bytes": 97068
+    },
+    {
+      "path": "image/domain/card/book-of-illiat.webp",
+      "name": "Книга Иллиата",
+      "exists": true,
+      "bytes": 101716
+    },
+    {
+      "path": "image/domain/card/book-of-tyfar.webp",
+      "name": "Книга Тайфара",
+      "exists": true,
+      "bytes": 136412
+    },
+    {
+      "path": "image/domain/card/deft-deceiver.webp",
+      "name": "Искусный обманщик",
+      "exists": true,
+      "bytes": 180206
+    },
+    {
+      "path": "image/domain/card/deft-maneuvers.webp",
+      "name": "Ловкие манёвры",
+      "exists": true,
+      "bytes": 122948
+    },
+    {
+      "path": "image/domain/card/get-back-up.webp",
+      "name": "Вернуться в строй",
+      "exists": true,
+      "bytes": 65000
+    },
+    {
+      "path": "image/domain/card/i-see-it-coming.webp",
+      "name": "root personal QA",
+      "exists": true,
+      "bytes": 104862
+    },
+    {
+      "path": "image/domain/card/inspirational-words.webp",
+      "name": "Вдохновляющие слова",
+      "exists": true,
+      "bytes": 90880
+    },
+    {
+      "path": "image/domain/card/mending-touch.webp",
+      "name": "Исцеляющее касание",
+      "exists": true,
+      "bytes": 109092
+    },
+    {
+      "path": "image/domain/card/reassurance.webp",
+      "name": "Подбадривание",
+      "exists": true,
+      "bytes": 58722
+    },
+    {
+      "path": "image/domain/card/rune-ward.webp",
+      "name": "Рунный оберег",
+      "exists": true,
+      "bytes": 59760
+    },
+    {
+      "path": "image/domain/card/unleash-chaos.webp",
+      "name": "Высвобождение хаоса",
+      "exists": true,
+      "bytes": 121402
+    },
+    {
+      "path": "image/domain/card/untouchable.webp",
+      "name": "root personal QA",
+      "exists": true,
+      "bytes": 101154
+    },
+    {
+      "path": "image/domain/card/whirlwind.webp",
+      "name": "Вихрь",
+      "exists": true,
+      "bytes": 169166
+    }
+  ]
+}

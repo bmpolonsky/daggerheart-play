@@ -63,7 +63,7 @@ export function SheetLeadBlock({ text }: { text: string }) {
   if (!text.trim()) return null;
   return (
     <article className="player-sheet-row player-sheet-row--fulltext player-sheet-row--lead">
-      <p>{renderRulesText(text)}</p>
+      <p>{renderRulesText(text, { cleanHtml: true })}</p>
     </article>
   );
 }
@@ -74,7 +74,7 @@ export function SheetTextSection({ icon, text, title }: { icon?: JSX.Element; te
     <SheetSection title={title}>
       <article className="player-sheet-row player-sheet-row--fulltext">
         {icon}
-        <p>{renderRulesText(text)}</p>
+        <p>{renderRulesText(text, { cleanHtml: true })}</p>
       </article>
     </SheetSection>
   );

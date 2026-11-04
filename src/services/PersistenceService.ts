@@ -1,5 +1,7 @@
+import { browserRecoveryJournal, recoveryGameId, type RecoveryJournal, type RecoveryDraft } from '../core/persistence/recoveryJournal';
 import {
   createGameDocumentStore,
+  GameDocumentConflictError,
   type GameDocumentStore,
   type StoredGameSummary,
   type StoredWorldSummary,
@@ -8,7 +10,7 @@ import {
 } from '../core/persistence/gameDocumentStore';
 import { applyBrowserCustomContent, loadBrowserCustomContent, readBrowserCustomContent, subscribeCustomContentChanges } from '../core/persistence/browserProjectContent';
 import { inferBasePathFromWorkspacePath, parsePlayerSessionLocation } from '../domain/p2p/sessionLinks';
-import { createGameDocument, emptyCustomContent, isGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState } from '../domain/game/gameDocument';
+import { forkGameDocument, createGameDocument, emptyCustomContent, isGameDocument, gameDocumentCustomContent, gameDocumentToPersistedState } from '../domain/game/gameDocument';
 import type { GameDocument } from '../domain/game/gameDocument';
 import { createGameState, createEncounterState, createSceneTableState, createUiState } from '../domain/rules/factories';
 import { resetAllStores, subscribeToSyncedGameStores } from '../stores/gameStores';
@@ -19,6 +21,8 @@ import type { AssetService } from './AssetService';
 import { Store } from '../core/store/Store';
 import { readActiveSession, readWorkspaceRole } from './p2p/P2PSessionPersistence';
 import { reportOperationalError } from '../core/observability/sentry';
+import { toastService } from './ToastService';
+import { unsavedGameContentSignature } from '../domain/game/unsavedGameContent';
 
 const LOCAL_STORAGE_SNAPSHOT_KEYS = ['daggerheart-play:v3:game:local'];
 const AUTO_PERSIST_DELAY_MS = 500;
@@ -30,6 +34,10 @@ export class PersistenceService {
   private storedWorldsStore = new Store<StoredWorldSummary[]>([]);
   readonly storedWorlds$ = this.storedWorldsStore.toStream();
 
+  private recoveryDraftsStore = new Store<RecoveryDraft[]>([]);
+  readonly recoveryDrafts$ = this.recoveryDraftsStore.toStream();
+  private recoveryErrorToastId: string | null = null;
+  private recoveryOperations = new Map<string, Promise<boolean>>();
   private started = false;
   private unsubscribeCallbacks: Array<() => void> = [];
   private unsubscribeDocumentChanges: (() => void) | null = null;
@@ -37,13 +45,28 @@ export class PersistenceService {
   private readyPromise: Promise<void> = Promise.resolve();
   private isApplyingStoredDocument = false;
   private lastDocumentSignature: string | null = null;
+  private lastSavedContentSignature: string | null = null;
+  private lastObservedContentSignature: string | null = null;
+  private inFlightContentSignature: string | null = null;
   private ownPersistSignatures = new Set<string>();
   private persistTimer: number | undefined;
-  private queuedPersistSnapshot: ReturnType<typeof snapshotPersistedState> | null = null;
+  private queuedPersistSnapshot: { state: ReturnType<typeof snapshotPersistedState>; revision: number } | null = null;
   private persistQueuePromise: Promise<void> | null = null;
-  private flushPendingPersist = () => this.flushPersistNow();
+  private changeRevision = 0;
+  private persistedRevision = 0;
+  private persistError: Error | null = null;
+  private errorToastId: string | null = null;
+  private guardPendingPersist = (event: BeforeUnloadEvent) => {
+    const unsaved = this.hasUnsavedChanges();
+    this.flushScheduledPersist();
+    // Browsers do not await an async beforeunload/pagehide listener. A cancelled
+    // navigation leaves the live document and its queued save intact.
+    if (!unsaved) return;
+    event.preventDefault();
+    event.returnValue = '';
+  };
 
-  constructor(documentStore: GameDocumentStore | null = createGameDocumentStore(), private assetService?: AssetService) {
+  constructor(documentStore: GameDocumentStore | null = createGameDocumentStore(), private assetService?: AssetService, private recovery: RecoveryJournal | null = browserRecoveryJournal()) {
     this.documentStore = documentStore;
   }
 
@@ -55,14 +78,16 @@ export class PersistenceService {
     const remotePlayerJoin = isRemotePlayerJoin();
     if (!remotePlayerJoin) {
       this.clearLocalStorageSnapshots();
+      this.recovery?.start();
       this.readyPromise = this.hydrateFromIndexedDb().then(() => {
         this.subscribeDocumentChanges();
         this.unsubscribeCallbacks = [
-          ...subscribeToSyncedGameStores(() => this.schedulePersist()),
+          ...subscribeToSyncedGameStores(key => this.schedulePersist(key)),
           subscribeCustomContentChanges('all', () => this.schedulePersist())
         ];
-        window.addEventListener('pagehide', this.flushPendingPersist);
-        window.addEventListener('beforeunload', this.flushPendingPersist);
+        window.addEventListener('pagehide', this.flushScheduledPersistOnHide);
+        window.addEventListener('beforeunload', this.guardPendingPersist);
+        void this.refreshRecoveryDrafts();
       });
     }
     if (remotePlayerJoin) {
@@ -79,15 +104,33 @@ export class PersistenceService {
     this.unsubscribeDocumentChanges = null;
     if (typeof window !== 'undefined') {
       this.flushScheduledPersist();
-      window.removeEventListener('pagehide', this.flushPendingPersist);
-      window.removeEventListener('beforeunload', this.flushPendingPersist);
+      window.removeEventListener('pagehide', this.flushScheduledPersistOnHide);
+      window.removeEventListener('beforeunload', this.guardPendingPersist);
     }
+    this.recovery?.stop();
     this.started = false;
   }
 
   whenReady(): Promise<void> {
     return this.readyPromise;
   }
+
+  hasUnsavedChanges(): boolean {
+    if (isRemotePlayerJoin() || this.changeRevision <= this.persistedRevision) return false;
+    // A no-op store emission is not an unsaved edit. Do this comparison only
+    // at the navigation boundary, rather than serializing on every drag frame.
+    const customContent = readBrowserCustomContent();
+    const current = unsavedGameContentSignature(createGameDocument(snapshotPersistedState(), customContent));
+    if (current !== this.lastObservedContentSignature) return true;
+    // Returning to an old baseline is not clean while an intermediate write
+    // can still commit. It is clean only once stored content matches again.
+    if (this.inFlightContentSignature && this.inFlightContentSignature !== current) return true;
+    return Boolean(this.queuedPersistSnapshot && unsavedGameContentSignature(
+      createGameDocument(this.queuedPersistSnapshot.state, customContent)
+    ) !== current);
+  }
+
+  private flushScheduledPersistOnHide = () => this.flushScheduledPersist();
 
   persistNow(): void {
     if (typeof window === 'undefined') {
@@ -97,11 +140,22 @@ export class PersistenceService {
       return;
     }
     const snapshot = snapshotPersistedState();
+    if (!this.started) this.changeRevision += 1;
+    // Hydration/no-op persistence is not an unsaved user edit. In particular,
+    // a startup write waiting behind a lock must not create a revision-0 offer.
+    if (this.hasUnsavedChanges()) this.captureRecovery();
     void this.queuePersist(snapshot);
   }
 
   resetEverything(): void {
-    resetAllStores();
+    this.isApplyingStoredDocument = true;
+    try { resetAllStores(); } finally { this.isApplyingStoredDocument = false; }
+    if (typeof window !== 'undefined') window.clearTimeout(this.persistTimer);
+    this.persistTimer = undefined;
+    this.queuedPersistSnapshot = null;
+    this.persistedRevision = this.changeRevision;
+    this.clearPersistError();
+    try { this.recovery?.clearOwn(); } catch { /* Primary reset still works. */ }
     if (typeof window !== 'undefined') {
       this.clearLocalStorageSnapshots();
     }
@@ -365,7 +419,100 @@ export class PersistenceService {
     }
   }
 
-  private schedulePersist(): void {
+  async refreshRecoveryDrafts(): Promise<void> {
+    if (isRemotePlayerJoin()) { this.recoveryDraftsStore.set([]); return; }
+    try {
+      const drafts = await this.recovery?.pending() ?? [];
+      if (!drafts.length) { this.recoveryDraftsStore.set([]); return; }
+      const recovered = await this.recoveredWorlds();
+      const stored = storedDocumentToGameDocument(await this.documentStore?.load());
+      const signature = stored ? unsavedGameContentSignature(stored) : null;
+      const pending = drafts.filter(draft => {
+        if (!recovered.has(recoveryGameId(draft)) && signature !== unsavedGameContentSignature(draft.document)) return true;
+        // A crash can occur after the transaction commits but before cleanup.
+        // These exact game contents already exist durably; do not offer a stale duplicate.
+        this.recovery?.removeUnchanged(draft);
+        return false;
+      });
+      this.recoveryDraftsStore.set(pending);
+    }
+    catch { /* IndexedDB remains authoritative if recovery storage is blocked. */ }
+  }
+
+  restoreRecoveryDraft(id: string): Promise<boolean> {
+    const active = this.recoveryOperations.get(id);
+    if (active) return active;
+    const operation = this.performRecovery(id).finally(() => this.recoveryOperations.delete(id));
+    this.recoveryOperations.set(id, operation);
+    return operation;
+  }
+
+  private async recoveredWorlds(): Promise<Map<string, string>> {
+    const recovered = new Map<string, string>();
+    if (!this.documentStore) return recovered;
+    for (const world of await this.documentStore.listWorlds()) {
+      const archive = await this.documentStore.exportWorld(world.id);
+      for (const game of Object.values(archive?.world.games ?? {})) recovered.set(game.state.game.id, world.name);
+    }
+    return recovered;
+  }
+
+  private async performRecovery(id: string): Promise<boolean> {
+    if (!this.documentStore || isRemotePlayerJoin()) return false;
+    await this.flushPersistNow();
+    // The same existing origin-wide lock as normal saves serializes recovery
+    // requests from independent tabs. Recheck after waiting, never before it.
+    return withPersistenceLockResult(async () => {
+      const draft = await this.recovery?.inactive(id);
+      if (!draft) { await this.refreshRecoveryDrafts(); return false; }
+      const restoredId = recoveryGameId(draft);
+      const recovered = await this.recoveredWorlds();
+      const existing = recovered.get(restoredId);
+      if (existing) {
+        try { this.recovery?.removeUnchanged(draft); } catch { /* Durable marker prevents a duplicate fork. */ }
+        this.recoveryDraftsStore.update(drafts => drafts.filter(item => item.id !== id));
+        await this.refreshRecoveryDrafts();
+        toastService.show(`Эта копия уже восстановлена в отдельном мире «${existing}».`, 'info', 8000);
+        return true;
+      }
+      const suffix = ` — восстановленная копия (${new Date(draft.updatedAt).toLocaleString('ru-RU')})`;
+      const document = forkGameDocument(draft.document, suffix);
+      document.files['data/game.json'].id = restoredId;
+      const names = new Set(await this.documentStore!.listWorlds().then(worlds => worlds.map(world => world.name)));
+      const baseName = document.manifest.name;
+      let number = 2;
+      while (names.has(document.manifest.name)) {
+        document.manifest.name = `${baseName} (${number++})`;
+        document.files['manifest.json'].name = document.manifest.name;
+        document.files['data/game.json'].name = document.manifest.name;
+      }
+      await this.documentStore!.createWorld(document, document.manifest.name);
+      this.isApplyingStoredDocument = true;
+      try {
+        applyBrowserCustomContent(gameDocumentCustomContent(document));
+        this.applyStoredDocument(document);
+      } finally { this.isApplyingStoredDocument = false; }
+      try { this.recovery?.removeUnchanged(draft); } catch { /* Marker survives interrupted cleanup. */ }
+      this.recoveryDraftsStore.update(drafts => drafts.filter(item => item.id !== id));
+      await this.refreshRecoveryDrafts();
+      await this.refreshStoredWorlds();
+      await this.refreshStoredGames();
+      toastService.show(`Восстановлен отдельный мир «${document.manifest.name}». Исходный мир сохранён.`, 'success', 8000);
+      return true;
+    });
+  }
+
+  private captureRecovery(changed?: keyof PersistedState): void {
+    try {
+      if (!this.recovery) throw new Error('Recovery storage unavailable');
+      this.recovery.writeSnapshot(snapshotPersistedState(), readBrowserCustomContent(), this.changeRevision, changed);
+    } catch {
+      if (this.hasUnsavedChanges() && !this.recoveryErrorToastId) this.recoveryErrorToastId = toastService.show(
+        'Восстановительная копия последней правки недоступна. Не закрывайте вкладку, пока изменения не сохранятся.', 'error', 60_000);
+    }
+  }
+
+  private schedulePersist(changed?: keyof PersistedState): void {
     if (this.isApplyingStoredDocument) {
       return;
     }
@@ -375,6 +522,8 @@ export class PersistenceService {
     if (isRemotePlayerJoin()) {
       return;
     }
+    this.changeRevision += 1;
+    this.captureRecovery(changed);
     window.clearTimeout(this.persistTimer);
     this.persistTimer = window.setTimeout(() => {
       this.persistTimer = undefined;
@@ -387,7 +536,13 @@ export class PersistenceService {
       return;
     }
     this.flushScheduledPersist();
-    await this.persistQueuePromise;
+    if (!this.persistQueuePromise && this.hasUnsavedChanges()) this.persistNow();
+    do {
+      await this.persistQueuePromise;
+      this.flushScheduledPersist();
+    } while (this.persistQueuePromise || this.queuedPersistSnapshot);
+    // Internal world/game transitions must not proceed after a failed save.
+    if (this.persistError && this.hasUnsavedChanges()) throw this.persistError;
   }
 
   private flushScheduledPersist(): void {
@@ -407,6 +562,7 @@ export class PersistenceService {
       if (!document) {
         await loadBrowserCustomContent();
         this.lastDocumentSignature = stableJsonSignature(null);
+        this.setSavedContentBaseline(createGameDocument(snapshotPersistedState(), readBrowserCustomContent()));
         return false;
       }
       this.lastDocumentSignature = stableJsonSignature(document);
@@ -423,22 +579,39 @@ export class PersistenceService {
     }
   }
 
-  private async persistGameDocument(snapshot: ReturnType<typeof snapshotPersistedState>): Promise<void> {
+  private async persistGameDocument(snapshot: ReturnType<typeof snapshotPersistedState>, revision: number): Promise<void> {
     if (!this.documentStore) {
+      this.setPersistError(new Error('Не удалось сохранить изменения: локальное хранилище недоступно. Оставьте вкладку открытой.'));
       return;
     }
     const baseSignature = this.lastDocumentSignature;
+    const baseContentSignature = this.lastSavedContentSignature;
     try {
       await loadBrowserCustomContent();
       const document = createGameDocument(snapshot, readBrowserCustomContent());
       const signature = stableJsonSignature(document);
       await withPersistenceLock(async () => {
         const current = storedDocumentToGameDocument(await this.documentStore?.load());
-        if (baseSignature !== null && stableJsonSignature(current) !== baseSignature) return;
+        this.lastObservedContentSignature = current
+          ? unsavedGameContentSignature(current)
+          : baseSignature === stableJsonSignature(null) ? this.lastSavedContentSignature : null;
+        if (baseSignature !== null && stableJsonSignature(current) !== baseSignature
+          && (!current || unsavedGameContentSignature(current) !== baseContentSignature)) {
+          if (!this.hasUnsavedChanges()) return;
+          throw new Error('Мир изменён в другой вкладке. Ваши изменения ещё не сохранены; оставьте эту вкладку открытой.');
+        }
         this.ownPersistSignatures.add(signature);
         try {
-          await this.documentStore?.save(document);
+          await this.documentStore?.save(document, current);
           this.lastDocumentSignature = signature;
+          this.setSavedContentBaseline(document);
+          this.persistedRevision = Math.max(this.persistedRevision, revision);
+          this.clearPersistError();
+          // Only the successfully committed revision may clear its own backup.
+          // A newer synchronous edit must survive completion of this older write.
+          try { this.recovery?.clearThrough(revision); } catch { /* Retain a redundant recovery copy. */ }
+          if (this.recoveryErrorToastId) toastService.dismiss(this.recoveryErrorToastId);
+          this.recoveryErrorToastId = null;
           void this.refreshStoredGames();
           void this.refreshStoredWorlds();
         } catch (error) {
@@ -447,19 +620,36 @@ export class PersistenceService {
         }
       });
     } catch (error) {
+      if (error instanceof GameDocumentConflictError) {
+        // The active context/data changed between the preflight read and the
+        // guarded write. Do not compare a reverted draft with a stale baseline.
+        this.lastObservedContentSignature = null;
+        try {
+          const latest = storedDocumentToGameDocument(await this.documentStore.load());
+          if (latest) this.lastObservedContentSignature = unsavedGameContentSignature(latest);
+        } catch { /* Keep the conservative unknown baseline until a later read. */ }
+      }
       reportOperationalError(error, {
         area: 'persistence',
         operation: 'persist-game-document',
         details: { schemaVersion: snapshot.schemaVersion }
       });
       console.warn('Failed to persist Daggerheart game to IndexedDB.', error);
+      this.setPersistError(error instanceof Error && error.message.startsWith('Мир изменён')
+        ? error
+        : new Error('Не удалось записать изменения. Проверьте свободное место и оставьте вкладку открытой.'));
     }
   }
 
   private queuePersist(snapshot: ReturnType<typeof snapshotPersistedState>): Promise<void> {
-    this.queuedPersistSnapshot = snapshot;
+    this.queuedPersistSnapshot = { state: snapshot, revision: this.changeRevision };
+    return this.startPersistQueue();
+  }
+
+  private startPersistQueue(): Promise<void> {
     this.persistQueuePromise ??= this.drainPersistQueue().finally(() => {
       this.persistQueuePromise = null;
+      if (this.queuedPersistSnapshot) void this.startPersistQueue();
     });
     return this.persistQueuePromise;
   }
@@ -468,7 +658,9 @@ export class PersistenceService {
     while (this.queuedPersistSnapshot) {
       const snapshot = this.queuedPersistSnapshot;
       this.queuedPersistSnapshot = null;
-      await this.persistGameDocument(snapshot);
+      this.inFlightContentSignature = unsavedGameContentSignature(createGameDocument(snapshot.state, readBrowserCustomContent()));
+      try { await this.persistGameDocument(snapshot.state, snapshot.revision); }
+      finally { this.inFlightContentSignature = null; }
     }
   }
 
@@ -486,6 +678,18 @@ export class PersistenceService {
       if (signature === this.lastDocumentSignature) {
         return;
       }
+      this.lastObservedContentSignature = document ? unsavedGameContentSignature(document) : null;
+      if (this.hasUnsavedChanges()) {
+        if (document && unsavedGameContentSignature(document) === this.lastSavedContentSignature) {
+          // Another tab's view-only selection is not a competing game edit.
+          this.lastDocumentSignature = signature;
+          return;
+        }
+        // Never overwrite an unsaved local edit with a newer tab's document,
+        // and never overwrite that newer document with our stale snapshot.
+        this.setPersistError(new Error('Мир изменён в другой вкладке. Ваши изменения ещё не сохранены; оставьте эту вкладку открытой.'));
+        return;
+      }
       this.queuedPersistSnapshot = null;
       this.lastDocumentSignature = signature;
 
@@ -497,6 +701,7 @@ export class PersistenceService {
         } else {
           resetAllStores();
           applyBrowserCustomContent(emptyCustomContent());
+          this.setSavedContentBaseline(createGameDocument(snapshotPersistedState(), readBrowserCustomContent()));
         }
       } finally {
         this.isApplyingStoredDocument = false;
@@ -529,6 +734,25 @@ export class PersistenceService {
     }
   }
 
+  private setPersistError(error: Error): void {
+    if (this.persistError?.message !== error.message) {
+      if (this.errorToastId) toastService.dismiss(this.errorToastId);
+      this.errorToastId = toastService.show(`Изменения не сохранены. ${error.message}`, 'error', 60_000);
+    }
+    this.persistError = error;
+  }
+
+  private clearPersistError(): void {
+    this.persistError = null;
+    if (this.errorToastId) toastService.dismiss(this.errorToastId);
+    this.errorToastId = null;
+  }
+
+  private setSavedContentBaseline(document: GameDocument): void {
+    this.lastSavedContentSignature = unsavedGameContentSignature(document);
+    this.lastObservedContentSignature = this.lastSavedContentSignature;
+  }
+
   private createEmptyGameDocument(newWorld: boolean): GameDocument {
     const current = snapshotPersistedState();
     const game = {
@@ -554,8 +778,15 @@ export class PersistenceService {
       this.lastDocumentSignature = stableJsonSignature(null);
       return;
     }
-    hydratePersistedState(gameDocumentToPersistedState(gameDocument));
-    this.lastDocumentSignature = stableJsonSignature(gameDocument);
+    // Hydration emits each store separately. Never journal a half-applied
+    // old/new-world mixture while switching or restoring an existing context.
+    const wasApplying = this.isApplyingStoredDocument;
+    this.isApplyingStoredDocument = true;
+    try {
+      hydratePersistedState(gameDocumentToPersistedState(gameDocument));
+      this.lastDocumentSignature = stableJsonSignature(gameDocument);
+      this.setSavedContentBaseline(gameDocument);
+    } finally { this.isApplyingStoredDocument = wasApplying; }
   }
 }
 
@@ -565,6 +796,11 @@ async function withPersistenceLock(work: () => Promise<void>): Promise<void> {
     return;
   }
   await work();
+}
+
+async function withPersistenceLockResult<T>(work: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && navigator.locks) return navigator.locks.request(PERSISTENCE_LOCK_NAME, work);
+  return work();
 }
 
 function stableJsonSignature(value: unknown): string {

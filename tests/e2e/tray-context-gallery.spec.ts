@@ -53,7 +53,7 @@ for (const width of [1180, 390]) test(`controlled tray context gallery ${width}`
         const result = eventRollService.prepare({ kind: 'teamwork', entryId: entry.id, actorId: id === 'E4' ? support.actorId : pc.id, trait: 'instinct' }, 'gm'); if (!result.ok) throw new Error(result.error); input = result.input;
       }
       service.resetDraft();
-      if (input) { service.request(input); service.choosePending(true); }
+      if (input) { service.request(input); }
       return { id, input: input ?? null, nonRoll: id === 'C6' };
     }, id);
     const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });

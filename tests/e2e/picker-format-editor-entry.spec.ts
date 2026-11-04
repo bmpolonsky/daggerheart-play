@@ -45,6 +45,15 @@ for (const [width,height] of [[1188,761],[400,609]]) {
       await expect(target.getByRole('button', { name: 'Новый уровень', exact: true })).toBeInViewport();
       await target.getByRole('button', { name: 'Редактировать', exact: true }).click();
       await expect(target.getByRole('button', { name: 'Готово', exact: true })).toBeInViewport();
+      await target.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы', exact: true }).click();
+      const limits = target.getByRole('region', { name: 'Базовые лимиты', exact: true });
+      await expect(limits.getByRole('heading', { name: 'Базовые лимиты', exact: true })).toBeVisible();
+      for (const label of ['Раны', 'Стресс', 'Надежда']) {
+        await expect(limits.getByRole('spinbutton', { name: label, exact: true })).toBeVisible();
+      }
+      await expect(limits).toContainText('Бонусы свойств и шрамы учитываются отдельно.');
+      await limits.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: info.outputPath(`LIMITS-${entry}-${width}x${height}.png`) });
       await target.getByRole('button', { name: 'Готово', exact: true }).click();
     }
     await check(dialog,'standalone'); await dialog.getByRole('button', { name: 'Закрыть редактор персонажа', exact: true }).click();

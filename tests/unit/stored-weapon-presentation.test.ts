@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { storedWeaponPresentation } from '../../src/domain/rules/storedWeaponPresentation';
+import { storedWeaponPresentation, storedWeaponInventoryText } from '../../src/domain/rules/storedWeaponPresentation';
 import { createWeapon } from '../../src/domain/rules/factories';
 
 const weapon = createWeapon({
@@ -50,4 +50,17 @@ test('missing source references stay absent and unfamiliar stored ranges remain 
   assert.equal(display.rangeLabel, 'Особая дистанция автора');
   assert.equal(display.properties, '');
   assert.equal(display.description.includes('Источник:'), false);
+});
+
+test('duplicate transfer descriptions display once without mutating payload or losing independent notes', () => {
+  const text = 'Громоздкое: −1 к **Искусности**. QA: личная гравировка';
+  const item = { weapon: { ...weapon, featureText: text, notes: text }, text: `${text}\n\n${text}` };
+  const saved = JSON.stringify(item);
+  assert.equal(storedWeaponInventoryText(item), text);
+  assert.equal(storedWeaponPresentation(item)!.description.match(/личная гравировка/g)?.length, 1);
+  assert.equal(JSON.stringify(item), saved);
+  const distinct = { weapon: { ...weapon, featureText: text, notes: 'Отдельная заметка' }, text: `${text}\n\nОтдельная заметка` };
+  assert.equal(storedWeaponInventoryText(distinct), `${text}\n\nОтдельная заметка`);
+  assert.equal(storedWeaponInventoryText({ ...distinct, text: 'Историческое описание' }), `${text}\n\nОтдельная заметка\n\nИсторическое описание`);
+  assert.equal(storedWeaponInventoryText({ text: 'Обычный предмет' }), 'Обычный предмет');
 });

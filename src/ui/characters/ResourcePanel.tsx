@@ -1,5 +1,6 @@
 import { NumberField } from '../components/common/Field';
 import { ResourcePips } from '../components/common/ResourcePips';
+import { SectionHeader } from '../components/common/SectionHeader';
 import { buildEffectiveCharacterStats } from '../../domain/rules/effects';
 import type { Character } from '../../domain/rules/types';
 import { gameService, characterService } from '../../services/serviceRegistry';
@@ -43,19 +44,20 @@ export function ResourcePanel({ character, allowStructureEdit = false }: { chara
         />
       </div>
       {allowStructureEdit && (
-        <div className={styles.baseFields}>
+        <section aria-label="Базовые лимиты" className={styles.baseFields}>
+          <SectionHeader title="Базовые лимиты" className={styles.baseHeading} />
           <NumberField
-            label="Базовый максимум Ран"
+            label="Раны"
             value={character.hp.max}
             onChange={(event) => characterService.updateResourceMax(character.id, 'hp', Number(event.currentTarget.value))}
           />
           <NumberField
-            label="Базовый максимум Стресса"
+            label="Стресс"
             value={character.stress.max}
             onChange={(event) => characterService.updateResourceMax(character.id, 'stress', Number(event.currentTarget.value))}
           />
           <NumberField
-            label="Базовый максимум Надежды"
+            label="Надежда"
             value={character.hope.max}
             onChange={(event) => characterService.updateResourceMax(character.id, 'hope', Number(event.currentTarget.value))}
           />
@@ -66,8 +68,8 @@ export function ResourcePanel({ character, allowStructureEdit = false }: { chara
               onChange={(event) => characterService.setActionTokens(character.id, Number(event.currentTarget.value))}
             />
           )}
-          <small className={styles.hint}>Максимумы без бонусов свойств. Итоги показаны в шкалах выше.</small>
-        </div>
+          <small className={styles.hint}>Бонусы свойств и шрамы учитываются отдельно.</small>
+        </section>
       )}
     </div>
   );
