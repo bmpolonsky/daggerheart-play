@@ -123,15 +123,15 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     }
   }
 
-  async connect(roomId: string): Promise<void> {
+  async connect(roomId: string, diagnosticAttempt?: number): Promise<void> {
     await this.disconnect();
     const epoch = ++this.connectionEpoch;
     const logicalRoomId = normalizeLogicalRoomId(roomId);
-    const routeConnections = Array.from(this.routes.values(), (route) => this.connectRoute(route, logicalRoomId, epoch));
+    const routeConnections = Array.from(this.routes.values(), (route) => this.connectRoute(route, logicalRoomId, epoch, diagnosticAttempt));
     await this.waitForFirstReadyRoute(routeConnections);
   }
 
-  private async connectRoute(route: RouteState, logicalRoomId: string, epoch: number): Promise<P2PTransportStrategy> {
+  private async connectRoute(route: RouteState, logicalRoomId: string, epoch: number, diagnosticAttempt?: number): Promise<P2PTransportStrategy> {
     const connectAttempt = route.connectAttempt + 1;
     route.connectAttempt = connectAttempt;
     route.status = 'probing';
@@ -139,7 +139,7 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     this.bindRoute(route);
     this.emitDiagnosticsChange();
     try {
-      await route.transport.connect(logicalRoomId);
+      await route.transport.connect(logicalRoomId, diagnosticAttempt);
       if (this.connectionEpoch !== epoch) {
         await this.disconnectStaleRoute(route, connectAttempt);
         throw new Error('Stale P2P route connection.');
@@ -312,6 +312,10 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
     return () => this.mediaStreamListeners.delete(listener);
   }
 
+  getConnectionDiagnostics() {
+    return Array.from(this.routes.values()).flatMap(route => route.transport.getConnectionDiagnostics?.() ?? []);
+  }
+
   getRouteDiagnostics(): P2PRouteDiagnostic[] {
     return Array.from(this.routes.values(), (route) => ({
       strategy: route.strategy,
@@ -375,6 +379,7 @@ export class MultiStrategyP2PTransport implements P2PTransportAdapter {
         this.emitDiagnosticsChange();
         void this.sendRememberedControlEnvelopes(route, physicalPeerId);
       }),
+      route.transport.onDiagnosticsChange?.(() => this.emitDiagnosticsChange()) ?? (() => undefined),
       route.transport.onPeerLeave((physicalPeerId) => this.handlePhysicalPeerLeave(route, physicalPeerId)),
       route.transport.onError((message) => {
         route.status = 'degraded';

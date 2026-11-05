@@ -1,4 +1,5 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import { ConnectionDiagnostics, ConnectionStageError } from './p2p/ConnectionDiagnostics';
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
 import type { GameCustomContent } from '../domain/game/gameDocument';
@@ -80,6 +81,13 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
   private worldId = '';
   private cursor = 0;
   private seenEventSequences = new Set<number>();
+  private diagnosticListeners = new Set<() => void>();
+  private diagnostics = new ConnectionDiagnostics(() => this.diagnosticListeners.forEach(listener => listener()));
+  getConnectionDiagnostics = () => this.diagnostics.snapshot();
+  onDiagnosticsChange(listener: () => void): () => void {
+    this.diagnosticListeners.add(listener);
+    return () => this.diagnosticListeners.delete(listener);
+  }
   private connected = false;
   private connectionGeneration = 0;
   private channels: RealtimeChannel[] = [];
@@ -107,39 +115,56 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     this.client = client ?? getSupabaseClient(config);
   }
 
-  async connect(roomId: string): Promise<void> {
+  async connect(roomId: string, diagnosticAttempt?: number): Promise<void> {
     await this.disconnect();
+    const generation = this.connectionGeneration;
     this.roomId = roomId;
-    await this.ensureAuthenticated();
-    const response = this.context.role === 'gm'
-      ? await this.rpc<RoomConnectionResponse>('dh_open_room', {
-          p_room_id: roomId,
-          p_world_id: this.context.worldId,
-          p_peer_id: this.peerId,
-          p_display_name: this.context.displayName,
-          p_fragments: this.initialFragments()
-        })
-      : await this.rpc<RoomConnectionResponse>('dh_join_room', {
-          p_room_id: roomId,
-          p_peer_id: this.peerId,
-          p_display_name: this.context.displayName
-        });
-
-    this.incarnation = response.incarnation;
-    this.ownerId = response.ownerId;
-    this.worldId = response.worldId;
-    this.cursor = response.cursor;
-    this.replaceState(response.stateRows);
-    this.updateRoster(response.roster);
-    await this.subscribeRealtime();
-    this.connected = true;
-    await Promise.all([this.refreshState(), this.refreshEvents(), this.refreshRoster()]);
-    this.startHeartbeat();
-    if (this.context.role === 'player') this.scheduleStateDelivery();
+    this.diagnostics.reset(['auth-session', 'auth-bind', this.context.role === 'gm' ? 'room-open' : 'room-join', 'realtime', 'state', 'events', 'roster'], diagnosticAttempt);
+    const current = () => { if (generation !== this.connectionGeneration) throw new ConnectionStageError('cancelled', 'room-join'); };
+    try {
+      await this.ensureAuthenticated();
+      current();
+      const response = await this.diagnostics.run(this.context.role === 'gm' ? 'room-open' : 'room-join', signal =>
+        this.context.role === 'gm'
+          ? this.rpc<RoomConnectionResponse>('dh_open_room', {
+              p_room_id: roomId, p_world_id: this.context.worldId, p_peer_id: this.peerId,
+              p_display_name: this.context.displayName, p_fragments: this.initialFragments()
+            }, signal)
+          : this.rpc<RoomConnectionResponse>('dh_join_room', {
+              p_room_id: roomId, p_peer_id: this.peerId, p_display_name: this.context.displayName
+            }, signal));
+      current();
+      this.incarnation = response.incarnation;
+      this.ownerId = response.ownerId;
+      this.worldId = response.worldId;
+      this.cursor = response.cursor;
+      this.replaceState(response.stateRows);
+      this.updateRoster(response.roster);
+      await this.diagnostics.run('realtime', () => this.subscribeRealtime());
+      current();
+      await Promise.all([
+        this.diagnostics.run('state', signal => this.refreshState(signal)),
+        this.diagnostics.run('events', signal => this.refreshEvents(signal)),
+        this.diagnostics.run('roster', signal => this.refreshRoster(signal, true))
+      ]);
+      current();
+      this.connected = true;
+      this.startHeartbeat();
+      if (this.context.role === 'player') this.scheduleStateDelivery();
+    } catch (error) {
+      // Invalidate every late HTTP/Realtime completion before cleanup. Keep diagnostics for the UI.
+      if (generation === this.connectionGeneration) {
+        this.connectionGeneration += 1;
+        this.diagnostics.cancel();
+        this.channels.splice(0).forEach(channel => void this.client.removeChannel(channel));
+      }
+      throw error;
+    }
   }
 
   async disconnect(): Promise<void> {
     this.connectionGeneration += 1;
+    this.diagnostics.cancel();
     this.connected = false;
     this.pendingSnapshot = null;
     this.snapshotSave = null;
@@ -150,13 +175,7 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     const roomId = this.roomId;
     const incarnation = this.incarnation;
     this.channels.splice(0).forEach((channel) => void this.client.removeChannel(channel));
-    if (roomId && incarnation) {
-      await this.client.rpc('dh_leave_room', {
-        p_room_id: roomId,
-        p_incarnation: incarnation,
-        p_peer_id: this.peerId
-      });
-    }
+    const leave = roomId && incarnation ? this.leaveRoom(roomId, incarnation) : Promise.resolve();
     this.roomId = '';
     this.incarnation = '';
     this.ownerId = '';
@@ -168,6 +187,17 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     this.eventAssembler.clear();
     this.chunkSendQueue = Promise.resolve();
     this.updateRoster([]);
+    await leave;
+  }
+
+  private async leaveRoom(roomId: string, incarnation: string): Promise<void> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([this.rpc('dh_leave_room', { p_room_id: roomId, p_incarnation: incarnation, p_peer_id: this.peerId }, controller.signal),
+        new Promise<void>(resolve => { timer = setTimeout(() => { controller.abort(); resolve(); }, 2000); })]);
+    } catch { /* Best effort cleanup must not hide the original connection failure. */ }
+    finally { if (timer !== undefined) clearTimeout(timer); }
   }
 
   async send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void> {
@@ -237,15 +267,23 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
 
   private async ensureAuthenticated(): Promise<void> {
     if (this.context.role === 'player') {
-      await ensureSupabaseGuestSignedIn(this.config);
-      await setSupabaseDataRole('player');
+      const generation = this.connectionGeneration;
+      await ensureSupabaseGuestSignedIn(this.config, this.diagnostics);
+      if (generation !== this.connectionGeneration) throw new ConnectionStageError('cancelled', 'auth-bind');
+      await this.diagnostics.run('auth-bind', () => setSupabaseDataRole('player'));
       return;
     }
 
-    await setSupabaseDataRole('master');
+    const generation = this.connectionGeneration;
+    await this.diagnostics.run('auth-bind', () => setSupabaseDataRole('master'));
+    if (generation !== this.connectionGeneration) throw new ConnectionStageError('cancelled', 'auth-session');
     const auth = getSupabaseAuthClient(this.config).auth;
-    const { data, error } = await auth.getSession();
-    if (error) throw new RelayTransportError(error.message, 'auth_failed', 401);
+    const { data, error } = await this.diagnostics.run('auth-session', async () => {
+      const result = await auth.getSession();
+      if (result.error) throw result.error;
+      if (!result.data.session) throw new RelayTransportError('auth_required', 'auth_required', 401);
+      return result;
+    });
     if (data.session) return;
     if (typeof window === 'undefined') throw new RelayTransportError('auth_required', 'auth_required', 401);
     throw new RelayTransportError('auth_required', 'auth_required', 401);
@@ -329,15 +367,15 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     }
   }
 
-  private async refreshState(): Promise<boolean> {
+  private async refreshState(signal?: AbortSignal): Promise<boolean> {
     const generation = this.connectionGeneration;
-    const { data, error } = await this.client.from('dh_world_state')
+    const { data, error, status } = await abortable(this.client.from('dh_world_state')
       .select('key,value,revision')
       .eq('owner_id', this.ownerId)
-      .eq('world_id', this.worldId);
-    if (generation !== this.connectionGeneration) return false;
+      .eq('world_id', this.worldId), signal);
+    if (generation !== this.connectionGeneration || signal?.aborted) return false;
     if (error) {
-      const failure = this.relayError(error.message);
+      const failure = this.relayError(error.message, status);
       this.report(failure, 'refresh-state');
       throw failure;
     }
@@ -345,17 +383,17 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     return true;
   }
 
-  private async refreshEvents(): Promise<void> {
+  private async refreshEvents(signal?: AbortSignal): Promise<void> {
     const generation = this.connectionGeneration;
-    const { data, error } = await this.client.from('dh_room_events')
+    const { data, error, status } = await abortable(this.client.from('dh_room_events')
       .select('sequence,room_id,incarnation,author_peer_id,target_peer_id,envelope')
       .eq('room_id', this.roomId)
       .eq('incarnation', this.incarnation)
       .gt('sequence', this.cursor)
-      .order('sequence');
-    if (generation !== this.connectionGeneration) return;
+      .order('sequence'), signal);
+    if (generation !== this.connectionGeneration || signal?.aborted) return;
     if (error) {
-      const failure = this.relayError(error.message);
+      const failure = this.relayError(error.message, status);
       this.report(failure, 'refresh-events');
       throw failure;
     }
@@ -366,14 +404,15 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     for (const sequence of this.seenEventSequences) if (sequence <= this.cursor) this.seenEventSequences.delete(sequence);
   }
 
-  private async refreshRoster(): Promise<void> {
+  private async refreshRoster(signal?: AbortSignal, strict = false): Promise<void> {
     const generation = this.connectionGeneration;
-    const { data, error } = await this.client.from('dh_room_members')
+    const { data, error, status } = await abortable(this.client.from('dh_room_members')
       .select('peer_id,display_name,role,last_seen_at')
       .eq('room_id', this.roomId)
-      .eq('incarnation', this.incarnation);
-    if (generation !== this.connectionGeneration) return;
+      .eq('incarnation', this.incarnation), signal);
+    if (generation !== this.connectionGeneration || signal?.aborted) return;
     if (error) {
+      if (strict) throw this.relayError(error.message, status);
       this.report(error, 'refresh-roster');
       this.emitError(error.message);
       return;
@@ -504,10 +543,10 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     }, HEARTBEAT_MS) as unknown as number;
   }
 
-  private async rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
-    const { data, error } = await this.client.rpc(name, args);
+  private async rpc<T>(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+    const { data, error, status } = await abortable(this.client.rpc(name, args), signal);
     if (error) {
-      const failure = this.relayError(error.message);
+      const failure = this.relayError(error.message, status);
       if (failure.code !== 'room_not_found' && failure.code !== 'master_offline') this.report(failure, name);
       throw failure;
     }
@@ -532,10 +571,12 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     });
   }
 
-  private relayError(message: string): RelayTransportError {
+  private relayError(message: string, status?: number): RelayTransportError {
     const knownCode = ['room_not_found', 'master_offline', 'room_in_use', 'participant_in_use', 'rate_limited']
       .find((code) => message.includes(code));
-    return new RelayTransportError(message, knownCode ?? 'server_error', knownCode === 'room_not_found' ? 404 : 500);
+    const code = knownCode ?? (status === 0 ? 'network_error' : status === 401 || status === 403 ? 'auth_failed' : status === 429 ? 'rate_limited' : 'server_error');
+    const observedStatus = typeof status === 'number' && status >= 100 && status <= 599 ? status : undefined;
+    return new RelayTransportError(message, code, observedStatus ?? (knownCode === 'room_not_found' ? 404 : 500), observedStatus);
   }
 
   private emitError(message: string): void {
@@ -553,7 +594,13 @@ async function subscribeChannel(channel: RealtimeChannel, onStatus: (status: str
     channel.subscribe((status, error) => {
       onStatus(status);
       if (status === 'SUBSCRIBED') resolve();
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') reject(error ?? new Error(`Realtime ${status}`));
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        reject(Object.assign(new Error('Realtime subscription failed'), { code: status === 'CLOSED' ? 'realtime_closed' : status === 'TIMED_OUT' ? 'timeout' : 'realtime_error' }));
+      }
     });
   });
+}
+
+function abortable<T>(query: PromiseLike<T> & { abortSignal?: (signal: AbortSignal) => PromiseLike<T> }, signal?: AbortSignal): PromiseLike<T> {
+  return signal && query.abortSignal ? query.abortSignal(signal) : query;
 }

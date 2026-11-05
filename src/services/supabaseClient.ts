@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Store } from '../core/store/Store';
 import type { SupabaseSessionConfig } from '../domain/p2p/supabaseSession';
+import type { ConnectionDiagnostics } from './p2p/ConnectionDiagnostics';
 import { reportOperationalError } from '../core/observability/sentry';
 
 export interface SupabaseMasterAuthState {
@@ -42,14 +43,29 @@ export async function readSupabaseAccessToken(
   return data.session?.access_token ?? null;
 }
 
-export async function ensureSupabaseGuestSignedIn(config: SupabaseSessionConfig): Promise<void> {
+export async function ensureSupabaseGuestSignedIn(config: SupabaseSessionConfig, diagnostics?: ConnectionDiagnostics): Promise<void> {
   ensureClients(config);
-  const current = await guestClient!.auth.getUser();
+  const checkSession = async () => {
+    const result = await guestClient!.auth.getUser();
+    // Missing/expired credentials can legitimately fall through to anonymous sign-in.
+    // Transport/server failures cannot be repaired by creating another guest session.
+    if (result.error && result.error.name !== 'AuthSessionMissingError' && result.error.status !== 401
+      && !['session_not_found', 'refresh_token_not_found', 'refresh_token_already_used', 'bad_jwt'].includes(result.error.code ?? '')) throw result.error;
+    return result;
+  };
+  const current = await (diagnostics ? diagnostics.run('auth-session', checkSession) : checkSession());
   if (current.data.user?.is_anonymous && !current.error) return;
-  await guestClient!.auth.signOut({ scope: 'local' });
-  const { data, error } = await guestClient!.auth.signInAnonymously();
-  if (error || !data.user?.is_anonymous) {
-    const failure = error ?? new Error('anonymous_sign_in_failed');
+  const signIn = async (signal?: AbortSignal) => {
+    await guestClient!.auth.signOut({ scope: 'local' });
+    if (signal?.aborted) throw Object.assign(new Error('cancelled'), { code: 'cancelled' });
+    // The auth SDK cannot cancel an in-flight sign-in. Do not retry automatically.
+    const result = await guestClient!.auth.signInAnonymously();
+    if (result.error || !result.data.user?.is_anonymous) throw result.error ?? Object.assign(new Error('anonymous_sign_in_failed'), { code: 'auth_failed' });
+    return result;
+  };
+  try {
+    await (diagnostics ? diagnostics.run('auth-sign-in', signIn) : signIn());
+  } catch (failure) {
     reportOperationalError(failure, { area: 'auth', operation: 'sign-in-anonymous', tags: { provider: 'supabase' } });
     throw failure;
   }

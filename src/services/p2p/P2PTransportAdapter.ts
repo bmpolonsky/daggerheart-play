@@ -1,3 +1,5 @@
+import type { ConnectionStageDiagnostic } from '../../domain/p2p/connectionDiagnostics';
+
 export type P2PWireRole = 'gm' | 'player';
 export type P2PTargetPeer = string | undefined;
 export type P2PTransportStrategy = 'supabase' | 'nostr' | 'torrent';
@@ -17,7 +19,7 @@ export interface P2PTransportMessageContext {
 
 export interface P2PTransportRouteDiagnostic {
   strategy: P2PTransportStrategy;
-  status: 'probing' | 'ready' | 'degraded' | 'failed';
+  status: 'waiting' | 'probing' | 'ready' | 'degraded' | 'failed';
   activePeers: string[];
   lastSeenAt: number | null;
   rttMs: number | null;
@@ -104,7 +106,7 @@ export interface P2PTransportAdapter {
   readonly label: string;
   peerId: string;
   readonly sessionMode?: P2PSessionTransportMode;
-  connect(roomId: string): Promise<void>;
+  connect(roomId: string, diagnosticAttempt?: number): Promise<void>;
   disconnect(): Promise<void>;
   send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void>;
   subscribe(listener: (envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void): () => void;
@@ -121,6 +123,7 @@ export interface P2PTransportAdapter {
   removeMediaStream?(stream: MediaStream): void;
   addMediaTrack?(track: MediaStreamTrack, stream: MediaStream, metadata?: unknown): Promise<void>;
   subscribeMediaStreams?(listener: (stream: MediaStream, peerId: string, metadata?: unknown) => void): () => void;
+  getConnectionDiagnostics?(): ConnectionStageDiagnostic[];
   getRouteDiagnostics?(): P2PTransportRouteDiagnostic[];
   getPeerDiagnostics?(): P2PTransportPeerDiagnostic[];
   getRoster?(): P2PTransportRosterEntry[];

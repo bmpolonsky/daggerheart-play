@@ -67,7 +67,7 @@ function setup(role: 'gm' | 'player' = 'player') {
   };
   internals.playerActorContext = { participantId: 'owner', actorId: actor.id, actorName: 'Owner' };
   internals.activeRoomConnection = { gmPeerId: () => 'gm-peer', peers: () => ['gm-peer', 'player-peer'],
-    routeDiagnostics: () => [], peerDiagnostics: () => [], sessionMode: () => 'p2p', directPeerIds: () => ['gm-peer', 'player-peer'] };
+    connectionDiagnostics: () => [], routeDiagnostics: () => [], peerDiagnostics: () => [], sessionMode: () => 'p2p', directPeerIds: () => ['gm-peer', 'player-peer'] };
   internals.sessionStore.set({ ...internals.sessionStore.get(), role, connected: true, status: 'connected', roomId: 'EXTRAS', peers: ['gm-peer', 'player-peer'], lastSnapshotAt: 'now' });
   const gmContext = { sourcePeerId: 'gm-peer', verifiedSourcePeerId: 'verified-gm' };
   const playerContext = { logicalPeerId: 'player-peer', verifiedPeerId: 'verified-player' };

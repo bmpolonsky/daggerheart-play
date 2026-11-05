@@ -27,23 +27,14 @@ export function reportOperationalError(error: unknown, context: OperationalError
     Sentry.withScope((scope) => {
       scope.setTag('diagnostic.area', context.area);
       scope.setTag('diagnostic.operation', context.operation);
-      for (const [key, value] of Object.entries(context.tags ?? {})) {
-        if (value !== undefined && value !== null) scope.setTag(key, String(value));
-      }
-      for (const key of ['roomId', 'worldId', 'participantId'] as const) {
-        const value = context.details?.[key];
-        if (value !== undefined && value !== null) scope.setTag(`diagnostic.${key}`, String(value));
-      }
-      const errorMetadata = readErrorMetadata(error);
-      if (errorMetadata.code) scope.setTag('diagnostic.errorCode', errorMetadata.code);
-      if (errorMetadata.status) scope.setTag('diagnostic.httpStatus', errorMetadata.status);
-      scope.setContext('operation', compactValues({
+      const safe = safeOperationalError(error, context);
+      for (const [key, value] of Object.entries(safe.tags)) scope.setTag(key, value);
+      scope.setContext('operation', {
         area: context.area,
         operation: context.operation,
-        online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
-        ...context.details
-      }));
-      Sentry.captureException(asError(error));
+        online: typeof navigator === 'undefined' ? undefined : navigator.onLine
+      });
+      Sentry.captureException(safe.error);
     });
   });
 }
@@ -55,8 +46,10 @@ export function sanitizeDiagnosticUrl(value: string): string {
   if (!/^(?:https?|wss?):\/\//i.test(redacted)) return redacted;
   try {
     const url = new URL(redacted);
+    url.username = '';
+    url.password = '';
     url.search = '';
-    url.hash = url.hash.replace(/#\/(join|player)\/[^/?#]+/i, '#/$1/:roomCode');
+    url.hash = /^#\/(join|player)\//i.test(url.hash) ? url.hash.replace(/(#\/(join|player)\/).*/i, '$1:roomCode') : '';
     url.pathname = url.pathname
       .replace(/\/(join|player)\/[^/?#]+/gi, '/$1/:roomCode')
       .replace(/(\/storage\/v1\/object\/world-assets)\/[^/]+\/[^/]+\/assets\/[^/?#]+/i, '$1/:owner/:world/assets/:asset');
@@ -86,7 +79,7 @@ function loadSentry(): Promise<typeof SentryBrowser | null> {
         },
         beforeSend: (event) => {
           if (event.request?.url) event.request.url = sanitizeDiagnosticUrl(event.request.url);
-          return event;
+          return sanitizeOperationalEvent(event);
         },
         integrations: (integrations) => [
           ...integrations,
@@ -119,15 +112,46 @@ function asError(error: unknown): Error {
   }
 }
 
-function readErrorMetadata(error: unknown): { code?: string; status?: string } {
-  if (!error || typeof error !== 'object') return {};
-  const record = error as Record<string, unknown>;
-  const code = typeof record.code === 'string' || typeof record.code === 'number' ? String(record.code) : undefined;
-  const statusValue = record.status ?? record.statusCode;
-  const status = typeof statusValue === 'string' || typeof statusValue === 'number' ? String(statusValue) : undefined;
-  return { code, status };
+const SAFE_ERROR_CODES = new Set([
+  'auth_failed', 'auth_required', 'room_not_found', 'master_offline', 'room_in_use',
+  'participant_in_use', 'rate_limited', 'server_error', 'timeout', 'cancelled',
+  'network_error', 'realtime_error', 'realtime_closed', 'operation_failed'
+]);
+
+/** No identifier, request payload or arbitrary backend error text leaves this boundary. */
+export function safeOperationalError(error: unknown, context: OperationalErrorContext): { error: Error; tags: Record<string, string> } {
+  const tags: Record<string, string> = {};
+  const record = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+  const code = record.code ?? context.tags?.errorCode;
+  if (typeof code === 'string' && SAFE_ERROR_CODES.has(code)) tags['diagnostic.errorCode'] = code;
+  const status = Number(record.status ?? record.statusCode);
+  if (Number.isInteger(status) && status >= 100 && status <= 599) tags['diagnostic.httpStatus'] = String(status);
+  if (context.tags?.provider === 'supabase') tags.provider = 'supabase';
+  if (context.tags?.role === 'gm' || context.tags?.role === 'player') tags.role = context.tags.role;
+  // Network/auth exceptions may embed JWTs, RPC arguments, signed URLs or room codes.
+  const safeError = context.area === 'network' || context.area === 'auth'
+    ? new Error(`Connection operation failed (${tags['diagnostic.errorCode'] ?? 'unknown_error'})`)
+    : asError(error);
+  return { error: safeError, tags };
 }
 
-function compactValues(values: Record<string, DiagnosticValue>): Record<string, string | number | boolean | null> {
-  return Object.fromEntries(Object.entries(values).filter((entry): entry is [string, string | number | boolean | null] => entry[1] !== undefined));
+export function sanitizeOperationalEvent<T extends SentryBrowser.ErrorEvent>(event: T): T {
+  if (event.tags?.['diagnostic.area'] !== 'network' && event.tags?.['diagnostic.area'] !== 'auth') return event;
+  // SDK-collected breadcrumbs, request headers and extra context can undo an otherwise
+  // sanitized exception. This applies only to our network/auth operational reports.
+  delete event.breadcrumbs;
+  delete event.request;
+  delete event.user;
+  delete event.extra;
+  event.contexts = event.contexts?.operation ? { operation: event.contexts.operation } : {};
+  if (event.exception?.values) {
+    event.exception.values = event.exception.values.map(value => ({
+      type: 'Error', value: 'Connection operation failed', mechanism: value.mechanism
+    }));
+  }
+  delete event.message;
+  delete event.transaction;
+  const allowedTags = new Set(['diagnostic.area', 'diagnostic.operation', 'diagnostic.errorCode', 'diagnostic.httpStatus', 'provider', 'role']);
+  event.tags = Object.fromEntries(Object.entries(event.tags ?? {}).filter(([key]) => allowedTags.has(key)));
+  return event;
 }

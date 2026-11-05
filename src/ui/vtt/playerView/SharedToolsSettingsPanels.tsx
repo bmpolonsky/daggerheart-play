@@ -1,4 +1,6 @@
 /** @jsxImportSource preact */
+import { getTechnicalJournal } from '../../../core/observability/technicalJournal';
+import { CONNECTION_STAGE_LABELS, CONNECTION_STAGE_STATUS_LABELS, connectionDiagnosticHint, connectionStageErrorLabel, createSafeDiagnosticReport, orderedConnectionStages, stageElapsedMs } from '../../../domain/p2p/diagnosticReport';
 import { contentAccessForGame, normalizeContentAccess } from '../../../domain/content/access';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -311,7 +313,7 @@ export function SharedToolsConnectionSettingsPanel({
 
 export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: { compact?: boolean; role: TableViewRole }) {
   const liveSession = useStream(p2pSessionService.session$);
-  const usesServer = liveSession.transportMode === 'hybrid';
+  const usesServer = (e2eP2PDiagnosticsFixture() ?? liveSession).transportMode === 'hybrid';
   const call = useStream(mediaCallService.call$);
   const session = e2eP2PDiagnosticsFixture() ?? liveSession;
   const {
@@ -343,13 +345,8 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   });
   const [mediaDiagnostics, setMediaDiagnostics] = useState<DisplayMediaConnectionDiagnostic[]>([]);
   const previousMediaSamples = useRef(new Map<string, MediaCounterSample>());
-  const technicalReport = JSON.stringify({
-    generatedAt: new Date().toISOString(),
-    page: window.location.href,
-    browser: navigator.userAgent,
-    session,
-    media: mediaDiagnostics
-  }, null, 2);
+  const [diagnosticNow, setDiagnosticNow] = useState(Date.now());
+  const technicalReport = JSON.stringify(createSafeDiagnosticReport(session, mediaDiagnostics, diagnosticNow, __APP_RELEASE__, navigator.onLine, getTechnicalJournal()), null, 2);
 
   const copyTechnicalReport = async () => {
     try {
@@ -369,6 +366,7 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     };
     void refresh();
     const timer = window.setInterval(() => {
+      setDiagnosticNow(Date.now());
       void refresh();
     }, 1000);
     return () => {
@@ -387,6 +385,27 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
         </dl>
       )}
+      <section aria-label="Этапы подключения">
+        <strong>Где находится подключение</strong>
+        <p role="status">{connectionDiagnosticHint(session)}</p>
+        <small>Отчёт не содержит ссылку или код комнаты, имена, идентификаторы и токены. Журнал хранится только в памяти: до 500 событий, 256 КиБ и 24 часов; исчезнет при перезагрузке страницы.</small>
+        <dl className="player-tools-sync__meta player-tools-connection-stages">
+          {orderedConnectionStages(session.connectionDiagnostics ?? []).map((stage) => (
+            <div key={stage.id}>
+              <dt>{CONNECTION_STAGE_LABELS[stage.id]}</dt>
+              <dd>
+                <Badge tone={stage.status === 'failed' || stage.status === 'timed-out' ? 'danger' : stage.status === 'succeeded' ? 'success' : stage.status === 'running' ? 'blue' : 'neutral'}>
+                  {CONNECTION_STAGE_STATUS_LABELS[stage.status]}
+                </Badge>
+                {stage.startedAt !== null && ` · ${((stageElapsedMs(stage, diagnosticNow) ?? 0) / 1000).toFixed(1)} с`}
+                {stage.status === 'running' && ` из ${Math.round(stage.timeoutMs / 1000)} с`}
+                {stage.httpStatus !== undefined && ` · HTTP ${stage.httpStatus}`}
+                {connectionStageErrorLabel(stage.errorCode) && <small>{connectionStageErrorLabel(stage.errorCode)}</small>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
       <div className="player-tools-peer-list" aria-label={usesServer ? 'Облачное и прямое соединение' : 'Маршруты соединений'}>
         {usesServer && (
           <Card
@@ -691,6 +710,8 @@ function transportRouteDetail(route: P2PTransportRouteDiagnostic): string {
   if (route.error) return route.error;
   const parts: string[] = [];
   if (route.activePeers.length > 0) parts.push(`${route.activePeers.length} подключ.`);
+  else if (route.status === 'ready') parts.push('ожидает участников');
+  else if (route.status === 'waiting') parts.push('ещё не запущен');
   if (route.rttMs !== null) parts.push(`${Math.round(route.rttMs)} мс`);
   return parts.join(' — ');
 }
@@ -706,7 +727,7 @@ function peerRouteTone(route?: P2PTransportPeerRouteDiagnostic): BadgeTone {
 
 function transportRouteTone(route?: P2PTransportRouteDiagnostic): BadgeTone {
   if (!route) return 'neutral';
-  if (route.status === 'ready') return 'neutral';
+  if (route.status === 'ready' || route.status === 'waiting') return 'neutral';
   if (route.status === 'probing') return 'blue';
   if (route.status === 'failed') return 'danger';
   return 'gold';
@@ -738,10 +759,12 @@ function formatPeerRouteTitle(route?: P2PTransportPeerRouteDiagnostic): string {
 
 function formatRouteStatus(status: P2PTransportRouteDiagnostic['status']): string {
   switch (status) {
+    case 'waiting':
+      return 'ожидает облако';
     case 'ready':
       return 'инициализирован';
     case 'probing':
-      return 'проверка';
+      return 'запуск';
     case 'failed':
       return 'ошибка';
     case 'degraded':

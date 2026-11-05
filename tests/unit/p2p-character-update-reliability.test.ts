@@ -53,7 +53,7 @@ test('pending character update remains until matching ACK and is retried after G
   internals.playerActorContext = { participantId: 'player-1', actorId: actor.id, actorName: 'Игрок' };
   internals.activeRoomConnection = {
     gmPeerId: () => 'gm-peer',
-    routeDiagnostics: () => [],
+    connectionDiagnostics: () => [], routeDiagnostics: () => [],
     peerDiagnostics: () => []
   } as unknown as P2PRoomConnection;
   internals.pendingPlayerCharacterUpdates.set(actor.id, { message });

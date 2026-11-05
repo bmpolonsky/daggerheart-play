@@ -142,6 +142,101 @@ async function openGameDiagnostics(page: Page): Promise<Locator> {
 }
 
 test.describe('P2P session workflow', () => {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 }]) {
+    for (const scenario of ['auth-stalled', 'cloud-ready', 'p2p-fallback', 'optional-direct-failed'] as const) {
+      test(`connection stage report ${scenario} at ${viewport.width}px`, async ({ page }, testInfo) => {
+        await page.setViewportSize(viewport);
+        const fixture = connectedDiagnosticsFixture([]);
+        fixture.roomId = 'PRIVATE-ROOM-SENTINEL';
+        fixture.peerId = 'PRIVATE-PEER-SENTINEL';
+        fixture.message = 'PRIVATE-MESSAGE-SENTINEL';
+        fixture.transportMode = scenario === 'p2p-fallback' ? 'p2p' : 'hybrid';
+        fixture.connected = scenario !== 'auth-stalled';
+        fixture.status = scenario === 'auth-stalled' ? 'connecting' : 'connected';
+        fixture.connectionDiagnostics = [{
+          id: scenario === 'auth-stalled' ? 'auth-session' : scenario === 'p2p-fallback' ? 'room-join' : 'state',
+          status: scenario === 'auth-stalled' ? 'running' : scenario === 'p2p-fallback' ? 'failed' : 'succeeded',
+          startedAt: 0, finishedAt: scenario === 'auth-stalled' ? null : 1200, timeoutMs: 15_000,
+          ...(scenario === 'p2p-fallback' ? { errorCode: 'room_not_found' as const, httpStatus: 404 } : {})
+        }];
+        if (scenario === 'optional-direct-failed') fixture.connectionDiagnostics.push({
+          id: 'p2p-supabase', status: 'timed-out', startedAt: 0, finishedAt: 15_000,
+          timeoutMs: 15_000, errorCode: 'timeout'
+        });
+        await page.addInitScript((state) => {
+          const now = Date.now();
+          state.connectionDiagnostics?.forEach(stage => {
+            stage.startedAt = now - 1500;
+            if (stage.finishedAt !== null) stage.finishedAt = stage.startedAt + stage.finishedAt;
+          });
+          const scope = window as typeof window & {
+            __DAGGERHEART_E2E_P2P_DIAGNOSTICS__?: typeof state;
+            __copiedDiagnosticReport?: string;
+          };
+          scope.__DAGGERHEART_E2E_P2P_DIAGNOSTICS__ = state;
+          Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+            writeText: async (text: string) => { scope.__copiedDiagnosticReport = text; }
+          } });
+        }, fixture);
+        await openGmGame(page);
+        if (viewport.width < 600) await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
+        const dialog = await openGameDiagnostics(page);
+        const stages = dialog.getByLabel('Этапы подключения');
+        await expect(stages).toBeVisible();
+        await expectInsideViewport(page, dialog.locator('.p2p-health-dialog'));
+        const hint = stages.getByRole('status');
+        if (scenario === 'auth-stalled') {
+          await expect(hint).toContainText('Сейчас: Проверка входа в Supabase');
+          const row = stages.locator('dd').first();
+          await expect(row).toContainText('из 15 с');
+          const initial = await row.innerText();
+          await expect.poll(() => row.innerText()).not.toBe(initial);
+          await page.evaluate(() => {
+            const state = (window as any).__DAGGERHEART_E2E_P2P_DIAGNOSTICS__;
+            const stage = state.connectionDiagnostics[0];
+            stage.status = 'timed-out'; stage.errorCode = 'timeout';
+            stage.finishedAt = stage.startedAt + 15000;
+          });
+          await expect(hint).toContainText('Supabase не ответил вовремя');
+          await expect(hint).toContainText('Это не доказывает блокировку');
+          await expect(row).toContainText('15.0 с');
+        } else if (scenario === 'p2p-fallback') {
+          await expect(hint).toContainText('подключение продолжено по P2P');
+          await expect(stages).toContainText('HTTP 404');
+        } else {
+          await expect(hint).toContainText('Облачное подключение готово');
+          await expect(hint).toContainText('Мастер ожидает игроков');
+          if (scenario === 'optional-direct-failed') await expect(stages).toContainText('время ожидания истекло');
+        }
+        await dialog.getByText('Технические данные', { exact: true }).click();
+        const report = dialog.locator('.player-tools-technical-report');
+        const text = await report.innerText();
+        expect(text).not.toContain('PRIVATE-');
+        const parsed = JSON.parse(text);
+        expect(parsed.schemaVersion).toBe(2);
+        expect(parsed.session.peers).toBe(0);
+        expect(parsed.session.transportMode).toBe(fixture.transportMode);
+        expect(parsed.session.connectionDiagnostics).toHaveLength(fixture.connectionDiagnostics.length);
+        expect(Array.isArray(parsed.journal)).toBe(true);
+        await dialog.getByRole('button', { name: 'Скопировать отчёт', exact: true }).click();
+        const copied = await page.evaluate(() => (window as any).__copiedDiagnosticReport);
+        expect(copied).not.toContain('PRIVATE-');
+        expect(JSON.parse(copied).session).toEqual(parsed.session);
+        for (const row of await stages.locator('dd').all()) {
+          await expect(row).toHaveCSS('white-space', 'normal');
+          expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+          for (const badge of await row.locator('.dh-badge').all()) {
+            expect(await badge.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+          }
+        }
+        await stages.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath('diagnostic-state.png') });
+        await page.keyboard.press('Escape');
+        await expect(dialog).toHaveCount(0);
+      });
+    }
+  }
+
   test('mobile diagnostics live in Chronicle and portal above every active VTT layer', async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -615,17 +710,26 @@ test.describe('P2P session workflow', () => {
       await expect(gmMusic).toBeVisible();
       await gm.evaluate(() => {
         const mediaDevices = navigator.mediaDevices ?? {};
+        const scope = window as typeof window & { __e2eDisplayCaptureCalls: number };
+        scope.__e2eDisplayCaptureCalls = 0;
         Object.defineProperty(mediaDevices, 'getDisplayMedia', {
           configurable: true,
-          value: async () => { throw new Error('Тестовая ошибка захвата вкладки'); }
+          value: async () => {
+            scope.__e2eDisplayCaptureCalls += 1;
+            throw new Error('Тестовая ошибка захвата вкладки');
+          }
         });
-        if (!navigator.mediaDevices) {
-          Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: mediaDevices });
-        }
+        // WebKit can collect its unretained native wrapper and lose instance
+        // expandos. Keep this exact mocked wrapper alive for the whole page.
+        Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: mediaDevices });
       });
+      await gm.requestGC();
+      await gm.requestGC();
+      expect(await gm.evaluate(() => Object.hasOwn(navigator.mediaDevices, 'getDisplayMedia')), 'Capture mock must survive GC before any production click').toBe(true);
       const reloadedTabAudio = gm.getByRole('region', { name: 'Звук вкладки' });
       await reloadedTabAudio.getByRole('button', { name: 'Начать трансляцию' }).click();
       await expect(reloadedTabAudio).toContainText('Тестовая ошибка захвата вкладки');
+      expect(await gm.evaluate(() => (window as typeof window & { __e2eDisplayCaptureCalls: number }).__e2eDisplayCaptureCalls)).toBe(1);
     } finally {
       await relay.close();
     }

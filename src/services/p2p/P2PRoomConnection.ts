@@ -1,3 +1,5 @@
+import { nextConnectionAttempt } from '../../domain/p2p/connectionDiagnostics';
+import { ConnectionDiagnostics, ConnectionStageError } from './ConnectionDiagnostics';
 import { createId } from '../../core/utils/id';
 import { nowIso } from '../../core/utils/date';
 import type { SyncEvent, SyncEventContext, SyncTargetPeer, SyncTransport, TableParticipant } from '../../domain/tabletop/types';
@@ -32,6 +34,9 @@ export class P2PRoomConnection implements SyncTransport {
   readonly label: string;
   readonly supportsMedia: boolean;
 
+  private connectionGeneration = 0;
+  private diagnostics = new ConnectionDiagnostics(() => this.emitRoomEvent({ type: 'diagnostics-updated', peers: this.peers() }));
+  connectionDiagnostics() { return [...(this.adapter.getConnectionDiagnostics?.() ?? []), ...this.diagnostics.snapshot()]; }
   private roomId = '';
   private role: P2PWireRole | null = null;
   private peerIds = new Set<string>();
@@ -111,6 +116,9 @@ export class P2PRoomConnection implements SyncTransport {
 
   async connect(roomId: string, participant: TableParticipant): Promise<void> {
     await this.disconnect();
+    const generation = ++this.connectionGeneration;
+    const diagnosticAttempt = nextConnectionAttempt();
+    this.diagnostics.reset(['handshake'], diagnosticAttempt);
     this.roomId = roomId;
     this.role = participant.role === 'gm' ? 'gm' : 'player';
     this.localParticipant = {
@@ -128,18 +136,28 @@ export class P2PRoomConnection implements SyncTransport {
     this.ready = false;
     this.adapter.peerId = participant.id;
     this.bindAdapterEvents();
-    await this.adapter.connect(roomId);
-    await this.sendControl(this.helloPayload());
-    if (this.role === 'player') {
-      await this.sendControl({ type: 'player-ping' });
-    }
+    await this.adapter.connect(roomId, diagnosticAttempt);
+    if (generation !== this.connectionGeneration) throw new ConnectionStageError('cancelled', 'handshake');
+    await this.diagnostics.run('handshake', async signal => {
+      await this.sendControl(this.helloPayload());
+      if (signal.aborted || generation !== this.connectionGeneration) throw new ConnectionStageError('cancelled', 'handshake');
+      if (this.role === 'player') await this.sendControl({ type: 'player-ping' });
+    });
+    if (generation !== this.connectionGeneration) throw new ConnectionStageError('cancelled', 'handshake');
     this.startHeartbeat();
     this.ready = true;
     this.emitRoomEvent({ type: 'ready', role: this.role, roomId, peerId: this.peerId, peers: this.peers() });
   }
 
   async disconnect(): Promise<void> {
-    await this.sendControl({ type: 'goodbye' }).catch(() => undefined);
+    this.connectionGeneration += 1;
+    this.diagnostics.cancel();
+    // Best effort goodbye must not keep the failure screen or the next join waiting indefinitely.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([this.sendControl({ type: 'goodbye' }).catch(() => undefined),
+        new Promise<void>(resolve => { timer = setTimeout(resolve, 2000); })]);
+    } finally { if (timer !== undefined) clearTimeout(timer); }
     this.stopHeartbeat();
     this.unsubscribeAdapter.splice(0).forEach((unsubscribe) => unsubscribe());
     await this.adapter.disconnect();

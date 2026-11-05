@@ -3481,3 +3481,28 @@ textarea.player-compendium-statblock__weapon {
   .character-editor-compact .character-editor-heading .dh-section-header__actions,
   .character-editor-compact .character-editor-heading .dh-toolbar { justify-content: flex-start; }
 }
+
+/* Stage errors and elapsed time must stay readable, including in the compact dialog. */
+.player-tools-diagnostics .player-tools-connection-stages {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.player-tools-connection-stages dd {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.player-tools-connection-stages dd small {
+  display: block;
+}
+
+.player-tools-connection-stages .dh-badge {
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.3;
+}

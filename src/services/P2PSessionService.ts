@@ -79,6 +79,8 @@ import { reportOperationalError } from '../core/observability/sentry';
 import { applyCharacterPatch, createCharacterPatch, createCharacterRollbackPatch, rollbackRejectedCharacterPatch, isCharacterPatch, type CharacterPatch } from '../domain/p2p/characterPatch';
 import { isPlayerCharacterUpdateMessage, playerCharacterUpdateOperationHash, playerRollIntentOperationHash } from './SyncService';
 
+import type { ConnectionStageDiagnostic } from '../domain/p2p/connectionDiagnostics';
+
 export type P2PSessionRole = 'gm' | 'player';
 export type P2PConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'degraded' | 'error';
 
@@ -95,6 +97,7 @@ export interface CharacterSyncDelivery {
 
 export interface P2PSessionState {
   connected: boolean;
+  connectionDiagnostics?: ConnectionStageDiagnostic[];
   status: P2PConnectionStatus;
   role: P2PSessionRole | null;
   roomId: string;
@@ -2249,6 +2252,9 @@ export class P2PSessionService {
   }
 
   private handleRoomConnectionEvent(event: P2PRoomConnectionEvent): void {
+    const connectionDiagnostics = this.activeRoomConnection?.connectionDiagnostics() ?? [];
+    // Persist the stage history before error cleanup detaches the active transport.
+    this.patchSession({ connectionDiagnostics });
     const routes = this.activeRoomConnection?.routeDiagnostics() ?? [];
     const routePeers = this.activeRoomConnection?.peerDiagnostics() ?? [];
     const transportMode = this.activeRoomConnection?.sessionMode?.() ?? 'p2p';

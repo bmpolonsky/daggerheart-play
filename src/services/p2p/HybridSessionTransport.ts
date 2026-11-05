@@ -42,6 +42,9 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   private roomId = '';
   private retryTimer: number | undefined;
   private connected = false;
+  private directStarted = false;
+  private diagnosticAttempt?: number;
+  private connectionGeneration = 0;
   private directOnly = false;
 
   constructor(
@@ -64,29 +67,37 @@ export class HybridSessionTransport implements P2PTransportAdapter {
   private readonly serverFirst: boolean;
   private readonly fallbackToDirect: boolean;
 
-  async connect(roomId: string): Promise<void> {
+  async connect(roomId: string, diagnosticAttempt?: number): Promise<void> {
     await this.disconnect();
+    const generation = ++this.connectionGeneration;
+    this.diagnosticAttempt = diagnosticAttempt;
     this.connected = true;
+    this.directStarted = false;
     this.directOnly = false;
     this.sessionMode = 'hybrid';
     this.roomId = roomId;
     this.bind();
     try {
-      await this.server.connect(roomId);
+      await this.server.connect(roomId, diagnosticAttempt);
+      if (generation !== this.connectionGeneration) return;
     } catch (error) {
+      if (generation !== this.connectionGeneration) throw error;
       const serverRoomUnavailable = error instanceof RelayTransportError
         && (error.code === 'room_not_found' || error.code === 'master_offline');
       if (!this.fallbackToDirect || !serverRoomUnavailable) throw error;
       this.directOnly = true;
       this.sessionMode = 'p2p';
-      await this.direct.connect(roomId);
+      this.directStarted = true;
+      await this.direct.connect(roomId, diagnosticAttempt);
       return;
     }
     void this.connectDirect();
   }
 
   async disconnect(): Promise<void> {
+    this.connectionGeneration += 1;
     this.connected = false;
+    this.directStarted = false;
     this.directOnly = false;
     this.sessionMode = 'hybrid';
     this.roomId = '';
@@ -229,18 +240,25 @@ export class HybridSessionTransport implements P2PTransportAdapter {
     return Array.from(this.directPeers);
   }
 
-  getRouteDiagnostics = () => this.direct.getRouteDiagnostics?.() ?? [];
+  getConnectionDiagnostics = () => [...(this.server.getConnectionDiagnostics?.() ?? []), ...(this.direct.getConnectionDiagnostics?.() ?? [])];
+  getRouteDiagnostics = () => (this.direct.getRouteDiagnostics?.() ?? []).map(route =>
+    !this.directStarted ? { ...route, status: 'waiting' as const } : route);
   getPeerDiagnostics = () => this.direct.getPeerDiagnostics?.() ?? [];
   getMediaDiagnostics = () => this.direct.getMediaDiagnostics?.() ?? Promise.resolve([]);
 
   private async connectDirect(): Promise<void> {
     if (!this.connected || !this.roomId) return;
+    const generation = this.connectionGeneration;
+    this.directStarted = true;
+    this.emitDiagnostics();
     try {
-      await this.direct.connect(this.roomId);
+      await this.direct.connect(this.roomId, this.diagnosticAttempt);
+      if (generation !== this.connectionGeneration) return;
       this.emitDiagnostics();
     } catch {
       if (!this.connected) return;
       globalThis.clearTimeout(this.retryTimer);
+      if (generation !== this.connectionGeneration || !this.connected) return;
       this.retryTimer = globalThis.setTimeout(() => void this.connectDirect(), DIRECT_RETRY_MS) as unknown as number;
       this.emitDiagnostics();
     }
@@ -274,6 +292,7 @@ export class HybridSessionTransport implements P2PTransportAdapter {
         this.emitDiagnostics();
       }),
       this.direct.onDiagnosticsChange?.(() => this.emitDiagnostics()) ?? (() => undefined),
+      this.server.onDiagnosticsChange?.(() => this.emitDiagnostics()) ?? (() => undefined),
       this.direct.onRouteSwitch?.((event) => this.routeSwitchListeners.forEach((listener) => listener(event))) ?? (() => undefined)
     );
   }

@@ -29,6 +29,10 @@ async function chooseRichOptionByTitle(page: Page, label: string, title: string)
 
 test.describe('strict character level-up', () => {
   test('derives effects from weighted choices and applies only a complete valid level-up', async ({ page }) => {
+    // Linux WebKit CI measured 7.5s fixture startup plus 23s of progressing
+    // wizard actions before the final review. Keep individual action limits,
+    // but budget this full multi-dialog journey rather than a single screen.
+    test.setTimeout(60_000);
     const { editor, levelUp } = await test.step('Open populated game and level-up wizard', async () => {
       await page.setViewportSize({ width: 1280, height: 860 });
       await openFilledGmGame(page);
