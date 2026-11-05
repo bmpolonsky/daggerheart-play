@@ -29,53 +29,68 @@ async function chooseRichOptionByTitle(page: Page, label: string, title: string)
 
 test.describe('strict character level-up', () => {
   test('derives effects from weighted choices and applies only a complete valid level-up', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 860 });
-    await openFilledGmGame(page);
-    await openGameLibrary(page);
+    const { editor, levelUp } = await test.step('Open populated game and level-up wizard', async () => {
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openFilledGmGame(page);
+      await openGameLibrary(page);
 
-    const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
-    await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
-    await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
-    const editor = workspace.getByLabel('Редактор персонажа');
-    await editor.getByRole('button', { name: 'Новый уровень' }).click();
+      const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
+      await workspace.getByLabel('Разделы библиотеки').getByRole('button', { name: 'Персонажи' }).click();
+      await workspace.getByLabel('Ростер персонажей').getByRole('button', { name: new RegExp(filledCharacterName) }).first().click();
+      const editor = workspace.getByLabel('Редактор персонажа');
+      await editor.getByRole('button', { name: 'Новый уровень' }).click();
 
-    const levelUp = page.getByRole('dialog', { name: 'Повышение уровня' });
-    await expect(levelUp).toBeVisible();
-    await expect(levelUp.getByText('0 из 2 очков')).toBeVisible();
-    await expect(levelUp.getByText('Устаревшая ручная пометка')).toHaveCount(0);
-    await levelUp.getByRole('button', { name: 'Добавить: Добавить ячейку Ран' }).click();
-    await expect(levelUp.getByText('1 из 2 очков')).toBeVisible();
-    await levelUp.getByRole('button', { name: 'Добавить: Добавить ячейку Стресса' }).click();
-    await expect(levelUp.getByText('2 из 2 очков')).toBeVisible();
+      const levelUp = page.getByRole('dialog', { name: 'Повышение уровня' });
+      await expect(levelUp).toBeVisible();
+      return { editor, levelUp };
+    });
 
-    await levelUp.getByRole('button', { name: 'Дальше' }).click();
-    await expect(levelUp.getByRole('group', { name: 'Шаг: Выборы' })).toBeVisible();
-    await levelUp.getByLabel('Новый Опыт (+2)').fill('Победитель алой слизи');
+    await test.step('Choose weighted advancements and experience', async () => {
+      await expect(levelUp.getByText('0 из 2 очков')).toBeVisible();
+      await expect(levelUp.getByText('Устаревшая ручная пометка')).toHaveCount(0);
+      await levelUp.getByRole('button', { name: 'Добавить: Добавить ячейку Ран' }).click();
+      await expect(levelUp.getByText('1 из 2 очков')).toBeVisible();
+      await levelUp.getByRole('button', { name: 'Добавить: Добавить ячейку Стресса' }).click();
+      await expect(levelUp.getByText('2 из 2 очков')).toBeVisible();
 
-    await levelUp.getByRole('button', { name: 'Дальше' }).click();
-    const cardTrigger = page.getByRole('button', { name: 'Обязательная карта домена', exact: true });
-    await cardTrigger.click();
-    const cardPicker = page.getByRole('dialog', { name: 'Выбор: Обязательная карта домена' });
-    const cardOptions = cardPicker.getByRole('listbox');
-    expect(await cardOptions.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
-    await cardOptions.evaluate((element) => { element.scrollTop = element.scrollHeight; });
-    expect(await cardOptions.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-    await cardPicker.getByRole('option').last().click();
-    await cardPicker.getByRole('button', { name: 'Выбрать', exact: true }).click();
+      await levelUp.getByRole('button', { name: 'Дальше' }).click();
+      await expect(levelUp.getByRole('group', { name: 'Шаг: Выборы' })).toBeVisible();
+      await levelUp.getByLabel('Новый Опыт (+2)').fill('Победитель алой слизи');
 
-    await levelUp.getByRole('button', { name: 'Дальше' }).click();
-    await expect(levelUp.getByText('Всё готово к повышению.')).toBeVisible();
-    const apply = levelUp.getByRole('button', { name: 'Применить повышение' });
-    await expect(apply).toBeEnabled();
-    await apply.click();
+      await levelUp.getByRole('button', { name: 'Дальше' }).click();
+    });
 
-    await expect(levelUp).toHaveCount(0);
-    await expect(editor.getByText(/уровень 2/i)).toBeVisible();
-    await editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы' }).click();
-    await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Раны', exact: true })).toHaveCount(0);
-    await editor.getByRole('button', { name: 'Редактировать' }).click();
-    await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Раны', exact: true })).toHaveValue(String(filledCharacterResources.hp.max + 1));
-    await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Стресс', exact: true })).toHaveValue(String(filledCharacterResources.stress.max + 1));
+    await test.step('Choose the required domain card from the scrollable picker', async () => {
+      const cardTrigger = page.getByRole('button', { name: 'Обязательная карта домена', exact: true });
+      await cardTrigger.click();
+      const cardPicker = page.getByRole('dialog', { name: 'Выбор: Обязательная карта домена' });
+      const cardOptions = cardPicker.getByRole('listbox');
+      expect(await cardOptions.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+      await cardOptions.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+      expect(await cardOptions.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      await cardPicker.getByRole('option').last().click();
+      await cardPicker.getByRole('button', { name: 'Выбрать', exact: true }).click();
+
+      await levelUp.getByRole('button', { name: 'Дальше' }).click();
+    });
+
+    await test.step('Apply the complete valid level-up', async () => {
+      await expect(levelUp.getByText('Всё готово к повышению.')).toBeVisible();
+      const apply = levelUp.getByRole('button', { name: 'Применить повышение' });
+      await expect(apply).toBeEnabled();
+      await apply.click();
+
+      await expect(levelUp).toHaveCount(0);
+      await expect(editor.getByText(/уровень 2/i)).toBeVisible();
+    });
+
+    await test.step('Verify derived limits without enabling free editing prematurely', async () => {
+      await expect(editor.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Ресурсы' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Раны', exact: true })).toHaveCount(0);
+      await editor.getByRole('button', { name: 'Редактировать' }).click();
+      await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Раны', exact: true })).toHaveValue(String(filledCharacterResources.hp.max + 1));
+      await expect(editor.getByRole('region', { name: 'Базовые лимиты', exact: true }).getByRole('spinbutton', { name: 'Стресс', exact: true })).toHaveValue(String(filledCharacterResources.stress.max + 1));
+    });
   });
 
   test('keeps every advancement reachable in one mobile scroll owner without premature errors', async ({ page }) => {

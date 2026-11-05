@@ -9,7 +9,7 @@ test.setTimeout(120_000);
 
 let origin: string;
 let customImageUrl: string;
-let online = true;
+
 let failAudio = false;
 let failImage = false;
 let failShell = false;
@@ -18,7 +18,6 @@ const basePath = (process.env.OFFLINE_TEST_BASE ?? '').replace(/\/$/, '');
 // A real HTTP server lets tests cut off worker-owned traffic too, without
 // relying on browser offline emulation or interception of SW responses.
 const server = createServer(async (request, response) => {
-  if (!online) { request.socket.destroy(); return; }
   const pathname = new URL(request.url!, 'http://localhost').pathname;
   if (pathname === '/offline-test-audio.mp3') {
     response.writeHead(failAudio ? 503 : 200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', Vary: 'Accept' });
@@ -49,7 +48,6 @@ const server = createServer(async (request, response) => {
 });
 
 const mediaServer = createServer((request, response) => {
-  if (!online) { request.socket.destroy(); return; }
   if (failImage) {
     response.writeHead(200, { 'Content-Type': 'text/html', 'Access-Control-Allow-Origin': '*' });
     response.end('<html>Missing image fallback</html>');
@@ -65,13 +63,31 @@ test.beforeAll(async () => {
   await new Promise<void>((resolve) => mediaServer.listen(0, '127.0.0.1', resolve));
   customImageUrl = `http://127.0.0.1:${(mediaServer.address() as { port: number }).port}/custom-adversary.svg`;
 });
-test.beforeEach(() => { online = true; failAudio = false; failImage = false; failShell = false; title = 'Daggerheart Play'; });
-test.afterAll(async () => {
-  server.closeAllConnections();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  mediaServer.closeAllConnections();
-  await new Promise<void>((resolve) => mediaServer.close(() => resolve()));
-});
+// Refuse new connections while offline, instead of accepting and resetting each
+// request. A reset can be retried by the browser/network process, leaving a
+// worker-owned fetch pending indefinitely (especially across multiple windows).
+async function setNetworkOnline(online: boolean): Promise<void> {
+  const endpoints = [[server, origin], [mediaServer, customImageUrl]] as const;
+  for (const [endpoint, url] of endpoints) {
+    if (online && !endpoint.listening) {
+      await new Promise<void>((resolve, reject) => {
+        endpoint.once('error', reject);
+        endpoint.listen(Number(new URL(url).port), '127.0.0.1', () => {
+          endpoint.off('error', reject);
+          resolve();
+        });
+      });
+    } else if (!online && endpoint.listening) {
+      await new Promise<void>((resolve, reject) => {
+        endpoint.close((error) => error ? reject(error) : resolve());
+        endpoint.closeAllConnections();
+      });
+    }
+  }
+}
+
+test.beforeEach(async () => { await setNetworkOnline(true); failAudio = false; failImage = false; failShell = false; title = 'Daggerheart Play'; });
+test.afterAll(async () => { await setNetworkOnline(false); });
 
 test('default cache stays fresh; explicit preparation launches offline and disable restores updates', async ({ page, context }, testInfo) => {
   await page.goto(`${origin}/`);
@@ -87,7 +103,7 @@ test('default cache stays fresh; explicit preparation launches offline and disab
   const cacheName = cacheNames.find((name) => !name.endsWith(':state') && !name.endsWith(':runtime-v1'))!;
   const cachedPaths = await page.evaluate(async (name) => (await (await caches.open(name)).keys()).map((request) => new URL(request.url).pathname), cacheName);
   expect(cachedPaths.filter((path) => path.includes('/image/')).length).toBeLessThan(10);
-  online = false;
+  await setNetworkOnline(false);
   await page.close();
   const offlinePage = await context.newPage();
   const response = await offlinePage.goto(`${origin}/?offline-check=1`);
@@ -123,7 +139,7 @@ test('default cache stays fresh; explicit preparation launches offline and disab
   await playerPage.close();
   // Unknown assets must not receive the cached HTML fallback.
   expect(await offlinePage.evaluate((url) => fetch(url).then(() => true, () => false), `${origin}/missing.json`)).toBe(false);
-  online = true;
+  await setNetworkOnline(true);
   await indicator.click();
   const dialog = offlinePage.getByRole('dialog', { name: 'Офлайн-копия', exact: true });
   await expect(dialog).toContainText('даже когда есть интернет');
@@ -160,7 +176,7 @@ test('selected media survives offline; a failed refresh preserves the complete p
   await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('adversaries.json', { timeout: 60_000 });
   expect(await page.evaluate(() => caches.keys())).toEqual(before);
-  online = false;
+  await setNetworkOnline(false);
   await page.reload();
   const audio = await page.evaluate(async (url) => {
     const response = await fetch(url, { headers: { Range: 'bytes=2-5', Accept: 'audio/*' } });
@@ -191,20 +207,20 @@ test('unavailable media is skipped, reported after reopening, and can be retried
   await expect(region).toContainText('Не сохранено файлов: 2');
   await expect(region.getByRole('alert')).toHaveCount(0);
   expect(await page.evaluate(async (url) => Boolean(await caches.match(url)), customImageUrl)).toBe(false);
-  online = false;
+  await setNetworkOnline(false);
   await page.close();
   const reopened = await context.newPage();
   await reopened.goto(`${origin}/#/game`);
   await expect(reopened.locator('[data-vtt-root]')).toBeVisible();
   await reopened.goto(`${origin}/#/library/settings/game`);
   await expect(reopened.getByRole('region', { name: 'Офлайн', exact: true })).toContainText('Не сохранено файлов: 2');
-  online = true;
+  await setNetworkOnline(true);
   failAudio = false;
   failImage = false;
   await reopened.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
   await expect(reopened.getByRole('button', { name: 'Подготовить офлайн', exact: true })).toBeEnabled({ timeout: 60_000 });
   await expect(reopened.getByRole('region', { name: 'Офлайн', exact: true })).not.toContainText('Не сохранено файлов');
-  online = false;
+  await setNetworkOnline(false);
   await reopened.reload();
   expect(await reopened.evaluate(async (url) => {
     const image = new Image();
@@ -222,7 +238,13 @@ test('two master windows sync the offline board while keeping panels independent
   await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён', { timeout: 60_000 });
 
-  online = false;
+  // The uncached endpoint is reachable before the cut, so a broken origin
+  // cannot make the offline assertion pass accidentally.
+  const probeUrl = `${origin}/offline-network-probe`;
+  expect(await page.evaluate((url) => fetch(url).then((response) => response.status), probeUrl)).toBe(404);
+  await setNetworkOnline(false);
+  expect(server.listening).toBe(false);
+  expect(mediaServer.listening).toBe(false);
   await page.goto(`${origin}/#/game`);
   await page.reload();
   const screen = await context.newPage();
@@ -230,7 +252,21 @@ test('two master windows sync the offline board while keeping panels independent
   expect((await screen.goto(`${origin}/#/game`))?.fromServiceWorker()).toBe(true);
   // Prove that uncached requests from both windows cannot reach the server.
   for (const window of [page, screen]) {
-    expect(await window.evaluate((url) => fetch(url).then(() => true, () => false), `${origin}/offline-network-probe`)).toBe(false);
+    const probe = await window.evaluate(async (url) => {
+      const cached = Boolean(await caches.match(url));
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        return { cached, result: 'response', status: response.status };
+      } catch (error) {
+        return { cached, result: controller.signal.aborted ? 'timeout' : 'network-error',
+          error: error instanceof Error ? error.name : String(error) };
+      } finally { clearTimeout(timeout); }
+    }, `${origin}/offline-network-probe`);
+    // An abort is not proof of being offline. A hung fetch fails with a useful
+    // diagnostic instead of consuming this entire two-window sync journey.
+    expect(probe, 'Uncached probe must reject with a network error, not time out').toMatchObject({ cached: false, result: 'network-error' });
     await expect(window.locator('.player-view--gm')).toBeVisible();
     if (await window.getByRole('button', { name: /^Открыть чат/ }).count()) {
       await window.getByRole('button', { name: /^Открыть чат/ }).click();
@@ -260,6 +296,11 @@ test('two master windows sync the offline board while keeping panels independent
   await expect(screen.locator('.player-view--gm')).toHaveClass(/player-view--focus/);
   await expect(page.getByLabel('Чат игры')).toBeVisible();
   await expect(page.getByLabel('Инструменты сцены')).toBeVisible();
+
+  await setNetworkOnline(true);
+  for (const window of [page, screen]) {
+    expect(await window.evaluate((url) => fetch(url).then((response) => response.status), probeUrl)).toBe(404);
+  }
 });
 
 test('optional compendium artwork is fully cached and the choice survives reopening', async ({ page, context }, testInfo) => {
@@ -301,7 +342,7 @@ test('optional compendium artwork is fully cached and the choice survives reopen
   expect(artwork.files.every((path) => savedPaths.includes(`${origin}/${path}`))).toBe(true);
   expect(savedPaths).toContain(customImageUrl);
   expect(savedPaths).toContain(customIconUrl);
-  online = false;
+  await setNetworkOnline(false);
   await page.close();
   const reopened = await context.newPage();
   await reopened.goto(`${origin}/#/library/settings/game`);
@@ -346,7 +387,7 @@ test('modeled quota failure is explicit and preserves the previous usable offlin
   await page.screenshot({ path: testInfo.outputPath('quota-refusal-previous-copy.png') });
   // Cut real server traffic, including requests made by the service worker.
   // Browser offline emulation can fail WebKit navigation before its SW fallback.
-  online = false;
+  await setNetworkOnline(false);
   await page.reload();
   await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён');
   expect(await preparedNames()).toEqual(before);

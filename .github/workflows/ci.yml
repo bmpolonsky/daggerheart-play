@@ -89,6 +89,7 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
 
       - name: E2E tests
+        id: browser-tests
         run: npm run test:e2e
         env:
           CONTENT_SOURCE: https://daggerheart.su
@@ -97,6 +98,20 @@ jobs:
           CONTENT_REFRESH: "0"
           CONTENT_REFRESH_ASSETS: "0"
           RUN_P2P_E2E: "0"
+
+      # Only failed synthetic-fixture tests; run before the optional live smoke.
+      # Successful runs and setup failures do not create diagnostic artifacts.
+      - name: Save failed browser diagnostics
+        if: failure() && steps.browser-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            test-results/**/trace.zip
+            test-results/**/test-failed-*.png
+            test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Live P2P relay smoke
         if: github.event_name == 'schedule'

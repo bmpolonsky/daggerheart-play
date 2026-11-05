@@ -4,10 +4,11 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 test.beforeEach(async ({ page }) => { await installQualityClickCounter(page); });
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { createWeapon } from '../../src/domain/rules/factories';
+import { createCharacter, createWeapon } from '../../src/domain/rules/factories';
 import { createPopulatedGameDocument, filledAdversaryName, filledCharacterName, importGameDocument } from './filled-game-helpers';
 import { installDeterministicP2PTransport } from './game-route-helpers';
 import { openGameLibrary } from './tools-helpers';
+import { readStoredGameState } from './persistence-helpers';
 
 const root = (process.env.QUALITY_OUTPUT_DIR ?? 'test-results/quality-ab');
 const label = process.env.QUALITY_LABEL ?? 'current';
@@ -151,6 +152,7 @@ test('beastform attack is not an inventory item', async ({ page, baseURL }) => {
 
 test('Library money persistence and armor fine tune', async ({ page, baseURL }) => {
   await open(page, baseURL);
+  const original = (await readStoredGameState(page)).characters.entities[actorId];
   let { panel } = await editor(page);
   await panel.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Снаряжение', exact: true }).click();
   await snap(page, 'library-base-formula', panel);
@@ -159,14 +161,22 @@ test('Library money persistence and armor fine tune', async ({ page, baseURL }) 
     await panel.getByLabel('Горсти', { exact: true }).fill(amount); await panel.getByLabel('Горсти', { exact: true }).blur();
     await panel.getByRole('button', { name: 'Готово', exact: true }).click();
     await panel.getByRole('button', { name: 'Редактировать', exact: true }).click();
+    await expect(panel.getByLabel('Горсти', { exact: true })).toHaveValue(amount);
     observations.push({ action: 'money save reopen', input: amount, actual: await panel.getByLabel('Горсти', { exact: true }).inputValue() });
   }
   await panel.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Характеристики', exact: true }).click();
   const fine = panel.locator('details').filter({ hasText: 'Тонкая настройка брони и порогов' });
   await fine.locator('summary').click(); await snap(page, 'armor-fine-tune', panel);
+  // Done ends the edit session; the 500ms autosave is still asynchronous.
+  // Prove the exact durable payload before testing an ordinary saved reload.
+  await expect.poll(async () => {
+    const saved = (await readStoredGameState(page)).characters.entities[actorId];
+    return { wealth: saved.wealth, armor: saved.armor };
+  }).toEqual({ wealth: { ...original.wealth, handfuls: 70 }, armor: createCharacter(original).armor });
   await page.reload({ waitUntil: 'domcontentloaded' });
   const reopened = await editor(page, true);
   await reopened.panel.getByLabel('Разделы листа персонажа').getByRole('button', { name: 'Снаряжение', exact: true }).click();
+  await expect(reopened.panel.getByLabel('Горсти', { exact: true })).toHaveValue('70');
   observations.push({ action: 'money after reload', input: '70', actual: await reopened.panel.getByLabel('Горсти', { exact: true }).inputValue() });
 });
 

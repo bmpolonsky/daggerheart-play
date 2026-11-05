@@ -10,6 +10,7 @@ import {
 import type { Character } from '../../src/domain/rules/types';
 import { backfillAutomaticUsageTrackers } from '../../src/domain/rules/usageTrackers';
 import { openGameLibrary } from './tools-helpers';
+import { readStoredPortraitWidth } from './persistence-helpers';
 
 const fixtureName = 'e2e-character-player-workflows.dhgame';
 
@@ -149,6 +150,9 @@ test.describe('filled-game player character workflows', () => {
       await gmEditor.getByLabel('Портрет', { exact: true }).setInputFiles(await portraitFile(61));
       await expect.poll(() => gmPreview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(61);
       await expect.poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(61);
+      // Transfer and blob previews can finish before the debounced world save.
+      // Require the committed character reference, asset metadata and bytes.
+      await expect.poll(() => readStoredPortraitWidth(gm, 'e2e-character-cadsuane')).toBe(61);
       await gm.reload();
       await expect(gm.getByRole('dialog', { name: 'Библиотека игры' })).toBeVisible();
       const reopened = await openGmCharacterEditor(gm);
