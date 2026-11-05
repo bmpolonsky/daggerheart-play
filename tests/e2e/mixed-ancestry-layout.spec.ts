@@ -286,3 +286,65 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     await expect(step).toBeVisible();
   });
 }
+
+// Switching selection must cancel movement belonging to the previous detail,
+// rather than merely expose a transient scrollTop=0 between animation frames.
+test('changing ancestry during End scroll preserves the new detail, disclosure and focus', async ({ page, baseURL }) => {
+  await page.route(/\/data\/ancestries\.json(?:\?|$)/, async route => {
+    const response = await route.fetch();
+    const payload = await response.json();
+    payload.data.find((item: { slug: string }) => item.slug === 'giant').main_body += '\n\n' + 'Длинное описание родословной для проверки прокрутки.\n'.repeat(120);
+    await route.fulfill({ response, json: payload });
+  });
+  await page.setViewportSize({ width: 844, height: 390 });
+  const wizard = await ancestryWizard(page, baseURL);
+  const step = wizard.getByRole('group', { name: 'Шаг: Родословная', exact: true });
+  const list = step.getByRole('region', { name: 'Родословные', exact: true });
+  await list.getByRole('button').filter({ has: page.getByText('Великан', { exact: true }) }).click();
+  await step.getByRole('searchbox', { name: 'Поиск родословной', exact: true }).fill('Эльф');
+  const detail = step.getByRole('region', { name: 'Свойства выбранной родословной', exact: true });
+  const description = detail.locator('details');
+  await description.locator('summary').focus();
+  await description.locator('summary').press('Enter');
+  await expect(description).toHaveAttribute('open', '');
+  await detail.focus();
+  await detail.press('End');
+  const elf = list.getByRole('button').filter({ has: page.getByText('Эльф', { exact: true }) });
+  await elf.click();
+  await expect(detail.getByRole('heading', { name: 'Эльф', exact: true })).toBeVisible();
+  await expect(description).toHaveAttribute('open', '');
+  await expect(elf).toBeFocused();
+  const movement = await detail.evaluate(async element => {
+    const samples: number[] = [];
+    // Observe across the native keyboard animation, not just one transient frame.
+    for (let frame = 0; frame < 30; frame++) {
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      samples.push(element.scrollTop);
+    }
+    return samples;
+  });
+  expect(movement, 'The old End animation must not scroll the newly selected ancestry').toEqual(Array(30).fill(0));
+  const heading = (await detail.getByRole('heading', { name: 'Эльф', exact: true }).boundingBox())!;
+  const bounds = (await detail.boundingBox())!;
+  expect(heading.y).toBeGreaterThanOrEqual(bounds.y);
+  expect(heading.y + heading.height).toBeLessThanOrEqual(bounds.y + bounds.height);
+  await page.keyboard.press('Tab');
+  await expect(detail).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(description.locator('summary')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(description).not.toHaveAttribute('open', '');
+  const search = step.getByRole('searchbox', { name: 'Поиск родословной', exact: true });
+  await search.fill('Великан');
+  const giant = list.getByRole('button').filter({ has: page.getByText('Великан', { exact: true }) });
+  await giant.click();
+  await expect(description).not.toHaveAttribute('open', '');
+  await expect(search).toHaveValue('Великан');
+  await expect(giant).toBeFocused();
+  await description.locator('summary').click();
+  await expect(description).toHaveAttribute('open', '');
+  await step.getByRole('button', { name: 'Смешанная', exact: true }).click();
+  await step.getByRole('button', { name: 'Одна родословная', exact: true }).click();
+  await expect(description).not.toHaveAttribute('open', '');
+
+});

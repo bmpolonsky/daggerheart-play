@@ -344,8 +344,11 @@
   backdrop-filter: blur(22px) saturate(1.12);
 }
 
-.role-entry__topbar::before {
-  content: "";
+.role-entry__brand {
+  grid-column: 1;
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
 }
 
 .role-entry__topbar .dh-tab-row {
@@ -457,7 +460,11 @@
   }
 
   .role-entry__topbar {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) minmax(0, 1fr);
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+  }
+
+  .role-entry__topbar .dh-tab-row {
+    width: 100%;
   }
 
   .role-entry__account {

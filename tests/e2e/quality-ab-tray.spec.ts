@@ -19,7 +19,7 @@ test('paired tray exploration: empty, add, advantage, actor and modifier',async(
  if(label!=='release'){
   if(label==='current') await page.getByRole('button',{name:'Изменить формулу',exact:true}).click();
   await page.getByLabel('Формула броска',{exact:true}).fill('1d20+5');await page.getByLabel('Формула броска',{exact:true}).blur();await record('05-formula-five');
-  await page.getByLabel('Модификатор',{exact:true}).fill('3');await page.getByLabel('Формула броска',{exact:true}).fill('1d20+7');await page.getByLabel('Формула броска',{exact:true}).blur();await record('06-reciprocal-edit');
+  await page.getByRole('textbox', { name: 'Модификатор', exact: true }).fill('3');await page.getByLabel('Формула броска',{exact:true}).fill('1d20+7');await page.getByLabel('Формула броска',{exact:true}).blur();await record('06-reciprocal-edit');
   if(label!=='current') await page.getByRole('button',{name:'Выбрать исполнителя броска',exact:true}).click();await page.getByRole('combobox',{name:'Исполнитель броска',exact:true}).selectOption('character:e2e-character-cadsuane');await record('07-pc-actor');
  }
  const close=page.getByRole('button',{name:label==='release'?'Скрыть панель':'Закрыть панель броска',exact:true});await close.click();

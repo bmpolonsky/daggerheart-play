@@ -274,7 +274,7 @@ test('optional compendium artwork is fully cached and the choice survives reopen
   await importGameDocument(page, document);
   await page.goto(`${origin}/#/library/settings/game`);
   const artwork = JSON.parse(await readFile(resolve(process.env.OFFLINE_TEST_DIST ?? 'dist', 'offline-artwork.json'), 'utf8')) as { files: string[]; bytes: number };
-  const storageBefore = await page.evaluate(() => navigator.storage.estimate());
+  const storageBefore = await page.evaluate(() => navigator.storage?.estimate?.() ?? null);
   expect(artwork.files.length).toBeGreaterThan(10);
   await expect(page.getByRole('region', { name: 'Офлайн', exact: true })).toContainText('МБ');
   await page.getByRole('checkbox', { name: /Все иллюстрации справочника/ }).check();
@@ -289,7 +289,7 @@ test('optional compendium artwork is fully cached and the choice survives reopen
   }, { timeout: 300_000 }).not.toBe('pending');
   const storageEvidence = testInfo.outputPath('artwork-storage-estimates.json');
   await writeFile(storageEvidence, JSON.stringify({ files: artwork.files.length, bytes: artwork.bytes, terminalState,
-    before: storageBefore, after: await page.evaluate(() => navigator.storage.estimate()) }, null, 2));
+    before: storageBefore, after: await page.evaluate(() => navigator.storage?.estimate?.() ?? null) }, null, 2));
   await testInfo.attach('artwork-storage-estimates', { path: storageEvidence, contentType: 'application/json' });
   if (terminalState !== 'ready') throw new Error(`${terminalState.includes('Недостаточно места') ? '[ENV_QUOTA]' : '[OFFLINE_PREPARE_ERROR]'} ${terminalState}`);
   await expect(offlineRegion.getByRole('status')).toHaveText('Офлайн включён');
@@ -324,7 +324,7 @@ test('optional compendium artwork is fully cached and the choice survives reopen
 });
 
 
-test('modeled quota failure is explicit and preserves the previous usable offline copy', async ({ page, context }, testInfo) => {
+test('modeled quota failure is explicit and preserves the previous usable offline copy', async ({ page }, testInfo) => {
   await page.goto(`${origin}/#/library/settings/game`);
   const offline = page.getByRole('region', { name: 'Офлайн', exact: true });
   await page.getByRole('button', { name: 'Подготовить офлайн', exact: true }).click();
@@ -344,7 +344,9 @@ test('modeled quota failure is explicit and preserves the previous usable offlin
   await expect(offline.getByRole('alert')).toHaveText('Недостаточно места для офлайн-копии.');
   expect(await preparedNames()).toEqual(before);
   await page.screenshot({ path: testInfo.outputPath('quota-refusal-previous-copy.png') });
-  await context.setOffline(true);
+  // Cut real server traffic, including requests made by the service worker.
+  // Browser offline emulation can fail WebKit navigation before its SW fallback.
+  online = false;
   await page.reload();
   await expect(page.getByRole('region', { name: 'Офлайн', exact: true }).getByRole('status')).toHaveText('Офлайн включён');
   expect(await preparedNames()).toEqual(before);

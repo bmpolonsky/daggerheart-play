@@ -1,7 +1,20 @@
 import { test, expect } from '@playwright/test';
+import { createServer, type ViteDevServer } from 'vite';
+
+// This source-level component harness is deliberately not shipped in dist.
+// Start its server only for this file, leaving production journeys on preview.
+let fixtureServer: ViteDevServer;
+let fixtureOrigin: string;
+test.beforeAll(async () => {
+  fixtureServer = await createServer({ server: { host: '127.0.0.1', port: 0 } });
+  await fixtureServer.listen();
+  fixtureOrigin = fixtureServer.resolvedUrls!.local[0];
+});
+test.afterAll(async () => { await fixtureServer?.close(); });
+
 for (const width of [1180, 400]) test(`notifications preserve dialog controls and keyboard at ${width}`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 757 });
-  await page.goto('/tests/fixtures/toast-controls.html');
+  await page.goto(new URL('tests/fixtures/toast-controls.html', fixtureOrigin).href);
   await page.getByRole('button', { name: 'Открыть окно', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Проверка уведомлений', exact: true });
   await dialog.getByRole('button', { name: 'Длинная ошибка' }).click();

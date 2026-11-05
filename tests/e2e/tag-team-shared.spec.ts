@@ -38,10 +38,20 @@ async function candidate(page: Page, card: Locator, name: string, values: [numbe
   const tray = page.getByRole('region', { name: 'Подготовка броска', exact: true });
   const replace = tray.getByRole('button', { name: 'Заменить подготовленный бросок', exact: true });
   if (await replace.isVisible()) await replace.click();
-  // Controlled RNG only in this isolated synthetic browser; all preparation,
-  // rolling and persistence still use the real UI and production services.
-  await page.evaluate(dice => { const original = Math.random; let index = 0; Math.random = () => index < dice.length ? (dice[index++] - 0.5) / 12 : original(); }, values);
-  await tray.getByRole('button', { name: 'Бросить', exact: true }).click();
+  // Check real pointer actionability before invoking the production click
+  // handler. Scope RNG to that synchronous handler so unrelated animation/ID
+  // work cannot consume the controlled dice between browser commands.
+  const submit = tray.getByRole('button', { name: 'Бросить', exact: true });
+  await submit.click({ trial: true });
+  const consumed = await submit.evaluate((button: HTMLButtonElement, dice) => {
+    const original = Math.random;
+    let index = 0;
+    Math.random = () => index < dice.length ? (dice[index++] - 0.5) / 12 : original();
+    try { button.click(); }
+    finally { Math.random = original; }
+    return index;
+  }, values);
+  expect(consumed).toBe(2);
   await expect(row.locator('.feed-teamwork-card__result')).toContainText('13');
   await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
 }

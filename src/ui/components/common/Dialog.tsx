@@ -24,6 +24,10 @@ export function Dialog({ 'aria-label': ariaLabel, title, actions, children, clas
     const frame = window.requestAnimationFrame(() => {
       const shell = shellRef.current;
       if (!shell) return;
+      // Rendering/effects can lag behind keyboard or pointer interaction. Keep
+      // focus the user has already placed inside this dialog instead of
+      // resetting it when the initial animation frame eventually runs.
+      if (shell.contains(document.activeElement)) return;
       const preferred = shell.querySelector<HTMLElement>('[autofocus], [data-dialog-autofocus]');
       (preferred ?? focusableElements(shell)[0] ?? shell).focus();
     });

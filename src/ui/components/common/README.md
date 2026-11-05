@@ -586,7 +586,7 @@ Guidance:
 - Use `actions` for close buttons or compact modal commands.
 - If the modal needs tabs, place `Tabs` in content or header, not a custom row of buttons.
 - Use `priority` only for a critical recovery/startup decision that must precede asynchronously restored dialogs. It places the dialog above ordinary dialogs and temporarily makes those dialogs inert, restoring their previous state when closed.
-- The first enabled control receives focus by default. Add `autoFocus` or `data-dialog-autofocus` when another initial target is more appropriate.
+- The first enabled control receives focus by default. Add `autoFocus` or `data-dialog-autofocus` when another initial target is more appropriate. Initial focus is deferred to an animation frame; if focus has already moved inside the dialog, that frame preserves the current target instead of resetting it.
 
 ### ConfirmDialog
 

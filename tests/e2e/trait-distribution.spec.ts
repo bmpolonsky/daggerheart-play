@@ -77,13 +77,16 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
   await builder.getByRole('button', { name: 'Характеристики', exact: true }).click();
   await expect(fields[4]).toHaveValue('');
   await fields[4].focus();
-  await page.keyboard.press('End');
-  await page.keyboard.press('Enter');
+  await expect(fields[4]).toBeFocused();
+  // Use native typeahead without depending on platform-specific popup keys.
+  await page.keyboard.press('-');
   await expect(fields[4]).toHaveValue('-1');
+  for (let i = 0; i < fields.length; i++) await expect(fields[i]).toHaveValue(['0', '2', '1', '0', '-1', '1'][i]);
   await expect(fields[4].locator('..')).not.toContainText('Выберите значение');
   await builder.getByRole('button', { name: 'Дальше', exact: true }).click();
   await builder.getByRole('button', { name: 'Назад', exact: true }).click();
   await expect(fields[4]).toHaveValue('-1');
+  for (let i = 0; i < fields.length; i++) await expect(fields[i]).toHaveValue(['0', '2', '1', '0', '-1', '1'][i]);
   await builder.getByRole('button', { name: 'Итог', exact: true }).click();
   await expect(builder.getByRole('button', { name: 'Создать', exact: true })).toBeEnabled();
 });

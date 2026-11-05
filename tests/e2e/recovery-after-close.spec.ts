@@ -198,3 +198,39 @@ test('recovery after switching worlds keeps the second world custom catalog', as
     await info.attach('custom-catalog-isolation', { body: JSON.stringify({ worlds: 3, sourceA: 'qa-custom-a', sourceB: 'qa-custom-b', recovered: 'qa-custom-b', rootPersonalQA: false }), contentType: 'application/json' });
   } finally { await release().catch(() => {}); }
 });
+
+test('recovery autofocus preserves keyboard focus moved before its deferred frame', async ({ page }) => {
+  await page.addInitScript(() => {
+    const frames: FrameRequestCallback[] = [];
+    const nativeRequest = window.requestAnimationFrame.bind(window);
+    // Hold only Dialog's initial focus callback. Releasing it explicitly avoids
+    // timing-dependent sleeps while exercising the real production dialog.
+    window.requestAnimationFrame = callback => nativeRequest(time => {
+      if (callback.toString().includes('data-dialog-autofocus')) frames.push(callback);
+      else callback(time);
+    });
+    (window as any).pendingDialogAutofocus = frames;
+    (window as any).releaseDialogAutofocus = () => frames.splice(0).forEach(callback => callback(performance.now()));
+  });
+  await page.setViewportSize({ width: 1180, height: 757 });
+  await openGmGame(page);
+  const document = createPopulatedGameDocument();
+  document.files['data/game.json'].fear = 0;
+  await importGameDocument(page, document, 'autofocus-recovery.dhgame');
+  await expect.poll(async () => (await readStoredGameState(page))?.game.fear).toBe(0);
+  const release = await holdWriter(page);
+  try {
+    await page.getByRole('group', { name: 'Страх', exact: true }).getByRole('button', { name: 'Страх 1 из 12', exact: true }).click();
+    page.on('dialog', dialog => dialog.accept());
+    await page.reload();
+    const recovery = page.getByRole('dialog', { name: 'Восстановление изменений', exact: true });
+    await expect(recovery).toBeVisible();
+    await expect.poll(() => page.evaluate(() => (window as any).pendingDialogAutofocus.length)).toBeGreaterThan(0);
+    await recovery.getByRole('combobox', { name: 'Восстановительная копия', exact: true }).focus();
+    await page.keyboard.press('Tab');
+    const dismiss = recovery.getByRole('button', { name: 'Не сейчас', exact: true });
+    await expect(dismiss).toBeFocused();
+    await page.evaluate(() => (window as any).releaseDialogAutofocus());
+    await expect(dismiss).toBeFocused();
+  } finally { await release().catch(() => {}); }
+});

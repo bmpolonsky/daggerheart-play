@@ -1,3 +1,4 @@
+import { readStoredGameState } from './persistence-helpers';
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import type { P2PSessionState } from '../../src/services/P2PSessionService';
 import { createSheetCard } from '../../src/domain/rules/factories';
@@ -591,6 +592,14 @@ test.describe('P2P session workflow', () => {
       await gmMusic.getByRole('button', { name: 'Играть' }).click();
       await expect(player.locator('audio[data-scene-audio-status]')).not.toHaveAttribute('src', /^blob:/, { timeout: 4_000 });
       expect(relay.messages.some((message) => message.type === 'binary')).toBe(false);
+      // Playing changes the scene immediately, but persistence is debounced.
+      // Reload only after that state is durable; otherwise recovery correctly
+      // offers the unsaved scene and blocks unrelated library interactions.
+      await expect.poll(async () => {
+        const stored = await readStoredGameState(gm);
+        const sceneId = stored.sceneTable.liveSceneId ?? stored.sceneTable.activeSceneId;
+        return sceneId ? stored.sceneTable.scenes[sceneId]?.music.playing : false;
+      }).toBe(true);
 
       await gm.reload();
       await expect(gm.getByRole('button', { name: /Сетевая игра: Подключено \(1\)/ })).toBeVisible({ timeout: 15_000 });

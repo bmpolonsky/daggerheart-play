@@ -26,14 +26,14 @@ for (const width of [1180, 390]) test(`sequential actor modifiers MAX privacy su
   await expect(tray.getByRole('button', { name: 'Преимущество 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(tray.getByRole('button', { name: 'Убрать преимущество', exact: true })).toContainText('2×d6');
   await expect(tray.getByRole('button', { name: 'Несколько', exact: true })).toHaveCount(0);
-  await adjustments.getByRole('button', { name: 'Опыт', exact: true }).click();
+  await tray.getByRole('button', { name: /^Опыт(?: [+-]\d+)?$/ }).click();
   await tray.getByRole('checkbox', { name: 'Исследователь QA +2', exact: true }).check();
-  await adjustments.getByLabel('Модификатор', { exact: true }).fill('3');
+  await adjustments.getByRole('textbox', { name: 'Модификатор', exact: true }).fill('3');
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await expect(tray.getByLabel('Итоговая формула', { exact: true })).toHaveText('2d12+1d6+7+2d6kh1');
   const formula = await openUnifiedFormulaEditor(tray); await formula.fill('2d12+1d6+8+2d6kh1'); await formula.blur();
-  await expect(adjustments.getByLabel('Модификатор', { exact: true })).toHaveValue('4');
-  await adjustments.getByLabel('Модификатор', { exact: true }).fill('3');
+  await expect(adjustments.getByRole('textbox', { name: 'Модификатор', exact: true })).toHaveValue('+4');
+  await adjustments.getByRole('textbox', { name: 'Модификатор', exact: true }).fill('3');
   await expect(formula).toHaveValue('2d12+1d6+7+2d6kh1');
   await tray.getByRole('button', { name: 'Сделать бросок приватным', exact: true }).click();
   await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toHaveText('Приватный бросок');

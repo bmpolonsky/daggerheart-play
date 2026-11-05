@@ -251,8 +251,27 @@ test.describe('critical persisted journeys', () => {
       });
       return stored?.subclasses?.some((item: any) => item.name === expectedName && item.class_slug && item.spellcast_trait === 'knowledge') ?? false;
     }, name)).toBe(true);
+    // The custom catalog commits before the debounced world document. Check
+    // the exact subclass payload in both stores before this saved-state reload.
+    await expect.poll(() => page.evaluate(async (expectedName) => {
+      const project = await new Promise<any>((resolve, reject) => {
+        const request = indexedDB.open('daggerheart-play-game');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction('documents', 'readonly');
+          const read = transaction.objectStore('documents').get('current-game');
+          read.onsuccess = () => resolve(read.result);
+          read.onerror = () => reject(read.error);
+          transaction.oncomplete = () => db.close();
+        };
+      });
+      const world = project?.worlds?.[project.activeWorldId];
+      return world?.shared?.customContent?.subclasses?.some((item: any) => item.name === expectedName && item.class_slug && item.spellcast_trait === 'knowledge') ?? false;
+    }, name)).toBe(true);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(workspace).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Восстановление изменений', exact: true })).toHaveCount(0);
     await selectWorkspaceTab(workspace, 'Справочник');
     await workspace.getByLabel('Коллекции справочника').getByRole('button', { name: 'Подклассы', exact: true }).click();
     await workspace.getByLabel('Источник материалов').getByRole('button', { name: 'Свои', exact: true }).click();

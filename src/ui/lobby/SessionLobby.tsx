@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { useEffect, useState } from 'preact/hooks';
+import { publicAssetUrl } from '../../domain/content/publicAssets';
 import { Crown, HardDrive, UserRound } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
 import { persistenceService } from '../../services/serviceRegistry';
@@ -47,6 +48,7 @@ export function SessionLobby({ initialPlayerRoomId = '', inviteContext, onEnterG
       <div className="role-entry__scene" aria-hidden="true" style={{ '--role-entry-scene-image': `url("${sceneImageUrl}")` }} />
       <div className="role-entry__content">
         <header className="role-entry__topbar">
+          <img className="role-entry__brand" src={publicAssetUrl('favicon.svg', inviteContext.basePath)} width={32} height={32} alt="Daggerheart Play" />
           <Tabs label="Роль" layout="equal">
             <TabButton active={role === 'gm'} onClick={() => selectRole('gm')}><Crown size={15} aria-hidden="true" /> Мастер</TabButton>
             <TabButton active={role === 'player'} onClick={() => selectRole('player')}><UserRound size={15} aria-hidden="true" /> Игрок</TabButton>

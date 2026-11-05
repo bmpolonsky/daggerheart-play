@@ -12,7 +12,14 @@ test('packaged art covers every domain card in the 26-character QA world and the
   for (const file of inventory.files) {
     const response = await request.get('/' + file.path);
     expect(response.status(), file.path).toBe(200);
-    expect((await response.body()).length, file.path).toBe(file.bytes);
+    // The reviewed source may recompress artwork without changing its identity.
+    // Verify actual WebP bytes, not the historical export's compressed size.
+    const bytes = await response.body();
+    expect(bytes.length, file.path).toBeGreaterThan(12);
+    expect(bytes.subarray(0, 4).toString(), file.path).toBe('RIFF');
+    expect(bytes.subarray(8, 12).toString(), file.path).toBe('WEBP');
+    const reviewedAsset = readFileSync(new URL(`../../public/${file.path}`, import.meta.url));
+    expect(bytes.equals(reviewedAsset), `${file.path}: packaged bytes match reviewed content`).toBe(true);
     expect(manifest.files).toContain(file.path);
   }
   await info.attach('domain-art-inventory', { body: JSON.stringify(inventory), contentType: 'application/json' });

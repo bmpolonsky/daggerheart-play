@@ -88,19 +88,19 @@ test('independent: familiar empty tray, true counts, one bonus removal and expli
 test('independent: formula and flat modifier stay bidirectional, negative dice are removable', async ({ page }) => {
   await boot(page); const tray = await openTray(page);
   await formula(tray, '1d20+5');
-  await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('5');
-  await tray.getByLabel('Модификатор', { exact: true }).fill('-2');
+  await expect(tray.getByRole('textbox', { name: 'Модификатор', exact: true })).toHaveValue('+5');
+  await tray.getByRole('textbox', { name: 'Модификатор', exact: true }).fill('-2');
   await expect(await formula(tray)).toHaveValue('1d20-2');
   await tray.getByRole('button', { name: 'Увеличить модификатор', exact: true }).click();
-  await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('-1');
+  await expect(tray.getByRole('textbox', { name: 'Модификатор', exact: true })).toHaveValue('-1');
   await formula(tray, '1d20+7');
-  await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('7');
+  await expect(tray.getByRole('textbox', { name: 'Модификатор', exact: true })).toHaveValue('+7');
   await formula(tray, '1d20-1d6-3');
   await expect(tray.getByRole('button', { name: 'Убрать минус d6', exact: true })).toBeVisible();
   await shot(page, '04-negative-die-and-modifier', tray);
   await tray.getByRole('button', { name: 'Убрать минус d6', exact: true }).click();
   await expect(await formula(tray)).toHaveValue('1d20-3');
-  await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('-3');
+  await expect(tray.getByRole('textbox', { name: 'Модификатор', exact: true })).toHaveValue('-3');
   await tray.getByRole('button', { name: 'Закрыть панель броска', exact: true }).click();
   await openTray(page);
   await expect(tray.getByLabel('Итоговая формула')).toHaveText('1d20-3');
@@ -159,7 +159,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
     const layers = page.getByLabel('Слой интерфейса');
     if (await layers.isVisible()) await layers.getByRole('button', { name: 'Сцена', exact: true }).click();
     const tray = await openTray(page);
-    await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+    await tray.getByRole('button', { name: /^Опыт(?: [+-]\d+)?$/ }).click();
     await tray.getByRole('checkbox', { name: 'Область 1 +2', exact: true }).check();
     const button = tray.getByRole('button', { name: 'Бросить', exact: true });
     const box = (await button.boundingBox())!;
@@ -176,7 +176,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }
     await expect(tray.locator('.mini-dice-launcher__mobile-head')).toBeInViewport();
     await shot(page, `07-expanded-options-${viewport.width}x${viewport.height}`, tray);
     await formula(tray, '2d12+5');
-    await expect(tray.getByLabel('Модификатор', { exact: true })).toHaveValue('1');
+    await expect(tray.getByRole('textbox', { name: 'Модификатор', exact: true })).toHaveValue('+1');
     await expect(button).toBeInViewport();
     await shot(page, `07b-expanded-formula-${viewport.width}x${viewport.height}`, tray);
     await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
@@ -236,7 +236,7 @@ for (const width of [1188, 390]) {
 test('independent: one explicit typed reaction rolls individual extras and pays an experience once', async ({ page }) => {
   await boot(page); await selectPc(page); const tray = await openTray(page);
   await tray.getByRole('button', { name: 'Реакция', exact: true }).click();
-  await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+  await tray.getByRole('button', { name: /^Опыт(?: [+-]\d+)?$/ }).click();
   await tray.getByRole('checkbox', { name: 'Область 1 +2', exact: true }).check();
   await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
   await chooseUnifiedAdvantage(tray, 'advantage', 2);
@@ -298,13 +298,13 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
     await chooseUnifiedAdvantage(tray, 'advantage', 2);
     await expect(tray.getByRole('button', { name: 'Преимущество 2', exact: true })).toBeVisible();
     await tray.getByRole('button', { name: 'Добавить d6', exact: true }).click();
-    await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+    await tray.getByRole('button', { name: /^Опыт(?: [+-]\d+)?$/ }).click();
     await tray.getByRole('checkbox', { name: 'Область 1 +2', exact: true }).check();
     await tray.getByRole('button', { name: 'Сделать бросок приватным', exact: true }).click();
     await expect(tray.getByRole('button', { name: 'Сделать бросок публичным', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(tray).not.toContainText('Костей:');
     await expect(tray.getByLabel('Итоговая формула')).toHaveText('2d12+1d6+4+2d6kh1');
-    await tray.getByRole('button', { name: 'Опыт', exact: true }).click();
+    await tray.getByRole('button', { name: /^Опыт(?: [+-]\d+)?$/ }).click();
     await shot(page, `literal-ready-${viewport.width}`, tray);
     await expect(page.locator('.player-activity-event--roll')).toHaveCount(0);
     await tray.getByRole('button', { name: 'Бросить', exact: true }).click();

@@ -1,5 +1,5 @@
 import type { GenericLibraryItem } from '../../../domain/content/types';
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { ChevronRight } from 'lucide-react';
 import { AssetImage, Avatar, ChoiceCard, Notice, SearchField, SegmentedControl } from '../../components/common';
 import { ancestrySelectionPresentation, filterAncestryOptions, type AncestryFeatureOption } from './ancestrySelectionPresentation';
@@ -18,10 +18,6 @@ export interface AncestrySelectionStepProps {
 export function AncestrySelectionStep({ ancestries, firstId, secondId, onModeChange, onFirstChange, onSecondChange }: AncestrySelectionStepProps) {
   const view = ancestrySelectionPresentation(ancestries, firstId, secondId);
   const [singleQuery, setSingleQuery] = useState('');
-  const detailRef = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    if (detailRef.current) detailRef.current.scrollTop = 0;
-  }, [firstId]);
   const singleOptions = filterAncestryOptions(view.singleOptions, singleQuery);
   return (
     <section className={styles.step} role="group" aria-label="Шаг: Родословная">
@@ -52,17 +48,28 @@ export function AncestrySelectionStep({ ancestries, firstId, secondId, onModeCha
             {!singleOptions.length && <p className={styles.empty}>Родословные не найдены.</p>}
           </div>
         </div>
-        <section ref={detailRef} className={`${styles.singleDetail} dh-scroll`} aria-label="Свойства выбранной родословной" tabIndex={0}>
-          {view.firstAncestry ? <>
-            <h4>{view.firstAncestry.name}</h4>
-            {view.singleFeatures.map(feature => <div className={styles.feature} key={feature.id}><strong>{feature.name}</strong><p>{feature.description}</p></div>)}
-            {(view.singleDescription || view.firstAncestry.imageUrl) && <details className={styles.description}><summary><ChevronRight className={styles.descriptionChevron} size={16} aria-hidden="true" /><span>Описание родословной</span></summary>
-              {view.firstAncestry.imageUrl && <AssetImage src={view.firstAncestry.imageUrl} className={styles.ancestryArt} alt={view.firstAncestry.name} />}
-              {view.singleDescription && <p>{view.singleDescription}</p>}
-            </details>}
-          </> : <p className={styles.empty}>Родословная ещё не выбрана.</p>}
-        </section>
+        <SingleAncestryDetail view={view} />
       </div>}
+    </section>
+  );
+}
+
+// A new selection must not inherit a native keyboard scroll animation still
+// targeting the old detail element. Keep disclosure state outside that keyed
+// element so comparing ancestries does not unexpectedly close their descriptions.
+// Leaving single-ancestry mode still unmounts this component and resets it.
+function SingleAncestryDetail({ view }: { view: ReturnType<typeof ancestrySelectionPresentation> }) {
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
+  return (
+    <section key={view.firstAncestry?.id ?? 'empty'} className={`${styles.singleDetail} dh-scroll`} aria-label="Свойства выбранной родословной" tabIndex={0}>
+      {view.firstAncestry ? <>
+        <h4>{view.firstAncestry.name}</h4>
+        {view.singleFeatures.map(feature => <div className={styles.feature} key={feature.id}><strong>{feature.name}</strong><p>{feature.description}</p></div>)}
+        {(view.singleDescription || view.firstAncestry.imageUrl) && <details className={styles.description} open={descriptionOpen} onToggle={event => setDescriptionOpen(event.currentTarget.open)}><summary><ChevronRight className={styles.descriptionChevron} size={16} aria-hidden="true" /><span>Описание родословной</span></summary>
+          {view.firstAncestry.imageUrl && <AssetImage src={view.firstAncestry.imageUrl} className={styles.ancestryArt} alt={view.firstAncestry.name} />}
+          {view.singleDescription && <p>{view.singleDescription}</p>}
+        </details>}
+      </> : <p className={styles.empty}>Родословная ещё не выбрана.</p>}
     </section>
   );
 }
