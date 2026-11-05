@@ -3506,3 +3506,34 @@ textarea.player-compendium-statblock__weapon {
   white-space: normal;
   line-height: 1.3;
 }
+
+/* Keep the connection overview readable before opening technical details. */
+.player-tools-diagnostics__overview {
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.player-tools-diagnostics__overview p {
+  margin: 0;
+  color: var(--dh-paper-100);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.player-tools-diagnostics__overview > span {
+  color: var(--dh-paper-muted);
+  font-size: 0.74rem;
+}
+
+.player-tools-peer-identity {
+  display: block;
+  margin-top: 8px;
+  color: var(--dh-paper-muted);
+  overflow-wrap: anywhere;
+}
+.player-tools-diagnostics__route-note,
+.player-tools-diagnostics__audio {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--dh-paper-muted);
+}

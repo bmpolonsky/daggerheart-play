@@ -182,9 +182,19 @@ test.describe('P2P session workflow', () => {
         if (viewport.width < 600) await page.getByLabel('Слой интерфейса').getByRole('button', { name: 'Чат' }).click();
         const dialog = await openGameDiagnostics(page);
         const stages = dialog.getByLabel('Этапы подключения');
+        await expect(stages).not.toBeVisible();
+        await expect(dialog.getByRole('button', { name: 'Скопировать отчёт', exact: true })).toBeVisible();
+        await expect(dialog.getByText('Где находится подключение', { exact: true })).toHaveCount(0);
+        await dialog.locator('.player-tools-diagnostics').screenshot({ path: testInfo.outputPath('diagnostic-overview.png') });
+        if (scenario === 'optional-direct-failed' || scenario === 'p2p-fallback') {
+          await expect(dialog.getByLabel('Ошибки подключения')).toBeVisible();
+        }
+        const disclosure = dialog.locator('summary').filter({ hasText: /^Технические данные$/ });
+        await disclosure.focus();
+        await page.keyboard.press('Enter');
         await expect(stages).toBeVisible();
         await expectInsideViewport(page, dialog.locator('.p2p-health-dialog'));
-        const hint = stages.getByRole('status');
+        const hint = dialog.getByLabel('Состояние подключения').getByRole('status');
         if (scenario === 'auth-stalled') {
           await expect(hint).toContainText('Сейчас: Проверка входа в Supabase');
           const row = stages.locator('dd').first();
@@ -208,7 +218,6 @@ test.describe('P2P session workflow', () => {
           await expect(hint).toContainText('Мастер ожидает игроков');
           if (scenario === 'optional-direct-failed') await expect(stages).toContainText('время ожидания истекло');
         }
-        await dialog.getByText('Технические данные', { exact: true }).click();
         const report = dialog.locator('.player-tools-technical-report');
         const text = await report.innerText();
         expect(text).not.toContain('PRIVATE-');
@@ -312,7 +321,7 @@ test.describe('P2P session workflow', () => {
     await expect(chronicleTab.locator('.player-connection-status-dot')).toBeVisible();
   });
 
-  test('diagnostics render one card per connected peer and keep each peer routes scoped', async ({ page }) => {
+  test('diagnostics render one card per connected peer and keep each peer routes scoped', async ({ page }, testInfo) => {
     await seedConnectedDiagnostics(page, ['peer-alpha', 'peer-beta']);
     await page.setViewportSize({ width: 1440, height: 900 });
     await openGmGame(page);
@@ -321,18 +330,21 @@ test.describe('P2P session workflow', () => {
     const cards = dialog.locator('.player-tools-peer-card');
     await expect(cards).toHaveCount(2);
 
+    await expect(cards.first().locator('.player-tools-peer-routes')).not.toBeVisible();
     const alphaCard = cards.nth(0);
     const betaCard = cards.nth(1);
-    await expect(alphaCard.getByRole('heading')).toHaveText('Игрок peer-alpha');
-    await expect(betaCard.getByRole('heading')).toHaveText('Игрок peer-beta');
+    await expect(alphaCard.getByRole('heading')).toHaveText('Игрок 1');
+    await expect(betaCard.getByRole('heading')).toHaveText('Игрок 2');
     await expect(alphaCard.locator('.player-tools-peer-route')).toHaveCount(3);
     await expect(betaCard.locator('.player-tools-peer-route')).toHaveCount(3);
     await expect(alphaCard.locator('summary[aria-label="Supabase: активен"]')).toHaveCount(1);
     await expect(betaCard.locator('summary[aria-label="Nostr: активен"]')).toHaveCount(1);
     await expect(betaCard.locator('summary[aria-label="Supabase: потерян"]')).toHaveCount(1);
 
+    await dialog.locator('.player-tools-diagnostics').screenshot({ path: testInfo.outputPath('diagnostic-participants.png') });
+    await alphaCard.getByText('Способы подключения', { exact: true }).click();
     await alphaCard.locator('summary[aria-label="Supabase: активен"]').click();
-    await expect(alphaCard.locator('details[open] .player-tools-peer-route__details')).toContainText('peer-alpha-supabase-physical-route');
+    await expect(alphaCard.locator('.player-tools-peer-route[open] > .player-tools-peer-route__details')).toContainText('peer-alpha-supabase-physical-route');
     await expect(betaCard).not.toContainText('peer-alpha-supabase-physical-route');
   });
 
@@ -346,12 +358,13 @@ test.describe('P2P session workflow', () => {
     await expectInsideViewport(page, panel);
     expect(await panel.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
 
+    await dialog.locator('.player-tools-peer-card').last().getByText('Способы подключения', { exact: true }).click();
     const lastRoute = dialog.locator('.player-tools-peer-card').last().locator('.player-tools-peer-route').last();
     await lastRoute.locator('summary').click();
     await lastRoute.scrollIntoViewIfNeeded();
     await expect(lastRoute.locator('.player-tools-peer-route__details')).toBeVisible();
     await expectInsideViewport(page, lastRoute);
-    await expect(dialog.getByRole('button', { name: 'Закрыть' })).toBeVisible();
+    await expectInsideViewport(page, dialog.getByRole('button', { name: 'Закрыть' }));
   });
 
   test('connection health opens a compact peer-centric diagnostic', async ({ page }) => {
@@ -366,6 +379,7 @@ test.describe('P2P session workflow', () => {
     expect((await rect(panel)).width).toBeLessThanOrEqual(760);
     await expect(dialog.locator('table')).toHaveCount(0);
     await expect(dialog.locator('.player-tools-peer-card')).toHaveCount(1);
+    await dialog.getByText('Технические данные', { exact: true }).click();
     const routes = dialog.locator('.player-tools-peer-route');
     await expect(routes).toHaveCount(3);
     const firstRouteBox = await rect(routes.nth(0));

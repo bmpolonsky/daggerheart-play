@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import type { ConnectionStageDiagnostic } from '../../../domain/p2p/connectionDiagnostics';
 import { getTechnicalJournal } from '../../../core/observability/technicalJournal';
 import { CONNECTION_STAGE_LABELS, CONNECTION_STAGE_STATUS_LABELS, connectionDiagnosticHint, connectionStageErrorLabel, createSafeDiagnosticReport, orderedConnectionStages, stageElapsedMs } from '../../../domain/p2p/diagnosticReport';
 import { contentAccessForGame, normalizeContentAccess } from '../../../domain/content/access';
@@ -317,7 +318,6 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   const call = useStream(mediaCallService.call$);
   const session = e2eP2PDiagnosticsFixture() ?? liveSession;
   const {
-    connected: p2pConnected,
     lastSnapshotAt: p2pLastSnapshotAt,
     peerId: p2pPeerId,
     peers: p2pPeers,
@@ -325,12 +325,9 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     routes: p2pRoutes,
     routePeers: p2pRoutePeers,
     roomId: p2pActiveRoomId,
-    status: p2pStatus
   } = session;
   const networkSettings = useStream(p2pNetworkSettings$);
   const sceneTable = useStream(sceneTableService.sceneTable$);
-  const hasConnectedPlayers = role !== 'gm' || p2pSessionService.hasConnectedPlayers();
-  const displayedP2PStatus = role === 'gm' && p2pConnected && !hasConnectedPlayers ? 'Ожидает игроков' : p2pStatusLabel(p2pStatus);
   const displayedMediaPeers = p2pPeers;
   const displayedRoutes = p2pRoutes;
   const displayedRoutePeers = p2pRoutePeers;
@@ -346,6 +343,8 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   const [mediaDiagnostics, setMediaDiagnostics] = useState<DisplayMediaConnectionDiagnostic[]>([]);
   const previousMediaSamples = useRef(new Map<string, MediaCounterSample>());
   const [diagnosticNow, setDiagnosticNow] = useState(Date.now());
+  const stages = orderedConnectionStages(session.connectionDiagnostics ?? []);
+  const attentionStages = stages.filter(stage => ['failed', 'timed-out'].includes(stage.status));
   const technicalReport = JSON.stringify(createSafeDiagnosticReport(session, mediaDiagnostics, diagnosticNow, __APP_RELEASE__, navigator.onLine, getTechnicalJournal()), null, 2);
 
   const copyTechnicalReport = async () => {
@@ -377,126 +376,141 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
 
   return (
     <section className={`player-tools-settings-panel player-tools-diagnostics ${compact ? 'player-tools-diagnostics--compact' : ''}`}>
-      {!compact && (
-        <dl className="player-tools-sync__meta">
-          <div><dt>Комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>
-          <div><dt>Статус</dt><dd aria-label="Статус">{displayedP2PStatus}</dd></div>
-          <div><dt>Логических подключений</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
-          <div><dt>Последнее обновление</dt><dd aria-label="Последнее обновление">{p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'нет'}</dd></div>
-        </dl>
-      )}
-      <section aria-label="Этапы подключения">
-        <strong>Где находится подключение</strong>
+      <section className="player-tools-diagnostics__overview" aria-label="Состояние подключения">
         <p role="status">{connectionDiagnosticHint(session)}</p>
-        <small>Отчёт не содержит ссылку или код комнаты, имена, идентификаторы и токены. Журнал хранится только в памяти: до 500 событий, 256 КиБ и 24 часов; исчезнет при перезагрузке страницы.</small>
-        <dl className="player-tools-sync__meta player-tools-connection-stages">
-          {orderedConnectionStages(session.connectionDiagnostics ?? []).map((stage) => (
-            <div key={stage.id}>
-              <dt>{CONNECTION_STAGE_LABELS[stage.id]}</dt>
-              <dd>
-                <Badge tone={stage.status === 'failed' || stage.status === 'timed-out' ? 'danger' : stage.status === 'succeeded' ? 'success' : stage.status === 'running' ? 'blue' : 'neutral'}>
-                  {CONNECTION_STAGE_STATUS_LABELS[stage.status]}
-                </Badge>
-                {stage.startedAt !== null && ` · ${((stageElapsedMs(stage, diagnosticNow) ?? 0) / 1000).toFixed(1)} с`}
-                {stage.status === 'running' && ` из ${Math.round(stage.timeoutMs / 1000)} с`}
-                {stage.httpStatus !== undefined && ` · HTTP ${stage.httpStatus}`}
-                {connectionStageErrorLabel(stage.errorCode) && <small>{connectionStageErrorLabel(stage.errorCode)}</small>}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <span>Последнее обновление игры: {p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'ещё не получено'}</span>
       </section>
+      {attentionStages.length > 0 && (
+        <section aria-label="Ошибки подключения">
+          {usesServer && session.connected && attentionStages.every(stage => stage.id.startsWith('p2p-')) && <p className="player-tools-diagnostics__route-note">Не все способы прямой связи запустились. Облачное подключение остаётся доступно.</p>}
+          <ConnectionStageList stages={attentionStages} now={diagnosticNow} />
+        </section>
+      )}
       <div className="player-tools-peer-list" aria-label={usesServer ? 'Облачное и прямое соединение' : 'Маршруты соединений'}>
-        {usesServer && (
-          <Card
-            className="player-tools-peer-card"
-            title="Соединение с игрой"
-            subtitle="Облачное и прямое соединение"
-            actions={<Badge tone={p2pConnected ? 'success' : 'neutral'}>{p2pConnected ? 'подключено' : 'ожидание'}</Badge>}
-          >
-            <small>Подключение доступно, пока запущена сетевая игра.</small>
-          </Card>
-        )}
-        {visibleRoutePeers.map((peer) => (
+        {visibleRoutePeers.map((peer, index) => (
           <Card
             className="player-tools-peer-card"
             key={peer.peerId}
-            title={peerNames.get(peer.peerId) ?? fallbackPeerName(peer.peerId, role)}
-            subtitle={<span title={peer.peerId}>{shortPeerId(peer.peerId)}</span>}
-            actions={<Badge tone={peer.activeStrategy ? 'gold' : 'neutral'}>{peer.activeStrategy ? P2P_ROUTE_LABELS[peer.activeStrategy] : 'Нет активного'}</Badge>}
+            title={peerNames.get(peer.peerId) ?? (role === 'gm' ? `Игрок ${index + 1}` : fallbackPeerName(peer.peerId, role))}
+            actions={<Badge tone={peer.activeStrategy ? 'gold' : 'neutral'}>{peer.activeStrategy ? 'Прямая связь' : 'Без прямой связи'}</Badge>}
           >
-            <div className="player-tools-peer-routes">
+            <details className="player-tools-scene-framing__advanced player-tools-peer-methods">
+              <summary>Способы подключения</summary>
+              <small className="player-tools-peer-identity">ID: {peer.peerId}</small>
+              <div className="player-tools-peer-routes">
               {P2P_ROUTE_COLUMNS.map((strategy) => (
                 <PeerRouteStatus key={strategy} route={peer.routes.find((item) => item.strategy === strategy)} strategy={strategy} />
               ))}
-            </div>
+              </div>
+            </details>
           </Card>
         ))}
         {visibleRoutePeers.length === 0 && (
           <Card
             className="player-tools-peer-card player-tools-peer-card--empty"
-            title="Участник не найден"
+            title={role === 'gm' ? 'Пока нет подключённых игроков' : 'Прямая связь с мастером не установлена'}
           >
-            <div className="player-tools-peer-routes">
-              {P2P_ROUTE_COLUMNS.map((strategy) => (
-                <TransportRouteStatus key={strategy} route={displayedRoutes.find((item) => item.strategy === strategy)} strategy={strategy} />
-              ))}
-            </div>
+            {null}
           </Card>
         )}
+      </div>
+      {(call.audioPlaybackBlocked || call.audioPlaybackActive) && (
+        <p className="player-tools-diagnostics__audio" role="status">
+          {call.audioPlaybackBlocked ? 'Браузер не воспроизводит звук. Разрешите воспроизведение звука.' : 'Звук воспроизводится.'}
+        </p>
+      )}
+      <div className="player-tools-actions">
+        <Button size="sm" type="button" iconBefore={<Copy size={15} aria-hidden="true" />} onClick={() => void copyTechnicalReport()}>
+          Скопировать отчёт
+        </Button>
       </div>
       <details className="player-tools-scene-framing__advanced">
         <summary>Технические данные</summary>
         <div className="player-tools-scene-framing__controls player-tools-technical-report__content">
+          {visibleRoutePeers.length === 0 && (
+            <section aria-label="Способы подключения">
+              <strong>Способы подключения</strong>
+              <div className="player-tools-peer-routes">
+              {P2P_ROUTE_COLUMNS.map((strategy) => (
+                <TransportRouteStatus key={strategy} route={displayedRoutes.find((item) => item.strategy === strategy)} strategy={strategy} />
+              ))}
+              </div>
+            </section>
+          )}
+          <section aria-label="Этапы подключения">
+            <ConnectionStageList stages={stages} now={diagnosticNow} />
+          </section>
           <dl className="player-tools-sync__meta">
+            <div><dt>Комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>
+            <div><dt>Участники</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
+            <div><dt>Статус</dt><dd aria-label="Статус">{role === 'gm' && session.connected && p2pPeers.length === 0 ? 'Ожидает игроков' : p2pStatusLabel(session.status)}</dd></div>
             <div><dt>Режим</dt><dd aria-label="Режим">{usesServer ? 'Облако + P2P' : P2P_NETWORK_STRATEGY_LABELS[networkSettings.strategy]}</dd></div>
             <div><dt>Роль</dt><dd aria-label="Роль">{p2pRole ?? 'нет'}</dd></div>
             <div><dt>ID подключения</dt><dd aria-label="ID подключения">{p2pPeerId ?? 'нет'}</dd></div>
           </dl>
+          <small>Отчёт без имён, кодов комнат и токенов. Его можно отправить для разбора проблемы.</small>
+          <div className="player-tools-media-diagnostics" aria-label="Диагностика медиапотоков">
+            <strong className="player-tools-media-diagnostics__title">Медиапотоки</strong>
+            <Card
+              className="player-tools-media-card"
+              title="Аудиовыход"
+              subtitle={call.audioPlaybackBlocked
+                ? 'Разрешите воспроизведение звука в браузере'
+                : undefined}
+              actions={<Badge tone={call.audioPlaybackBlocked ? 'danger' : call.audioPlaybackActive ? 'success' : 'neutral'}>
+                {call.audioPlaybackBlocked ? 'заблокирован' : call.audioPlaybackActive ? 'работает' : 'нет потока'}
+              </Badge>}
+            >{null}</Card>
+            {mediaDiagnostics.map((connection) => (
+              <Card
+                className="player-tools-media-card"
+                key={`${connection.strategy}:${connection.physicalPeerId}`}
+                title={peerNames.get(connection.peerId) ?? fallbackPeerName(connection.peerId, role)}
+                subtitle={`${P2P_ROUTE_LABELS[connection.strategy]}: ${formatIceRoute(connection)}`}
+                actions={<Badge tone={connection.connectionState === 'connected' ? 'success' : connection.connectionState === 'failed' ? 'danger' : 'gold'}>
+                  {formatConnectionState(connection.connectionState)}
+                </Badge>}
+              >
+                <div className="player-tools-media-flows">
+                  <MediaFlowStatus label="Микрофон →" stat={findMediaStat(connection, 'outbound', 'audio')} />
+                  <MediaFlowStatus label="← Входящий звук" stat={findMediaStat(connection, 'inbound', 'audio')} />
+                  <MediaFlowStatus label="Камера →" stat={findMediaStat(connection, 'outbound', 'video')} />
+                  <MediaFlowStatus label="← Входящее видео" stat={findMediaStat(connection, 'inbound', 'video')} />
+                </div>
+              </Card>
+            ))}
+            {mediaDiagnostics.length === 0 && (
+              <Card
+                className="player-tools-media-card player-tools-media-card--empty"
+                title="Медиасоединение не установлено"
+              >{null}</Card>
+            )}
+          </div>
           <pre className="player-tools-technical-report">{technicalReport}</pre>
-          <Button size="sm" type="button" onClick={() => void copyTechnicalReport()}>
-            Скопировать отчёт
-          </Button>
         </div>
       </details>
-      <div className="player-tools-media-diagnostics" aria-label="Диагностика медиапотоков">
-        <strong className="player-tools-media-diagnostics__title">Медиапотоки</strong>
-        <Card
-          className="player-tools-media-card"
-          title="Аудиовыход"
-          subtitle={call.audioPlaybackBlocked
-            ? 'Разрешите воспроизведение звука в браузере'
-            : undefined}
-          actions={<Badge tone={call.audioPlaybackBlocked ? 'danger' : call.audioPlaybackActive ? 'success' : 'neutral'}>
-            {call.audioPlaybackBlocked ? 'заблокирован' : call.audioPlaybackActive ? 'работает' : 'нет потока'}
-          </Badge>}
-        >{null}</Card>
-        {mediaDiagnostics.map((connection) => (
-          <Card
-            className="player-tools-media-card"
-            key={`${connection.strategy}:${connection.physicalPeerId}`}
-            title={peerNames.get(connection.peerId) ?? fallbackPeerName(connection.peerId, role)}
-            subtitle={`${P2P_ROUTE_LABELS[connection.strategy]}: ${formatIceRoute(connection)}`}
-            actions={<Badge tone={connection.connectionState === 'connected' ? 'success' : connection.connectionState === 'failed' ? 'danger' : 'gold'}>
-              {formatConnectionState(connection.connectionState)}
-            </Badge>}
-          >
-            <div className="player-tools-media-flows">
-              <MediaFlowStatus label="Микрофон →" stat={findMediaStat(connection, 'outbound', 'audio')} />
-              <MediaFlowStatus label="← Входящий звук" stat={findMediaStat(connection, 'inbound', 'audio')} />
-              <MediaFlowStatus label="Камера →" stat={findMediaStat(connection, 'outbound', 'video')} />
-              <MediaFlowStatus label="← Входящее видео" stat={findMediaStat(connection, 'inbound', 'video')} />
-            </div>
-          </Card>
-        ))}
-        {mediaDiagnostics.length === 0 && (
-          <Card
-            className="player-tools-media-card player-tools-media-card--empty"
-            title="Медиасоединение не установлено"
-          >{null}</Card>
-        )}
-      </div>
     </section>
+  );
+}
+
+function ConnectionStageList({ stages, now }: { stages: ConnectionStageDiagnostic[]; now: number }) {
+  return (
+    <dl className="player-tools-sync__meta player-tools-connection-stages">
+      {stages.map((stage) => (
+        <div key={stage.id}>
+          <dt>{CONNECTION_STAGE_LABELS[stage.id]}</dt>
+          <dd>
+            <Badge tone={stage.status === 'failed' || stage.status === 'timed-out' ? 'danger' : stage.status === 'succeeded' ? 'success' : stage.status === 'running' ? 'blue' : 'neutral'}>
+              {CONNECTION_STAGE_STATUS_LABELS[stage.status]}
+            </Badge>
+            {stage.startedAt !== null && ` · ${((stageElapsedMs(stage, now) ?? 0) / 1000).toFixed(1)} с`}
+            {stage.status === 'running' && ` из ${Math.round(stage.timeoutMs / 1000)} с`}
+            {stage.httpStatus !== undefined && ` · HTTP ${stage.httpStatus}`}
+            {connectionStageErrorLabel(stage.errorCode) && <small>{connectionStageErrorLabel(stage.errorCode)}</small>}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

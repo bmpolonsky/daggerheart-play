@@ -63,3 +63,11 @@ it('preserves the actual build release marker but rejects arbitrary release text
     expect(createSafeDiagnosticReport(session, [], 4000, release, true).release).toBe('unknown');
   }
 });
+
+it('keeps the overview concise without equating cloud readiness with game data', () => {
+  const ready = { ...session, connected: true, connectionDiagnostics: [] };
+  expect(connectionDiagnosticHint(ready)).toBe('Подключение готово, но состояние игры ещё не получено.');
+  expect(connectionDiagnosticHint({ ...ready, lastSnapshotAt: '2026-11-05T16:00:00Z' })).toBe('Облачное подключение готово.');
+  expect(connectionDiagnosticHint({ ...ready, role: 'gm', peers: [] })).toBe('Облачное подключение готово. Мастер ожидает игроков.');
+  expect(connectionDiagnosticHint(session)).toBe('Сейчас: Проверка входа в Supabase.');
+});

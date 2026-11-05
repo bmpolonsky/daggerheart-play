@@ -90,3 +90,13 @@
     display: none;
   }
 }
+
+/* Keep the close action reachable while reading long connection details. */
+.p2p-health-dialog > .dh-section-header--modal {
+  position: sticky;
+  top: -18px;
+  z-index: 1;
+  margin: -18px -18px 0;
+  padding: 18px;
+  background: var(--dh-glass-strong);
+}

@@ -56,7 +56,7 @@ export function connectionDiagnosticHint(session: Pick<P2PSessionState, 'connect
   if (active) {
     const label = CONNECTION_STAGE_LABELS[active.id] ?? 'Подключение';
     const prefix = failure ? `Остановилось: ${label}.` : `Сейчас: ${label}.`;
-    if (!failure) return `${prefix} Длительность и предел ожидания показаны ниже.`;
+    if (!failure) return prefix;
     if (active.errorCode === 'room_not_found' || active.errorCode === 'master_offline') return `${prefix} Попросите мастера проверить, что сетевая игра запущена и ссылка актуальна.`;
     if (active.errorCode === 'auth_required') return `${prefix} Для мастера требуется вход в аккаунт.`;
     if (active.id.startsWith('p2p-')) return `${prefix} Это запуск одного прямого маршрута, а не проверка связи с участником. Другие маршруты показаны отдельно; в облачном режиме игра может продолжать работать через сервер.`;
@@ -68,10 +68,10 @@ export function connectionDiagnosticHint(session: Pick<P2PSessionState, 'connect
   if (fallbackSucceeded) return session.lastSnapshotAt || session.role === 'gm'
     ? 'Облачная комната недоступна; подключение продолжено по P2P. Связь с участниками и данные проверяются отдельно.'
     : 'Облачная комната недоступна; подключение продолжено по P2P, ожидаем состояние игры.';
-  if (session.connected && session.role === 'gm' && session.peers.length === 0) return `${session.transportMode === 'hybrid' ? 'Облачное подключение готово.' : 'Сетевая игра запущена.'} Мастер ожидает игроков; готовность P2P-маршрутов ещё не означает связь с игроком.`;
+  if (session.connected && session.role === 'gm' && session.peers.length === 0) return `${session.transportMode === 'hybrid' ? 'Облачное подключение готово.' : 'Сетевая игра запущена.'} Мастер ожидает игроков.`;
   if (session.connected && session.role === 'player' && !session.lastSnapshotAt) return 'Подключение готово, но состояние игры ещё не получено.';
-  if (session.connected) return session.transportMode === 'hybrid' ? 'Облачное подключение готово. Ошибка прямого P2P-маршрута не означает потерю облачной игры.' : 'Подключение готово. Состояние отдельных прямых маршрутов показано ниже.';
-  return 'Подключение ещё не начато или диагностика этапов недоступна для этой сессии.';
+  if (session.connected) return session.transportMode === 'hybrid' ? 'Облачное подключение готово.' : 'Сетевая игра запущена.';
+  return 'Нет активного подключения к игре.';
 }
 
 /** Explicit allowlist: never copy a URL, identity, token, raw error, game state or arbitrary session field. */
