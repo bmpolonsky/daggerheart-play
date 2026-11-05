@@ -23,7 +23,9 @@ test('long mobile lobby scrolls the document and clears scroll offset when enter
   expect(layout.overscrollY).toBe('auto');
   expect(layout.rootScroller).toBe(true);
   await page.evaluate(() => scrollTo(0, 350));
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(250);
+  // WebKit's native controls can make the same ten rows shorter than Chromium's.
+  const expectedScroll = Math.min(350, layout.documentHeight - layout.viewport);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(expectedScroll, 0);
   expect(await page.locator('.role-entry').evaluate(element => element.scrollTop)).toBe(0);
   await page.getByRole('button', { name: 'Открыть игру', exact: true }).click();
   await expect(page.locator('[data-vtt-root]')).toBeVisible();
@@ -31,7 +33,7 @@ test('long mobile lobby scrolls the document and clears scroll offset when enter
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   const gameBounds = await page.locator('[data-vtt-root]').boundingBox();
   expect(gameBounds?.y).toBe(0);
-  expect(gameBounds?.height).toBe(844);
+  expect(gameBounds?.height).toBeCloseTo(844, 0);
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).toBe('clip');
   const url = page.url();
   await page.reload();
