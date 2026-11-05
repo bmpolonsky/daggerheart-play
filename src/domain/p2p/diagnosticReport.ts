@@ -80,7 +80,7 @@ export function createSafeDiagnosticReport(session: P2PSessionState, media: P2PM
     schemaVersion: 2,
     journal: journal.map(sanitizeTechnicalJournalEntry).filter((entry): entry is TechnicalJournalEntry => entry !== null),
     generatedAt: new Date(now).toISOString(),
-    release: /^[\w.-]{1,100}$/.test(release) ? release : 'unknown',
+    release: /^(?:daggerheart-play@)?[a-f0-9]{7,40}$/.test(release) ? release : 'unknown',
     online,
     session: {
       connected: session.connected === true,

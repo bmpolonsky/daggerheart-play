@@ -54,3 +54,12 @@ it('explains a successful cloud-to-P2P fallback rather than claiming the connect
   expect(hint).toContain('продолжено по P2P');
   expect(hint).not.toContain('Остановилось');
 });
+
+it('preserves the actual build release marker but rejects arbitrary release text', () => {
+  for (const release of ['daggerheart-play@c03833b', 'daggerheart-play@c03833bcae90970718e898f689e3b35cddffcf8e', '479c401']) {
+    expect(createSafeDiagnosticReport(session, [], 4000, release, true).release).toBe(release);
+  }
+  for (const release of ['https://host/?token=SECRET', 'daggerheart-play@SECRET', 'SECRET', 'user@example.com', 'daggerheart-play@c03833b?token=SECRET', 'c03833b\nSECRET']) {
+    expect(createSafeDiagnosticReport(session, [], 4000, release, true).release).toBe('unknown');
+  }
+});

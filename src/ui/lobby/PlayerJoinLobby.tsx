@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { MonitorPlay } from 'lucide-react';
 import { useStream } from '../../core/hooks/useStream';
+import { playerSeatAvailability } from '../../domain/p2p/playerSeatAvailability';
 import { readStoredPlayerSeatId, writeStoredPlayerSeatId } from '../../domain/p2p/sessionLinks';
 import type { Character } from '../../domain/rules/types';
 import { characterClassLabel } from '../../domain/rules/constants';
@@ -21,9 +22,10 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, scen
   const { entities: characterEntities } = useStream(characterService.characters$);
   const { participants } = useStream(sceneTableService.sceneTable$);
   const session = useStream(p2pSessionService.session$);
-  const hasSnapshot = Boolean(session.lastSnapshotAt);
-  const playerSeats = useMemo(() => Object.values(participants).filter((participant) => participant.role === 'player'), [participants]);
-  const visiblePlayerSeats = useMemo(() => hasSnapshot ? playerSeats : [], [hasSnapshot, playerSeats]);
+  const { hasSnapshot, seats: visiblePlayerSeats } = useMemo(
+    () => playerSeatAvailability(session, roomId, participants),
+    [session.role, session.roomId, session.lastSnapshotAt, roomId, participants]
+  );
   const [selectedSeatId, setSelectedSeatId] = useState(() => readStoredPlayerSeatId(roomId));
   const [snapshotWaitExpired, setSnapshotWaitExpired] = useState(false);
   const connectKey = useRef<string | null>(null);
@@ -34,7 +36,7 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, scen
   const joinStatus = hasSnapshot
     ? 'Данные игры получены.'
     : snapshotWaitExpired
-      ? 'Соединение пока не установлено. Проверьте код комнаты или попробуйте позже.'
+      ? 'Подключение установлено, но данные игры ещё не получены. Попросите мастера проверить сетевую игру.'
       : session.message;
 
   useEffect(() => {
@@ -100,7 +102,11 @@ export function PlayerJoinLobby({ onBackToLobby, onEnterPlayerRoom, roomId, scen
                 );
               })}
               {visiblePlayerSeats.length === 0 && (
-                <EmptyState size="sm" title={joining || connectedToRoom ? 'Получаем список игроков' : session.message} />
+                <EmptyState
+                  size="sm"
+                  title={hasSnapshot ? 'Места игроков пока не созданы' : joining || connectedToRoom ? 'Получаем список игроков' : session.message}
+                  body={hasSnapshot ? 'Попросите мастера добавить игрока в настройках игры. Список обновится автоматически.' : undefined}
+                />
               )}
             </div>
             {selectedSeat && (
