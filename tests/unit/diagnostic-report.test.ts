@@ -28,10 +28,10 @@ describe('Safe connection report', () => {
     const hint = connectionDiagnosticHint({ ...session, connectionDiagnostics: [{ ...stage, status: 'timed-out', errorCode: 'timeout' }] });
     expect(hint).toContain('Проверка входа в Supabase');
     expect(hint).toContain('не доказывает блокировку');
-    expect(connectionDiagnosticHint({ ...session, connected: true, role: 'gm', peers: [], connectionDiagnostics: [] })).toContain('ожидает игроков');
+    expect(connectionDiagnosticHint({ ...session, connected: true, status: 'connected', role: 'gm', peers: [], connectionDiagnostics: [] })).toContain('ожидает игроков');
   });
   it('does not call an optional P2P failure a failed cloud connection', () => {
-    const hint = connectionDiagnosticHint({ ...session, connected: true, lastSnapshotAt: '2026-11-05T16:00:00Z', connectionDiagnostics: [{ ...stage, id: 'p2p-nostr', status: 'failed', errorCode: 'network_error' }] });
+    const hint = connectionDiagnosticHint({ ...session, connected: true, status: 'connected', lastSnapshotAt: '2026-11-05T16:00:00Z', connectionDiagnostics: [{ ...stage, id: 'p2p-nostr', status: 'failed', errorCode: 'network_error' }] });
     expect(hint).toContain('Облачное подключение готово');
     expect(hint).not.toContain('Остановилось');
   });
@@ -65,9 +65,23 @@ it('preserves the actual build release marker but rejects arbitrary release text
 });
 
 it('keeps the overview concise without equating cloud readiness with game data', () => {
-  const ready = { ...session, connected: true, connectionDiagnostics: [] };
+  const ready = { ...session, connected: true, status: 'connected' as const, connectionDiagnostics: [] };
   expect(connectionDiagnosticHint(ready)).toBe('Подключение готово, но состояние игры ещё не получено.');
   expect(connectionDiagnosticHint({ ...ready, lastSnapshotAt: '2026-11-05T16:00:00Z' })).toBe('Облачное подключение готово.');
   expect(connectionDiagnosticHint({ ...ready, role: 'gm', peers: [] })).toBe('Облачное подключение готово. Мастер ожидает игроков.');
   expect(connectionDiagnosticHint(session)).toBe('Сейчас: Проверка входа в Supabase.');
+});
+
+
+it('uses current session state instead of an old failed attempt after recovery', () => {
+  const recovered = { ...session, connected: true, status: 'connected' as const, lastSnapshotAt: '2026-11-06T12:00:00Z', connectionDiagnostics: [{ ...stage, status: 'failed' as const, errorCode: 'network_error' as const }] };
+  expect(connectionDiagnosticHint(recovered)).toBe('Облачное подключение готово.');
+  expect(connectionDiagnosticHint({ ...recovered, connected: false, status: 'disconnected' })).toBe('Нет активного подключения к игре.');
+  expect(connectionDiagnosticHint({ ...recovered, status: 'degraded' })).toContain('нестабильна');
+});
+
+
+it('does not claim readiness for connecting or error states with no recorded stages', () => {
+  expect(connectionDiagnosticHint({ ...session, status: 'connecting', connectionDiagnostics: [] })).toContain('Подключаемся');
+  expect(connectionDiagnosticHint({ ...session, status: 'error', connectionDiagnostics: [] })).toContain('Ошибка подключения');
 });

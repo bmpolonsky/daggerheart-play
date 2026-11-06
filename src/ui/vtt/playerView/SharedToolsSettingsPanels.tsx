@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import type { ConnectionStageDiagnostic } from '../../../domain/p2p/connectionDiagnostics';
-import { getTechnicalJournal } from '../../../core/observability/technicalJournal';
+import { getTechnicalJournal, type TechnicalJournalEntry } from '../../../core/observability/technicalJournal';
 import { CONNECTION_STAGE_LABELS, CONNECTION_STAGE_STATUS_LABELS, connectionDiagnosticHint, connectionStageErrorLabel, createSafeDiagnosticReport, orderedConnectionStages, stageElapsedMs } from '../../../domain/p2p/diagnosticReport';
 import { contentAccessForGame, normalizeContentAccess } from '../../../domain/content/access';
 import { Copy, Plus, Trash2 } from 'lucide-react';
@@ -277,8 +277,8 @@ export function SharedToolsConnectionSettingsPanel({
         </div>
       </div>
       <div className="player-tools-actions">
-        {role === 'player' && (
-          <Button variant="primary" type="button" disabled={p2pConnected} onClick={() => void p2pSessionService.startPlayerRoom({ roomId: playerRoomId })}>
+        {role === 'player' && !p2pConnected && (
+          <Button variant="primary" type="button" onClick={() => void p2pSessionService.startPlayerRoom({ roomId: playerRoomId })}>
             Подключиться
           </Button>
         )}
@@ -318,7 +318,6 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   const call = useStream(mediaCallService.call$);
   const session = e2eP2PDiagnosticsFixture() ?? liveSession;
   const {
-    lastSnapshotAt: p2pLastSnapshotAt,
     peerId: p2pPeerId,
     peers: p2pPeers,
     role: p2pRole,
@@ -344,8 +343,9 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
   const previousMediaSamples = useRef(new Map<string, MediaCounterSample>());
   const [diagnosticNow, setDiagnosticNow] = useState(Date.now());
   const stages = orderedConnectionStages(session.connectionDiagnostics ?? []);
+  const journal = getTechnicalJournal();
   const attentionStages = stages.filter(stage => ['failed', 'timed-out'].includes(stage.status));
-  const technicalReport = JSON.stringify(createSafeDiagnosticReport(session, mediaDiagnostics, diagnosticNow, __APP_RELEASE__, navigator.onLine, getTechnicalJournal()), null, 2);
+  const technicalReport = JSON.stringify(createSafeDiagnosticReport(session, mediaDiagnostics, diagnosticNow, __APP_RELEASE__, navigator.onLine, journal), null, 2);
 
   const copyTechnicalReport = async () => {
     try {
@@ -378,21 +378,24 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
     <section className={`player-tools-settings-panel player-tools-diagnostics ${compact ? 'player-tools-diagnostics--compact' : ''}`}>
       <section className="player-tools-diagnostics__overview" aria-label="Состояние подключения">
         <p role="status">{connectionDiagnosticHint(session)}</p>
-        <span>Последнее обновление игры: {p2pLastSnapshotAt ? new Date(p2pLastSnapshotAt).toLocaleTimeString() : 'ещё не получено'}</span>
+        <span>{usesServer ? 'Облако — канал данных игры. P2P — дополнительная прямая связь между участниками.' : 'Выбран режим прямой передачи данных между участниками.'}</span>
       </section>
       {attentionStages.length > 0 && (
-        <section aria-label="Ошибки подключения">
-          {usesServer && session.connected && attentionStages.every(stage => stage.id.startsWith('p2p-')) && <p className="player-tools-diagnostics__route-note">Не все способы прямой связи запустились. Облачное подключение остаётся доступно.</p>}
+        <details className="player-tools-scene-framing__advanced" aria-label="Ошибки подключения">
+          <summary>{session.connected && session.status === 'connected' ? 'Прошлые неудачные этапы' : 'Неудачные этапы'} · {attentionStages.length}</summary>
+          <p className="player-tools-diagnostics__route-note">Это результаты попыток, а не проверка текущей работоспособности. После восстановления старые ошибки могут оставаться в истории.</p>
           <ConnectionStageList stages={attentionStages} now={diagnosticNow} />
-        </section>
+        </details>
       )}
+      <details className="player-tools-scene-framing__advanced">
+        <summary>Прямая связь P2P · {visibleRoutePeers.filter(peer => peer.activeStrategy).length} из {visibleRoutePeers.length}</summary>
       <div className="player-tools-peer-list" aria-label={usesServer ? 'Облачное и прямое соединение' : 'Маршруты соединений'}>
         {visibleRoutePeers.map((peer, index) => (
           <Card
             className="player-tools-peer-card"
             key={peer.peerId}
             title={peerNames.get(peer.peerId) ?? (role === 'gm' ? `Игрок ${index + 1}` : fallbackPeerName(peer.peerId, role))}
-            actions={<Badge tone={peer.activeStrategy ? 'gold' : 'neutral'}>{peer.activeStrategy ? 'Прямая связь' : 'Без прямой связи'}</Badge>}
+            actions={<Badge tone={peer.activeStrategy ? 'gold' : 'neutral'}>{peer.activeStrategy ? 'Установлена' : 'Не установлена'}</Badge>}
           >
             <details className="player-tools-scene-framing__advanced player-tools-peer-methods">
               <summary>Способы подключения</summary>
@@ -414,16 +417,30 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
           </Card>
         )}
       </div>
+      </details>
       {(call.audioPlaybackBlocked || call.audioPlaybackActive) && (
         <p className="player-tools-diagnostics__audio" role="status">
           {call.audioPlaybackBlocked ? 'Браузер не воспроизводит звук. Разрешите воспроизведение звука.' : 'Звук воспроизводится.'}
         </p>
       )}
-      <div className="player-tools-actions">
-        <Button size="sm" type="button" iconBefore={<Copy size={15} aria-hidden="true" />} onClick={() => void copyTechnicalReport()}>
-          Скопировать отчёт
-        </Button>
-      </div>
+      <details className="player-tools-scene-framing__advanced">
+        <summary>Этапы подключения · {stages.length}</summary>
+        <p className="player-tools-diagnostics__route-note">Последний результат каждого этапа. Успешное завершение не означает, что соединение работает сейчас.</p>
+        <section aria-label="Этапы подключения"><ConnectionStageList stages={stages} now={diagnosticNow} /></section>
+      </details>
+      <details className="player-tools-scene-framing__advanced">
+        <summary>Журнал событий · {journal.length}</summary>
+        <p className="player-tools-diagnostics__route-note">Сетевые события этой вкладки, новые сверху. До 500 записей за 24 часа; при перезагрузке очищаются. Это не полный журнал приложения.</p>
+        <ol className="player-tools-event-journal" aria-label="Сетевые события">
+          {[...journal].reverse().map((event, index) => <li key={`${event.at}:${index}`}>
+            <time dateTime={new Date(event.at).toISOString()}>{new Date(event.at).toLocaleTimeString('ru-RU')}</time>
+            <div><strong>{event.area === 'network' ? CONNECTION_STAGE_LABELS[event.operation as ConnectionStageDiagnostic['id']] : `${event.area}: ${event.operation}`}</strong>
+              <small>{JOURNAL_EVENT_LABELS[event.phase]}{event.attempt ? ` · попытка ${event.attempt}` : ''}{event.durationMs !== undefined ? ` · ${(event.durationMs / 1000).toFixed(1)} с` : ''}{event.httpStatus ? ` · HTTP ${event.httpStatus}` : ''}{event.errorCode ? ` · ${connectionStageErrorLabel(event.errorCode)}` : ''}</small>
+            </div>
+          </li>)}
+        </ol>
+        {journal.length === 0 && <p className="player-tools-diagnostics__route-note">В этой вкладке ещё нет записанных событий.</p>}
+      </details>
       <details className="player-tools-scene-framing__advanced">
         <summary>Технические данные</summary>
         <div className="player-tools-scene-framing__controls player-tools-technical-report__content">
@@ -437,9 +454,6 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
               </div>
             </section>
           )}
-          <section aria-label="Этапы подключения">
-            <ConnectionStageList stages={stages} now={diagnosticNow} />
-          </section>
           <dl className="player-tools-sync__meta">
             <div><dt>Комната</dt><dd aria-label="Активная комната">{p2pActiveRoomId || 'нет'}</dd></div>
             <div><dt>Участники</dt><dd aria-label="Логических подключений">{p2pPeers.length}</dd></div>
@@ -486,12 +500,23 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
               >{null}</Card>
             )}
           </div>
-          <pre className="player-tools-technical-report">{technicalReport}</pre>
+          <details className="player-tools-scene-framing__advanced"><summary>Исходный JSON отчёта</summary><pre className="player-tools-technical-report">{technicalReport}</pre></details>
         </div>
       </details>
+      <div className="player-tools-actions">
+        <Button size="sm" type="button" iconBefore={<Copy size={15} aria-hidden="true" />} onClick={() => void copyTechnicalReport()}>
+          Скопировать отчёт
+        </Button>
+      </div>
+
     </section>
   );
 }
+
+const JOURNAL_EVENT_LABELS: Record<TechnicalJournalEntry['phase'], string> = {
+  pending: 'Поставлено в очередь', running: 'Начато', succeeded: 'Завершено',
+  failed: 'Завершено с ошибкой', 'timed-out': 'Истекло время ожидания', cancelled: 'Отменено'
+};
 
 function ConnectionStageList({ stages, now }: { stages: ConnectionStageDiagnostic[]; now: number }) {
   return (
@@ -797,7 +822,7 @@ function formatPeerRouteStatus(status: P2PTransportPeerRouteDiagnostic['status']
     case 'lost':
       return 'потерян';
     case 'unknown':
-      return 'нет сигнала';
+      return 'не проверен';
   }
 }
 

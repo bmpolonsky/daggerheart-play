@@ -189,7 +189,7 @@ test.describe('P2P session workflow', () => {
         if (scenario === 'optional-direct-failed' || scenario === 'p2p-fallback') {
           await expect(dialog.getByLabel('Ошибки подключения')).toBeVisible();
         }
-        const disclosure = dialog.locator('summary').filter({ hasText: /^Технические данные$/ });
+        const disclosure = dialog.locator('summary').filter({ hasText: /^Этапы подключения ·/ });
         await disclosure.focus();
         await page.keyboard.press('Enter');
         await expect(stages).toBeVisible();
@@ -218,6 +218,8 @@ test.describe('P2P session workflow', () => {
           await expect(hint).toContainText('Мастер ожидает игроков');
           if (scenario === 'optional-direct-failed') await expect(stages).toContainText('время ожидания истекло');
         }
+        await dialog.locator('summary').filter({ hasText: /^Технические данные$/ }).click();
+        await dialog.locator('summary').filter({ hasText: /^Исходный JSON отчёта$/ }).click();
         const report = dialog.locator('.player-tools-technical-report');
         const text = await report.innerText();
         expect(text).not.toContain('PRIVATE-');
@@ -327,6 +329,7 @@ test.describe('P2P session workflow', () => {
     await openGmGame(page);
 
     const dialog = await openGameDiagnostics(page);
+    await dialog.locator('summary').filter({ hasText: /^Прямая связь P2P ·/ }).click();
     const cards = dialog.locator('.player-tools-peer-card');
     await expect(cards).toHaveCount(2);
 
@@ -358,6 +361,7 @@ test.describe('P2P session workflow', () => {
     await expectInsideViewport(page, panel);
     expect(await panel.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
 
+    await dialog.locator('summary').filter({ hasText: /^Прямая связь P2P ·/ }).click();
     await dialog.locator('.player-tools-peer-card').last().getByText('Способы подключения', { exact: true }).click();
     const lastRoute = dialog.locator('.player-tools-peer-card').last().locator('.player-tools-peer-route').last();
     await lastRoute.locator('summary').click();

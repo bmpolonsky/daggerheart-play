@@ -44,7 +44,9 @@ export function stageElapsedMs(stage: ConnectionStageDiagnostic, now: number): n
   return stage.startedAt === null ? null : Math.max(0, (stage.finishedAt ?? now) - stage.startedAt);
 }
 
-export function connectionDiagnosticHint(session: Pick<P2PSessionState, 'connectionDiagnostics' | 'connected' | 'lastSnapshotAt' | 'role' | 'peers' | 'transportMode'>): string {
+export function connectionDiagnosticHint(session: Pick<P2PSessionState, 'connectionDiagnostics' | 'connected' | 'lastSnapshotAt' | 'role' | 'peers' | 'transportMode'> & Partial<Pick<P2PSessionState, 'status'>>): string {
+  if (session.status === 'disconnected') return 'Нет активного подключения к игре.';
+  if (session.status === 'degraded') return 'Связь с игрой нестабильна. Последнее полученное состояние не подтверждает доставку новых обновлений.';
   const stages = session.connectionDiagnostics ?? [];
   const fallbackSucceeded = session.connected && session.transportMode === 'p2p' && stages.some(stage => stage.errorCode === 'room_not_found' || stage.errorCode === 'master_offline');
   const mainStages = stages.filter(stage => !stage.id.startsWith('p2p-') && (!fallbackSucceeded || stage.id === 'handshake'));
@@ -53,7 +55,7 @@ export function connectionDiagnosticHint(session: Pick<P2PSessionState, 'connect
   const active = mainStages.find(failed) ?? mainStages.find(stage => stage.status === 'running')
     ?? directStages.find(stage => stage.status === 'running') ?? directStages.find(failed);
   const failure = active && failed(active);
-  if (active) {
+  if (active && (!session.connected || session.status === 'connecting' || session.status === 'error')) {
     const label = CONNECTION_STAGE_LABELS[active.id] ?? 'Подключение';
     const prefix = failure ? `Остановилось: ${label}.` : `Сейчас: ${label}.`;
     if (!failure) return prefix;
@@ -65,6 +67,8 @@ export function connectionDiagnosticHint(session: Pick<P2PSessionState, 'connect
     if (active.id.startsWith('auth') || active.id.startsWith('room')) return `${prefix} Возможны недоступность Supabase, ошибка входа или ответ сервера. Таймаут сам по себе не доказывает блокировку. Сравните с другой сетью или VPN на том же устройстве.`;
     return `${prefix} Соединение не завершило этот этап. Сохраните отчёт и повторите подключение после проверки сети.`;
   }
+  if (session.status === 'error') return 'Ошибка подключения к игре. Сохраните отчёт и повторите подключение.';
+  if (session.status === 'connecting') return 'Подключаемся к игре. Ожидаем завершения соединения.';
   if (fallbackSucceeded) return session.lastSnapshotAt || session.role === 'gm'
     ? 'Облачная комната недоступна; подключение продолжено по P2P. Связь с участниками и данные проверяются отдельно.'
     : 'Облачная комната недоступна; подключение продолжено по P2P, ожидаем состояние игры.';

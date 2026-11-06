@@ -3537,3 +3537,22 @@ textarea.player-compendium-statblock__weapon {
   line-height: 1.5;
   color: var(--dh-paper-muted);
 }
+
+/* History is a bounded chronological list, distinct from latest stage results. */
+.player-tools-event-journal { list-style: none; padding: 0; margin: 12px 0; max-height: 320px; overflow: auto; }
+.player-tools-event-journal li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 8px 0; }
+.player-tools-event-journal time { color: var(--dh-paper-faint); font-size: .72rem; font-variant-numeric: tabular-nums; }
+.player-tools-event-journal strong { font-size: .78rem; font-weight: 500; }
+.player-tools-event-journal small { display: block; font-size: .72rem; color: var(--dh-paper-muted); overflow-wrap: anywhere; }
+.player-tools-diagnostics > details > summary { padding-block: 8px; }
+.player-tools-diagnostics .player-tools-connection-stages { gap: 6px; }
+.player-tools-diagnostics .player-tools-connection-stages > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: baseline; gap: 12px; }
+@media (max-width: 480px) { .player-tools-diagnostics .player-tools-connection-stages > div { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+
+@media (max-width: 480px) {
+  .p2p-health-dialog .player-tools-settings-panel { gap: 12px; }
+  .p2p-health-dialog .player-tools-sync__summary { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .p2p-health-dialog .player-tools-sync__summary > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 4px 0; background: transparent; }
+  .p2p-health-dialog .player-tools-sync__summary strong { font-size: .8rem; white-space: normal; text-align: right; }
+  .p2p-health-dialog .player-tools-actions { justify-content: flex-start; gap: 6px; }
+}
