@@ -40,6 +40,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     return () => this.diagnosticListeners.delete(listener);
   }
   private room: Room | null = null;
+  private roomDeparture: Promise<void> = Promise.resolve();
   private envelopeAction: MessageAction<DataPayload> | null = null;
   private binaryAction: MessageAction<DataPayload> | null = null;
   private envelopeListeners = new Set<(envelope: P2PWireEnvelope, context?: P2PTransportMessageContext) => void>();
@@ -57,7 +58,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
   async connect(roomId: string, diagnosticAttempt?: number): Promise<void> {
     this.diagnostics.cancel();
     const generation = ++this.connectionGeneration;
-    this.room?.leave();
+    const departure = this.leaveRoom();
     const strategy = this.options.strategy && this.options.strategy !== 'auto' ? this.options.strategy : 'nostr';
     this.connectedStrategy = strategy;
     const resolvedRoom = resolveTrysteroRoom(roomId, strategy);
@@ -65,6 +66,8 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     this.diagnostics.reset([stage], diagnosticAttempt);
     await this.diagnostics.run(stage, async signal => {
       const current = () => { if (signal.aborted || generation !== this.connectionGeneration) throw new ConnectionStageError('cancelled', stage); };
+      await departure;
+      current();
       const { joinRoom, selfId } = await importTrysteroStrategy(resolvedRoom.strategy);
       current();
       const providedTurnConfig = await this.options.turnConfigProvider?.(roomId).catch(() => []);
@@ -72,7 +75,7 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
       const turnConfig = providedTurnConfig?.length ? providedTurnConfig : this.options.turnConfig;
       const config = trysteroConfigForStrategy(resolvedRoom.strategy, { ...this.options, turnConfig });
       this.peerId = selfId;
-      this.room = joinRoom(
+      const room = this.room = joinRoom(
         config,
         resolvedRoom.roomId,
         {
@@ -80,62 +83,64 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
         }
       );
 
-      const envelopeAction = this.room.makeAction<DataPayload>('daggerheart-p2p-v2');
-      this.envelopeAction = envelopeAction;
-      envelopeAction.onMessage = (data, { peerId }) => {
-        const envelope = data as unknown;
-        if (!isP2PWireEnvelope(envelope)) {
-          return;
-        }
-        this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: peerId, verifiedSourcePeerId: peerId }));
-      };
-      const binaryAction = this.room.makeAction<DataPayload>('daggerheart-binary-v1');
-      this.binaryAction = binaryAction;
-      binaryAction.onMessage = (data, { peerId, metadata }) => {
-        if (data instanceof ArrayBuffer) {
-          this.binaryListeners.forEach((listener) => listener(data, peerId, metadata));
-          return;
-        }
-        if (ArrayBuffer.isView(data)) {
-          const view = data as ArrayBufferView;
-          const buffer = view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength) as ArrayBuffer;
-          this.binaryListeners.forEach((listener) => listener(buffer, peerId, metadata));
-          return;
-        }
-        if (data instanceof Blob) {
-          void data.arrayBuffer().then((buffer) => {
+      try {
+        const envelopeAction = this.room.makeAction<DataPayload>('daggerheart-p2p-v2');
+        this.envelopeAction = envelopeAction;
+        envelopeAction.onMessage = (data, { peerId }) => {
+          const envelope = data as unknown;
+          if (!isP2PWireEnvelope(envelope)) {
+            return;
+          }
+          this.envelopeListeners.forEach((listener) => listener(envelope, { sourcePeerId: peerId, verifiedSourcePeerId: peerId }));
+        };
+        const binaryAction = this.room.makeAction<DataPayload>('daggerheart-binary-v1');
+        this.binaryAction = binaryAction;
+        binaryAction.onMessage = (data, { peerId, metadata }) => {
+          if (data instanceof ArrayBuffer) {
+            this.binaryListeners.forEach((listener) => listener(data, peerId, metadata));
+            return;
+          }
+          if (ArrayBuffer.isView(data)) {
+            const view = data as ArrayBufferView;
+            const buffer = view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength) as ArrayBuffer;
             this.binaryListeners.forEach((listener) => listener(buffer, peerId, metadata));
+            return;
+          }
+          if (data instanceof Blob) {
+            void data.arrayBuffer().then((buffer) => {
+              this.binaryListeners.forEach((listener) => listener(buffer, peerId, metadata));
+            });
+          }
+        };
+        binaryAction.onReceiveProgress = (percent, { peerId, metadata }) => {
+          this.binaryProgressListeners.forEach((listener) => listener(percent, peerId, metadata));
+        };
+        this.room.onPeerJoin = (peerId) => {
+          this.peerJoinListeners.forEach((listener) => listener(peerId));
+          this.publishedMediaStreams.forEach((metadata, stream) => {
+            void Promise.all(this.room?.addStream(stream, { target: peerId, metadata }) ?? []);
           });
-        }
-      };
-      binaryAction.onReceiveProgress = (percent, { peerId, metadata }) => {
-        this.binaryProgressListeners.forEach((listener) => listener(percent, peerId, metadata));
-      };
-      this.room.onPeerJoin = (peerId) => {
-        this.peerJoinListeners.forEach((listener) => listener(peerId));
-        this.publishedMediaStreams.forEach((metadata, stream) => {
-          void Promise.all(this.room?.addStream(stream, { target: peerId, metadata }) ?? []);
-        });
-      };
-      this.room.onPeerLeave = (peerId) => {
-        this.peerLeaveListeners.forEach((listener) => listener(peerId));
-      };
-      this.room.onPeerStream = (stream, peerId, metadata) => {
-        this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
-      };
-      this.room.onPeerTrack = (_track, stream, peerId, metadata) => {
-        this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
-      };
+        };
+        this.room.onPeerLeave = (peerId) => {
+          this.peerLeaveListeners.forEach((listener) => listener(peerId));
+        };
+        this.room.onPeerStream = (stream, peerId, metadata) => {
+          this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
+        };
+        this.room.onPeerTrack = (_track, stream, peerId, metadata) => {
+          this.mediaStreamListeners.forEach((listener) => listener(stream, peerId, metadata));
+        };
+      } catch (error) {
+        if (this.room === room) await this.leaveRoom().catch(() => undefined);
+        throw error;
+      }
     });
   }
 
   async disconnect(): Promise<void> {
     this.connectionGeneration += 1;
     this.diagnostics.cancel();
-    await this.room?.leave();
-    this.room = null;
-    this.envelopeAction = null;
-    this.binaryAction = null;
+    const departure = this.leaveRoom();
     this.envelopeListeners.clear();
     this.binaryListeners.clear();
     this.binaryProgressListeners.clear();
@@ -144,6 +149,17 @@ export class TrysteroP2PTransport implements P2PTransportAdapter {
     this.errorListeners.clear();
     this.mediaStreamListeners.clear();
     this.publishedMediaStreams.clear();
+    await departure;
+  }
+
+  private leaveRoom(): Promise<void> {
+    const room = this.room;
+    this.room = null;
+    this.envelopeAction = null;
+    this.binaryAction = null;
+    // A replacement must wait for every preceding room to deregister.
+    this.roomDeparture = this.roomDeparture.catch(() => undefined).then(() => room?.leave());
+    return this.roomDeparture;
   }
 
   async send(envelope: P2PWireEnvelope, targetPeer?: P2PTargetPeer): Promise<void> {
