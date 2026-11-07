@@ -137,6 +137,9 @@ export function safeOperationalError(error: unknown, context: OperationalErrorCo
 
 export function sanitizeOperationalEvent<T extends SentryBrowser.ErrorEvent>(event: T): T {
   if (event.tags?.['diagnostic.area'] !== 'network' && event.tags?.['diagnostic.area'] !== 'auth') return event;
+  // SDK processors retain references to prior events for deduplication. Work on
+  // copies so privacy scrubbing cannot mutate the exception that Dedupe compares.
+  event = { ...event, ...(event.exception ? { exception: { ...event.exception } } : {}) };
   // SDK-collected breadcrumbs, request headers and extra context can undo an otherwise
   // sanitized exception. This applies only to our network/auth operational reports.
   delete event.breadcrumbs;
