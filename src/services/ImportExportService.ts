@@ -1,3 +1,4 @@
+import { recordTechnicalEvent } from '../core/observability/technicalJournal';
 import { loadBrowserCustomContent, readBrowserCustomContent } from '../core/persistence/browserProjectContent';
 import { readZipEntries, writeZip, zipTextEntry, type ZipEntry, type ZipFileEntry } from '../core/archive/zip';
 import { migratePersistedState } from '../domain/migrations/persistedState';
@@ -69,6 +70,10 @@ export class ImportExportService {
   }
 
   async importFile(file: Blob, options: { asNewGame?: boolean; gameAsNewWorld?: boolean; regenerateGameId?: boolean; forkNameSuffix?: string; expectedKind?: 'world' | 'game' } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
+    return observeImportResult('apply', () => this.performImportFile(file, options));
+  }
+
+  private async performImportFile(file: Blob, options: { asNewGame?: boolean; gameAsNewWorld?: boolean; regenerateGameId?: boolean; forkNameSuffix?: string; expectedKind?: 'world' | 'game' } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
     const worldResult = await this.readWorldDocumentFromFile(file);
     if (worldResult.ok) {
       if (options.expectedKind === 'game') return { ok: false, message: 'Выбран архив мира. Используйте «Импорт мира».' };
@@ -83,7 +88,7 @@ export class ImportExportService {
       await this.assetService?.optimizeStoredImages();
       return { ok: true };
     }
-    const result = await this.readGameDocumentFromFile(file);
+    const result = await this.performReadGameDocumentFromFile(file);
     if (!result.ok) {
       return options.expectedKind === 'world' ? worldResult : result;
     }
@@ -162,6 +167,10 @@ export class ImportExportService {
   }
 
   async importJson(json: string): Promise<{ ok: true } | { ok: false; message: string }> {
+    return observeImportResult('apply', () => this.performImportJson(json));
+  }
+
+  private async performImportJson(json: string): Promise<{ ok: true } | { ok: false; message: string }> {
     const result = this.readGameDocumentFromJson(json);
     if (!result.ok) {
       return result;
@@ -171,6 +180,10 @@ export class ImportExportService {
   }
 
   async readGameDocumentFromFile(file: Blob): Promise<GameDocumentReadResult> {
+    return observeImportResult('validate', () => this.performReadGameDocumentFromFile(file));
+  }
+
+  private async performReadGameDocumentFromFile(file: Blob): Promise<GameDocumentReadResult> {
     if (!looksLikeJsonFile(file)) {
       const bundleResult = await this.readGameBundleDocument(file).catch((error: unknown) => ({
         ok: false as const,
@@ -193,6 +206,10 @@ export class ImportExportService {
   }
 
   async importGameBundle(file: Blob): Promise<{ ok: true } | { ok: false; message: string }> {
+    return observeImportResult('apply', () => this.performImportGameBundle(file));
+  }
+
+  private async performImportGameBundle(file: Blob): Promise<{ ok: true } | { ok: false; message: string }> {
     const entries = await readZipEntries(file);
     const document = gameDocumentFromZipEntries(entries);
     if (!document) {
@@ -204,6 +221,13 @@ export class ImportExportService {
   }
 
   previewImportJson(json: string): GameImportPreview {
+    recordTechnicalEvent({ area: 'import', operation: 'validate', phase: 'running' });
+    const result = this.performPreviewImportJson(json);
+    recordTechnicalEvent({ area: 'import', operation: 'validate', phase: result.ok ? 'succeeded' : 'failed' });
+    return result;
+  }
+
+  private performPreviewImportJson(json: string): GameImportPreview {
     try {
       const parsed = JSON.parse(json) as unknown;
       const document = parseImportPayload(parsed);
@@ -528,4 +552,18 @@ function emptyPreview(message: string, schemaVersion: number | null): GameImport
       handouts: 0
     }
   };
+}
+
+/** Observe the coarse operation, including recoverable validation failures, without retaining payloads. */
+async function observeImportResult<T extends { ok: boolean }>(operation: 'validate' | 'apply', action: () => Promise<T>): Promise<T> {
+  const startedAt = Date.now();
+  recordTechnicalEvent({ area: 'import', operation, phase: 'running' });
+  try {
+    const result = await action();
+    recordTechnicalEvent({ area: 'import', operation, phase: result.ok ? 'succeeded' : 'failed', durationMs: Math.max(0, Date.now() - startedAt) });
+    return result;
+  } catch (error) {
+    recordTechnicalEvent({ area: 'import', operation, phase: 'failed', durationMs: Math.max(0, Date.now() - startedAt) });
+    throw error;
+  }
 }

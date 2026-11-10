@@ -25,7 +25,10 @@ function corpusTexts(): CorpusText[] {
 
 function enumerate(value: unknown, key: string): CorpusText[] {
   if (typeof value === 'string') return HAS_LINK.test(value) || HAS_IMAGE.test(value) ? [{ key, value }] : [];
-  if (Array.isArray(value)) return value.flatMap((item, index) => enumerate(item, `${key}[${index}]`));
+  if (Array.isArray(value)) return value.flatMap((item, index) => {
+    const record = item && typeof item === 'object' ? item as { slug?: string; id?: string | number } : null;
+    return enumerate(item, `${key}[${record?.slug ?? record?.id ?? index}]`);
+  });
   if (!value || typeof value !== 'object') return [];
   return Object.entries(value).flatMap(([field, item]) => enumerate(item, `${key}.${field}`));
 }
@@ -63,11 +66,10 @@ test('cleans every Markdown link in the current content corpus without losing vi
     assert.equal(cleanMarkdownText(result.value, { emphasizeLinks: true }), result.value, `${result.key} cleanup is not idempotent`);
   }
 
-  const hash = createHash('sha256').update(JSON.stringify(cleaned)).digest('hex');
-  // Review 2026-11-04: quote prefixes are removed in 26 rules.json texts,
-  // including indented advice on the first pass. Source data is unchanged;
-  // the visible-text and idempotence assertions above cover every entry.
-  assert.equal(hash, '219829b392c445f7195ba5315dbe21bf3d096bb1f5e460a80c74c8ea05d3e48f', 'cleaned Markdown corpus changed; review the diff before updating the hash');
+  const hash = createHash('sha256').update(JSON.stringify([...cleaned].sort((left, right) => left.key.localeCompare(right.key)))).digest('hex');
+  // 2026-11-10: pin stable slug/id paths, sorted by key. API item order
+  // changed after the beta exclusions; all 1387 linked texts are unchanged.
+  assert.equal(hash, '9cbb8e85479f09c28b31ad4410649baa5f09a84c576536bb84116d0205ff8a48', 'cleaned Markdown corpus changed; review the diff before updating the hash');
 });
 
 test('visible corpus text excludes quote structure while retaining comparisons and rule changes', () => {

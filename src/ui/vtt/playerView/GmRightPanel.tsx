@@ -84,10 +84,14 @@ export function GmRightPanel({
 }) {
   const [activeView, setActiveView] = useState<GmPanelView>(() => {
     if (typeof window === 'undefined') return 'cast';
-    const stored = window.sessionStorage.getItem('daggerheart:gm-panel-view');
-    return stored && ['sheet', 'cast', 'prepared', 'scenes', 'actions', 'media'].includes(stored)
-      ? stored as GmPanelView
-      : 'cast';
+    try {
+      const stored = window.sessionStorage.getItem('daggerheart:gm-panel-view');
+      return stored && ['sheet', 'cast', 'prepared', 'scenes', 'actions', 'media'].includes(stored)
+        ? stored as GmPanelView
+        : 'cast';
+    } catch {
+      return 'cast';
+    }
   });
   const [preparedQuery, setPreparedQuery] = useState('');
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
@@ -123,7 +127,11 @@ export function GmRightPanel({
     if (typeof window !== 'undefined') window.localStorage.setItem('daggerheart:gm-players-open', String(playersOpen));
   }, [playersOpen]);
   useEffect(() => {
-    if (typeof window !== 'undefined') window.sessionStorage.setItem('daggerheart:gm-panel-view', activeView);
+    try {
+      if (typeof window !== 'undefined') window.sessionStorage.setItem('daggerheart:gm-panel-view', activeView);
+    } catch {
+      // The panel remains usable when tab storage is blocked.
+    }
   }, [activeView]);
   useEffect(() => {
     if (selectedActorKey) setActiveView('sheet');

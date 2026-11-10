@@ -125,3 +125,24 @@ export function createSafeDiagnosticReport(session: P2PSessionState, media: P2PM
     }))
   };
 }
+
+
+/** Human-readable labels are fixed strings, never values copied from user content. */
+export function technicalJournalOperationLabel(event: TechnicalJournalEntry): string {
+  switch (event.area) {
+    case 'network': return CONNECTION_STAGE_LABELS[event.operation];
+    case 'startup': return 'Запуск приложения';
+    case 'persistence': return event.operation === 'read' ? 'Чтение локальных данных' : 'Сохранение локальных данных';
+    case 'import': return event.operation === 'validate' ? 'Проверка импорта' : 'Применение импорта';
+    case 'media': return event.operation === 'acquire' ? 'Запрос камеры и микрофона' : 'Передача медиапотока';
+  }
+}
+
+export function technicalJournalErrorLabel(code: TechnicalJournalEntry['errorCode']): string | null {
+  const labels: Record<string, string> = {
+    operation_failed: 'Операция не выполнена', storage_unavailable: 'Хранилище недоступно',
+    quota_exceeded: 'Недостаточно места в хранилище', invalid_data: 'Некорректные данные',
+    media_denied: 'Доступ к устройствам не разрешён', media_unavailable: 'Устройство недоступно'
+  };
+  return code && Object.hasOwn(labels, code) ? labels[code] : connectionStageErrorLabel(code);
+}

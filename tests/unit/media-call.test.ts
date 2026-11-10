@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { MediaCallService } from '../../src/services/MediaCallService';
+import { clearTechnicalJournal, getTechnicalJournal } from '../../src/core/observability/technicalJournal';
 import { SyncService } from '../../src/services/SyncService';
 
 test('joining and leaving a call does not request devices', async () => {
@@ -174,6 +175,7 @@ test('a stale audio play result cannot change playback state after the peer leav
 });
 
 test('enabling microphone after camera adds an audio track without replacing the video stream', async () => {
+  clearTechnicalJournal();
   const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
   const videoTrack = fakeMediaTrack('video');
   const audioTrack = fakeMediaTrack('audio');
@@ -225,6 +227,11 @@ test('enabling microphone after camera adds an audio track without replacing the
     assert.deepEqual(published, [videoStream]);
     assert.deepEqual(added, [{ track: audioTrack, stream: videoStream }]);
     assert.equal(videoTrack.stopped, false);
+    assert.deepEqual(getTechnicalJournal().filter(event => event.area === 'media').map(event => [event.operation, event.phase]), [
+      ['acquire', 'running'], ['acquire', 'succeeded'], ['publish', 'running'], ['publish', 'succeeded'],
+      ['acquire', 'running'], ['acquire', 'succeeded'], ['publish', 'running'], ['publish', 'succeeded']
+    ]);
+    assert.equal(JSON.stringify(getTechnicalJournal()).includes('MEDIA1'), false);
 
     await call.joinWithoutDevices();
     assert.equal(videoTrack.enabled, false);
@@ -275,4 +282,39 @@ function fakeMediaStream(id: string, tracks: MediaStreamTrack[]): MediaStream {
     addTrack: (track: MediaStreamTrack) => tracks.push(track),
     removeTrack: (track: MediaStreamTrack) => tracks.splice(tracks.indexOf(track), 1)
   } as unknown as MediaStream;
+}
+
+for (const outcome of ['unsupported', 'denied', 'publish-failed'] as const) {
+  test(`media journal records ${outcome} without device or participant information`, async () => {
+    clearTechnicalJournal();
+    const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    const stream = fakeMediaStream('private-stream', [fakeMediaTrack('audio')]);
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: outcome === 'unsupported' ? {} : {
+      mediaDevices: { getUserMedia: async () => {
+        if (outcome === 'denied') throw new DOMException('private-device', 'NotAllowedError');
+        return stream;
+      } }
+    } });
+    const call = new MediaCallService(new SyncService());
+    try {
+      const transport = {
+        id: 'private-transport', label: 'private-label', peerId: 'private-peer',
+        connect: async () => undefined, disconnect: async () => undefined, publish: async () => undefined,
+        subscribe: () => () => undefined, removeMediaStream: () => undefined,
+        subscribeMediaStreams: () => () => undefined,
+        publishMediaStream: async () => { throw new DOMException('private-endpoint', 'AbortError'); }
+      };
+      call.setMediaTransport(transport);
+      call.setRoom({ roomId: 'private-room', participantId: 'private-participant', displayName: 'private-name', role: 'player', active: true });
+      await call.toggleMicrophone();
+      const events = getTechnicalJournal().filter(event => event.area === 'media');
+      assert.equal(events.at(-1)?.operation, outcome === 'publish-failed' ? 'publish' : 'acquire');
+      assert.equal(events.at(-1)?.phase, outcome === 'publish-failed' ? 'cancelled' : 'failed');
+      assert.equal(events.at(-1)?.errorCode, outcome === 'unsupported' ? 'media_unavailable' : outcome === 'denied' ? 'media_denied' : 'cancelled');
+      assert.equal(JSON.stringify(events).includes('private'), false);
+    } finally {
+      if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
+      else delete (globalThis as { navigator?: Navigator }).navigator;
+    }
+  });
 }

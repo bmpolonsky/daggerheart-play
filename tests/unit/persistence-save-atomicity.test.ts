@@ -1,3 +1,4 @@
+import { clearTechnicalJournal, getTechnicalJournal } from '../../src/core/observability/technicalJournal';
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { BrowserGameDocumentStore, GameDocumentConflictError } from '../../src/core/persistence/gameDocumentStore';
@@ -48,8 +49,13 @@ for (const interleave of ['switch-world', 'newer-save'] as const) {
         }
         return before;
       };
+      clearTechnicalJournal();
       service.persistNow();
       await assert.rejects(service.exportWorldDocument(), /Мир изменён в другой вкладке/);
+      const writes = getTechnicalJournal().filter(event => event.area === 'persistence' && event.operation === 'write');
+      // persistNow and the export's flush each attempt the conflicting write.
+      assert.deepEqual(writes.map(event => event.phase), ['running', 'failed', 'running', 'failed']);
+      assert.ok(!JSON.stringify(writes).includes('Мир изменён'));
       const world = (await b.exportWorld(interleave === 'switch-world' ? worldB : worldA))!.world;
       const current = world.games[world.activeGameId!]!.state.game;
       assert.equal(current.name, interleave === 'switch-world' ? 'B' : 'A'); assert.equal(current.fear, 9);

@@ -36,6 +36,7 @@ test('H&F options retain identity, subclasses and domains under the existing add
   for (const slug of ['playtest-blood-hunter', 'playtest-summoner']) {
     const incomplete = classes.find(item => item.slug === slug);
     assert.ok(incomplete, `${slug} remains in the reference library`);
+    assert.equal(content.subclasses.some(item => item.raw.class_slug === slug), false);
     assert.equal(catalog.classOptions.some(option => option.id === incomplete.id), false);
   }
 });
@@ -56,25 +57,32 @@ test('reviewed Dread card corrections survive the sheet projection', () => {
   }
 });
 
-test('published H&F mode uses only real source tags, leaving all Dread cards in Void', () => {
-  for (const [mode, classCount, cardCount] of [['core', 9, 189], ['hope-and-fear', 13, 189], ['all', 13, 210]] as const) {
+test('published H&F mode follows the reviewed source tags of all Dread cards', () => {
+  const dreadCards = content.domainCards.filter(item => ['dread', 'playtest-dread'].includes(String(item.raw.domain_slug)));
+  assert.equal(dreadCards.length, 21);
+  const source = dreadCards[0].raw.source_slugs;
+  assert.ok(JSON.stringify(source) === '["hope-and-fear"]' || JSON.stringify(source) === '["playtest-the-void"]');
+  for (const item of dreadCards) assert.deepEqual(item.raw.source_slugs, source);
+  const published = source?.includes('hope-and-fear');
+  for (const [mode, classCount, cardCount] of [['core', 9, 189], ['hope-and-fear', 13, published ? 210 : 189], ['all', 13, 210]] as const) {
     const catalog = buildCharacterBuilderCatalog({ content, classes, equipment: [], className: 'Witch', includePlaytest: mode });
     assert.equal(catalog.classOptions.length, classCount);
     assert.equal(catalog.builderContent.domainCards.length, cardCount);
     assert.equal(catalog.builderContent.ancestries.length, mode === 'core' ? 18 : 24);
     assert.equal(catalog.builderContent.communities.length, mode === 'core' ? 9 : 15);
     assert.equal(catalog.builderContent.subclasses.length, mode === 'core' ? 18 : 26);
-    const dread = catalog.builderContent.domainCards.filter(item => item.raw.source_slugs?.includes('playtest-the-void'));
-    assert.equal(dread.length, mode === 'all' ? 21 : 0);
+    const dread = catalog.builderContent.domainCards.filter(item => ['dread', 'playtest-dread'].includes(String(item.raw.domain_slug)));
+    assert.equal(dread.length, mode === 'all' || (mode === 'hope-and-fear' && published) ? 21 : 0);
   }
 });
 
 
-test('Warlock card availability explains source restrictions without promoting Void cards to H&F', () => {
+test('Warlock card availability follows actual Dread source restrictions', () => {
+  const published = content.domainCards.find(item => item.slug === 'nether-flames')?.raw.source_slugs?.includes('hope-and-fear');
   const hf = buildCharacterBuilderCatalog({ content, classes, equipment: [], className: 'Warlock', includePlaytest: 'hope-and-fear' });
-  assert.deepEqual(hf.availableCardDomains, ['Grace']);
-  assert.deepEqual(hf.restrictedCardDomains, ['Dread']);
-  assert.equal(hf.availableDomainCards.length, 3);
+  assert.deepEqual(hf.availableCardDomains, published ? ['Dread', 'Grace'] : ['Grace']);
+  assert.deepEqual(hf.restrictedCardDomains, published ? [] : ['Dread']);
+  assert.equal(hf.availableDomainCards.length, published ? 6 : 3);
   const all = buildCharacterBuilderCatalog({ content, classes, equipment: [], className: 'Warlock', includePlaytest: 'all' });
   assert.equal(all.availableDomainCards.length, 6);
   assert.deepEqual(all.availableCardDomains, ['Dread', 'Grace']);

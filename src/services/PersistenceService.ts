@@ -1,3 +1,4 @@
+import { recordTechnicalEvent } from '../core/observability/technicalJournal';
 import { browserRecoveryJournal, recoveryGameId, type RecoveryJournal, type RecoveryDraft } from '../core/persistence/recoveryJournal';
 import {
   createGameDocumentStore,
@@ -554,8 +555,11 @@ export class PersistenceService {
 
   private async hydrateFromIndexedDb(): Promise<boolean> {
     if (!this.documentStore) {
+      recordTechnicalEvent({ area: 'persistence', operation: 'read', phase: 'failed', errorCode: 'storage_unavailable' });
       return false;
     }
+    const startedAt = Date.now();
+    recordTechnicalEvent({ area: 'persistence', operation: 'read', phase: 'running' });
     try {
       const state = await this.documentStore.load();
       const document = state ? storedDocumentToGameDocument(state) : null;
@@ -563,6 +567,7 @@ export class PersistenceService {
         await loadBrowserCustomContent();
         this.lastDocumentSignature = stableJsonSignature(null);
         this.setSavedContentBaseline(createGameDocument(snapshotPersistedState(), readBrowserCustomContent()));
+        recordTechnicalEvent({ area: 'persistence', operation: 'read', phase: 'succeeded', durationMs: Math.max(0, Date.now() - startedAt) });
         return false;
       }
       this.lastDocumentSignature = stableJsonSignature(document);
@@ -571,8 +576,10 @@ export class PersistenceService {
       await this.assetService?.optimizeStoredImages();
       applyBrowserCustomContent(gameDocumentCustomContent(document));
       this.persistNow();
+      recordTechnicalEvent({ area: 'persistence', operation: 'read', phase: 'succeeded', durationMs: Math.max(0, Date.now() - startedAt) });
       return true;
     } catch (error) {
+      recordTechnicalEvent({ area: 'persistence', operation: 'read', phase: 'failed', durationMs: Math.max(0, Date.now() - startedAt) });
       reportOperationalError(error, { area: 'persistence', operation: 'hydrate-indexed-db' });
       console.warn('Failed to hydrate Daggerheart state from IndexedDB.', error);
       return false;
@@ -580,10 +587,14 @@ export class PersistenceService {
   }
 
   private async persistGameDocument(snapshot: ReturnType<typeof snapshotPersistedState>, revision: number): Promise<void> {
+    const startedAt = Date.now();
+    recordTechnicalEvent({ area: 'persistence', operation: 'write', phase: 'running' });
     if (!this.documentStore) {
+      recordTechnicalEvent({ area: 'persistence', operation: 'write', phase: 'failed', errorCode: 'storage_unavailable', durationMs: Math.max(0, Date.now() - startedAt) });
       this.setPersistError(new Error('Не удалось сохранить изменения: локальное хранилище недоступно. Оставьте вкладку открытой.'));
       return;
     }
+    let committed = false;
     const baseSignature = this.lastDocumentSignature;
     const baseContentSignature = this.lastSavedContentSignature;
     try {
@@ -603,6 +614,7 @@ export class PersistenceService {
         this.ownPersistSignatures.add(signature);
         try {
           await this.documentStore?.save(document, current);
+          committed = true;
           this.lastDocumentSignature = signature;
           this.setSavedContentBaseline(document);
           this.persistedRevision = Math.max(this.persistedRevision, revision);
@@ -619,7 +631,9 @@ export class PersistenceService {
           throw error;
         }
       });
+      recordTechnicalEvent({ area: 'persistence', operation: 'write', phase: committed ? 'succeeded' : 'cancelled', durationMs: Math.max(0, Date.now() - startedAt) });
     } catch (error) {
+      recordTechnicalEvent({ area: 'persistence', operation: 'write', phase: 'failed', durationMs: Math.max(0, Date.now() - startedAt) });
       if (error instanceof GameDocumentConflictError) {
         // The active context/data changed between the preflight read and the
         // guarded write. Do not compare a reverted draft with a stale baseline.

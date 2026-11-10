@@ -1,3 +1,4 @@
+import { observeTechnicalOperation, recordTechnicalEvent } from '../core/observability/technicalJournal';
 import { Store } from '../core/store/Store';
 import { createId } from '../core/utils/id';
 import { nowIso } from '../core/utils/date';
@@ -342,6 +343,7 @@ export class MediaCallService {
       return false;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
+      recordTechnicalEvent({ area: 'media', operation: 'acquire', phase: 'failed', errorCode: 'media_unavailable' });
       this.callStore.update((state) => ({
         ...state,
         status: 'unsupported',
@@ -363,7 +365,7 @@ export class MediaCallService {
     try {
       const missingAudio = constraints.audio && !hasAudio;
       const missingVideo = constraints.video && !hasVideo;
-      const acquiredStream = await navigator.mediaDevices.getUserMedia({
+      const acquiredStream = await observeTechnicalOperation({ area: 'media', operation: 'acquire' }, () => navigator.mediaDevices.getUserMedia({
         audio: missingAudio
           ? {
               echoCancellation: true,
@@ -374,7 +376,7 @@ export class MediaCallService {
         video: missingVideo
           ? callVideoConstraints()
           : false
-      });
+      }));
       applyCallContentHints(acquiredStream);
       if (!current.localStream) {
         this.callStore.update((state) => ({
@@ -398,7 +400,7 @@ export class MediaCallService {
       }));
       try {
         if (this.mediaTransport.addMediaTrack) {
-          await Promise.all(addedTracks.map((track) => this.mediaTransport?.addMediaTrack?.(track, localStream, this.localMediaMetadata())));
+          await observeTechnicalOperation({ area: 'media', operation: 'publish' }, () => Promise.all(addedTracks.map((track) => this.mediaTransport?.addMediaTrack?.(track, localStream, this.localMediaMetadata()))));
         } else {
           this.mediaTransport.removeMediaStream(localStream);
           await this.publishLocalStream(localStream);
@@ -452,7 +454,7 @@ export class MediaCallService {
     if (!this.mediaTransport) return;
     const metadata = this.localMediaMetadata();
     if (!metadata) return;
-    await this.mediaTransport.publishMediaStream(stream, metadata);
+    await observeTechnicalOperation({ area: 'media', operation: 'publish' }, () => this.mediaTransport!.publishMediaStream(stream, metadata));
   }
 
   private localMediaMetadata(): CallMediaMetadata | undefined {

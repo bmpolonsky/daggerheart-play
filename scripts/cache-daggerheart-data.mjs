@@ -1,7 +1,9 @@
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { access, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, extname, resolve } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { compareContentPayloads, renderContentRefreshReport } from './lib/content-refresh-diff.mjs';
+import { applyContentExclusions } from './lib/content-exclusions.mjs';
 
 const BASE_URL = (process.env.CONTENT_SOURCE ?? 'https://daggerheart.su').replace(/\/+$/, '');
 const LANGUAGE = process.env.CONTENT_LANG ?? 'ru';
@@ -17,6 +19,8 @@ const PUBLIC_DIR = resolve('public');
 const DATA_DIR = resolve(PUBLIC_DIR, 'data');
 const CSS_FILES = [];
 const refreshComparisons = [];
+// Keep the last usable corpus intact until every required download succeeds.
+const pendingPayloadWrites = new Map();
 
 // Bump when a reviewed corpus update must invalidate caches retained by code builds.
 const CONTENT_CACHE_VERSION = '2026-10-19-hf';
@@ -103,8 +107,17 @@ function webpAssetPath(pathname) {
 }
 
 function publicAssetPath(pathname) {
-  const normalized = normalizeAssetPath(pathname);
+  let normalized = normalizeAssetPath(pathname);
   if (!normalized) return null;
+  if (/^https?:\/\//i.test(pathname)) {
+    const source = new URL(pathname);
+    if (source.origin !== new URL(BASE_URL).origin) {
+      // The workflow retains public/image, not arbitrary files at public root.
+      // Full-URL identity also prevents collisions across hosts and queries.
+      const identity = createHash('sha256').update(source.href).digest('hex');
+      normalized = `/image/external/${identity}${extname(source.pathname)}`;
+    }
+  }
   return isWebpConvertibleAsset(normalized) ? webpAssetPath(normalized) : normalized;
 }
 
@@ -121,7 +134,7 @@ async function downloadAsset(pathname, { optional = false } = {}) {
   const url = resolveDownloadUrl(pathname);
   if (!normalized || !url) return;
 
-  const targetNormalized = publicAssetPath(normalized);
+  const targetNormalized = publicAssetPath(pathname);
   if (!targetNormalized) return;
   const targetPath = resolve(PUBLIC_DIR, `.${targetNormalized}`);
   const hasCachedTarget = await fileExists(targetPath);
@@ -152,10 +165,21 @@ async function downloadAsset(pathname, { optional = false } = {}) {
       .resize({ width: WEBP_MAX_SIDE, height: WEBP_MAX_SIDE, fit: 'inside', withoutEnlargement: true })
       .webp({ quality: WEBP_QUALITY, effort: 6 })
       .toBuffer();
-    await writeFile(targetPath, webpBuffer);
+    await writeAsset(targetPath, webpBuffer);
     return;
   }
-  await writeFile(targetPath, buffer);
+  await writeAsset(targetPath, buffer);
+}
+
+// Never truncate an existing artwork file if a write is interrupted.
+async function writeAsset(targetPath, buffer) {
+  const temporaryPath = `${targetPath}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporaryPath, buffer);
+    await rename(temporaryPath, targetPath);
+  } finally {
+    await rm(temporaryPath, { force: true });
+  }
 }
 
 async function downloadAssets(assetUrls, options) {
@@ -269,16 +293,30 @@ function rewritePayloadAssetReferences(payload) {
   };
 }
 
+async function prepareCachedPayload(collection, cached, targetPath) {
+  const { payload, exclusions } = applyContentExclusions(collection.key, cached);
+  if (!isUsablePayload(payload)) {
+    throw new Error(`No usable cached ${collection.key} remains after explicit content exclusions`);
+  }
+  const normalizedCached = rewritePayloadAssetReferences(payload);
+  if (exclusions.length) {
+    const comparison = { ...compareContentPayloads(collection.key, cached, normalizedCached), exclusions };
+    refreshComparisons.push(comparison);
+    await persistRefreshReport();
+    console.log(renderContentRefreshReport([comparison]));
+  }
+  if (JSON.stringify(normalizedCached) !== JSON.stringify(cached)) {
+    pendingPayloadWrites.set(targetPath, JSON.stringify(normalizedCached, null, 2));
+  }
+  return normalizedCached;
+}
+
 async function loadCollection(collection) {
   const targetPath = resolve(DATA_DIR, collection.file);
   const cached = await readJson(targetPath);
 
   if (isUsablePayload(cached) && isFreshPayload(cached)) {
-    const normalizedCached = rewritePayloadAssetReferences(cached);
-    if (JSON.stringify(normalizedCached) !== JSON.stringify(cached)) {
-      await ensureDir(dirname(targetPath));
-      await writeFile(targetPath, JSON.stringify(normalizedCached, null, 2));
-    }
+    const normalizedCached = await prepareCachedPayload(collection, cached, targetPath);
     return {
       payload: normalizedCached,
       assetUrls: new Set()
@@ -287,10 +325,13 @@ async function loadCollection(collection) {
 
   const sourceUrl = buildEndpointUrl(collection.endpoint);
   try {
-    const payload = await fetchJson(sourceUrl);
-    if (!isUsablePayload(payload)) {
+    const fetched = await fetchJson(sourceUrl);
+    if (!isUsablePayload(fetched)) {
       throw new Error(`Fetched ${collection.key} is empty or invalid`);
     }
+    // Exclude deferred beta entries before collecting required artwork URLs.
+    const { payload, exclusions } = applyContentExclusions(collection.key, fetched);
+    if (!isUsablePayload(payload)) throw new Error(`No usable ${collection.key} remains after explicit content exclusions`);
     const sourceAssets = collection.assets ? collectAssetUrls(payload) : { assetUrls: new Set() };
     const normalizedPayload = rewritePayloadAssetReferences({
       ...payload,
@@ -303,14 +344,13 @@ async function loadCollection(collection) {
         generatedAt: new Date().toISOString()
       }
     });
-    const comparison = compareContentPayloads(collection.key, cached, normalizedPayload);
+    const comparison = { ...compareContentPayloads(collection.key, cached, normalizedPayload), exclusions };
     refreshComparisons.push(comparison);
     await persistRefreshReport();
     console.log(renderContentRefreshReport([comparison]));
     if (!REVIEW_ONLY) {
-      await ensureDir(dirname(targetPath));
-      await writeFile(targetPath, JSON.stringify(normalizedPayload, null, 2));
-      console.log(`Cached ${collection.key}: ${Array.isArray(payload?.data) ? payload.data.length : 0} items`);
+      pendingPayloadWrites.set(targetPath, JSON.stringify(normalizedPayload, null, 2));
+      console.log(`Prepared ${collection.key}: ${Array.isArray(payload?.data) ? payload.data.length : 0} items`);
     }
     return {
       payload: normalizedPayload,
@@ -319,11 +359,7 @@ async function loadCollection(collection) {
   } catch (error) {
     if (REVIEW_ONLY) throw error;
     if (isUsablePayload(cached)) {
-      const normalizedCached = rewritePayloadAssetReferences(cached);
-      if (JSON.stringify(normalizedCached) !== JSON.stringify(cached)) {
-        await ensureDir(dirname(targetPath));
-        await writeFile(targetPath, JSON.stringify(normalizedCached, null, 2));
-      }
+      const normalizedCached = await prepareCachedPayload(collection, cached, targetPath);
       console.warn(`Using cached ${collection.key}: ${String(error)}`);
       return {
         payload: normalizedCached,
@@ -390,6 +426,11 @@ async function main() {
   }
 
   if (REVIEW_ONLY) return;
+
+  for (const [targetPath, contents] of pendingPayloadWrites) {
+    await ensureDir(dirname(targetPath));
+    await writeFile(targetPath, contents);
+  }
 
   const existingManifest = await readJson(manifestPath);
   if (!SHOULD_REFRESH && isEquivalentManifest(existingManifest, manifest)) {

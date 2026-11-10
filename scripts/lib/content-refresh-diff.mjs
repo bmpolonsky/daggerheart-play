@@ -76,6 +76,13 @@ function renderCollection(comparison, reportGeneratedAt) {
     `Items: ${comparison.previousItemCount} → ${comparison.nextItemCount}; review entries: ${comparison.previousEntryCount} → ${comparison.nextEntryCount}.`,
     ''
   ];
+  if (comparison.exclusions?.length) {
+    lines.push(`### Deferred beta entries excluded (${comparison.exclusions.length})`, '');
+    for (const entry of comparison.exclusions) {
+      lines.push(`- ${inlineCode(entry.key)}${labelSuffix(entry.label)}: ${entry.reason}`);
+    }
+    lines.push('');
+  }
   if (!comparison.hasBaseline) {
     lines.push('No usable local baseline. The fetched payload cannot be reviewed as a diff yet.');
     return lines;

@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import type { ConnectionStageDiagnostic } from '../../../domain/p2p/connectionDiagnostics';
-import { getTechnicalJournal, type TechnicalJournalEntry } from '../../../core/observability/technicalJournal';
-import { CONNECTION_STAGE_LABELS, CONNECTION_STAGE_STATUS_LABELS, connectionDiagnosticHint, connectionStageErrorLabel, createSafeDiagnosticReport, orderedConnectionStages, stageElapsedMs } from '../../../domain/p2p/diagnosticReport';
+import { clearTechnicalJournal, getTechnicalJournal, technicalJournalSurvivesReload, type TechnicalJournalEntry } from '../../../core/observability/technicalJournal';
+import { CONNECTION_STAGE_LABELS, CONNECTION_STAGE_STATUS_LABELS, connectionDiagnosticHint, connectionStageErrorLabel, createSafeDiagnosticReport, orderedConnectionStages, stageElapsedMs, technicalJournalOperationLabel, technicalJournalErrorLabel } from '../../../domain/p2p/diagnosticReport';
 import { contentAccessForGame, normalizeContentAccess } from '../../../domain/content/access';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -430,12 +430,13 @@ export function SharedToolsDiagnosticsSettingsPanel({ compact = false, role }: {
       </details>
       <details className="player-tools-scene-framing__advanced">
         <summary>Журнал событий · {journal.length}</summary>
-        <p className="player-tools-diagnostics__route-note">Сетевые события этой вкладки, новые сверху. До 500 записей за 24 часа; при перезагрузке очищаются. Это не полный журнал приложения.</p>
-        <ol className="player-tools-event-journal" aria-label="Сетевые события">
+        <p className="player-tools-diagnostics__route-note">Запуск, локальное сохранение, импорт, сеть и камера/микрофон, новые сверху. До 500 записей и 256 КиБ за 24 часа. {technicalJournalSurvivesReload() ? 'Сохраняются при перезагрузке этой вкладки.' : 'Хранилище вкладки недоступно: при перезагрузке записи потеряются.'} Сохранение после закрытия вкладки не гарантируется. Это не резервная копия игры. Без содержимого игры и личных данных. Успех передачи не подтверждает, что другой участник получил звук или видео.</p>
+        <Button size="sm" variant="ghost" disabled={journal.length === 0} onClick={() => { clearTechnicalJournal(); setDiagnosticNow(Date.now()); }}>Очистить журнал</Button>
+        <ol className="player-tools-event-journal" aria-label="Технические события">
           {[...journal].reverse().map((event, index) => <li key={`${event.at}:${index}`}>
             <time dateTime={new Date(event.at).toISOString()}>{new Date(event.at).toLocaleTimeString('ru-RU')}</time>
-            <div><strong>{event.area === 'network' ? CONNECTION_STAGE_LABELS[event.operation as ConnectionStageDiagnostic['id']] : `${event.area}: ${event.operation}`}</strong>
-              <small>{JOURNAL_EVENT_LABELS[event.phase]}{event.attempt ? ` · попытка ${event.attempt}` : ''}{event.durationMs !== undefined ? ` · ${(event.durationMs / 1000).toFixed(1)} с` : ''}{event.httpStatus ? ` · HTTP ${event.httpStatus}` : ''}{event.errorCode ? ` · ${connectionStageErrorLabel(event.errorCode)}` : ''}</small>
+            <div><strong>{technicalJournalOperationLabel(event)}</strong>
+              <small>{JOURNAL_EVENT_LABELS[event.phase]}{event.attempt ? ` · попытка ${event.attempt}` : ''}{event.durationMs !== undefined ? ` · ${(event.durationMs / 1000).toFixed(1)} с` : ''}{event.httpStatus ? ` · HTTP ${event.httpStatus}` : ''}{event.errorCode ? ` · ${technicalJournalErrorLabel(event.errorCode)}` : ''}</small>
             </div>
           </li>)}
         </ol>

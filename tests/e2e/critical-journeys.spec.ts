@@ -475,43 +475,57 @@ test.describe('critical persisted journeys', () => {
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
   });
 
-  test('persists all-materials setting and keeps no-image class choices readable', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await openGmGame(page);
-    let workspace = await openWorkspace(page);
-    await selectSettingsSection(workspace, 'Игра');
+  test.describe('controlled no-image class fixture', () => {
+    // Routing must stay active after reload rather than being bypassed by the service worker.
+    test.use({ serviceWorkers: 'block' });
 
-    const materialSetting = workspace.getByRole('combobox', { name: 'Доступные материалы', exact: false });
-    await materialSetting.selectOption('core');
-    await waitForStoredMarker(page, '"contentAccess":"core"');
-    await materialSetting.selectOption('all');
-    await waitForStoredMarker(page, '"contentAccess":"all"');
+    test('persists all-materials setting and keeps no-image class choices readable', async ({ page }) => {
+      // Keep fallback coverage independent of newly released official artwork.
+      await page.route(/\/data\/classes\.json(?:\?|$)/, async route => {
+        const response = await route.fetch();
+        const payload = await response.json();
+        const assassin = payload.data.find((item: { slug: string }) => item.slug === 'playtest-assassin');
+        expect(assassin).toBeDefined();
+        assassin.image_url = null;
+        await route.fulfill({ response, json: payload });
+      });
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await openGmGame(page);
+      let workspace = await openWorkspace(page);
+      await selectSettingsSection(workspace, 'Игра');
 
-    await reloadGamePage(page);
-    await expect(workspace).toBeVisible();
-    await selectSettingsSection(workspace, 'Игра');
-    await expect(materialSetting).toHaveValue('all');
+      const materialSetting = workspace.getByRole('combobox', { name: 'Доступные материалы', exact: false });
+      await materialSetting.selectOption('core');
+      await waitForStoredMarker(page, '"contentAccess":"core"');
+      await materialSetting.selectOption('all');
+      await waitForStoredMarker(page, '"contentAccess":"all"');
 
-    await selectWorkspaceTab(workspace, 'Персонажи');
-    await workspace.getByRole('button', { name: 'Создать героя' }).click();
-    const builder = page.getByRole('dialog', { name: 'Новый герой' });
-    const classStep = builder.getByRole('group', { name: 'Шаг: Класс' });
-    const assassin = classStep.getByRole('button', { name: /^Ассасин / });
-    await expect(assassin).toBeVisible();
-    await expect(classStep.getByRole('button', { name: /^Боец / })).toBeVisible();
-    await expect(classStep.getByRole('button', { name: /^Ведьма / })).toBeVisible();
-    await expect(classStep.getByRole('button', { name: /^Колдун / })).toBeVisible();
+      await reloadGamePage(page);
+      await expect(workspace).toBeVisible();
+      await selectSettingsSection(workspace, 'Игра');
+      await expect(materialSetting).toHaveValue('all');
 
-    await assassin.click();
-    const classBody = assassin.locator('.cinematic-card-body');
-    const detail = builder.getByLabel('Описание выбора');
-    const detailCopy = detail.locator('.cinematic-builder-choice-detail-copy');
-    await expect(assassin).toContainText('Клинок + Полночь');
-    await expect(assassin.getByText('А', { exact: true })).toBeVisible();
-    await expect(detail).toHaveClass(/dh-no-choice-image/);
-    expect((await classBody.boundingBox())?.width ?? 0).toBeGreaterThan(120);
-    expect(await detailCopy.evaluate((node) => node.clientHeight)).toBeGreaterThan(300);
-    await expect(detail).toContainText('Метка Смерти');
+      await selectWorkspaceTab(workspace, 'Персонажи');
+      await workspace.getByRole('button', { name: 'Создать героя' }).click();
+      const builder = page.getByRole('dialog', { name: 'Новый герой' });
+      const classStep = builder.getByRole('group', { name: 'Шаг: Класс' });
+      const assassin = classStep.getByRole('button', { name: /^Ассасин / });
+      await expect(assassin).toBeVisible();
+      await expect(classStep.getByRole('button', { name: /^Боец / })).toBeVisible();
+      await expect(classStep.getByRole('button', { name: /^Ведьма / })).toBeVisible();
+      await expect(classStep.getByRole('button', { name: /^Колдун / })).toBeVisible();
+
+      await assassin.click();
+      const classBody = assassin.locator('.cinematic-card-body');
+      const detail = builder.getByLabel('Описание выбора');
+      const detailCopy = detail.locator('.cinematic-builder-choice-detail-copy');
+      await expect(assassin).toContainText('Клинок + Полночь');
+      await expect(assassin.getByText('А', { exact: true })).toBeVisible();
+      await expect(detail).toHaveClass(/dh-no-choice-image/);
+      expect((await classBody.boundingBox())?.width ?? 0).toBeGreaterThan(120);
+      expect(await detailCopy.evaluate((node) => node.clientHeight)).toBeGreaterThan(300);
+      await expect(detail).toContainText('Метка Смерти');
+    });
   });
 
   test('exports a campaign and imports the archive back as a real round trip', async ({ page }) => {
