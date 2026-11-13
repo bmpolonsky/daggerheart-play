@@ -1,3 +1,4 @@
+import { servedDreadContract } from './reviewed-dread-contract.mjs';
 import { expect, test } from '@playwright/test';
 import { installDeterministicP2PTransport } from './game-route-helpers';
 
@@ -50,12 +51,13 @@ test('material select persists all three modes and keeps reference source filter
 });
 
 
-test('Warlock has released Dread cards in H&F and full card detail never uses the teaser', async ({ page }) => {
+test('Warlock follows the reviewed Dread source contract and full card detail never uses the teaser', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await installDeterministicP2PTransport(page);
   await page.goto('/#/library/settings/game');
   const workspace = page.getByRole('dialog', { name: 'Библиотека игры' });
-  for (const [mode, count] of [['hope-and-fear', 6], ['all', 6]] as const) {
+  const contract = await servedDreadContract(page.request);
+  for (const [mode, count] of [['hope-and-fear', contract.hfStarterCards], ['all', 6]] as const) {
     await workspace.getByRole('combobox', { name: 'Доступные материалы' }).selectOption(mode);
     await page.goto('/#/library/characters');
     await workspace.getByRole('button', { name: /Создать героя/ }).first().click();
@@ -64,8 +66,14 @@ test('Warlock has released Dread cards in H&F and full card detail never uses th
     await builder.getByLabel('Карты', { exact: true }).click();
     const cards = builder.getByRole('group', { name: 'Шаг: Стартовые карты доменов' });
     await expect(cards.getByRole('button')).toHaveCount(count);
-    await expect(cards.getByText('Стартовые карты исключены', { exact: false })).toHaveCount(0);
-    await expect(cards.getByRole('button', { name: /Глас ужаса/ })).toBeVisible();
+    if (mode === 'hope-and-fear' && contract.restricted) {
+      await expect(cards.getByText('Стартовые карты исключены выбранными материалами:', { exact: false })).toContainText('Ужас');
+      await expect(cards.locator('.cinematic-builder-copy')).toContainText('Доступные домены: Грация.');
+      await expect(cards.getByRole('button', { name: /Глас ужаса/ })).toHaveCount(0);
+    } else {
+      await expect(cards.getByText('Стартовые карты исключены', { exact: false })).toHaveCount(0);
+      await expect(cards.getByRole('button', { name: /Глас ужаса/ })).toBeVisible();
+    }
     await cards.getByRole('button', { name: /Вдохновляющие слова/ }).click();
     const detail = builder.getByLabel('Описание выбора', { exact: true });
     await expect(detail.locator('p')).toContainText('снимите все неиспользованные жетоны.');

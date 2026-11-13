@@ -435,6 +435,7 @@
 }
 
 .role-entry__games-dialog {
+  grid-template-rows: minmax(0, 1fr);
   width: min(760px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   gap: 8px;
@@ -443,9 +444,17 @@
 
 .role-entry__games-dialog .role-entry__games-card {
   min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+/* Keep the close control fixed while long world libraries scroll inside the dialog. */
+.role-entry__games-dialog .role-entry__games-card > section {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .role-entry__game-statuses {

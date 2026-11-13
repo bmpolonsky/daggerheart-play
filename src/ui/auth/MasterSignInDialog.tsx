@@ -97,6 +97,7 @@ export function MasterSignInDialog({ config, onClose }: { config: SupabaseSessio
       onClose={onClose}
     >
       <div className={styles.content}>
+        {auth.status === 'error' && <Notice tone="warning" role="status">Не удалось проверить аккаунт. Проверьте соединение и попробуйте войти снова.</Notice>}
         {error && <Notice tone="error" role="alert">{error}</Notice>}
         {auth.status === 'signedIn' ? (
           <div className={styles.account}>

@@ -1,8 +1,10 @@
+import { servedDreadContract } from './reviewed-dread-contract.mjs';
 import { expect, test } from '@playwright/test';
 import { installDeterministicP2PTransport } from './game-route-helpers';
 
 for (const width of [1440, 390, 320]) {
-  test(`released H&F Dread cards and empty Void results remain usable at ${width}px`, async ({ page }) => {
+  test(`reviewed Dread source filters remain usable at ${width}px`, async ({ page }) => {
+    const contract = await servedDreadContract(page.request);
     await page.setViewportSize({ width, height: 900 });
     await installDeterministicP2PTransport(page);
     await page.goto('/#/library/compendium/classes');
@@ -25,23 +27,29 @@ for (const width of [1440, 390, 320]) {
     await page.screenshot({ path: test.info().outputPath(`hf-classes-${width}.png`) });
     await page.goto('/#/library/compendium/domain-cards');
     const cards = workspace.locator('.player-library-card');
-    await expect(cards).toHaveCount(21);
-    await expect(cards.filter({ hasText: 'Ужас — Уровень' })).toHaveCount(21);
-    await expect(cards.filter({ hasText: 'Глас ужаса' })).toBeVisible();
-    await expect(workspace.locator('.player-library-source-notice')).toHaveCount(0);
-    await expect(workspace.getByText('Ничего не найдено.', { exact: true })).toHaveCount(0);
+    await expect(cards).toHaveCount(contract.hfCards);
+    await expect(cards.filter({ hasText: 'Ужас — Уровень' })).toHaveCount(contract.hfCards);
+    if (contract.restricted) {
+      await expect(workspace.locator('.player-library-source-notice')).toBeVisible();
+      await expect(workspace.getByText('Ничего не найдено.', { exact: true })).toBeVisible();
+    } else {
+      await expect(cards.filter({ hasText: 'Глас ужаса' })).toBeVisible();
+      await expect(workspace.locator('.player-library-source-notice')).toHaveCount(0);
+      await expect(workspace.getByText('Ничего не найдено.', { exact: true })).toHaveCount(0);
+    }
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
     await page.screenshot({ path: test.info().outputPath(`hf-dread-cards-${width}.png`) });
     await sources.getByRole('button', { name: 'The Void', exact: true }).click();
     await expect(sources.getByRole('button', { name: 'The Void', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(cards).toHaveCount(0);
-    await expect(workspace.getByText('Ничего не найдено.', { exact: true })).toBeVisible();
+    await expect(cards).toHaveCount(contract.voidCards);
+    if (contract.voidCards === 0) await expect(workspace.getByText('Ничего не найдено.', { exact: true })).toBeVisible();
+    else await expect(cards.filter({ hasText: 'Глас ужаса' })).toBeVisible();
     await expect(workspace.locator('.player-library-source-notice')).toHaveCount(0);
     // The empty filtered view must retain usable space without horizontal overflow.
     expect((await workspace.locator('.player-library-workspace').boundingBox())!.height).toBeGreaterThan(200);
     await expect(page.locator('body')).toHaveJSProperty('scrollWidth', width);
     await page.screenshot({ path: test.info().outputPath(`void-empty-cards-${width}.png`) });
     await sources.getByRole('button', { name: 'Hope & Fear', exact: true }).click();
-    await expect(cards).toHaveCount(21);
+    await expect(cards).toHaveCount(contract.hfCards);
   });
 }

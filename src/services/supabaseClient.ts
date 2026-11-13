@@ -15,6 +15,8 @@ let dataClient: SupabaseClient | null = null;
 let sharedConfigKey = '';
 let dataRole: 'master' | 'player' = 'master';
 let masterAuthUnsubscribe: (() => void) | null = null;
+let masterAuthRevision = 0;
+const MASTER_SESSION_TIMEOUT_MS = 10_000;
 const masterAuthStore = new Store<SupabaseMasterAuthState>({ status: 'loading', email: '' });
 export const supabaseMasterAuth$ = masterAuthStore.toStream();
 
@@ -77,16 +79,35 @@ export async function supabaseMasterSignedIn(config: SupabaseSessionConfig): Pro
 }
 
 export async function initializeSupabaseMasterAuth(config: SupabaseSessionConfig): Promise<SupabaseMasterAuthState> {
-  const { data, error } = await getSupabaseAuthClient(config).auth.getSession();
-  if (error) {
-    reportOperationalError(error, { area: 'auth', operation: 'read-master-session', tags: { provider: 'supabase' } });
-    const state: SupabaseMasterAuthState = { status: 'error', email: '' };
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let revision = masterAuthRevision;
+  let client: SupabaseClient | undefined;
+  try {
+    client = getSupabaseAuthClient(config);
+    revision = masterAuthRevision;
+    const { data, error } = await Promise.race([
+      client.auth.getSession(),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(Object.assign(new Error('master_session_timeout'), { code: 'request_timeout' })), MASTER_SESSION_TIMEOUT_MS);
+      })
+    ]);
+    if (error) throw error;
+    // A newer auth event or a different server takes precedence over this read.
+    if (revision !== masterAuthRevision) return masterAuthStore.get();
+    const state = masterAuthState(data.session);
+    masterAuthRevision += 1;
     masterAuthStore.set(state);
     return state;
+  } catch (error) {
+    reportOperationalError(error, { area: 'auth', operation: 'read-master-session', tags: { provider: 'supabase' } });
+    if (client && revision !== masterAuthRevision) return masterAuthStore.get();
+    const state: SupabaseMasterAuthState = { status: 'error', email: '' };
+    masterAuthRevision += 1;
+    masterAuthStore.set(state);
+    return state;
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
   }
-  const state = masterAuthState(data.session);
-  masterAuthStore.set(state);
-  return state;
 }
 
 export async function signInSupabaseMaster(config: SupabaseSessionConfig, redirectTo: string): Promise<void> {
@@ -128,6 +149,7 @@ function ensureClients(config: SupabaseSessionConfig): void {
   if (!authClient || !guestClient || !dataClient || sharedConfigKey !== configKey) {
     masterAuthUnsubscribe?.();
     masterAuthUnsubscribe = null;
+    masterAuthRevision += 1;
     masterAuthStore.set({ status: 'loading', email: '' });
     dataRole = 'master';
     authClient = createClient(config.url, config.publishableKey, {
@@ -159,7 +181,10 @@ function ensureClients(config: SupabaseSessionConfig): void {
         detectSessionInUrl: false
       }
     });
+    const observedClient = authClient;
     const { data: authListener } = authClient.auth.onAuthStateChange((_event, session) => {
+      if (authClient !== observedClient) return;
+      masterAuthRevision += 1;
       masterAuthStore.set(masterAuthState(session));
     });
     masterAuthUnsubscribe = () => authListener.subscription.unsubscribe();
