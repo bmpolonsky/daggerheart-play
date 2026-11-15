@@ -547,13 +547,18 @@ export class SupabaseRelayTransport implements P2PTransportAdapter {
     const { data, error, status } = await abortable(this.client.rpc(name, args), signal);
     if (error) {
       const failure = this.relayError(error.message, status);
-      if (failure.code !== 'room_not_found' && failure.code !== 'master_offline') this.report(failure, name);
+      this.report(failure, name);
       throw failure;
     }
     return data as T;
   }
 
   private report(error: unknown, operation: string): void {
+    // Normal room lifecycle outcomes must stay out of telemetry at every layer,
+    // including heartbeat's outer catch (which also handles refresh failures).
+    // Keep emitting them to the UI so loss of the room remains visible.
+    if (error instanceof RelayTransportError
+      && (error.code === 'room_not_found' || error.code === 'master_offline')) return;
     reportOperationalError(error, {
       area: 'network',
       operation,
