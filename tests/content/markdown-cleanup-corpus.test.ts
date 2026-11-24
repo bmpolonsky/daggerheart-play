@@ -67,9 +67,14 @@ test('cleans every Markdown link in the current content corpus without losing vi
   }
 
   const hash = createHash('sha256').update(JSON.stringify([...cleaned].sort((left, right) => left.key.localeCompare(right.key)))).digest('hex');
-  // 2026-11-10: pin stable slug/id paths, sorted by key. API item order
-  // changed after the beta exclusions; all 1387 linked texts are unchanged.
-  assert.equal(hash, '9cbb8e85479f09c28b31ad4410649baa5f09a84c576536bb84116d0205ff8a48', 'cleaned Markdown corpus changed; review the diff before updating the hash');
+  // Code-only builds may still use the previously reviewed cache. The 2026-11-23
+  // refresh corrected the Black Powder Revolver's English damage from d8+8 to
+  // d6+8 (Daggerheart SRD 1.0, p. 48); the other 1,386 linked texts are unchanged.
+  const reviewedHashes = [
+    '9cbb8e85479f09c28b31ad4410649baa5f09a84c576536bb84116d0205ff8a48',
+    '07dcfe74db7dd4950c9b9ed53686dfd06504d76f4d2c0ed590dc1e905087dd8b',
+  ];
+  assert.ok(reviewedHashes.includes(hash), `cleaned Markdown corpus changed (${hash}); review the diff before updating the hashes`);
 });
 
 test('visible corpus text excludes quote structure while retaining comparisons and rule changes', () => {
